@@ -52,12 +52,20 @@ type PlayerSnapshot struct {
 	Speed               float64
 	LastCommandSequence uint64
 	LastCommandTick     uint64
+	LastActionSequence  uint64
+	LastActionPulse     uint64
+	LastActionResult    string
+	CombatTarget        string
+	NextAttackPulse     uint64
+	AutoApproaching     bool
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
 type Snapshot struct {
-	Tick    uint64
-	Players []PlayerSnapshot
+	Tick        uint64
+	Players     []PlayerSnapshot
+	ActionPulse uint64
+	Dummy       DummySnapshot
 }
 
 type playerState struct {
@@ -69,6 +77,12 @@ type playerState struct {
 	speed               float64
 	lastCommandSequence uint64
 	lastCommandTick     uint64
+	lastActionSequence  uint64
+	lastActionPulse     uint64
+	lastActionResult    string
+	combatTarget        string
+	nextAttackPulse     uint64
+	autoApproaching     bool
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
@@ -80,6 +94,7 @@ type World struct {
 	pendingLeaves map[PlayerID]struct{}
 	pendingMoves  map[PlayerID]pendingMove
 	pathfinder    Pathfinder
+	combat        *combatState
 }
 
 type pendingMove struct {
@@ -93,6 +108,7 @@ func NewWorld() *World {
 		pendingJoins:  make(map[PlayerID]*playerState),
 		pendingLeaves: make(map[PlayerID]struct{}),
 		pendingMoves:  make(map[PlayerID]pendingMove),
+		combat:        newCombatState(),
 	}
 }
 
@@ -166,6 +182,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 
 	w.pendingLeaves[id] = struct{}{}
 	delete(w.pendingMoves, id)
+	delete(w.combat.pendingTargets, id)
 	return nil
 }
 
@@ -237,6 +254,7 @@ func (w *World) Step(elapsed time.Duration) {
 		player.path = clonePositions(move.path)
 		player.lastCommandSequence = move.command.Sequence
 		player.lastCommandTick = w.tick
+		player.autoApproaching = false
 		delete(w.pendingMoves, id)
 	}
 
@@ -247,6 +265,7 @@ func (w *World) Step(elapsed time.Duration) {
 			player.navigationLocation = location
 		}
 	}
+	w.advanceCombat(elapsed)
 
 	for id := range w.pendingLeaves {
 		delete(w.players, id)
@@ -273,8 +292,10 @@ func (w *World) Snapshot() Snapshot {
 	defer w.mu.RUnlock()
 
 	snapshot := Snapshot{
-		Tick:    w.tick,
-		Players: make([]PlayerSnapshot, 0, len(w.players)),
+		Tick:        w.tick,
+		Players:     make([]PlayerSnapshot, 0, len(w.players)),
+		ActionPulse: w.combat.pulse,
+		Dummy:       w.combat.dummy,
 	}
 	for _, player := range w.players {
 		snapshot.Players = append(snapshot.Players, snapshotPlayer(player))
@@ -332,6 +353,12 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastCommandSequence: player.lastCommandSequence,
 		LastCommandTick:     player.lastCommandTick,
 		NavigationLocation:  player.navigationLocation,
+		LastActionSequence:  player.lastActionSequence,
+		LastActionPulse:     player.lastActionPulse,
+		LastActionResult:    player.lastActionResult,
+		CombatTarget:        player.combatTarget,
+		NextAttackPulse:     player.nextAttackPulse,
+		AutoApproaching:     player.autoApproaching,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

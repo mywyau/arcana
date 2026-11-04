@@ -110,18 +110,35 @@ func (h *Handler) readCommands(
 			continue
 		}
 
-		destination := simulation.Position{
-			X: message.Destination.X,
-			Y: message.Destination.Y,
-			Z: message.Destination.Z,
+		rejectionCode := "command_rejected"
+		switch message.Type {
+		case protocol.MessageMoveTo:
+			destination := simulation.Position{
+				X: message.Destination.X,
+				Y: message.Destination.Y,
+				Z: message.Destination.Z,
+			}
+			err = h.world.QueueMove(simulation.MoveCommand{
+				PlayerID:    playerID,
+				Sequence:    message.Sequence,
+				Destination: destination,
+			})
+		case protocol.MessageEngageTarget:
+			rejectionCode = "action_rejected"
+			err = h.world.QueueTarget(simulation.TargetCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				TargetID: message.TargetID,
+			})
+		case protocol.MessageDisengage:
+			rejectionCode = "action_rejected"
+			err = h.world.QueueTarget(simulation.TargetCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+			})
 		}
-		err = h.world.QueueMove(simulation.MoveCommand{
-			PlayerID:    playerID,
-			Sequence:    message.Sequence,
-			Destination: destination,
-		})
 		if err != nil {
-			sendResponse(ctx, responses, errorMessage("command_rejected", err))
+			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
 		}
 	}
 }
@@ -151,7 +168,17 @@ func errorMessage(code string, err error) protocol.ServerMessage {
 
 func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
-		Tick:    snapshot.Tick,
+		Tick:        snapshot.Tick,
+		ActionPulse: snapshot.ActionPulse,
+		Dummy: protocol.DummySnapshot{
+			Position: protocol.Position{
+				X: snapshot.Dummy.Position.X,
+				Y: snapshot.Dummy.Position.Y,
+				Z: snapshot.Dummy.Position.Z,
+			},
+			Health:        snapshot.Dummy.Health,
+			MaximumHealth: snapshot.Dummy.MaximumHealth,
+		},
 		Players: make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
 	}
 	for _, player := range snapshot.Players {
@@ -169,7 +196,13 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Kind: string(player.NavigationLocation.Kind),
 				ID:   player.NavigationLocation.ID,
 			},
-			Path: make([]protocol.Position, 0, len(player.Path)),
+			LastActionSequence: player.LastActionSequence,
+			LastActionPulse:    player.LastActionPulse,
+			LastActionResult:   player.LastActionResult,
+			CombatTarget:       player.CombatTarget,
+			NextAttackPulse:    player.NextAttackPulse,
+			AutoApproaching:    player.AutoApproaching,
+			Path:               make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, waypoint := range player.Path {
 			playerMessage.Path = append(playerMessage.Path, protocol.Position{

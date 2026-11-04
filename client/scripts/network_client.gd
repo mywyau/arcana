@@ -61,6 +61,39 @@ func send_move(sequence: int, destination: Vector3) -> bool:
 	return true
 
 
+func send_engage_target(sequence: int, target_id: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot engage a target while disconnected")
+		return false
+
+	var message: Dictionary = {
+		"type": "engage_target",
+		"sequence": sequence,
+		"target_id": target_id,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not engage target: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_disengage(sequence: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot disengage while disconnected")
+		return false
+
+	var message: Dictionary = {
+		"type": "disengage",
+		"sequence": sequence,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not disengage: %s" % error_string(result))
+		return false
+	return true
+
+
 func _handle_state_change(state: WebSocketPeer.State) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:

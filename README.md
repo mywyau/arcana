@@ -80,3 +80,13 @@ World colliders are tagged and masked by navigation layer. Normal clicks target
 the local player's authoritative floor while the ramp remains selectable from
 either adjacent layer. The upper floor and its obstacle fade while the player
 is below and partially fade during a ramp transition.
+
+### Combat prototype
+
+Click the red target dummy to engage it. The authoritative server approaches to
+sword range and automatically attacks every four 600 ms action pulses. Clicking
+a walkable surface repositions your character without dropping the target; if
+you remain out of range, automatic approach resumes on the next action pulse.
+Press `Escape` to disengage. A successful hit deals 10 damage, and the combat
+diagnostic shows the target, cadence, dummy health, and last result. Restart the
+server to reset the dummy.

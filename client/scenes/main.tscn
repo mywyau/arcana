@@ -1,13 +1,19 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene format=3 uid="uid://b18fv1mp3gwg8"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scripts/network_client.gd" id="2_network"]
-[ext_resource type="Script" path="res://scripts/guided_camera.gd" id="3_camera"]
-[ext_resource type="Script" path="res://scripts/floor_visibility.gd" id="4_floor_visibility"]
+[ext_resource type="Script" uid="uid://i34goilrn08g" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://dkokialdfv0o7" path="res://scripts/network_client.gd" id="2_network"]
+[ext_resource type="Script" uid="uid://t7lir1ekw8pp" path="res://scripts/guided_camera.gd" id="3_camera"]
+[ext_resource type="Script" uid="uid://tys80ciwbtbq" path="res://scripts/floor_visibility.gd" id="4_floor_visibility"]
+
+[sub_resource type="Environment" id="Environment_world"]
+background_mode = 1
+background_color = Color(0.12, 0.18, 0.22, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.7, 0.78, 0.82, 1)
+ambient_light_energy = 0.65
 
 [sub_resource type="StandardMaterial3D" id="GroundMaterial"]
 albedo_color = Color(0.24, 0.48, 0.29, 1)
-roughness = 1.0
 
 [sub_resource type="BoxMesh" id="GroundMesh"]
 material = SubResource("GroundMaterial")
@@ -31,6 +37,13 @@ size = Vector3(8, 0.2, 8)
 albedo_color = Color(0.48, 0.4, 0.3, 1)
 roughness = 0.95
 
+[sub_resource type="BoxMesh" id="UpperObstacleMesh"]
+material = SubResource("RampMaterial")
+size = Vector3(1, 2, 3)
+
+[sub_resource type="BoxShape3D" id="UpperObstacleShape"]
+size = Vector3(1, 2, 3)
+
 [sub_resource type="BoxMesh" id="RampMesh"]
 material = SubResource("RampMaterial")
 size = Vector3(3.6055, 0.18, 2)
@@ -45,13 +58,6 @@ size = Vector3(1, 2, 2)
 [sub_resource type="BoxShape3D" id="GroundObstacleShape"]
 size = Vector3(1, 2, 2)
 
-[sub_resource type="BoxMesh" id="UpperObstacleMesh"]
-material = SubResource("RampMaterial")
-size = Vector3(1, 2, 3)
-
-[sub_resource type="BoxShape3D" id="UpperObstacleShape"]
-size = Vector3(1, 2, 3)
-
 [sub_resource type="StandardMaterial3D" id="MarkerMaterial"]
 albedo_color = Color(0.95, 0.76, 0.2, 1)
 emission_enabled = true
@@ -63,12 +69,17 @@ top_radius = 0.25
 bottom_radius = 0.25
 height = 0.04
 
-[sub_resource type="Environment" id="Environment_world"]
-background_mode = 1
-background_color = Color(0.12, 0.18, 0.22, 1)
-ambient_light_source = 3
-ambient_light_color = Color(0.7, 0.78, 0.82, 1)
-ambient_light_energy = 0.65
+[sub_resource type="StandardMaterial3D" id="DummyMaterial"]
+albedo_color = Color(0.75, 0.16, 0.12, 1)
+roughness = 0.85
+
+[sub_resource type="CapsuleMesh" id="DummyMesh"]
+material = SubResource("DummyMaterial")
+radius = 0.45
+
+[sub_resource type="CapsuleShape3D" id="DummyShape"]
+radius = 0.45
+height = 2.0
 
 [sub_resource type="LabelSettings" id="StatusLabelSettings"]
 font_size = 18
@@ -76,124 +87,146 @@ font_color = Color(0.95, 0.97, 1, 1)
 outline_size = 5
 outline_color = Color(0.04, 0.06, 0.08, 0.85)
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=92871911]
 script = ExtResource("1_main")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2038963755]
 environment = SubResource("Environment_world")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-55, -35, 0)
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=278468625]
+transform = Transform3D(0.81915206, 0.46984634, -0.32898995, 0, 0.57357645, 0.81915206, 0.57357645, -0.6710101, 0.46984634, 0, 0, 0)
 light_energy = 1.1
 shadow_enabled = true
 
-[node name="Ground" type="MeshInstance3D" parent="."]
-position = Vector3(0, -0.1, 0)
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=527671356]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0015332699, -0.10511241, 0.0027843714)
 mesh = SubResource("GroundMesh")
 
-[node name="GroundBody" type="StaticBody3D" parent="."]
-collision_layer = 1
+[node name="GroundBody" type="StaticBody3D" parent="." unique_id=1175225259]
 metadata/navigation_layer_id = "ground"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody"]
-position = Vector3(0, -0.1, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody" unique_id=1744783982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 shape = SubResource("GroundShape")
 
-[node name="UpperLevel" type="Node3D" parent="."]
+[node name="UpperLevel" type="Node3D" parent="." unique_id=607603903]
 script = ExtResource("4_floor_visibility")
 
-[node name="UpperFloor" type="MeshInstance3D" parent="UpperLevel"]
-position = Vector3(-2, 2.9, 0)
+[node name="UpperFloor" type="MeshInstance3D" parent="UpperLevel" unique_id=1712070915]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.9, 0)
 mesh = SubResource("UpperMesh")
 
-[node name="UpperFloorBody" type="StaticBody3D" parent="UpperLevel"]
+[node name="UpperFloorBody" type="StaticBody3D" parent="UpperLevel" unique_id=958896425]
 collision_layer = 2
 metadata/navigation_layer_id = "upper"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperLevel/UpperFloorBody"]
-position = Vector3(-2, 2.9, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperLevel/UpperFloorBody" unique_id=634423960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.9, 0)
 shape = SubResource("UpperShape")
 
-[node name="Ramp" type="MeshInstance3D" parent="."]
-position = Vector3(3, 1.5, 0)
-rotation_degrees = Vector3(0, 0, -56.31)
+[node name="UpperObstacle" type="MeshInstance3D" parent="UpperLevel" unique_id=57243492]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 4, 0.5)
+mesh = SubResource("UpperObstacleMesh")
+
+[node name="UpperObstacleBody" type="StaticBody3D" parent="UpperLevel" unique_id=658773041]
+collision_layer = 2
+metadata/navigation_layer_id = "upper"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperLevel/UpperObstacleBody" unique_id=228389483]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 4, 0.5)
+shape = SubResource("UpperObstacleShape")
+
+[node name="Ramp" type="MeshInstance3D" parent="." unique_id=814451014]
+transform = Transform3D(0.5546992, 0.832051, 0, -0.832051, 0.5546992, 0, 0, 0, 1, 3, 1.5, 0)
 mesh = SubResource("RampMesh")
 
-[node name="RampBody" type="StaticBody3D" parent="."]
-position = Vector3(3, 1.5, 0)
-rotation_degrees = Vector3(0, 0, -56.31)
+[node name="RampBody" type="StaticBody3D" parent="." unique_id=1180969441]
+transform = Transform3D(0.5546992, 0.832051, 0, -0.832051, 0.5546992, 0, 0, 0, 1, 3, 1.5, 0)
 collision_layer = 4
 metadata/navigation_connector_id = "ground_upper_ramp"
 metadata/navigation_layers = PackedStringArray("ground", "upper")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="RampBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RampBody" unique_id=372793969]
 shape = SubResource("RampShape")
 
-[node name="GroundObstacle" type="MeshInstance3D" parent="."]
-position = Vector3(1, 1, 0)
+[node name="GroundObstacle" type="MeshInstance3D" parent="." unique_id=483328325]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0)
 mesh = SubResource("GroundObstacleMesh")
 
-[node name="GroundObstacleBody" type="StaticBody3D" parent="."]
-collision_layer = 1
+[node name="GroundObstacleBody" type="StaticBody3D" parent="." unique_id=2065668541]
 metadata/navigation_layer_id = "ground"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundObstacleBody"]
-position = Vector3(1, 1, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundObstacleBody" unique_id=124802346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0)
 shape = SubResource("GroundObstacleShape")
 
-[node name="UpperObstacle" type="MeshInstance3D" parent="UpperLevel"]
-position = Vector3(-2.5, 4, 0.5)
-mesh = SubResource("UpperObstacleMesh")
-
-[node name="UpperObstacleBody" type="StaticBody3D" parent="UpperLevel"]
-collision_layer = 2
-metadata/navigation_layer_id = "upper"
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperLevel/UpperObstacleBody"]
-position = Vector3(-2.5, 4, 0.5)
-shape = SubResource("UpperObstacleShape")
-
-[node name="ClickMarker" type="MeshInstance3D" parent="."]
+[node name="ClickMarker" type="MeshInstance3D" parent="." unique_id=975731856]
 visible = false
 mesh = SubResource("MarkerMesh")
 
-[node name="Players" type="Node3D" parent="."]
+[node name="TargetDummy" type="Node3D" parent="." unique_id=1688036856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -2)
 
-[node name="CameraRig" type="Node3D" parent="."]
+[node name="Mesh" type="MeshInstance3D" parent="TargetDummy" unique_id=1872277111]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("DummyMesh")
+
+[node name="TargetBody" type="StaticBody3D" parent="TargetDummy"]
+collision_layer = 8
+metadata/combat_target_id = "dummy"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TargetDummy/TargetBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("DummyShape")
+
+[node name="Players" type="Node3D" parent="." unique_id=459163009]
+
+[node name="CameraRig" type="Node3D" parent="." unique_id=2094638855]
 script = ExtResource("3_camera")
 
-[node name="Yaw" type="Node3D" parent="CameraRig"]
+[node name="Yaw" type="Node3D" parent="CameraRig" unique_id=1017318951]
 
-[node name="Pitch" type="Node3D" parent="CameraRig/Yaw"]
+[node name="Pitch" type="Node3D" parent="CameraRig/Yaw" unique_id=1380825042]
 
-[node name="Camera3D" type="Camera3D" parent="CameraRig/Yaw/Pitch"]
-position = Vector3(0, 0, 13)
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Yaw/Pitch" unique_id=1687575905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 13)
 current = true
 fov = 48.0
 
-[node name="NetworkClient" type="Node" parent="."]
+[node name="NetworkClient" type="Node" parent="." unique_id=54155322]
 script = ExtResource("2_network")
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=705812827]
 
-[node name="Margin" type="MarginContainer" parent="UI"]
+[node name="Margin" type="MarginContainer" parent="UI" unique_id=1258717813]
 offset_right = 1280.0
 offset_bottom = 64.0
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 16
 
-[node name="Status" type="Label" parent="UI/Margin"]
+[node name="Status" type="Label" parent="UI/Margin" unique_id=1890175978]
 layout_mode = 2
 text = "Starting client…"
 label_settings = SubResource("StatusLabelSettings")
 
-[node name="DiagnosticsMargin" type="MarginContainer" parent="UI"]
+[node name="DiagnosticsMargin" type="MarginContainer" parent="UI" unique_id=2070827952]
 offset_top = 42.0
 offset_right = 1280.0
 offset_bottom = 92.0
 theme_override_constants/margin_left = 20
 
-[node name="Diagnostics" type="Label" parent="UI/DiagnosticsMargin"]
+[node name="Diagnostics" type="Label" parent="UI/DiagnosticsMargin" unique_id=1507530839]
 layout_mode = 2
 text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
+label_settings = SubResource("StatusLabelSettings")
+
+[node name="CombatMargin" type="MarginContainer" parent="UI" unique_id=847918071]
+offset_top = 94.0
+offset_right = 1280.0
+offset_bottom = 144.0
+theme_override_constants/margin_left = 20
+
+[node name="Combat" type="Label" parent="UI/CombatMargin" unique_id=15976531]
+layout_mode = 2
+text = "pulse 0  |  target none  |  sword idle  |  dummy 100/100  |  none"
 label_settings = SubResource("StatusLabelSettings")
