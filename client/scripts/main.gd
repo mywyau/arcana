@@ -7,6 +7,23 @@ const UPPER_COLLISION_MASK: int = 2
 const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const ALL_WORLD_COLLISION_MASK: int = 7
+const PLACEHOLDER_SKILLS: Array = [
+	{"name": "Blades", "level": 1},
+	{"name": "Vitality", "level": 1},
+	{"name": "Agility", "level": 1},
+	{"name": "Arcana", "level": 1},
+	{"name": "Devotion", "level": 1},
+	{"name": "Crafting", "level": 1},
+]
+const SWORD_ICON: Texture2D = preload("res://assets/icons/sword.svg")
+const DAGGER_ICON: Texture2D = preload("res://assets/icons/dagger.svg")
+const BOW_ICON: Texture2D = preload("res://assets/icons/bow.svg")
+const EMPTY_SLOT_ICON: Texture2D = preload("res://assets/icons/empty_slot.svg")
+const EQUIPMENT_ICONS: Dictionary = {
+	"sword": SWORD_ICON,
+	"dagger": DAGGER_ICON,
+	"bow": BOW_ICON,
+}
 
 @onready var camera_rig: GuidedCamera = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
@@ -14,6 +31,30 @@ const ALL_WORLD_COLLISION_MASK: int = 7
 @onready var players: Node3D = $Players
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
+@onready var combat_hud: PanelContainer = $UI/CombatHUD
+@onready var inventory_hud: PanelContainer = $UI/InventoryHUD
+@onready var skills_hud: PanelContainer = $UI/SkillsHUD
+@onready var equipment_hud: PanelContainer = $UI/EquipmentHUD
+@onready var combat_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Combat
+@onready var inventory_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Inventory
+@onready var combat_skills_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Skills
+@onready var combat_equipment_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Equipment
+@onready var inventory_combat_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Combat
+@onready var inventory_active_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Inventory
+@onready var inventory_skills_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Skills
+@onready var inventory_equipment_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Equipment
+@onready var inventory_summary: Label = $UI/InventoryHUD/Margin/VBox/Summary
+@onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/Grid
+@onready var skills_combat_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Combat
+@onready var skills_inventory_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Inventory
+@onready var skills_active_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Skills
+@onready var skills_equipment_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Equipment
+@onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/Grid
+@onready var equipment_combat_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Combat
+@onready var equipment_inventory_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Inventory
+@onready var equipment_skills_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Skills
+@onready var equipment_active_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Equipment
+@onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/Grid
 @onready var player_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/PlayerHealth
 @onready var player_health_label: Label = $UI/CombatHUD/Margin/VBox/PlayerRow/PlayerHealthLabel
 @onready var target_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/TargetHealth
@@ -24,8 +65,10 @@ const ALL_WORLD_COLLISION_MASK: int = 7
 @onready var cooldown_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/Cooldown
 @onready var sword_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Sword
 @onready var dagger_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Dagger
+@onready var bow_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Bow
 @onready var disengage_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Disengage
 @onready var click_marker: MeshInstance3D = $ClickMarker
+@onready var target_click_pulse: MeshInstance3D = $TargetClickPulse
 @onready var upper_level: FloorVisibility = $UpperLevel
 @onready var target_dummy: TargetDummy = $TargetDummy
 
@@ -54,11 +97,15 @@ var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "sword"
 var _last_equipment_sequence: int = 0
 var _queued_weapon: String = ""
+var _inventory_capacity: int = 8
+var _inventory_items: Array = []
+var _inventory_signature: String = ""
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
 var _pending_click: Vector2
 var _has_pending_click: bool = false
+var _target_click_tween: Tween
 
 
 func _ready() -> void:
@@ -68,8 +115,28 @@ func _ready() -> void:
 	network.server_error.connect(_on_server_error)
 	sword_button.pressed.connect(_request_equip.bind("sword"))
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
+	bow_button.pressed.connect(_request_equip.bind("bow"))
 	disengage_button.pressed.connect(_request_disengage)
+	combat_tab_button.pressed.connect(_show_combat_tab)
+	inventory_tab_button.pressed.connect(_show_inventory_tab)
+	combat_skills_tab_button.pressed.connect(_show_skills_tab)
+	combat_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	inventory_combat_tab_button.pressed.connect(_show_combat_tab)
+	inventory_active_tab_button.pressed.connect(_show_inventory_tab)
+	inventory_skills_tab_button.pressed.connect(_show_skills_tab)
+	inventory_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	skills_combat_tab_button.pressed.connect(_show_combat_tab)
+	skills_inventory_tab_button.pressed.connect(_show_inventory_tab)
+	skills_active_tab_button.pressed.connect(_show_skills_tab)
+	skills_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	equipment_combat_tab_button.pressed.connect(_show_combat_tab)
+	equipment_inventory_tab_button.pressed.connect(_show_inventory_tab)
+	equipment_skills_tab_button.pressed.connect(_show_skills_tab)
+	equipment_active_tab_button.pressed.connect(_show_equipment_tab)
 	_update_combat_hud()
+	_update_inventory_hud()
+	_populate_placeholder_skills()
+	_update_equipment_hud()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -85,6 +152,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					get_viewport().set_input_as_handled()
 				KEY_2:
 					_request_equip("dagger")
+					get_viewport().set_input_as_handled()
+				KEY_3:
+					_request_equip("bow")
 					get_viewport().set_input_as_handled()
 		return
 	if not event is InputEventMouseButton:
@@ -118,6 +188,7 @@ func _physics_process(_delta: float) -> void:
 		if network.send_engage_target(_next_action_sequence, target_id):
 			_next_action_sequence += 1
 			click_marker.visible = false
+			_play_target_click_feedback(clicked_body.global_position)
 			_update_combat_hud()
 		return
 
@@ -151,6 +222,25 @@ func _can_predict_directly(
 	)
 	query.collision_mask = _active_collision_mask()
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _play_target_click_feedback(target_position: Vector3) -> void:
+	if _target_click_tween != null and _target_click_tween.is_valid():
+		_target_click_tween.kill()
+	target_click_pulse.global_position = target_position + Vector3.UP * 0.06
+	target_click_pulse.scale = Vector3.ONE * 0.55
+	target_click_pulse.transparency = 0.0
+	target_click_pulse.visible = true
+	_target_click_tween = create_tween()
+	_target_click_tween.set_parallel(true)
+	_target_click_tween.tween_property(
+		target_click_pulse,
+		"scale",
+		Vector3.ONE * 1.35,
+		0.22,
+	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_target_click_tween.tween_property(target_click_pulse, "transparency", 1.0, 0.38)
+	_target_click_tween.chain().tween_callback(target_click_pulse.hide)
 
 
 func _request_equip(item_id: String) -> void:
@@ -281,7 +371,13 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_defeated = bool(player_data.get("defeated", false))
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
-			_equipped_weapon = str(player_data.get("equipped_weapon", "sword"))
+			var inventory_data: Variant = player_data.get("inventory", {})
+			if typeof(inventory_data) == TYPE_DICTIONARY:
+				_apply_inventory_snapshot(inventory_data as Dictionary)
+			var equipped_weapon: String = str(player_data.get("equipped_weapon", "sword"))
+			if equipped_weapon != _equipped_weapon:
+				_equipped_weapon = equipped_weapon
+				_update_equipment_hud()
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			if _last_equipment_sequence >= _next_equipment_sequence - 1:
 				_queued_weapon = ""
@@ -374,6 +470,150 @@ func _on_server_error(code: String, message: String) -> void:
 			local_view.cancel_prediction()
 
 
+func _show_combat_tab() -> void:
+	combat_hud.visible = true
+	inventory_hud.visible = false
+	skills_hud.visible = false
+	equipment_hud.visible = false
+	combat_tab_button.set_pressed_no_signal(true)
+	inventory_tab_button.set_pressed_no_signal(false)
+	combat_skills_tab_button.set_pressed_no_signal(false)
+	combat_equipment_tab_button.set_pressed_no_signal(false)
+
+
+func _show_inventory_tab() -> void:
+	combat_hud.visible = false
+	inventory_hud.visible = true
+	skills_hud.visible = false
+	equipment_hud.visible = false
+	inventory_combat_tab_button.set_pressed_no_signal(false)
+	inventory_active_tab_button.set_pressed_no_signal(true)
+	inventory_skills_tab_button.set_pressed_no_signal(false)
+	inventory_equipment_tab_button.set_pressed_no_signal(false)
+
+
+func _show_skills_tab() -> void:
+	combat_hud.visible = false
+	inventory_hud.visible = false
+	skills_hud.visible = true
+	equipment_hud.visible = false
+	skills_combat_tab_button.set_pressed_no_signal(false)
+	skills_inventory_tab_button.set_pressed_no_signal(false)
+	skills_active_tab_button.set_pressed_no_signal(true)
+	skills_equipment_tab_button.set_pressed_no_signal(false)
+
+
+func _show_equipment_tab() -> void:
+	combat_hud.visible = false
+	inventory_hud.visible = false
+	skills_hud.visible = false
+	equipment_hud.visible = true
+	equipment_combat_tab_button.set_pressed_no_signal(false)
+	equipment_inventory_tab_button.set_pressed_no_signal(false)
+	equipment_skills_tab_button.set_pressed_no_signal(false)
+	equipment_active_tab_button.set_pressed_no_signal(true)
+
+
+func _populate_placeholder_skills() -> void:
+	for skill_data: Variant in PLACEHOLDER_SKILLS:
+		var skill: Dictionary = skill_data
+		var skill_tile := Button.new()
+		skill_tile.custom_minimum_size = Vector2(145, 72)
+		skill_tile.focus_mode = Control.FOCUS_NONE
+		skill_tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		skill_tile.text = "%s\nLevel %d" % [skill.get("name", "Skill"), skill.get("level", 1)]
+		skill_tile.tooltip_text = "Placeholder skill — progression is not active yet"
+		skills_grid.add_child(skill_tile)
+
+
+func _update_equipment_hud() -> void:
+	for child: Node in equipment_grid.get_children():
+		equipment_grid.remove_child(child)
+		child.queue_free()
+
+	var equipment_slots: Array = [
+		{"name": "Main Hand", "item": _equipped_weapon},
+		{"name": "Head", "item": ""},
+		{"name": "Body", "item": ""},
+		{"name": "Hands", "item": ""},
+		{"name": "Legs", "item": ""},
+		{"name": "Trinket", "item": ""},
+	]
+	for slot_data: Variant in equipment_slots:
+		var slot: Dictionary = slot_data
+		var item_id: String = str(slot.get("item", ""))
+		var tile := VBoxContainer.new()
+		tile.custom_minimum_size = Vector2(145, 92)
+		tile.alignment = BoxContainer.ALIGNMENT_CENTER
+		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(48, 58)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = EQUIPMENT_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.add_child(icon)
+		var label := Label.new()
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.text = "%s\n%s" % [
+			slot.get("name", "Slot"),
+			item_id.capitalize() if not item_id.is_empty() else "Empty",
+		]
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.add_child(label)
+		equipment_grid.add_child(tile)
+
+
+func _apply_inventory_snapshot(inventory: Dictionary) -> void:
+	var capacity: int = maxi(0, int(inventory.get("capacity", _inventory_capacity)))
+	var items_data: Variant = inventory.get("items", [])
+	if typeof(items_data) != TYPE_ARRAY:
+		return
+	var signature := "%d:%s" % [capacity, JSON.stringify(items_data)]
+	if signature == _inventory_signature:
+		return
+	_inventory_signature = signature
+	_inventory_capacity = capacity
+	_inventory_items = (items_data as Array).duplicate(true)
+	_update_inventory_hud()
+
+
+func _update_inventory_hud() -> void:
+	for child: Node in inventory_grid.get_children():
+		inventory_grid.remove_child(child)
+		child.queue_free()
+
+	var items_by_slot: Dictionary = {}
+	for payload: Variant in _inventory_items:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var item: Dictionary = payload
+		var slot: int = int(item.get("slot", -1))
+		var item_id: String = str(item.get("item_id", ""))
+		var quantity: int = int(item.get("quantity", 0))
+		if slot >= 0 and slot < _inventory_capacity and not item_id.is_empty() and quantity > 0:
+			items_by_slot[slot] = item
+
+	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), _inventory_capacity]
+	for slot: int in range(_inventory_capacity):
+		var slot_button := Button.new()
+		slot_button.custom_minimum_size = Vector2(108, 72)
+		slot_button.focus_mode = Control.FOCUS_NONE
+		slot_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if items_by_slot.has(slot):
+			var item: Dictionary = items_by_slot[slot]
+			var item_id: String = str(item.get("item_id", ""))
+			var quantity: int = int(item.get("quantity", 1))
+			slot_button.text = item_id.capitalize()
+			if quantity > 1:
+				slot_button.text += "  ×%d" % quantity
+			slot_button.tooltip_text = "%s — slot %d" % [item_id.capitalize(), slot + 1]
+		else:
+			slot_button.text = "Empty"
+			slot_button.modulate = Color(0.66, 0.7, 0.74)
+		inventory_grid.add_child(slot_button)
+
+
 func _update_combat_hud() -> void:
 	var state: String = "queued" if _last_action_sequence < _next_action_sequence - 1 else _last_action_result
 	if _player_defeated:
@@ -405,7 +645,11 @@ func _update_combat_hud() -> void:
 	else:
 		combat_state_label.text = "Out of combat"
 
-	var weapon_interval: int = 3 if _equipped_weapon == "dagger" else 4
+	var weapon_interval: int = 4
+	if _equipped_weapon == "dagger":
+		weapon_interval = 3
+	elif _equipped_weapon == "bow":
+		weapon_interval = 5
 	var remaining: int = maxi(0, _next_attack_pulse - _action_pulse)
 	cooldown_bar.max_value = weapon_interval
 	cooldown_bar.value = weapon_interval - mini(weapon_interval, remaining)
@@ -422,8 +666,11 @@ func _update_combat_hud() -> void:
 	var displayed_weapon: String = _queued_weapon if equipment_pending else _equipped_weapon
 	sword_button.set_pressed_no_signal(displayed_weapon == "sword")
 	dagger_button.set_pressed_no_signal(displayed_weapon == "dagger")
+	bow_button.set_pressed_no_signal(displayed_weapon == "bow")
 	sword_button.text = "1  Sword%s" % ("  • queued" if equipment_pending and _queued_weapon == "sword" else "")
 	dagger_button.text = "2  Dagger%s" % ("  • queued" if equipment_pending and _queued_weapon == "dagger" else "")
+	bow_button.text = "3  Bow%s" % ("  • queued" if equipment_pending and _queued_weapon == "bow" else "")
 	sword_button.disabled = _player_defeated
 	dagger_button.disabled = _player_defeated
+	bow_button.disabled = _player_defeated
 	disengage_button.disabled = _player_defeated or (_combat_target.is_empty() and _last_action_sequence >= _next_action_sequence - 1)

@@ -93,6 +93,8 @@ is below and partially fade during a ramp transition.
 
 Click the red target dummy to engage it. The authoritative server approaches to
 sword range and automatically attacks every four 600 ms action pulses. Clicking
+a target produces a brief violet-blue expanding ring, distinct from the gold
+movement marker, so engagement clicks have immediate local feedback. Clicking
 a walkable surface or pressing `Escape` clears the player's target and stops
 auto-approach, allowing manual movement to continue without being pulled back.
 The dummy owns its aggro separately: it can continue attacking while the player
@@ -111,13 +113,32 @@ the dummy have 100 health. At zero health, movement and target locks are cleared
 for a five-pulse defeated state; players then respawn at their original position
 and the dummy resets in place, both with full health.
 
-Press `1` to equip the sword (10 damage, four-pulse cadence) or `2` to equip
-the dagger (7 damage, three-pulse cadence). Equipment changes are validated by
+Press `1` to equip the sword (10 damage, four-pulse cadence), `2` to equip
+the dagger (7 damage, three-pulse cadence), or `3` to equip the bow (8 damage,
+five-pulse cadence, 6-unit range). Bow attacks launch a lightweight projectile
+presentation while their hit result remains server authoritative. Equipment changes are validated by
 the server and applied on the next action pulse without resetting an attack
 already on cooldown. Each weapon also supplies its own attack and approach
 range. Server-driven combat paths replace local movement prediction while
 approaching, preventing long-distance engagements from accumulating correction
 snaps.
+
+### Inventory prototype
+
+Each player has an authoritative eight-slot base inventory, with capacity sent
+in snapshots so future upgrades can expand it per player. The starter inventory
+contains the prototype sword, dagger, and bow. Use the Inventory tab in the
+bottom-right HUD to view its 4×2 grid. Slots are display-only in this first
+slice; item pickup, dragging, and equipping from the grid are not implemented.
+
+The adjacent Skills tab currently previews six placeholder skills—Blades,
+Vitality, Agility, Arcana, Devotion, and Crafting—at level 1. These values are
+client-only presentation placeholders; skill progression and XP are not yet
+part of the authoritative server state.
+
+The Equipment tab provides an icon-based overview of the authoritative
+main-hand weapon plus placeholder head, body, hands, legs, and trinket slots.
+Only the main-hand slot has gameplay state in this slice.
 
 Players and the dummy each have a separate 10% dodge rate. Every ready attack
 rolls dodge before damage: a dodge consumes the normal attack cadence, deals no
@@ -127,5 +148,5 @@ flat armour calculations.
 
 The bottom-right combat HUD shows player and target health, dodge, enemy aggro,
 attack readiness, current combat state, and respawn countdowns. Its sword,
-dagger, and disengage buttons send the same authoritative intentions as the
-`1`, `2`, and `Escape` shortcuts.
+dagger, bow, and disengage buttons send the same authoritative intentions as
+the `1`, `2`, `3`, and `Escape` shortcuts.

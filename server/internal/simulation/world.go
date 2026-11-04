@@ -89,6 +89,7 @@ type PlayerSnapshot struct {
 	LastEquipmentSequence uint64
 	LastEquipmentPulse    uint64
 	DodgeRate             float64
+	Inventory             InventorySnapshot
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -124,6 +125,7 @@ type playerState struct {
 	lastEquipmentSequence uint64
 	lastEquipmentPulse    uint64
 	dodgeRate             float64
+	inventory             inventoryState
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
@@ -190,7 +192,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	w.players[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
-		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate,
+		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
 	}
 	return nil
 }
@@ -219,7 +221,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	w.pendingJoins[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
-		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate,
+		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
 	}
 	return nil
 }
@@ -430,6 +432,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastEquipmentSequence: player.lastEquipmentSequence,
 		LastEquipmentPulse:    player.lastEquipmentPulse,
 		DodgeRate:             player.dodgeRate,
+		Inventory:             snapshotInventory(player.inventory),
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

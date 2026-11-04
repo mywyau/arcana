@@ -131,6 +131,12 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			LastEquipmentSequence: 3,
 			LastEquipmentPulse:    11,
 			DodgeRate:             0.15,
+			Inventory: simulation.InventorySnapshot{
+				Capacity: 8,
+				Items: []simulation.InventoryItem{{
+					Slot: 0, ItemID: "sword", Quantity: 1,
+				}},
+			},
 		}},
 	})
 
@@ -151,6 +157,11 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
 		player.DodgeRate != 0.15 {
 		t.Fatalf("player vital state = %+v", player)
+	}
+	if player.Inventory.Capacity != 8 || len(player.Inventory.Items) != 1 ||
+		player.Inventory.Items[0].Slot != 0 || player.Inventory.Items[0].ItemID != "sword" ||
+		player.Inventory.Items[0].Quantity != 1 {
+		t.Fatalf("player inventory = %+v", player.Inventory)
 	}
 }
 

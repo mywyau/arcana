@@ -89,6 +89,18 @@ type PlayerSnapshot struct {
 	LastEquipmentSequence uint64             `json:"last_equipment_sequence"`
 	LastEquipmentPulse    uint64             `json:"last_equipment_pulse"`
 	DodgeRate             float64            `json:"dodge_rate"`
+	Inventory             InventorySnapshot  `json:"inventory"`
+}
+
+type InventorySnapshot struct {
+	Capacity int             `json:"capacity"`
+	Items    []InventoryItem `json:"items"`
+}
+
+type InventoryItem struct {
+	Slot     int    `json:"slot"`
+	ItemID   string `json:"item_id"`
+	Quantity int    `json:"quantity"`
 }
 
 type NavigationLocation struct {

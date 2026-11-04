@@ -169,6 +169,32 @@ func TestDaggerUsesItsDamageAndCadence(t *testing.T) {
 	}
 }
 
+func TestBowAttacksFromRangeWithoutApproaching(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: 3}, 4)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponBow {
+		t.Fatalf("EquippedWeapon = %q, want %q", player.EquippedWeapon, WeaponBow)
+	}
+	if player.AutoApproaching || player.Destination != nil {
+		t.Fatalf("bow user approached while already in ranged distance: %+v", player)
+	}
+	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-bowDamage; got != want {
+		t.Fatalf("dummy health after bow hit = %d, want %d", got, want)
+	}
+	if got, want := player.NextAttackPulse, uint64(1+bowAttackIntervalPulses); got != want {
+		t.Fatalf("NextAttackPulse = %d, want %d", got, want)
+	}
+}
+
 func TestWeaponSwapDoesNotResetCurrentAttackCooldown(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)

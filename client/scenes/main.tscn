@@ -70,6 +70,21 @@ top_radius = 0.25
 bottom_radius = 0.25
 height = 0.04
 
+[sub_resource type="StandardMaterial3D" id="TargetPulseMaterial"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.38, 0.72, 1, 0.9)
+emission_enabled = true
+emission = Color(0.22, 0.3, 0.95, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="TorusMesh" id="TargetPulseMesh"]
+material = SubResource("TargetPulseMaterial")
+inner_radius = 0.58
+outer_radius = 0.72
+rings = 32
+ring_segments = 8
+
 [sub_resource type="StandardMaterial3D" id="DummyMaterial"]
 albedo_color = Color(0.75, 0.16, 0.12, 1)
 roughness = 0.85
@@ -205,6 +220,11 @@ shape = SubResource("GroundObstacleShape")
 visible = false
 mesh = SubResource("MarkerMesh")
 
+[node name="TargetClickPulse" type="MeshInstance3D" parent="."]
+visible = false
+cast_shadow = 0
+mesh = SubResource("TargetPulseMesh")
+
 [node name="TargetDummy" type="Node3D" parent="." unique_id=1688036856]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -2)
 script = ExtResource("5_target_dummy")
@@ -283,7 +303,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -530.0
-offset_top = -280.0
+offset_top = -320.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -300,6 +320,35 @@ theme_override_constants/margin_bottom = 12
 [node name="VBox" type="VBoxContainer" parent="UI/CombatHUD/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="TabRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Equipment"
 
 [node name="TargetRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
 layout_mode = 2
@@ -362,24 +411,228 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Sword" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
-custom_minimum_size = Vector2(145, 38)
+custom_minimum_size = Vector2(100, 38)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
 text = "1  Sword"
 
 [node name="Dagger" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
-custom_minimum_size = Vector2(145, 38)
+custom_minimum_size = Vector2(100, 38)
 layout_mode = 2
 toggle_mode = true
 text = "2  Dagger"
+
+[node name="Bow" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
+custom_minimum_size = Vector2(100, 38)
+layout_mode = 2
+toggle_mode = true
+text = "3  Bow"
 
 [node name="Spacer" type="Control" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Disengage" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
-custom_minimum_size = Vector2(145, 38)
+custom_minimum_size = Vector2(130, 38)
 layout_mode = 2
 disabled = true
 text = "Disengage  [Esc]"
+
+[node name="InventoryHUD" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -530.0
+offset_top = -320.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/InventoryHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/InventoryHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TabRow" type="HBoxContainer" parent="UI/InventoryHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Equipment"
+
+[node name="Summary" type="Label" parent="UI/InventoryHUD/Margin/VBox"]
+layout_mode = 2
+text = "Inventory  •  0/8 slots used"
+
+[node name="Grid" type="GridContainer" parent="UI/InventoryHUD/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 4
+
+[node name="SkillsHUD" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -530.0
+offset_top = -320.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/SkillsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/SkillsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TabRow" type="HBoxContainer" parent="UI/SkillsHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Equipment"
+
+[node name="Summary" type="Label" parent="UI/SkillsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Placeholder skills  •  progression not active"
+
+[node name="Grid" type="GridContainer" parent="UI/SkillsHUD/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="EquipmentHUD" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -530.0
+offset_top = -320.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/EquipmentHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/EquipmentHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TabRow" type="HBoxContainer" parent="UI/EquipmentHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Equipment"
+
+[node name="Summary" type="Label" parent="UI/EquipmentHUD/Margin/VBox"]
+layout_mode = 2
+text = "Equipped items  •  server authoritative"
+
+[node name="Grid" type="GridContainer" parent="UI/EquipmentHUD/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 4
+columns = 3

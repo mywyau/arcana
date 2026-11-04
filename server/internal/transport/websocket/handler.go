@@ -233,7 +233,16 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			LastEquipmentSequence: player.LastEquipmentSequence,
 			LastEquipmentPulse:    player.LastEquipmentPulse,
 			DodgeRate:             player.DodgeRate,
-			Path:                  make([]protocol.Position, 0, len(player.Path)),
+			Inventory: protocol.InventorySnapshot{
+				Capacity: player.Inventory.Capacity,
+				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
+			},
+			Path: make([]protocol.Position, 0, len(player.Path)),
+		}
+		for _, item := range player.Inventory.Items {
+			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{
+				Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+			})
 		}
 		for _, waypoint := range player.Path {
 			playerMessage.Path = append(playerMessage.Path, protocol.Position{

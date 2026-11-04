@@ -17,6 +17,10 @@ const (
 	daggerApproachRange        = 1.05
 	daggerDamage               = 7
 	daggerAttackIntervalPulses = 3
+	bowRange                   = 6.0
+	bowApproachRange           = 5.5
+	bowDamage                  = 8
+	bowAttackIntervalPulses    = 5
 	playerMaximumHealth        = 100
 	playerDodgeRate            = 0.10
 	dummyMaximumHealth         = 100
@@ -35,6 +39,7 @@ type WeaponID string
 const (
 	WeaponSword  WeaponID = "sword"
 	WeaponDagger WeaponID = "dagger"
+	WeaponBow    WeaponID = "bow"
 )
 
 type WeaponDefinition struct {
@@ -51,6 +56,8 @@ func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 		return WeaponDefinition{ID: id, Damage: swordDamage, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
 	case WeaponDagger:
 		return WeaponDefinition{ID: id, Damage: daggerDamage, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
+	case WeaponBow:
+		return WeaponDefinition{ID: id, Damage: bowDamage, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
 	default:
 		return WeaponDefinition{}, false
 	}
@@ -143,6 +150,9 @@ func (w *World) QueueEquip(command EquipCommand) error {
 	}
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if !player.inventory.contains(string(command.ItemID)) {
+		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
 	}
 	if command.Sequence <= player.lastEquipmentSequence {
 		return fmt.Errorf("equipment sequence %d is not newer than %d", command.Sequence, player.lastEquipmentSequence)
