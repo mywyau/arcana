@@ -3,7 +3,8 @@ extends Node3D
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const RAY_LENGTH: float = 1000.0
 
-@onready var camera: Camera3D = $Camera3D
+@onready var camera_rig: GuidedCamera = $CameraRig
+@onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
 @onready var network: NetworkClient = $NetworkClient
 @onready var players: Node3D = $Players
 @onready var status_label: Label = $UI/Margin/Status
@@ -18,7 +19,6 @@ var _has_pending_click: bool = false
 
 
 func _ready() -> void:
-	camera.look_at(Vector3.ZERO)
 	network.status_changed.connect(_on_status_changed)
 	network.welcome_received.connect(_on_welcome_received)
 	network.snapshot_received.connect(_on_snapshot_received)
@@ -88,6 +88,8 @@ func _on_welcome_received(player_id: String) -> void:
 	for id: String in _player_views:
 		var view: PlayerView = _player_views[id]
 		view.set_local_player(id == _local_player_id)
+		if id == _local_player_id:
+			camera_rig.follow(view)
 
 
 func _on_snapshot_received(snapshot: Dictionary) -> void:
@@ -131,6 +133,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			players.add_child(view)
 			_player_views[id] = view
 			view.set_local_player(id == _local_player_id)
+			if id == _local_player_id:
+				camera_rig.follow(view)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
 		var correction: float = view.apply_authoritative_state(
@@ -152,6 +156,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 	for id: String in _player_views.keys():
 		if not active_ids.has(id):
 			var departed: PlayerView = _player_views[id]
+			if id == _local_player_id:
+				camera_rig.follow(null)
 			departed.queue_free()
 			_player_views.erase(id)
 

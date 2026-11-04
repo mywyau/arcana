@@ -1,7 +1,8 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/network_client.gd" id="2_network"]
+[ext_resource type="Script" path="res://scripts/guided_camera.gd" id="3_camera"]
 
 [sub_resource type="StandardMaterial3D" id="GroundMaterial"]
 albedo_color = Color(0.24, 0.48, 0.29, 1)
@@ -143,8 +144,15 @@ mesh = SubResource("MarkerMesh")
 
 [node name="Players" type="Node3D" parent="."]
 
-[node name="Camera3D" type="Camera3D" parent="."]
-position = Vector3(10, 14, 14)
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("3_camera")
+
+[node name="Yaw" type="Node3D" parent="CameraRig"]
+
+[node name="Pitch" type="Node3D" parent="CameraRig/Yaw"]
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Yaw/Pitch"]
+position = Vector3(0, 0, 13)
 current = true
 fov = 48.0
 

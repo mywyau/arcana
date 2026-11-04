@@ -58,6 +58,9 @@ snapshots. Remote players are smoothly interpolated.
 3. Run the project and left-click the ground to move.
 
 The green capsule is the local player. Other connected players are blue.
+Drag with the middle mouse button to orbit the guided camera and use the mouse
+wheel to zoom. The camera follows the local player and pulls closer when world
+geometry obstructs its view.
 The diagnostic line shows the latest server tick, sent and acknowledged command
 sequences, and the current authoritative correction distance.
 
