@@ -9,9 +9,7 @@ import (
 func TestWorldMovesPlayerContinuouslyTowardDestination(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	if err := world.SetDestination("player-one", Position{X: 3, Z: 4}); err != nil {
-		t.Fatalf("SetDestination() returned an unexpected error: %v", err)
-	}
+	mustQueueMove(t, world, "player-one", 1, Position{X: 3, Z: 4})
 
 	world.Step(500 * time.Millisecond)
 
@@ -25,9 +23,7 @@ func TestWorldMovesPlayerContinuouslyTowardDestination(t *testing.T) {
 func TestWorldStopsPlayerAtDestinationWithoutOvershooting(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	if err := world.SetDestination("player-one", Position{X: 1}); err != nil {
-		t.Fatalf("SetDestination() returned an unexpected error: %v", err)
-	}
+	mustQueueMove(t, world, "player-one", 1, Position{X: 1})
 
 	world.Step(time.Second)
 
@@ -41,28 +37,107 @@ func TestWorldStopsPlayerAtDestinationWithoutOvershooting(t *testing.T) {
 func TestWorldUsesLatestDestinationIntention(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 2)
-	if err := world.SetDestination("player-one", Position{X: 10}); err != nil {
-		t.Fatalf("first SetDestination() returned an unexpected error: %v", err)
-	}
-	if err := world.SetDestination("player-one", Position{Z: 10}); err != nil {
-		t.Fatalf("second SetDestination() returned an unexpected error: %v", err)
-	}
+	mustQueueMove(t, world, "player-one", 1, Position{X: 10})
+	mustQueueMove(t, world, "player-one", 2, Position{Z: 10})
 
 	world.Step(500 * time.Millisecond)
 
 	player := mustPlayer(t, world, "player-one")
 	assertPosition(t, player.Position, Position{Z: 1})
+	if got, want := player.LastCommandSequence, uint64(2); got != want {
+		t.Fatalf("LastCommandSequence = %d, want %d", got, want)
+	}
 }
 
 func TestWorldRejectsInvalidMovementInput(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 2)
 
-	if err := world.SetDestination("missing", Position{}); err == nil {
-		t.Fatal("SetDestination() error = nil for missing player")
+	if err := world.QueueMove(MoveCommand{PlayerID: "missing", Sequence: 1}); err == nil {
+		t.Fatal("QueueMove() error = nil for missing player")
 	}
-	if err := world.SetDestination("player-one", Position{X: math.NaN()}); err == nil {
-		t.Fatal("SetDestination() error = nil for non-finite destination")
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 1, Destination: Position{X: math.NaN()}}); err == nil {
+		t.Fatal("QueueMove() error = nil for non-finite destination")
+	}
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 0}); err == nil {
+		t.Fatal("QueueMove() error = nil for zero sequence")
+	}
+}
+
+func TestWorldRejectsStaleAndDuplicateMovementCommands(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 2)
+	mustQueueMove(t, world, "player-one", 2, Position{X: 10})
+
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 1, Destination: Position{Z: 10}}); err == nil {
+		t.Fatal("QueueMove() error = nil for command older than pending command")
+	}
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 2, Destination: Position{Z: 10}}); err == nil {
+		t.Fatal("QueueMove() error = nil for duplicate pending command")
+	}
+
+	world.Step(50 * time.Millisecond)
+
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 2, Destination: Position{Z: 10}}); err == nil {
+		t.Fatal("QueueMove() error = nil for already applied command")
+	}
+}
+
+func TestWorldSnapshotIsOrderedAndDetached(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-b", Position{X: 2}, 2)
+	mustAddPlayer(t, world, "player-a", Position{}, 2)
+	mustQueueMove(t, world, "player-a", 7, Position{Z: 10})
+	world.Step(500 * time.Millisecond)
+
+	snapshot := world.Snapshot()
+	if got, want := snapshot.Tick, uint64(1); got != want {
+		t.Fatalf("Snapshot().Tick = %d, want %d", got, want)
+	}
+	if got, want := len(snapshot.Players), 2; got != want {
+		t.Fatalf("len(Snapshot().Players) = %d, want %d", got, want)
+	}
+	if snapshot.Players[0].ID != "player-a" || snapshot.Players[1].ID != "player-b" {
+		t.Fatalf("Snapshot().Players order = [%q, %q], want [player-a, player-b]", snapshot.Players[0].ID, snapshot.Players[1].ID)
+	}
+	if got, want := snapshot.Players[0].LastCommandSequence, uint64(7); got != want {
+		t.Fatalf("LastCommandSequence = %d, want %d", got, want)
+	}
+	if got, want := snapshot.Players[0].LastCommandTick, uint64(1); got != want {
+		t.Fatalf("LastCommandTick = %d, want %d", got, want)
+	}
+
+	snapshot.Players[0].Position = Position{X: 999}
+	*snapshot.Players[0].Destination = Position{Z: 999}
+	fresh := world.Snapshot()
+	assertPosition(t, fresh.Players[0].Position, Position{Z: 1})
+	if fresh.Players[0].Destination == nil {
+		t.Fatal("fresh snapshot destination is nil")
+	}
+	assertPosition(t, *fresh.Players[0].Destination, Position{Z: 10})
+}
+
+func TestWorldAppliesQueuedPlayerLifecycleOnStep(t *testing.T) {
+	world := NewWorld()
+	if err := world.QueueJoin("player-one", Position{X: 2}, 4); err != nil {
+		t.Fatalf("QueueJoin() returned an unexpected error: %v", err)
+	}
+	mustQueueMove(t, world, "player-one", 1, Position{X: 6})
+
+	if _, exists := world.Player("player-one"); exists {
+		t.Fatal("player exists before queued join is applied")
+	}
+
+	world.Step(500 * time.Millisecond)
+	player := mustPlayer(t, world, "player-one")
+	assertPosition(t, player.Position, Position{X: 4})
+
+	if err := world.QueueLeave("player-one"); err != nil {
+		t.Fatalf("QueueLeave() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	if _, exists := world.Player("player-one"); exists {
+		t.Fatal("player exists after queued leave is applied")
 	}
 }
 
@@ -84,7 +159,15 @@ func mustAddPlayer(t *testing.T, world *World, id PlayerID, position Position, s
 	}
 }
 
-func mustPlayer(t *testing.T, world *World, id PlayerID) PlayerState {
+func mustQueueMove(t *testing.T, world *World, id PlayerID, sequence uint64, destination Position) {
+	t.Helper()
+	command := MoveCommand{PlayerID: id, Sequence: sequence, Destination: destination}
+	if err := world.QueueMove(command); err != nil {
+		t.Fatalf("QueueMove() returned an unexpected error: %v", err)
+	}
+}
+
+func mustPlayer(t *testing.T, world *World, id PlayerID) PlayerSnapshot {
 	t.Helper()
 	player, exists := world.Player(id)
 	if !exists {

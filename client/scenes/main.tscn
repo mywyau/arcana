@@ -1,0 +1,79 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/network_client.gd" id="2_network"]
+
+[sub_resource type="StandardMaterial3D" id="GroundMaterial"]
+albedo_color = Color(0.24, 0.48, 0.29, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="GroundMesh"]
+material = SubResource("GroundMaterial")
+size = Vector2(40, 40)
+subdivide_width = 20
+subdivide_depth = 20
+
+[sub_resource type="StandardMaterial3D" id="MarkerMaterial"]
+albedo_color = Color(0.95, 0.76, 0.2, 1)
+emission_enabled = true
+emission = Color(0.35, 0.2, 0.02, 1)
+
+[sub_resource type="CylinderMesh" id="MarkerMesh"]
+material = SubResource("MarkerMaterial")
+top_radius = 0.25
+bottom_radius = 0.25
+height = 0.04
+
+[sub_resource type="Environment" id="Environment_world"]
+background_mode = 1
+background_color = Color(0.12, 0.18, 0.22, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.7, 0.78, 0.82, 1)
+ambient_light_energy = 0.65
+
+[sub_resource type="LabelSettings" id="StatusLabelSettings"]
+font_size = 18
+font_color = Color(0.95, 0.97, 1, 1)
+outline_size = 5
+outline_color = Color(0.04, 0.06, 0.08, 0.85)
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_world")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -35, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("GroundMesh")
+
+[node name="ClickMarker" type="MeshInstance3D" parent="."]
+visible = false
+mesh = SubResource("MarkerMesh")
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(10, 14, 14)
+current = true
+fov = 48.0
+
+[node name="NetworkClient" type="Node" parent="."]
+script = ExtResource("2_network")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Margin" type="MarginContainer" parent="UI"]
+offset_right = 1280.0
+offset_bottom = 64.0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+
+[node name="Status" type="Label" parent="UI/Margin"]
+layout_mode = 2
+text = "Starting client…"
+label_settings = SubResource("StatusLabelSettings")
