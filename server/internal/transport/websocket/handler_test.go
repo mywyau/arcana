@@ -50,7 +50,7 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 	command := protocol.ClientMessage{
 		Type:        protocol.MessageMoveTo,
 		Sequence:    1,
-		Destination: &protocol.Position{X: 10},
+		Destination: &protocol.Position{Y: 10},
 	}
 	if err := wsjson.Write(ctx, connection, command); err != nil {
 		t.Fatalf("wsjson.Write() returned an unexpected error: %v", err)
@@ -63,8 +63,8 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 		}
 		player, exists := findPlayer(message.Snapshot, welcome.PlayerID)
 		if exists && player.LastCommandSequence == 1 {
-			if player.Position.X <= 0 {
-				t.Fatalf("player position = %+v, want positive X movement", player.Position)
+			if player.Position.Y <= 0 {
+				t.Fatalf("player position = %+v, want positive Y movement", player.Position)
 			}
 			break
 		}

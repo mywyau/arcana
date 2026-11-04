@@ -10,9 +10,10 @@ import (
 
 type PlayerID string
 
-// Position is a precise point on the horizontal world plane.
+// Position is a precise point in three-dimensional world space.
 type Position struct {
 	X float64
+	Y float64
 	Z float64
 }
 
@@ -234,8 +235,9 @@ func movePlayer(player *playerState, seconds float64) {
 	}
 
 	dx := player.destination.X - player.position.X
+	dy := player.destination.Y - player.position.Y
 	dz := player.destination.Z - player.position.Z
-	distance := math.Hypot(dx, dz)
+	distance := math.Sqrt(dx*dx + dy*dy + dz*dz)
 	maximumMovement := player.speed * seconds
 
 	if distance <= maximumMovement {
@@ -245,6 +247,7 @@ func movePlayer(player *playerState, seconds float64) {
 	}
 
 	player.position.X += dx / distance * maximumMovement
+	player.position.Y += dy / distance * maximumMovement
 	player.position.Z += dz / distance * maximumMovement
 }
 
@@ -277,6 +280,7 @@ func validatePlayer(id PlayerID, position Position, speed float64) error {
 
 func (p Position) valid() bool {
 	return !math.IsNaN(p.X) && !math.IsInf(p.X, 0) &&
+		!math.IsNaN(p.Y) && !math.IsInf(p.Y, 0) &&
 		!math.IsNaN(p.Z) && !math.IsInf(p.Z, 0)
 }
 

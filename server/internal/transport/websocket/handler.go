@@ -112,6 +112,7 @@ func (h *Handler) readCommands(
 
 		destination := simulation.Position{
 			X: message.Destination.X,
+			Y: message.Destination.Y,
 			Z: message.Destination.Z,
 		}
 		err = h.world.QueueMove(simulation.MoveCommand{
@@ -155,8 +156,12 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 	}
 	for _, player := range snapshot.Players {
 		playerMessage := protocol.PlayerSnapshot{
-			ID:                  string(player.ID),
-			Position:            protocol.Position{X: player.Position.X, Z: player.Position.Z},
+			ID: string(player.ID),
+			Position: protocol.Position{
+				X: player.Position.X,
+				Y: player.Position.Y,
+				Z: player.Position.Z,
+			},
 			Speed:               player.Speed,
 			LastCommandSequence: player.LastCommandSequence,
 			LastCommandTick:     player.LastCommandTick,
@@ -164,6 +169,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 		if player.Destination != nil {
 			playerMessage.Destination = &protocol.Position{
 				X: player.Destination.X,
+				Y: player.Destination.Y,
 				Z: player.Destination.Z,
 			}
 		}

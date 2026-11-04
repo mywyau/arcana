@@ -20,6 +20,17 @@ func TestWorldMovesPlayerContinuouslyTowardDestination(t *testing.T) {
 	}
 }
 
+func TestWorldMovesPlayerContinuouslyInThreeDimensions(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 7)
+	mustQueueMove(t, world, "player-one", 1, Position{X: 2, Y: 3, Z: 6})
+
+	world.Step(500 * time.Millisecond)
+
+	player := mustPlayer(t, world, "player-one")
+	assertPosition(t, player.Position, Position{X: 1, Y: 1.5, Z: 3})
+}
+
 func TestWorldStopsPlayerAtDestinationWithoutOvershooting(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
@@ -58,6 +69,9 @@ func TestWorldRejectsInvalidMovementInput(t *testing.T) {
 	}
 	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 1, Destination: Position{X: math.NaN()}}); err == nil {
 		t.Fatal("QueueMove() error = nil for non-finite destination")
+	}
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 1, Destination: Position{Y: math.Inf(1)}}); err == nil {
+		t.Fatal("QueueMove() error = nil for non-finite destination height")
 	}
 	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 0}); err == nil {
 		t.Fatal("QueueMove() error = nil for zero sequence")
@@ -179,7 +193,9 @@ func mustPlayer(t *testing.T, world *World, id PlayerID) PlayerSnapshot {
 func assertPosition(t *testing.T, got, want Position) {
 	t.Helper()
 	const tolerance = 0.000_001
-	if math.Abs(got.X-want.X) > tolerance || math.Abs(got.Z-want.Z) > tolerance {
+	if math.Abs(got.X-want.X) > tolerance ||
+		math.Abs(got.Y-want.Y) > tolerance ||
+		math.Abs(got.Z-want.Z) > tolerance {
 		t.Fatalf("position = %+v, want %+v", got, want)
 	}
 }

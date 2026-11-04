@@ -14,6 +14,7 @@ authoritative Go server.
 The server contains a 20 Hz fixed-timestep simulation and a small continuous
 click-to-move model. Player positions and speeds are authoritative on the
 server. A JSON WebSocket endpoint is available at `ws://localhost:8080/ws`.
+Positions use full `X/Y/Z` coordinates in preparation for layered navigation.
 Pathfinding and collision detection are not implemented yet.
 
 With Go installed, run it from the repository root:
@@ -38,7 +39,7 @@ Each connection receives a temporary player identity. To move, send:
 {
   "type": "move_to",
   "sequence": 1,
-  "destination": { "x": 10, "z": 5 }
+  "destination": { "x": 10, "y": 0, "z": 5 }
 }
 ```
 

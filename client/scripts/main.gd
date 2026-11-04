@@ -43,7 +43,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.predict_move(destination)
-		click_marker.position = Vector3(destination.x, 0.03, destination.z)
+		click_marker.position = destination + Vector3.UP * 0.03
 		click_marker.visible = true
 
 
@@ -78,7 +78,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var coordinates: Dictionary = position_data
 		var position := Vector3(
 			float(coordinates.get("x", 0.0)),
-			0.0,
+			float(coordinates.get("y", 0.0)),
 			float(coordinates.get("z", 0.0)),
 		)
 		var destination := Vector3.ZERO
@@ -88,7 +88,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var destination_coordinates: Dictionary = destination_data
 			destination = Vector3(
 				float(destination_coordinates.get("x", 0.0)),
-				0.0,
+				float(destination_coordinates.get("y", 0.0)),
 				float(destination_coordinates.get("z", 0.0)),
 			)
 			has_destination = true

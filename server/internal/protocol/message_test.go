@@ -3,14 +3,14 @@ package protocol
 import "testing"
 
 func TestDecodeClientMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"move_to","sequence":3,"destination":{"x":1.5,"z":-2}}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"move_to","sequence":3,"destination":{"x":1.5,"y":4,"z":-2}}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
 	if message.Type != MessageMoveTo || message.Sequence != 3 {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
 	}
-	if message.Destination == nil || message.Destination.X != 1.5 || message.Destination.Z != -2 {
+	if message.Destination == nil || message.Destination.X != 1.5 || message.Destination.Y != 4 || message.Destination.Z != -2 {
 		t.Fatalf("DecodeClientMessage().Destination = %+v", message.Destination)
 	}
 }

@@ -50,6 +50,7 @@ func send_move(sequence: int, destination: Vector3) -> bool:
 		"sequence": sequence,
 		"destination": {
 			"x": destination.x,
+			"y": destination.y,
 			"z": destination.z,
 		},
 	}
