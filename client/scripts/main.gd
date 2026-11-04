@@ -32,6 +32,12 @@ var _auto_approaching: bool = false
 var _action_pulse: int = 0
 var _dummy_health: int = 100
 var _dummy_maximum_health: int = 100
+var _dummy_defeated: bool = false
+var _dummy_respawn_at_pulse: int = 0
+var _player_health: int = 100
+var _player_maximum_health: int = 100
+var _player_defeated: bool = false
+var _player_respawn_at_pulse: int = 0
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
@@ -50,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
-			if network.send_disengage(_next_action_sequence):
+			if not _player_defeated and network.send_disengage(_next_action_sequence):
 				_next_action_sequence += 1
 				_update_combat_label()
 			get_viewport().set_input_as_handled()
@@ -59,6 +65,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var mouse_event := event as InputEventMouseButton
 	if not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if _player_defeated:
 		return
 
 	_pending_click = mouse_event.position
@@ -151,6 +159,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var dummy: Dictionary = dummy_data
 		_dummy_health = int(dummy.get("health", _dummy_health))
 		_dummy_maximum_health = int(dummy.get("maximum_health", _dummy_maximum_health))
+		_dummy_defeated = bool(dummy.get("defeated", false))
+		_dummy_respawn_at_pulse = int(dummy.get("respawn_at_pulse", 0))
+		target_dummy.set_defeated(_dummy_defeated)
 		var dummy_position_data: Variant = dummy.get("position", {})
 		if typeof(dummy_position_data) == TYPE_DICTIONARY:
 			var dummy_position: Dictionary = dummy_position_data
@@ -209,12 +220,17 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			acknowledged_sequence,
 			_next_sequence - 1,
 		)
+		view.set_defeated(bool(player_data.get("defeated", false)))
 		if id == _local_player_id:
 			_last_action_sequence = int(player_data.get("last_action_sequence", 0))
 			_last_action_result = str(player_data.get("last_action_result", "none"))
 			_combat_target = str(player_data.get("combat_target", ""))
 			_next_attack_pulse = int(player_data.get("next_attack_pulse", 0))
 			_auto_approaching = bool(player_data.get("auto_approaching", false))
+			_player_health = int(player_data.get("health", _player_health))
+			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
+			_player_defeated = bool(player_data.get("defeated", false))
+			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			if _last_action_result.is_empty():
 				_last_action_result = "none"
 			var navigation_data: Variant = player_data.get("navigation_location", {})
@@ -271,16 +287,20 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		_last_combat_event_id = event_id
 		if str(event.get("type", "")) != "damage":
 			continue
-		if str(event.get("target_id", "")) != "dummy":
-			continue
-
 		var source_id: String = str(event.get("source_id", ""))
-		var source: PlayerView = _player_views.get(source_id)
-		if source == null:
-			continue
+		var target_id: String = str(event.get("target_id", ""))
 		var amount: int = int(event.get("amount", 0))
-		source.play_sword_attack(target_dummy.global_position)
-		target_dummy.play_hit(amount, source.global_position)
+		var source: PlayerView = _player_views.get(source_id)
+		var target: PlayerView = _player_views.get(target_id)
+		if target_id == "dummy":
+			if source == null:
+				continue
+			source.play_sword_attack(target_dummy.global_position)
+			target_dummy.play_hit(amount, source.global_position)
+		elif target != null:
+			if source != null:
+				source.play_sword_attack(target.global_position)
+			target.play_hit(amount)
 
 
 func _on_server_error(code: String, message: String) -> void:
@@ -293,15 +313,21 @@ func _on_server_error(code: String, message: String) -> void:
 
 func _update_combat_label() -> void:
 	var state: String = "queued" if _last_action_sequence < _next_action_sequence - 1 else _last_action_result
+	if _player_defeated:
+		state = "respawn in %d" % maxi(0, _player_respawn_at_pulse - _action_pulse)
 	var target: String = _combat_target if not _combat_target.is_empty() else "none"
 	var cadence: String = "next %d" % _next_attack_pulse if _next_attack_pulse > 0 else "idle"
 	if _auto_approaching:
 		cadence = "approaching"
-	combat_label.text = "pulse %d  |  target %s  |  sword %s  |  dummy %d/%d  |  %s" % [
+	var dummy_state: String = "%d/%d" % [_dummy_health, _dummy_maximum_health]
+	if _dummy_defeated:
+		dummy_state = "respawn in %d" % maxi(0, _dummy_respawn_at_pulse - _action_pulse)
+	combat_label.text = "pulse %d  |  hp %d/%d  |  target %s  |  sword %s  |  dummy %s  |  %s" % [
 		_action_pulse,
+		_player_health,
+		_player_maximum_health,
 		target,
 		cadence,
-		_dummy_health,
-		_dummy_maximum_health,
+		dummy_state,
 		state,
 	]

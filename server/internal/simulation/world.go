@@ -58,6 +58,10 @@ type PlayerSnapshot struct {
 	CombatTarget        string
 	NextAttackPulse     uint64
 	AutoApproaching     bool
+	Health              int
+	MaximumHealth       int
+	Defeated            bool
+	RespawnAtPulse      uint64
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -84,6 +88,11 @@ type playerState struct {
 	combatTarget        string
 	nextAttackPulse     uint64
 	autoApproaching     bool
+	spawnPosition       Position
+	health              int
+	maximumHealth       int
+	defeated            bool
+	respawnAtPulse      uint64
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
@@ -138,7 +147,8 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	}
 
 	w.players[id] = &playerState{
-		id: id, position: position, speed: speed, navigationLocation: location,
+		id: id, position: position, spawnPosition: position, speed: speed,
+		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 	}
 	return nil
 }
@@ -165,7 +175,8 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	}
 
 	w.pendingJoins[id] = &playerState{
-		id: id, position: position, speed: speed, navigationLocation: location,
+		id: id, position: position, spawnPosition: position, speed: speed,
+		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 	}
 	return nil
 }
@@ -184,6 +195,9 @@ func (w *World) QueueLeave(id PlayerID) error {
 	w.pendingLeaves[id] = struct{}{}
 	delete(w.pendingMoves, id)
 	delete(w.combat.pendingTargets, id)
+	if w.combat.dummy.TargetID == id {
+		w.clearDummyTarget()
+	}
 	return nil
 }
 
@@ -210,6 +224,9 @@ func (w *World) QueueMove(command MoveCommand) error {
 		if !exists {
 			return fmt.Errorf("player %q does not exist", command.PlayerID)
 		}
+	}
+	if player.defeated {
+		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
 	if command.Sequence <= player.lastCommandSequence {
 		return fmt.Errorf("command sequence %d is not newer than %d", command.Sequence, player.lastCommandSequence)
@@ -361,6 +378,10 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		CombatTarget:        player.combatTarget,
 		NextAttackPulse:     player.nextAttackPulse,
 		AutoApproaching:     player.autoApproaching,
+		Health:              player.health,
+		MaximumHealth:       player.maximumHealth,
+		Defeated:            player.defeated,
+		RespawnAtPulse:      player.respawnAtPulse,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

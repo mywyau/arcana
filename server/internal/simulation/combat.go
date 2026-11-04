@@ -13,7 +13,13 @@ const (
 	swordRange                = 2.0
 	swordApproachRange        = 1.5
 	swordDamage               = 10
+	playerMaximumHealth       = 100
 	dummyMaximumHealth        = 100
+	dummyAttackDamage         = 15
+	dummyAttackIntervalPulses = 4
+	dummyAttackRange          = 2.0
+	dummyLeashRange           = 6.0
+	respawnDelayPulses        = 5
 	dummyTargetID             = "dummy"
 	combatEventHistoryLimit   = 32
 )
@@ -27,7 +33,7 @@ type CombatEvent struct {
 	ID       uint64
 	Pulse    uint64
 	Type     CombatEventType
-	SourceID PlayerID
+	SourceID string
 	TargetID string
 	Amount   int
 }
@@ -39,9 +45,13 @@ type TargetCommand struct {
 }
 
 type DummySnapshot struct {
-	Position      Position
-	Health        int
-	MaximumHealth int
+	Position        Position
+	Health          int
+	MaximumHealth   int
+	TargetID        PlayerID
+	NextAttackPulse uint64
+	Defeated        bool
+	RespawnAtPulse  uint64
 }
 
 type combatState struct {
@@ -87,6 +97,9 @@ func (w *World) QueueTarget(command TargetCommand) error {
 			return fmt.Errorf("player %q does not exist", command.PlayerID)
 		}
 	}
+	if player.defeated {
+		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
 	if command.Sequence <= player.lastActionSequence {
 		return fmt.Errorf("action sequence %d is not newer than %d", command.Sequence, player.lastActionSequence)
 	}
@@ -103,8 +116,32 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 	for w.combat.elapsed >= actionPulseInterval {
 		w.combat.elapsed -= actionPulseInterval
 		w.combat.pulse++
+		w.respawnDefeatedEntities()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
+		w.resolveDummyAttack()
+	}
+}
+
+func (w *World) respawnDefeatedEntities() {
+	if w.combat.dummy.Defeated && w.combat.pulse >= w.combat.dummy.RespawnAtPulse {
+		w.combat.dummy.Health = w.combat.dummy.MaximumHealth
+		w.combat.dummy.Defeated = false
+		w.combat.dummy.RespawnAtPulse = 0
+	}
+	for _, player := range w.players {
+		if !player.defeated || w.combat.pulse < player.respawnAtPulse {
+			continue
+		}
+		player.position = player.spawnPosition
+		player.health = player.maximumHealth
+		player.defeated = false
+		player.respawnAtPulse = 0
+		player.lastActionPulse = w.combat.pulse
+		player.lastActionResult = "respawned"
+		if location, err := w.locate(player.position); err == nil {
+			player.navigationLocation = location
+		}
 	}
 }
 
@@ -118,7 +155,7 @@ func (w *World) applyTargetCommands() {
 	for _, id := range playerIDs {
 		command := w.combat.pendingTargets[id]
 		player, exists := w.players[id]
-		if !exists {
+		if !exists || player.defeated {
 			delete(w.combat.pendingTargets, id)
 			continue
 		}
@@ -131,6 +168,9 @@ func (w *World) applyTargetCommands() {
 			player.nextAttackPulse = 0
 			if player.autoApproaching {
 				stopPlayer(player)
+			}
+			if w.combat.dummy.TargetID == id {
+				w.clearDummyTarget()
 			}
 		} else {
 			player.lastActionResult = "engaged"
@@ -150,15 +190,11 @@ func (w *World) resolveAutoAttacks() {
 
 	for _, id := range playerIDs {
 		player := w.players[id]
-		if player.combatTarget != dummyTargetID {
+		if player.defeated || player.combatTarget != dummyTargetID {
 			continue
 		}
-		if w.combat.dummy.Health <= 0 {
-			player.lastActionResult = "target_defeated"
-			if player.autoApproaching {
-				stopPlayer(player)
-				player.autoApproaching = false
-			}
+		if w.combat.dummy.Defeated {
+			w.clearPlayerTarget(player, "target_defeated")
 			continue
 		}
 		if distance(player.position, w.combat.dummy.Position) > swordRange {
@@ -185,11 +221,94 @@ func (w *World) resolveAutoAttacks() {
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDamage,
-			SourceID: player.id,
+			SourceID: string(player.id),
 			TargetID: dummyTargetID,
 			Amount:   swordDamage,
 		})
+		if w.combat.dummy.TargetID == "" {
+			w.combat.dummy.TargetID = player.id
+			w.combat.dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+		}
+		if w.combat.dummy.Health == 0 {
+			w.defeatDummy()
+		}
 	}
+}
+
+func (w *World) resolveDummyAttack() {
+	dummy := &w.combat.dummy
+	if dummy.Defeated || dummy.TargetID == "" {
+		return
+	}
+	player, exists := w.players[dummy.TargetID]
+	if !exists || player.defeated || player.combatTarget != dummyTargetID {
+		w.clearDummyTarget()
+		return
+	}
+	distanceToPlayer := distance(dummy.Position, player.position)
+	if distanceToPlayer > dummyLeashRange {
+		w.clearDummyTarget()
+		return
+	}
+	if distanceToPlayer > dummyAttackRange || w.combat.pulse < dummy.NextAttackPulse {
+		return
+	}
+
+	player.health = max(0, player.health-dummyAttackDamage)
+	dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+	w.combat.recordEvent(CombatEvent{
+		Pulse:    w.combat.pulse,
+		Type:     CombatEventDamage,
+		SourceID: dummyTargetID,
+		TargetID: string(player.id),
+		Amount:   dummyAttackDamage,
+	})
+	if player.health == 0 {
+		w.defeatPlayer(player)
+	}
+}
+
+func (w *World) defeatPlayer(player *playerState) {
+	player.defeated = true
+	player.respawnAtPulse = w.combat.pulse + respawnDelayPulses
+	player.lastActionPulse = w.combat.pulse
+	player.lastActionResult = "defeated"
+	player.combatTarget = ""
+	player.nextAttackPulse = 0
+	player.autoApproaching = false
+	stopPlayer(player)
+	delete(w.pendingMoves, player.id)
+	delete(w.combat.pendingTargets, player.id)
+	if w.combat.dummy.TargetID == player.id {
+		w.clearDummyTarget()
+	}
+}
+
+func (w *World) defeatDummy() {
+	w.combat.dummy.Defeated = true
+	w.combat.dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
+	w.clearDummyTarget()
+	for _, player := range w.players {
+		if player.combatTarget == dummyTargetID {
+			w.clearPlayerTarget(player, "target_defeated")
+		}
+	}
+}
+
+func (w *World) clearPlayerTarget(player *playerState, result string) {
+	player.combatTarget = ""
+	player.nextAttackPulse = 0
+	player.lastActionPulse = w.combat.pulse
+	player.lastActionResult = result
+	if player.autoApproaching {
+		stopPlayer(player)
+		player.autoApproaching = false
+	}
+}
+
+func (w *World) clearDummyTarget() {
+	w.combat.dummy.TargetID = ""
+	w.combat.dummy.NextAttackPulse = 0
 }
 
 func (combat *combatState) recordEvent(event CombatEvent) {

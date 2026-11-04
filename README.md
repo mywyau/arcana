@@ -94,3 +94,9 @@ swing, target flash and recoil, and floating damage number on the client. These
 effects consume uniquely numbered combat events from a rolling server history
 in each snapshot, so repeated snapshots do not replay an outcome and the shown
 damage comes from the authoritative simulation.
+
+The dummy locks onto the first player who damages it and retaliates for 15
+damage every four action pulses while that player remains in range. Players and
+the dummy have 100 health. At zero health, movement and target locks are cleared
+for a five-pulse defeated state; players then respawn at their original position
+and the dummy resets in place, both with full health.

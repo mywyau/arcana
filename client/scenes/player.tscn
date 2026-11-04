@@ -44,3 +44,13 @@ mesh = SubResource("SwordBladeMesh")
 [node name="Hilt" type="MeshInstance3D" parent="VisualRoot/SwordPivot"]
 position = Vector3(0, 0.08, 0)
 mesh = SubResource("SwordHiltMesh")
+
+[node name="DamageLabel" type="Label3D" parent="."]
+position = Vector3(0, 2.1, 0)
+visible = false
+modulate = Color(1, 0.25, 0.18, 1)
+text = "-15"
+font_size = 48
+outline_size = 10
+billboard = 1
+no_depth_test = true

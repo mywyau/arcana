@@ -10,6 +10,7 @@ extends Node3D
 @onready var visual_root: Node3D = $VisualRoot
 @onready var mesh: MeshInstance3D = $VisualRoot/Mesh
 @onready var sword_pivot: Node3D = $VisualRoot/SwordPivot
+@onready var damage_label: Label3D = $DamageLabel
 
 var _is_local: bool = false
 var _has_position: bool = false
@@ -19,6 +20,10 @@ var _predicted_path: Array[Vector3] = []
 var _pending_correction: Vector3
 var _last_route_sequence: int = -1
 var _attack_tween: Tween
+var _hit_tween: Tween
+var _body_material: StandardMaterial3D
+var _rest_color: Color
+var _defeated: bool = false
 
 
 func _process(delta: float) -> void:
@@ -91,6 +96,8 @@ func cancel_prediction() -> void:
 
 
 func play_sword_attack(target_position: Vector3) -> void:
+	if _defeated:
+		return
 	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
 	if global_position.distance_squared_to(flat_target) > 0.001:
 		visual_root.look_at(flat_target, Vector3.UP, true)
@@ -106,9 +113,43 @@ func play_sword_attack(target_position: Vector3) -> void:
 	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", -55.0, 0.22)
 
 
+func play_hit(damage: int) -> void:
+	if _hit_tween != null:
+		_hit_tween.kill()
+	visual_root.scale = Vector3.ONE
+	damage_label.text = "-%d" % damage
+	damage_label.position = Vector3(0.0, 2.1, 0.0)
+	damage_label.modulate = Color(1.0, 0.25, 0.18, 1.0)
+	damage_label.visible = true
+	if _body_material != null:
+		_body_material.albedo_color = Color(1.0, 0.9, 0.82, 1.0)
+
+	_hit_tween = create_tween()
+	_hit_tween.set_parallel(true)
+	_hit_tween.tween_property(visual_root, "scale", Vector3(1.08, 0.88, 1.08), 0.08)
+	_hit_tween.tween_property(visual_root, "scale", Vector3.ONE, 0.14).set_delay(0.08)
+	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
+	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
+	if _body_material != null:
+		_hit_tween.tween_property(_body_material, "albedo_color", _rest_color, 0.18)
+	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+
+
+func set_defeated(defeated: bool) -> void:
+	if _defeated == defeated:
+		return
+	_defeated = defeated
+	visual_root.rotation_degrees.z = 90.0 if defeated else 0.0
+	sword_pivot.visible = not defeated
+	if defeated:
+		_predicted_path.clear()
+		_pending_correction = Vector3.ZERO
+
+
 func set_local_player(is_local: bool) -> void:
 	_is_local = is_local
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("58d68d") if is_local else Color("5dade2")
-	material.roughness = 0.8
-	mesh.material_override = material
+	_rest_color = Color("58d68d") if is_local else Color("5dade2")
+	_body_material = StandardMaterial3D.new()
+	_body_material.albedo_color = _rest_color
+	_body_material.roughness = 0.8
+	mesh.material_override = _body_material

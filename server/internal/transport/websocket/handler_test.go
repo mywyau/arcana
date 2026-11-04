@@ -106,6 +106,12 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 
 func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	message := snapshotMessage(simulation.Snapshot{
+		Dummy: simulation.DummySnapshot{
+			TargetID:        "player-one",
+			NextAttackPulse: 16,
+			Defeated:        true,
+			RespawnAtPulse:  20,
+		},
 		CombatEvents: []simulation.CombatEvent{{
 			ID:       7,
 			Pulse:    12,
@@ -113,6 +119,13 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			SourceID: "player-one",
 			TargetID: "dummy",
 			Amount:   10,
+		}},
+		Players: []simulation.PlayerSnapshot{{
+			ID:             "player-one",
+			Health:         40,
+			MaximumHealth:  100,
+			Defeated:       true,
+			RespawnAtPulse: 20,
 		}},
 	})
 
@@ -123,6 +136,14 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	if event.ID != 7 || event.Pulse != 12 || event.Type != "damage" ||
 		event.SourceID != "player-one" || event.TargetID != "dummy" || event.Amount != 10 {
 		t.Fatalf("combat event = %+v", event)
+	}
+	if message.Dummy.TargetID != "player-one" || message.Dummy.NextAttackPulse != 16 ||
+		!message.Dummy.Defeated || message.Dummy.RespawnAtPulse != 20 {
+		t.Fatalf("dummy combat state = %+v", message.Dummy)
+	}
+	player := message.Players[0]
+	if player.Health != 40 || player.MaximumHealth != 100 || !player.Defeated || player.RespawnAtPulse != 20 {
+		t.Fatalf("player vital state = %+v", player)
 	}
 }
 

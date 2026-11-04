@@ -54,9 +54,13 @@ type CombatEvent struct {
 }
 
 type DummySnapshot struct {
-	Position      Position `json:"position"`
-	Health        int      `json:"health"`
-	MaximumHealth int      `json:"maximum_health"`
+	Position        Position `json:"position"`
+	Health          int      `json:"health"`
+	MaximumHealth   int      `json:"maximum_health"`
+	TargetID        string   `json:"target_id"`
+	NextAttackPulse uint64   `json:"next_attack_pulse"`
+	Defeated        bool     `json:"defeated"`
+	RespawnAtPulse  uint64   `json:"respawn_at_pulse"`
 }
 
 type PlayerSnapshot struct {
@@ -74,6 +78,10 @@ type PlayerSnapshot struct {
 	CombatTarget        string             `json:"combat_target"`
 	NextAttackPulse     uint64             `json:"next_attack_pulse"`
 	AutoApproaching     bool               `json:"auto_approaching"`
+	Health              int                `json:"health"`
+	MaximumHealth       int                `json:"maximum_health"`
+	Defeated            bool               `json:"defeated"`
+	RespawnAtPulse      uint64             `json:"respawn_at_pulse"`
 }
 
 type NavigationLocation struct {

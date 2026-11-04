@@ -168,3 +168,100 @@ func TestLatestTargetCommandWinsBeforePulse(t *testing.T) {
 		t.Fatal("QueueTarget() error = nil for stale sequence")
 	}
 }
+
+func TestDummyTargetsFirstAttackerAndRetaliates(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	mustAddPlayer(t, world, "player-two", Position{X: -3, Z: -2}, 4)
+	for _, id := range []PlayerID{"player-one", "player-two"} {
+		if err := world.QueueTarget(TargetCommand{PlayerID: id, Sequence: 1, TargetID: dummyTargetID}); err != nil {
+			t.Fatalf("QueueTarget(%s) returned an unexpected error: %v", id, err)
+		}
+	}
+
+	world.Step(actionPulseInterval)
+	if got, want := world.Snapshot().Dummy.TargetID, PlayerID("player-one"); got != want {
+		t.Fatalf("dummy target = %q, want %q", got, want)
+	}
+	world.Step(3 * actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").Health; got != playerMaximumHealth {
+		t.Fatalf("player health before retaliation pulse = %d, want %d", got, playerMaximumHealth)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := mustPlayer(t, world, "player-one").Health, playerMaximumHealth-dummyAttackDamage; got != want {
+		t.Fatalf("player health after retaliation = %d, want %d", got, want)
+	}
+	events := world.Snapshot().CombatEvents
+	event := events[len(events)-1]
+	if event.SourceID != dummyTargetID || event.TargetID != "player-one" || event.Amount != dummyAttackDamage {
+		t.Fatalf("dummy damage event = %+v", event)
+	}
+	if got := mustPlayer(t, world, "player-two").Health; got != playerMaximumHealth {
+		t.Fatalf("non-targeted player health = %d, want %d", got, playerMaximumHealth)
+	}
+}
+
+func TestDefeatedPlayerRespawnsAtFullHealthAndSpawn(t *testing.T) {
+	world := NewWorld()
+	spawn := Position{X: -4, Z: -1}
+	mustAddPlayer(t, world, "player-one", spawn, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	world.players["player-one"].health = dummyAttackDamage
+	world.players["player-one"].position = Position{X: -3.8, Z: -1}
+
+	world.Step(dummyAttackIntervalPulses * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if !player.Defeated || player.Health != 0 || player.RespawnAtPulse != 10 {
+		t.Fatalf("defeated player state = %+v", player)
+	}
+	if player.Destination != nil || player.CombatTarget != "" {
+		t.Fatalf("defeated player retained movement or target: %+v", player)
+	}
+	if err := world.QueueMove(MoveCommand{PlayerID: "player-one", Sequence: 1, Destination: Position{X: 1}}); err == nil {
+		t.Fatal("QueueMove() error = nil for defeated player")
+	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 2, TargetID: dummyTargetID}); err == nil {
+		t.Fatal("QueueTarget() error = nil for defeated player")
+	}
+
+	world.Step((respawnDelayPulses - 1) * actionPulseInterval)
+	if !mustPlayer(t, world, "player-one").Defeated {
+		t.Fatal("player respawned before the configured pulse")
+	}
+	world.Step(actionPulseInterval)
+	player = mustPlayer(t, world, "player-one")
+	if player.Defeated || player.Health != playerMaximumHealth || player.Position != spawn || player.RespawnAtPulse != 0 {
+		t.Fatalf("respawned player state = %+v", player)
+	}
+}
+
+func TestDefeatedDummyRespawnsAtFullHealth(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	world.combat.dummy.Health = swordDamage
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	dummy := world.Snapshot().Dummy
+	if !dummy.Defeated || dummy.Health != 0 || dummy.RespawnAtPulse != 6 || dummy.TargetID != "" {
+		t.Fatalf("defeated dummy state = %+v", dummy)
+	}
+	if got := mustPlayer(t, world, "player-one").CombatTarget; got != "" {
+		t.Fatalf("player target after dummy defeat = %q, want empty", got)
+	}
+
+	world.Step((respawnDelayPulses - 1) * actionPulseInterval)
+	if !world.Snapshot().Dummy.Defeated {
+		t.Fatal("dummy respawned before the configured pulse")
+	}
+	world.Step(actionPulseInterval)
+	dummy = world.Snapshot().Dummy
+	if dummy.Defeated || dummy.Health != dummyMaximumHealth || dummy.RespawnAtPulse != 0 {
+		t.Fatalf("respawned dummy state = %+v", dummy)
+	}
+}

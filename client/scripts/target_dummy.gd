@@ -6,9 +6,12 @@ const REST_COLOR := Color(0.75, 0.16, 0.12, 1.0)
 @onready var visual: Node3D = $Visual
 @onready var mesh: MeshInstance3D = $Visual/Mesh
 @onready var damage_label: Label3D = $DamageLabel
+@onready var target_body: StaticBody3D = $TargetBody
+@onready var collision_shape: CollisionShape3D = $TargetBody/CollisionShape3D
 
 var _material: StandardMaterial3D
 var _hit_tween: Tween
+var _defeated: bool = false
 
 
 func _ready() -> void:
@@ -48,3 +51,14 @@ func play_hit(damage: int, attacker_position: Vector3) -> void:
 	if _material != null:
 		_hit_tween.tween_property(_material, "albedo_color", REST_COLOR, 0.18)
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+
+
+func set_defeated(defeated: bool) -> void:
+	if _defeated == defeated:
+		return
+	_defeated = defeated
+	visual.rotation_degrees.z = 90.0 if defeated else 0.0
+	target_body.collision_layer = 0 if defeated else 8
+	collision_shape.set_deferred("disabled", defeated)
+	if not defeated and _material != null:
+		_material.albedo_color = REST_COLOR

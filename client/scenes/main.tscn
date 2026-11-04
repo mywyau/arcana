@@ -242,5 +242,5 @@ theme_override_constants/margin_left = 20
 
 [node name="Combat" type="Label" parent="UI/CombatMargin" unique_id=15976531]
 layout_mode = 2
-text = "pulse 0  |  target none  |  sword idle  |  dummy 100/100  |  none"
+text = "pulse 0  |  hp 100/100  |  target none  |  sword idle  |  dummy 100/100  |  none"
 label_settings = SubResource("StatusLabelSettings")
