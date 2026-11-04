@@ -10,6 +10,7 @@ import (
 
 const (
 	heightTolerance = 0.25
+	linkTolerance   = 1.05
 	gridCellSize    = 0.5
 	agentRadius     = 0.4
 )
@@ -72,7 +73,7 @@ func NewPrototypeMap() *LayeredMap {
 			},
 		},
 		[]Obstacle{
-			{LayerID: "ground", MinimumX: 1.5, MaximumX: 2.5, MinimumZ: -1, MaximumZ: 1},
+			{LayerID: "ground", MinimumX: 0.5, MaximumX: 1.5, MinimumZ: -1, MaximumZ: 1},
 			{LayerID: "upper", MinimumX: -3, MaximumX: -2, MinimumZ: -1, MaximumZ: 2},
 		},
 	)
@@ -81,7 +82,7 @@ func NewPrototypeMap() *LayeredMap {
 func (m *LayeredMap) FindPath(start, destination simulation.Position) ([]simulation.Position, error) {
 	destinationLayer, err := m.layerAt(destination)
 	if err != nil {
-		return nil, fmt.Errorf("destination: %w", err)
+		return m.pathToLink(start, destination, err)
 	}
 	if !m.positionWalkable(destinationLayer, destination) {
 		return nil, fmt.Errorf("destination is blocked")
@@ -116,6 +117,41 @@ func (m *LayeredMap) FindPath(start, destination simulation.Position) ([]simulat
 		return path, nil
 	}
 	return nil, fmt.Errorf("no route from layer %q to %q", startLayer.ID, destinationLayer.ID)
+}
+
+func (m *LayeredMap) pathToLink(
+	start simulation.Position,
+	destination simulation.Position,
+	layerError error,
+) ([]simulation.Position, error) {
+	for _, link := range m.links {
+		if !positionOnLink(destination, link) {
+			continue
+		}
+		if positionOnLink(start, link) {
+			return []simulation.Position{destination}, nil
+		}
+
+		startLayer, err := m.layerAt(start)
+		if err != nil {
+			return nil, fmt.Errorf("start: %w", err)
+		}
+		var endpoint simulation.Position
+		switch startLayer.ID {
+		case link.FromLayer:
+			endpoint = link.From
+		case link.ToLayer:
+			endpoint = link.To
+		default:
+			continue
+		}
+		path, err := m.findLayerPath(startLayer, start, endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return appendWithoutDuplicate(path, destination), nil
+	}
+	return nil, fmt.Errorf("destination: %w", layerError)
 }
 
 func (m *LayeredMap) pathFromLink(
@@ -246,6 +282,9 @@ func (m *LayeredMap) lineWalkable(layer Layer, start, end simulation.Position) b
 			Y: layer.Height,
 			Z: start.Z + (end.Z-start.Z)*progress,
 		}
+		if !m.positionWalkable(layer, position) {
+			return false
+		}
 		cell := layer.positionToCell(position)
 		if !m.cellWalkable(layer, cell) {
 			return false
@@ -352,7 +391,7 @@ func positionOnLink(position simulation.Position, link Link) bool {
 	dx := position.X - closest.X
 	dy := position.Y - closest.Y
 	dz := position.Z - closest.Z
-	return math.Sqrt(dx*dx+dy*dy+dz*dz) <= heightTolerance
+	return math.Sqrt(dx*dx+dy*dy+dz*dz) <= linkTolerance
 }
 
 func appendWithoutDuplicate(path []simulation.Position, positions ...simulation.Position) []simulation.Position {

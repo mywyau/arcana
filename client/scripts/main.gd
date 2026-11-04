@@ -49,14 +49,33 @@ func _physics_process(_delta: float) -> void:
 		return
 
 	var destination: Vector3 = result["position"]
+	var clicked_body := result.get("collider") as CollisionObject3D
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
 		_next_sequence += 1
 		var local_view: PlayerView = _player_views.get(_local_player_id)
-		if local_view != null:
+		if local_view != null and _can_predict_directly(local_view, destination, clicked_body):
 			local_view.predict_move(destination)
 		click_marker.position = destination + Vector3.UP * 0.03
 		click_marker.visible = true
+
+
+func _can_predict_directly(
+	local_view: PlayerView,
+	destination: Vector3,
+	clicked_body: CollisionObject3D,
+) -> bool:
+	if clicked_body == null:
+		return false
+	if clicked_body.name != &"GroundBody" and clicked_body.name != &"UpperFloorBody":
+		return false
+
+	var clearance := Vector3.UP * 0.5
+	var query := PhysicsRayQueryParameters3D.create(
+		local_view.global_position + clearance,
+		destination + clearance,
+	)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _on_status_changed(status: String) -> void:

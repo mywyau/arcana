@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/network_client.gd" id="2_network"]
@@ -31,6 +31,9 @@ roughness = 0.95
 
 [sub_resource type="BoxMesh" id="RampMesh"]
 material = SubResource("RampMaterial")
+size = Vector3(3.6055, 0.18, 2)
+
+[sub_resource type="BoxShape3D" id="RampShape"]
 size = Vector3(3.6055, 0.18, 2)
 
 [sub_resource type="BoxMesh" id="GroundObstacleMesh"]
@@ -107,14 +110,21 @@ position = Vector3(3, 1.5, 0)
 rotation_degrees = Vector3(0, 0, -56.31)
 mesh = SubResource("RampMesh")
 
+[node name="RampBody" type="StaticBody3D" parent="."]
+position = Vector3(3, 1.5, 0)
+rotation_degrees = Vector3(0, 0, -56.31)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RampBody"]
+shape = SubResource("RampShape")
+
 [node name="GroundObstacle" type="MeshInstance3D" parent="."]
-position = Vector3(2, 1, 0)
+position = Vector3(1, 1, 0)
 mesh = SubResource("GroundObstacleMesh")
 
 [node name="GroundObstacleBody" type="StaticBody3D" parent="."]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="GroundObstacleBody"]
-position = Vector3(2, 1, 0)
+position = Vector3(1, 1, 0)
 shape = SubResource("GroundObstacleShape")
 
 [node name="UpperObstacle" type="MeshInstance3D" parent="."]

@@ -31,6 +31,16 @@ func TestPrototypeMapRejectsUnwalkableDestination(t *testing.T) {
 	}
 }
 
+func TestPrototypeMapRejectsObstacleTopAsConnector(t *testing.T) {
+	_, err := NewPrototypeMap().FindPath(
+		simulation.Position{},
+		simulation.Position{X: 1, Y: 2},
+	)
+	if err == nil {
+		t.Fatal("FindPath() error = nil for obstacle top")
+	}
+}
+
 func TestPrototypeMapReroutesFromConnector(t *testing.T) {
 	path, err := NewPrototypeMap().FindPath(
 		simulation.Position{X: 3, Y: 1.5},
@@ -41,6 +51,30 @@ func TestPrototypeMapReroutesFromConnector(t *testing.T) {
 	}
 	if got, want := path[0], (simulation.Position{X: 2, Y: 3}); got != want {
 		t.Fatalf("FindPath()[0] = %+v, want %+v", got, want)
+	}
+}
+
+func TestPrototypeMapRoutesToAndAlongConnector(t *testing.T) {
+	world := NewPrototypeMap()
+	destination := simulation.Position{X: 3, Y: 1.5, Z: 0.5}
+	path, err := world.FindPath(simulation.Position{}, destination)
+	if err != nil {
+		t.Fatalf("FindPath() returned an unexpected error: %v", err)
+	}
+	if indexOf(path, simulation.Position{X: 4}) < 0 {
+		t.Fatalf("FindPath() = %+v, want lower ramp endpoint", path)
+	}
+	if got := path[len(path)-1]; got != destination {
+		t.Fatalf("last waypoint = %+v, want %+v", got, destination)
+	}
+
+	next := simulation.Position{X: 2.5, Y: 2.25, Z: -0.5}
+	path, err = world.FindPath(destination, next)
+	if err != nil {
+		t.Fatalf("FindPath() along connector returned an unexpected error: %v", err)
+	}
+	if len(path) != 1 || path[0] != next {
+		t.Fatalf("FindPath() along connector = %+v, want [%+v]", path, next)
 	}
 }
 
