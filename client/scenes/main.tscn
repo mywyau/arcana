@@ -77,3 +77,14 @@ theme_override_constants/margin_top = 16
 layout_mode = 2
 text = "Starting client…"
 label_settings = SubResource("StatusLabelSettings")
+
+[node name="DiagnosticsMargin" type="MarginContainer" parent="UI"]
+offset_top = 42.0
+offset_right = 1280.0
+offset_bottom = 92.0
+theme_override_constants/margin_left = 20
+
+[node name="Diagnostics" type="Label" parent="UI/DiagnosticsMargin"]
+layout_mode = 2
+text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000"
+label_settings = SubResource("StatusLabelSettings")

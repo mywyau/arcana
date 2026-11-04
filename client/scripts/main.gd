@@ -7,6 +7,7 @@ const GROUND_PLANE: Plane = Plane.PLANE_XZ
 @onready var network: NetworkClient = $NetworkClient
 @onready var players: Node3D = $Players
 @onready var status_label: Label = $UI/Margin/Status
+@onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var click_marker: MeshInstance3D = $ClickMarker
 
 var _local_player_id: String = ""
@@ -36,8 +37,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var destination := intersection as Vector3
-	if network.send_move(_next_sequence, destination):
+	var sequence: int = _next_sequence
+	if network.send_move(sequence, destination):
 		_next_sequence += 1
+		var local_view: PlayerView = _player_views.get(_local_player_id)
+		if local_view != null:
+			local_view.predict_move(destination)
 		click_marker.position = Vector3(destination.x, 0.03, destination.z)
 		click_marker.visible = true
 
@@ -55,6 +60,7 @@ func _on_welcome_received(player_id: String) -> void:
 
 
 func _on_snapshot_received(snapshot: Dictionary) -> void:
+	var snapshot_tick: int = int(snapshot.get("tick", 0))
 	var player_payloads: Variant = snapshot.get("players", [])
 	if typeof(player_payloads) != TYPE_ARRAY:
 		return
@@ -75,13 +81,41 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			0.0,
 			float(coordinates.get("z", 0.0)),
 		)
+		var destination := Vector3.ZERO
+		var has_destination: bool = false
+		var destination_data: Variant = player_data.get("destination")
+		if typeof(destination_data) == TYPE_DICTIONARY:
+			var destination_coordinates: Dictionary = destination_data
+			destination = Vector3(
+				float(destination_coordinates.get("x", 0.0)),
+				0.0,
+				float(destination_coordinates.get("z", 0.0)),
+			)
+			has_destination = true
+
 		var view: PlayerView = _player_views.get(id)
 		if view == null:
 			view = PLAYER_SCENE.instantiate() as PlayerView
 			players.add_child(view)
 			_player_views[id] = view
 			view.set_local_player(id == _local_player_id)
-		view.set_authoritative_position(position)
+
+		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
+		var correction: float = view.apply_authoritative_state(
+			position,
+			destination,
+			has_destination,
+			float(player_data.get("speed", 4.0)),
+			acknowledged_sequence,
+			_next_sequence - 1,
+		)
+		if id == _local_player_id:
+			diagnostics_label.text = "tick %d  |  sent %d  |  acknowledged %d  |  correction %.3f" % [
+				snapshot_tick,
+				_next_sequence - 1,
+				acknowledged_sequence,
+				correction,
+			]
 		active_ids[id] = true
 
 	for id: String in _player_views.keys():
@@ -93,3 +127,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 
 func _on_server_error(code: String, message: String) -> void:
 	status_label.text = "%s: %s" % [code, message]
+	if code == "command_rejected":
+		var local_view: PlayerView = _player_views.get(_local_player_id)
+		if local_view != null:
+			local_view.cancel_prediction()

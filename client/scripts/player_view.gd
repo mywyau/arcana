@@ -2,28 +2,94 @@ class_name PlayerView
 extends Node3D
 
 @export var interpolation_speed: float = 14.0
+@export var movement_speed: float = 4.0
+@export var correction_threshold: float = 0.75
+@export var snap_threshold: float = 3.0
+@export var correction_speed: float = 1.5
 
 @onready var mesh: MeshInstance3D = $Mesh
 
-var _target_position: Vector3
+var _is_local: bool = false
 var _has_position: bool = false
+var _remote_target: Vector3
+var _authoritative_position: Vector3
+var _predicted_destination: Vector3
+var _has_predicted_destination: bool = false
+var _pending_correction: Vector3
 
 
 func _process(delta: float) -> void:
 	if not _has_position:
 		return
-	var weight: float = 1.0 - exp(-interpolation_speed * delta)
-	global_position = global_position.lerp(_target_position, weight)
+
+	if not _is_local:
+		var weight: float = 1.0 - exp(-interpolation_speed * delta)
+		global_position = global_position.lerp(_remote_target, weight)
+		return
+
+	if _has_predicted_destination:
+		global_position = global_position.move_toward(
+			_predicted_destination,
+			movement_speed * delta,
+		)
+
+	if not _pending_correction.is_zero_approx():
+		var correction_step: Vector3 = _pending_correction.limit_length(correction_speed * delta)
+		global_position += correction_step
+		_pending_correction -= correction_step
 
 
-func set_authoritative_position(position: Vector3) -> void:
-	_target_position = position
+func predict_move(destination: Vector3) -> void:
+	if not _is_local or not _has_position:
+		return
+	_predicted_destination = destination
+	_has_predicted_destination = true
+
+
+func apply_authoritative_state(
+	position: Vector3,
+	destination: Vector3,
+	has_destination: bool,
+	speed: float,
+	acknowledged_sequence: int,
+	latest_sent_sequence: int,
+) -> float:
+	_authoritative_position = position
+	movement_speed = speed
+
 	if not _has_position:
 		global_position = position
+		_remote_target = position
 		_has_position = true
+
+	if not _is_local:
+		_remote_target = position
+		return global_position.distance_to(position)
+
+	var correction_distance: float = global_position.distance_to(position)
+	if correction_distance >= snap_threshold:
+		global_position = position
+		_pending_correction = Vector3.ZERO
+	elif correction_distance >= correction_threshold:
+		_pending_correction = position - global_position
+	else:
+		_pending_correction = Vector3.ZERO
+
+	if acknowledged_sequence >= latest_sent_sequence:
+		_has_predicted_destination = has_destination
+		if has_destination:
+			_predicted_destination = destination
+
+	return correction_distance
+
+
+func cancel_prediction() -> void:
+	_has_predicted_destination = false
+	_pending_correction = _authoritative_position - global_position
 
 
 func set_local_player(is_local: bool) -> void:
+	_is_local = is_local
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("58d68d") if is_local else Color("5dade2")
 	material.roughness = 0.8

@@ -49,10 +49,13 @@ messages. Sequence numbers must increase for the duration of the connection.
 
 The Godot client provides a placeholder 3D world for testing continuous
 click-to-move. It connects to the local server, sends movement intentions, and
-smoothly renders authoritative snapshots.
+predicts local movement immediately while reconciling with authoritative
+snapshots. Remote players are smoothly interpolated.
 
 1. Start the Go server with `cd server && go run ./cmd/server`.
 2. Import `client/project.godot` in Godot 4.3 or newer.
 3. Run the project and left-click the ground to move.
 
 The green capsule is the local player. Other connected players are blue.
+The diagnostic line shows the latest server tick, sent and acknowledged command
+sequences, and the current authoritative correction distance.
