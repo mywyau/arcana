@@ -1,8 +1,9 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/network_client.gd" id="2_network"]
 [ext_resource type="Script" path="res://scripts/guided_camera.gd" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/floor_visibility.gd" id="4_floor_visibility"]
 
 [sub_resource type="StandardMaterial3D" id="GroundMaterial"]
 albedo_color = Color(0.24, 0.48, 0.29, 1)
@@ -91,18 +92,25 @@ position = Vector3(0, -0.1, 0)
 mesh = SubResource("GroundMesh")
 
 [node name="GroundBody" type="StaticBody3D" parent="."]
+collision_layer = 1
+metadata/navigation_layer_id = "ground"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody"]
 position = Vector3(0, -0.1, 0)
 shape = SubResource("GroundShape")
 
-[node name="UpperFloor" type="MeshInstance3D" parent="."]
+[node name="UpperLevel" type="Node3D" parent="."]
+script = ExtResource("4_floor_visibility")
+
+[node name="UpperFloor" type="MeshInstance3D" parent="UpperLevel"]
 position = Vector3(-2, 2.9, 0)
 mesh = SubResource("UpperMesh")
 
-[node name="UpperFloorBody" type="StaticBody3D" parent="."]
+[node name="UpperFloorBody" type="StaticBody3D" parent="UpperLevel"]
+collision_layer = 2
+metadata/navigation_layer_id = "upper"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperFloorBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperLevel/UpperFloorBody"]
 position = Vector3(-2, 2.9, 0)
 shape = SubResource("UpperShape")
 
@@ -114,6 +122,9 @@ mesh = SubResource("RampMesh")
 [node name="RampBody" type="StaticBody3D" parent="."]
 position = Vector3(3, 1.5, 0)
 rotation_degrees = Vector3(0, 0, -56.31)
+collision_layer = 4
+metadata/navigation_connector_id = "ground_upper_ramp"
+metadata/navigation_layers = PackedStringArray("ground", "upper")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RampBody"]
 shape = SubResource("RampShape")
@@ -123,18 +134,22 @@ position = Vector3(1, 1, 0)
 mesh = SubResource("GroundObstacleMesh")
 
 [node name="GroundObstacleBody" type="StaticBody3D" parent="."]
+collision_layer = 1
+metadata/navigation_layer_id = "ground"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="GroundObstacleBody"]
 position = Vector3(1, 1, 0)
 shape = SubResource("GroundObstacleShape")
 
-[node name="UpperObstacle" type="MeshInstance3D" parent="."]
+[node name="UpperObstacle" type="MeshInstance3D" parent="UpperLevel"]
 position = Vector3(-2.5, 4, 0.5)
 mesh = SubResource("UpperObstacleMesh")
 
-[node name="UpperObstacleBody" type="StaticBody3D" parent="."]
+[node name="UpperObstacleBody" type="StaticBody3D" parent="UpperLevel"]
+collision_layer = 2
+metadata/navigation_layer_id = "upper"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperObstacleBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperLevel/UpperObstacleBody"]
 position = Vector3(-2.5, 4, 0.5)
 shape = SubResource("UpperObstacleShape")
 

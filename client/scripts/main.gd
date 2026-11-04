@@ -2,6 +2,10 @@ extends Node3D
 
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const RAY_LENGTH: float = 1000.0
+const GROUND_COLLISION_MASK: int = 1
+const UPPER_COLLISION_MASK: int = 2
+const CONNECTOR_COLLISION_MASK: int = 4
+const ALL_WORLD_COLLISION_MASK: int = 7
 
 @onready var camera_rig: GuidedCamera = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
@@ -10,6 +14,7 @@ const RAY_LENGTH: float = 1000.0
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var click_marker: MeshInstance3D = $ClickMarker
+@onready var upper_level: FloorVisibility = $UpperLevel
 
 var _local_player_id: String = ""
 var _local_navigation_kind: String = "unknown"
@@ -46,6 +51,7 @@ func _physics_process(_delta: float) -> void:
 	var ray_origin: Vector3 = camera.project_ray_origin(_pending_click)
 	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(_pending_click) * RAY_LENGTH
 	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	query.collision_mask = _active_collision_mask()
 	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
 		return
@@ -77,7 +83,20 @@ func _can_predict_directly(
 		local_view.global_position + clearance,
 		destination + clearance,
 	)
+	query.collision_mask = _active_collision_mask()
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _active_collision_mask() -> int:
+	if _local_navigation_kind == "layer":
+		match _local_navigation_id:
+			"ground":
+				return GROUND_COLLISION_MASK | CONNECTOR_COLLISION_MASK
+			"upper":
+				return UPPER_COLLISION_MASK | CONNECTOR_COLLISION_MASK
+	elif _local_navigation_kind == "connector":
+		return ALL_WORLD_COLLISION_MASK
+	return ALL_WORLD_COLLISION_MASK
 
 
 func _on_status_changed(status: String) -> void:
@@ -152,6 +171,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				var navigation_location: Dictionary = navigation_data
 				_local_navigation_kind = str(navigation_location.get("kind", "unknown"))
 				_local_navigation_id = str(navigation_location.get("id", ""))
+			upper_level.set_navigation_location(_local_navigation_kind, _local_navigation_id)
+			camera_rig.set_world_collision_mask(_active_collision_mask())
 			diagnostics_label.text = "tick %d  |  sent %d  |  acknowledged %d  |  correction %.3f  |  %s:%s" % [
 				snapshot_tick,
 				_next_sequence - 1,

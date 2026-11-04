@@ -27,6 +27,7 @@ var _desired_pitch: float
 var _desired_distance: float
 var _current_distance: float
 var _collision_distance: float
+var _world_collision_mask: int = 7
 
 
 func _ready() -> void:
@@ -64,6 +65,7 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	var desired_camera_position: Vector3 = pitch.to_global(Vector3(0.0, 0.0, _current_distance))
 	var query := PhysicsRayQueryParameters3D.create(global_position, desired_camera_position)
+	query.collision_mask = _world_collision_mask
 	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 	var available_distance: float = _current_distance
 	if not result.is_empty():
@@ -111,3 +113,7 @@ func follow(target: Node3D) -> void:
 	_target = target
 	if not is_instance_valid(target):
 		_has_follow_position = false
+
+
+func set_world_collision_mask(collision_mask: int) -> void:
+	_world_collision_mask = collision_mask

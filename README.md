@@ -15,7 +15,8 @@ The server contains a 20 Hz fixed-timestep simulation and a small continuous
 click-to-move model. Player positions and speeds are authoritative on the
 server. A JSON WebSocket endpoint is available at `ws://localhost:8080/ws`.
 Positions use full `X/Y/Z` coordinates in preparation for layered navigation.
-Pathfinding and collision detection are not implemented yet.
+The prototype includes layered A* navigation and static obstacle avoidance;
+general map loading and dynamic collision are not implemented yet.
 
 With Go installed, run it from the repository root:
 
@@ -73,9 +74,9 @@ navigation grid with player-radius obstacle clearance, diagonal corner checks,
 and simplified waypoints. The layout is still hardcoded and does not yet have a
 map-import pipeline.
 
-### Next navigation slice
+### Floor-aware interaction
 
-The next planned slice is client-side floor-aware interaction: tag colliders by
-navigation layer, filter clicks using the authoritative location above, keep
-the ramp selectable from either adjacent layer, and fade the upper floor while
-the local player is underneath it.
+World colliders are tagged and masked by navigation layer. Normal clicks target
+the local player's authoritative floor while the ramp remains selectable from
+either adjacent layer. The upper floor and its obstacle fade while the player
+is below and partially fade during a ramp transition.
