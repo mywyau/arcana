@@ -58,6 +58,14 @@ snapshots. Remote players are smoothly interpolated.
 2. Import `client/project.godot` in Godot 4.3 or newer.
 3. Run the project and left-click the ground to move.
 
+For local development, the repository-root helper scripts can start both sides
+from any working directory. Run each command in its own terminal:
+
+```sh
+./run-server.sh
+./run-client.sh
+```
+
 The green capsule is the local player. Other connected players are blue.
 Drag with the middle mouse button to orbit the guided camera and use the mouse
 wheel to zoom. The camera follows the local player and pulls closer when world
@@ -85,11 +93,13 @@ is below and partially fade during a ramp transition.
 
 Click the red target dummy to engage it. The authoritative server approaches to
 sword range and automatically attacks every four 600 ms action pulses. Clicking
-a walkable surface repositions your character without dropping the target; if
-you remain out of range, automatic approach resumes on the next action pulse.
-Press `Escape` to disengage. A successful hit deals 10 damage, and the combat
-diagnostic shows the target, cadence, dummy health, and last result. Restart the
-server to reset the dummy. Each server-confirmed hit drives a temporary sword
+a walkable surface or pressing `Escape` clears the player's target and stops
+auto-approach, allowing manual movement to continue without being pulled back.
+The dummy owns its aggro separately: it can continue attacking while the player
+is in range and releases them after defeat, departure, or exceeding its leash.
+Click the dummy again to resume attacking. A successful sword hit deals 10
+damage, and the combat diagnostic shows the target, cadence, dummy health, and
+last result. Restart the server to reset the dummy. Each server-confirmed hit drives a temporary sword
 swing, target flash and recoil, and floating damage number on the client. These
 effects consume uniquely numbered combat events from a rolling server history
 in each snapshot, so repeated snapshots do not replay an outcome and the shown

@@ -281,7 +281,7 @@ func TestDisengageStopsAutomaticApproach(t *testing.T) {
 	}
 }
 
-func TestManualMovementKeepsTargetAndApproachResumes(t *testing.T) {
+func TestManualMovementWithDisengageDoesNotResumeApproach(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
@@ -294,6 +294,9 @@ func TestManualMovementKeepsTargetAndApproachResumes(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("QueueMove() returned an unexpected error: %v", err)
 	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 2}); err != nil {
+		t.Fatalf("QueueTarget(disengage) returned an unexpected error: %v", err)
+	}
 	world.Step(50 * time.Millisecond)
 	player := mustPlayer(t, world, "player-one")
 	if player.CombatTarget != dummyTargetID || player.AutoApproaching {
@@ -302,8 +305,33 @@ func TestManualMovementKeepsTargetAndApproachResumes(t *testing.T) {
 
 	world.Step(actionPulseInterval - 50*time.Millisecond)
 	player = mustPlayer(t, world, "player-one")
-	if player.CombatTarget != dummyTargetID || !player.AutoApproaching || player.LastActionResult != "approaching" {
+	if player.CombatTarget != "" || player.AutoApproaching || player.LastActionResult != "disengaged" {
 		t.Fatalf("player state after combat pulse = %+v", player)
+	}
+	if player.Destination == nil || player.Destination.X != 5 {
+		t.Fatalf("manual destination after disengage = %+v, want X=5", player.Destination)
+	}
+}
+
+func TestDummyAggroPersistsAfterPlayerDisengages(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget(engage) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 2}); err != nil {
+		t.Fatalf("QueueTarget(disengage) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+
+	player := mustPlayer(t, world, "player-one")
+	if player.CombatTarget != "" || world.Snapshot().Dummy.TargetID != "player-one" {
+		t.Fatalf("combat ownership after disengage: player=%+v dummy=%+v", player, world.Snapshot().Dummy)
+	}
+	world.Step(3 * actionPulseInterval)
+	if got, want := mustPlayer(t, world, "player-one").Health, playerMaximumHealth-dummyAttackDamage; got != want {
+		t.Fatalf("player health after retained dummy aggro = %d, want %d", got, want)
 	}
 }
 

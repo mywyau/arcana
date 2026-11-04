@@ -35,6 +35,7 @@ var _dummy_health: int = 100
 var _dummy_maximum_health: int = 100
 var _dummy_defeated: bool = false
 var _dummy_respawn_at_pulse: int = 0
+var _dummy_target_id: String = ""
 var _player_health: int = 100
 var _player_maximum_health: int = 100
 var _player_defeated: bool = false
@@ -62,9 +63,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if key_event.pressed and not key_event.echo:
 			match key_event.keycode:
 				KEY_ESCAPE:
-					if not _player_defeated and network.send_disengage(_next_action_sequence):
-						_next_action_sequence += 1
-						_update_combat_label()
+					_request_disengage()
 					get_viewport().set_input_as_handled()
 				KEY_1:
 					_request_equip("sword")
@@ -111,6 +110,8 @@ func _physics_process(_delta: float) -> void:
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
 		_next_sequence += 1
+		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
+			_request_disengage()
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null and _can_predict_directly(local_view, destination, clicked_body):
 			local_view.predict_move(destination)
@@ -142,6 +143,14 @@ func _request_equip(item_id: String) -> void:
 		return
 	if network.send_equip_item(_next_equipment_sequence, item_id):
 		_next_equipment_sequence += 1
+		_update_combat_label()
+
+
+func _request_disengage() -> void:
+	if _player_defeated:
+		return
+	if network.send_disengage(_next_action_sequence):
+		_next_action_sequence += 1
 		_update_combat_label()
 
 
@@ -181,6 +190,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		_dummy_maximum_health = int(dummy.get("maximum_health", _dummy_maximum_health))
 		_dummy_defeated = bool(dummy.get("defeated", false))
 		_dummy_respawn_at_pulse = int(dummy.get("respawn_at_pulse", 0))
+		_dummy_target_id = str(dummy.get("target_id", ""))
 		target_dummy.set_defeated(_dummy_defeated)
 		var dummy_position_data: Variant = dummy.get("position", {})
 		if typeof(dummy_position_data) == TYPE_DICTIONARY:
@@ -357,6 +367,8 @@ func _update_combat_label() -> void:
 	var dummy_state: String = "%d/%d" % [_dummy_health, _dummy_maximum_health]
 	if _dummy_defeated:
 		dummy_state = "respawn in %d" % maxi(0, _dummy_respawn_at_pulse - _action_pulse)
+	elif _dummy_target_id == _local_player_id:
+		dummy_state += " aggro"
 	var weapon: String = "queued" if _last_equipment_sequence < _next_equipment_sequence - 1 else _equipped_weapon
 	combat_label.text = "pulse %d  |  hp %d/%d dodge %d%%  |  weapon %s [1/2] %s  |  target %s  |  dummy %s  |  %s" % [
 		_action_pulse,

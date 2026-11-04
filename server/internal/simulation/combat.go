@@ -268,9 +268,6 @@ func (w *World) applyTargetCommands() {
 			if player.autoApproaching {
 				stopPlayer(player)
 			}
-			if w.combat.dummy.TargetID == id {
-				w.clearDummyTarget()
-			}
 		} else {
 			player.lastActionResult = "engaged"
 			player.nextAttackPulse = w.combat.pulse
@@ -352,7 +349,7 @@ func (w *World) resolveDummyAttack() {
 		return
 	}
 	player, exists := w.players[dummy.TargetID]
-	if !exists || player.defeated || player.combatTarget != dummyTargetID {
+	if !exists || player.defeated {
 		w.clearDummyTarget()
 		return
 	}
