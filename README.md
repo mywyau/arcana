@@ -125,7 +125,7 @@ damage, and produces an authoritative `dodged` event shown as blue `DODGE`
 feedback. Dodge is deliberately independent from future percentage defence and
 flat armour calculations.
 
-The bottom-centre combat HUD shows player and target health, dodge, enemy aggro,
+The bottom-right combat HUD shows player and target health, dodge, enemy aggro,
 attack readiness, current combat state, and respawn countdowns. Its sword,
 dagger, and disengage buttons send the same authoritative intentions as the
 `1`, `2`, and `Escape` shortcuts.
