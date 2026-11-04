@@ -7,7 +7,9 @@ extends Node3D
 @export var snap_threshold: float = 3.0
 @export var correction_speed: float = 1.5
 
-@onready var mesh: MeshInstance3D = $Mesh
+@onready var visual_root: Node3D = $VisualRoot
+@onready var mesh: MeshInstance3D = $VisualRoot/Mesh
+@onready var sword_pivot: Node3D = $VisualRoot/SwordPivot
 
 var _is_local: bool = false
 var _has_position: bool = false
@@ -16,6 +18,7 @@ var _authoritative_position: Vector3
 var _predicted_path: Array[Vector3] = []
 var _pending_correction: Vector3
 var _last_route_sequence: int = -1
+var _attack_tween: Tween
 
 
 func _process(delta: float) -> void:
@@ -85,6 +88,22 @@ func apply_authoritative_state(
 func cancel_prediction() -> void:
 	_predicted_path.clear()
 	_pending_correction = _authoritative_position - global_position
+
+
+func play_sword_attack(target_position: Vector3) -> void:
+	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
+	if global_position.distance_squared_to(flat_target) > 0.001:
+		visual_root.look_at(flat_target, Vector3.UP, true)
+
+	if _attack_tween != null:
+		_attack_tween.kill()
+	sword_pivot.rotation_degrees = Vector3(0.0, 0.0, -55.0)
+	_attack_tween = create_tween()
+	_attack_tween.set_trans(Tween.TRANS_QUAD)
+	_attack_tween.set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", 70.0, 0.16)
+	_attack_tween.set_ease(Tween.EASE_IN_OUT)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", -55.0, 0.22)
 
 
 func set_local_player(is_local: bool) -> void:

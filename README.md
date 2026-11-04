@@ -89,4 +89,5 @@ a walkable surface repositions your character without dropping the target; if
 you remain out of range, automatic approach resumes on the next action pulse.
 Press `Escape` to disengage. A successful hit deals 10 damage, and the combat
 diagnostic shows the target, cadence, dummy health, and last result. Restart the
-server to reset the dummy.
+server to reset the dummy. Each server-confirmed hit drives a temporary sword
+swing, target flash and recoil, and floating damage number on the client.

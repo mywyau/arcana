@@ -7,6 +7,7 @@ const UPPER_COLLISION_MASK: int = 2
 const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const ALL_WORLD_COLLISION_MASK: int = 7
+const SWORD_DAMAGE: int = 10
 
 @onready var camera_rig: GuidedCamera = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
@@ -17,7 +18,7 @@ const ALL_WORLD_COLLISION_MASK: int = 7
 @onready var combat_label: Label = $UI/CombatMargin/Combat
 @onready var click_marker: MeshInstance3D = $ClickMarker
 @onready var upper_level: FloorVisibility = $UpperLevel
-@onready var target_dummy: Node3D = $TargetDummy
+@onready var target_dummy: TargetDummy = $TargetDummy
 
 var _local_player_id: String = ""
 var _local_navigation_kind: String = "unknown"
@@ -33,6 +34,7 @@ var _action_pulse: int = 0
 var _dummy_health: int = 100
 var _dummy_maximum_health: int = 100
 var _player_views: Dictionary = {}
+var _last_visualized_hit_pulses: Dictionary = {}
 var _pending_click: Vector2
 var _has_pending_click: bool = false
 
@@ -207,6 +209,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			acknowledged_sequence,
 			_next_sequence - 1,
 		)
+		var player_action_pulse: int = int(player_data.get("last_action_pulse", 0))
+		var player_action_result: String = str(player_data.get("last_action_result", ""))
+		var visualized_pulse: int = int(_last_visualized_hit_pulses.get(id, 0))
+		if player_action_result == "hit" and player_action_pulse > visualized_pulse:
+			view.play_sword_attack(target_dummy.global_position)
+			target_dummy.play_hit(SWORD_DAMAGE, view.global_position)
+		if player_action_pulse > visualized_pulse:
+			_last_visualized_hit_pulses[id] = player_action_pulse
 		if id == _local_player_id:
 			_last_action_sequence = int(player_data.get("last_action_sequence", 0))
 			_last_action_result = str(player_data.get("last_action_result", "none"))
@@ -240,6 +250,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				camera_rig.follow(null)
 			departed.queue_free()
 			_player_views.erase(id)
+			_last_visualized_hit_pulses.erase(id)
 
 
 func _on_server_error(code: String, message: String) -> void:

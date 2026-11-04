@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://dkokialdfv0o7" path="res://scripts/network_client.gd" id="2_network"]
 [ext_resource type="Script" uid="uid://t7lir1ekw8pp" path="res://scripts/guided_camera.gd" id="3_camera"]
 [ext_resource type="Script" uid="uid://tys80ciwbtbq" path="res://scripts/floor_visibility.gd" id="4_floor_visibility"]
+[ext_resource type="Script" path="res://scripts/target_dummy.gd" id="5_target_dummy"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -166,10 +167,23 @@ mesh = SubResource("MarkerMesh")
 
 [node name="TargetDummy" type="Node3D" parent="." unique_id=1688036856]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -2)
+script = ExtResource("5_target_dummy")
 
-[node name="Mesh" type="MeshInstance3D" parent="TargetDummy" unique_id=1872277111]
+[node name="Visual" type="Node3D" parent="TargetDummy"]
+
+[node name="Mesh" type="MeshInstance3D" parent="TargetDummy/Visual" unique_id=1872277111]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 mesh = SubResource("DummyMesh")
+
+[node name="DamageLabel" type="Label3D" parent="TargetDummy"]
+position = Vector3(0, 2.1, 0)
+visible = false
+modulate = Color(1, 0.25, 0.18, 1)
+text = "-10"
+font_size = 48
+outline_size = 10
+billboard = 1
+no_depth_test = true
 
 [node name="TargetBody" type="StaticBody3D" parent="TargetDummy"]
 collision_layer = 8

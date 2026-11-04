@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/player_view.gd" id="1_player"]
 
@@ -6,10 +6,41 @@
 radius = 0.4
 height = 1.8
 
+[sub_resource type="StandardMaterial3D" id="SwordBladeMaterial"]
+albedo_color = Color(0.72, 0.76, 0.8, 1)
+metallic = 0.65
+roughness = 0.25
+
+[sub_resource type="BoxMesh" id="SwordBladeMesh"]
+material = SubResource("SwordBladeMaterial")
+size = Vector3(0.12, 1.2, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="SwordHiltMaterial"]
+albedo_color = Color(0.52, 0.35, 0.12, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="SwordHiltMesh"]
+material = SubResource("SwordHiltMaterial")
+size = Vector3(0.42, 0.1, 0.14)
+
 [node name="Player" type="Node3D"]
 script = ExtResource("1_player")
 
-[node name="Mesh" type="MeshInstance3D" parent="."]
+[node name="VisualRoot" type="Node3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="VisualRoot"]
 position = Vector3(0, 0.9, 0)
 mesh = SubResource("CapsuleMesh_player")
 cast_shadow = 1
+
+[node name="SwordPivot" type="Node3D" parent="VisualRoot"]
+position = Vector3(0.45, 1.05, -0.05)
+rotation_degrees = Vector3(0, 0, -55)
+
+[node name="Blade" type="MeshInstance3D" parent="VisualRoot/SwordPivot"]
+position = Vector3(0, 0.68, 0)
+mesh = SubResource("SwordBladeMesh")
+
+[node name="Hilt" type="MeshInstance3D" parent="VisualRoot/SwordPivot"]
+position = Vector3(0, 0.08, 0)
+mesh = SubResource("SwordHiltMesh")
