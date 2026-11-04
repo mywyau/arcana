@@ -7,7 +7,6 @@ const UPPER_COLLISION_MASK: int = 2
 const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const ALL_WORLD_COLLISION_MASK: int = 7
-const SWORD_DAMAGE: int = 10
 
 @onready var camera_rig: GuidedCamera = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
@@ -34,7 +33,8 @@ var _action_pulse: int = 0
 var _dummy_health: int = 100
 var _dummy_maximum_health: int = 100
 var _player_views: Dictionary = {}
-var _last_visualized_hit_pulses: Dictionary = {}
+var _last_combat_event_id: int = 0
+var _combat_events_initialized: bool = false
 var _pending_click: Vector2
 var _has_pending_click: bool = false
 
@@ -209,14 +209,6 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			acknowledged_sequence,
 			_next_sequence - 1,
 		)
-		var player_action_pulse: int = int(player_data.get("last_action_pulse", 0))
-		var player_action_result: String = str(player_data.get("last_action_result", ""))
-		var visualized_pulse: int = int(_last_visualized_hit_pulses.get(id, 0))
-		if player_action_result == "hit" and player_action_pulse > visualized_pulse:
-			view.play_sword_attack(target_dummy.global_position)
-			target_dummy.play_hit(SWORD_DAMAGE, view.global_position)
-		if player_action_pulse > visualized_pulse:
-			_last_visualized_hit_pulses[id] = player_action_pulse
 		if id == _local_player_id:
 			_last_action_sequence = int(player_data.get("last_action_sequence", 0))
 			_last_action_result = str(player_data.get("last_action_result", "none"))
@@ -250,7 +242,45 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				camera_rig.follow(null)
 			departed.queue_free()
 			_player_views.erase(id)
-			_last_visualized_hit_pulses.erase(id)
+	_process_combat_events(snapshot)
+
+
+func _process_combat_events(snapshot: Dictionary) -> void:
+	var events_data: Variant = snapshot.get("combat_events", [])
+	if typeof(events_data) != TYPE_ARRAY:
+		return
+	var events: Array = events_data
+
+	if not _combat_events_initialized:
+		for payload: Variant in events:
+			if typeof(payload) == TYPE_DICTIONARY:
+				_last_combat_event_id = maxi(
+					_last_combat_event_id,
+					int((payload as Dictionary).get("id", 0)),
+				)
+		_combat_events_initialized = true
+		return
+
+	for payload: Variant in events:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var event: Dictionary = payload
+		var event_id: int = int(event.get("id", 0))
+		if event_id <= _last_combat_event_id:
+			continue
+		_last_combat_event_id = event_id
+		if str(event.get("type", "")) != "damage":
+			continue
+		if str(event.get("target_id", "")) != "dummy":
+			continue
+
+		var source_id: String = str(event.get("source_id", ""))
+		var source: PlayerView = _player_views.get(source_id)
+		if source == null:
+			continue
+		var amount: int = int(event.get("amount", 0))
+		source.play_sword_attack(target_dummy.global_position)
+		target_dummy.play_hit(amount, source.global_position)
 
 
 func _on_server_error(code: String, message: String) -> void:

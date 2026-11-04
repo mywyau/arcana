@@ -62,10 +62,11 @@ type PlayerSnapshot struct {
 
 // Snapshot is a detached view of the authoritative world at one tick.
 type Snapshot struct {
-	Tick        uint64
-	Players     []PlayerSnapshot
-	ActionPulse uint64
-	Dummy       DummySnapshot
+	Tick         uint64
+	Players      []PlayerSnapshot
+	ActionPulse  uint64
+	Dummy        DummySnapshot
+	CombatEvents []CombatEvent
 }
 
 type playerState struct {
@@ -292,10 +293,11 @@ func (w *World) Snapshot() Snapshot {
 	defer w.mu.RUnlock()
 
 	snapshot := Snapshot{
-		Tick:        w.tick,
-		Players:     make([]PlayerSnapshot, 0, len(w.players)),
-		ActionPulse: w.combat.pulse,
-		Dummy:       w.combat.dummy,
+		Tick:         w.tick,
+		Players:      make([]PlayerSnapshot, 0, len(w.players)),
+		ActionPulse:  w.combat.pulse,
+		Dummy:        w.combat.dummy,
+		CombatEvents: append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, player := range w.players {
 		snapshot.Players = append(snapshot.Players, snapshotPlayer(player))

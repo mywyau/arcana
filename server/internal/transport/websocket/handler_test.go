@@ -104,6 +104,28 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 	}
 }
 
+func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
+	message := snapshotMessage(simulation.Snapshot{
+		CombatEvents: []simulation.CombatEvent{{
+			ID:       7,
+			Pulse:    12,
+			Type:     simulation.CombatEventDamage,
+			SourceID: "player-one",
+			TargetID: "dummy",
+			Amount:   10,
+		}},
+	})
+
+	if len(message.CombatEvents) != 1 {
+		t.Fatalf("combat event count = %d, want 1", len(message.CombatEvents))
+	}
+	event := message.CombatEvents[0]
+	if event.ID != 7 || event.Pulse != 12 || event.Type != "damage" ||
+		event.SourceID != "player-one" || event.TargetID != "dummy" || event.Amount != 10 {
+		t.Fatalf("combat event = %+v", event)
+	}
+}
+
 func readServerMessage(t *testing.T, ctx context.Context, connection *websocket.Conn) protocol.ServerMessage {
 	t.Helper()
 	var message protocol.ServerMessage

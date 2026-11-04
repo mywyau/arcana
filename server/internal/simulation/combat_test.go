@@ -21,6 +21,19 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-swordDamage; got != want {
 		t.Fatalf("dummy health after first pulse = %d, want %d", got, want)
 	}
+	events := world.Snapshot().CombatEvents
+	if len(events) != 1 {
+		t.Fatalf("combat event count = %d, want 1", len(events))
+	}
+	event := events[0]
+	if event.ID != 1 || event.Pulse != 1 || event.Type != CombatEventDamage ||
+		event.SourceID != "player-one" || event.TargetID != dummyTargetID || event.Amount != swordDamage {
+		t.Fatalf("combat event = %+v", event)
+	}
+	events[0].Amount = 999
+	if got := world.Snapshot().CombatEvents[0].Amount; got != swordDamage {
+		t.Fatalf("authoritative event amount after snapshot mutation = %d, want %d", got, swordDamage)
+	}
 	player := mustPlayer(t, world, "player-one")
 	if player.CombatTarget != dummyTargetID || player.LastActionResult != "hit" || player.NextAttackPulse != 5 {
 		t.Fatalf("player combat state after first hit = %+v", player)
@@ -33,6 +46,26 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 	world.Step(actionPulseInterval)
 	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-2*swordDamage; got != want {
 		t.Fatalf("dummy health after next weapon pulse = %d, want %d", got, want)
+	}
+	if got := world.Snapshot().CombatEvents[1].ID; got != 2 {
+		t.Fatalf("second combat event ID = %d, want 2", got)
+	}
+}
+
+func TestCombatEventHistoryIsBounded(t *testing.T) {
+	combat := newCombatState()
+	for i := 0; i < combatEventHistoryLimit+3; i++ {
+		combat.recordEvent(CombatEvent{Type: CombatEventDamage, Amount: i})
+	}
+
+	if got := len(combat.events); got != combatEventHistoryLimit {
+		t.Fatalf("event history length = %d, want %d", got, combatEventHistoryLimit)
+	}
+	if got, want := combat.events[0].ID, uint64(4); got != want {
+		t.Fatalf("first retained event ID = %d, want %d", got, want)
+	}
+	if got, want := combat.events[len(combat.events)-1].ID, uint64(combatEventHistoryLimit+3); got != want {
+		t.Fatalf("last retained event ID = %d, want %d", got, want)
 	}
 }
 

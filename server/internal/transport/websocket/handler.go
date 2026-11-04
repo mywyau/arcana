@@ -179,7 +179,18 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			Health:        snapshot.Dummy.Health,
 			MaximumHealth: snapshot.Dummy.MaximumHealth,
 		},
-		Players: make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+		CombatEvents: make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
+		Players:      make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+	}
+	for _, event := range snapshot.CombatEvents {
+		message.CombatEvents = append(message.CombatEvents, protocol.CombatEvent{
+			ID:       event.ID,
+			Pulse:    event.Pulse,
+			Type:     string(event.Type),
+			SourceID: string(event.SourceID),
+			TargetID: event.TargetID,
+			Amount:   event.Amount,
+		})
 	}
 	for _, player := range snapshot.Players {
 		playerMessage := protocol.PlayerSnapshot{

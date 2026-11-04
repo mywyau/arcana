@@ -15,7 +15,22 @@ const (
 	swordDamage               = 10
 	dummyMaximumHealth        = 100
 	dummyTargetID             = "dummy"
+	combatEventHistoryLimit   = 32
 )
+
+type CombatEventType string
+
+const CombatEventDamage CombatEventType = "damage"
+
+// CombatEvent describes an authoritative outcome for client presentation.
+type CombatEvent struct {
+	ID       uint64
+	Pulse    uint64
+	Type     CombatEventType
+	SourceID PlayerID
+	TargetID string
+	Amount   int
+}
 
 type TargetCommand struct {
 	PlayerID PlayerID
@@ -34,6 +49,8 @@ type combatState struct {
 	pulse          uint64
 	dummy          DummySnapshot
 	pendingTargets map[PlayerID]TargetCommand
+	nextEventID    uint64
+	events         []CombatEvent
 }
 
 func newCombatState() *combatState {
@@ -165,6 +182,22 @@ func (w *World) resolveAutoAttacks() {
 		player.lastActionPulse = w.combat.pulse
 		player.lastActionResult = "hit"
 		player.nextAttackPulse = w.combat.pulse + swordAttackIntervalPulses
+		w.combat.recordEvent(CombatEvent{
+			Pulse:    w.combat.pulse,
+			Type:     CombatEventDamage,
+			SourceID: player.id,
+			TargetID: dummyTargetID,
+			Amount:   swordDamage,
+		})
+	}
+}
+
+func (combat *combatState) recordEvent(event CombatEvent) {
+	combat.nextEventID++
+	event.ID = combat.nextEventID
+	combat.events = append(combat.events, event)
+	if len(combat.events) > combatEventHistoryLimit {
+		combat.events = append([]CombatEvent(nil), combat.events[len(combat.events)-combatEventHistoryLimit:]...)
 	}
 }
 
