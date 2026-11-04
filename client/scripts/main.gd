@@ -14,7 +14,17 @@ const ALL_WORLD_COLLISION_MASK: int = 7
 @onready var players: Node3D = $Players
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
-@onready var combat_label: Label = $UI/CombatMargin/Combat
+@onready var player_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/PlayerHealth
+@onready var player_health_label: Label = $UI/CombatHUD/Margin/VBox/PlayerRow/PlayerHealthLabel
+@onready var target_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/TargetHealth
+@onready var target_health_label: Label = $UI/CombatHUD/Margin/VBox/TargetRow/TargetHealthLabel
+@onready var aggro_label: Label = $UI/CombatHUD/Margin/VBox/TargetRow/AggroLabel
+@onready var combat_state_label: Label = $UI/CombatHUD/Margin/VBox/CombatState
+@onready var cooldown_label: Label = $UI/CombatHUD/Margin/VBox/CooldownLabel
+@onready var cooldown_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/Cooldown
+@onready var sword_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Sword
+@onready var dagger_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Dagger
+@onready var disengage_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Disengage
 @onready var click_marker: MeshInstance3D = $ClickMarker
 @onready var upper_level: FloorVisibility = $UpperLevel
 @onready var target_dummy: TargetDummy = $TargetDummy
@@ -43,6 +53,7 @@ var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "sword"
 var _last_equipment_sequence: int = 0
+var _queued_weapon: String = ""
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
@@ -55,6 +66,10 @@ func _ready() -> void:
 	network.welcome_received.connect(_on_welcome_received)
 	network.snapshot_received.connect(_on_snapshot_received)
 	network.server_error.connect(_on_server_error)
+	sword_button.pressed.connect(_request_equip.bind("sword"))
+	dagger_button.pressed.connect(_request_equip.bind("dagger"))
+	disengage_button.pressed.connect(_request_disengage)
+	_update_combat_hud()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -103,7 +118,7 @@ func _physics_process(_delta: float) -> void:
 		if network.send_engage_target(_next_action_sequence, target_id):
 			_next_action_sequence += 1
 			click_marker.visible = false
-			_update_combat_label()
+			_update_combat_hud()
 		return
 
 	var destination: Vector3 = result["position"]
@@ -142,8 +157,9 @@ func _request_equip(item_id: String) -> void:
 	if _player_defeated:
 		return
 	if network.send_equip_item(_next_equipment_sequence, item_id):
+		_queued_weapon = item_id
 		_next_equipment_sequence += 1
-		_update_combat_label()
+		_update_combat_hud()
 
 
 func _request_disengage() -> void:
@@ -151,7 +167,7 @@ func _request_disengage() -> void:
 		return
 	if network.send_disengage(_next_action_sequence):
 		_next_action_sequence += 1
-		_update_combat_label()
+		_update_combat_hud()
 
 
 func _active_collision_mask() -> int:
@@ -267,6 +283,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
 			_equipped_weapon = str(player_data.get("equipped_weapon", "sword"))
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
+			if _last_equipment_sequence >= _next_equipment_sequence - 1:
+				_queued_weapon = ""
 			if _last_action_result.is_empty():
 				_last_action_result = "none"
 			var navigation_data: Variant = player_data.get("navigation_location", {})
@@ -285,7 +303,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_local_navigation_id,
 			]
 		active_ids[id] = true
-	_update_combat_label()
+	_update_combat_hud()
 
 	for id: String in _player_views.keys():
 		if not active_ids.has(id):
@@ -356,28 +374,56 @@ func _on_server_error(code: String, message: String) -> void:
 			local_view.cancel_prediction()
 
 
-func _update_combat_label() -> void:
+func _update_combat_hud() -> void:
 	var state: String = "queued" if _last_action_sequence < _next_action_sequence - 1 else _last_action_result
 	if _player_defeated:
 		state = "respawn in %d" % maxi(0, _player_respawn_at_pulse - _action_pulse)
-	var target: String = _combat_target if not _combat_target.is_empty() else "none"
-	var cadence: String = "next %d" % _next_attack_pulse if _next_attack_pulse > 0 else "idle"
-	if _auto_approaching:
-		cadence = "approaching"
-	var dummy_state: String = "%d/%d" % [_dummy_health, _dummy_maximum_health]
-	if _dummy_defeated:
-		dummy_state = "respawn in %d" % maxi(0, _dummy_respawn_at_pulse - _action_pulse)
-	elif _dummy_target_id == _local_player_id:
-		dummy_state += " aggro"
-	var weapon: String = "queued" if _last_equipment_sequence < _next_equipment_sequence - 1 else _equipped_weapon
-	combat_label.text = "pulse %d  |  hp %d/%d dodge %d%%  |  weapon %s [1/2] %s  |  target %s  |  dummy %s  |  %s" % [
-		_action_pulse,
+	player_health_bar.max_value = maxi(1, _player_maximum_health)
+	player_health_bar.value = _player_health
+	player_health_label.text = "You  %d/%d  •  Dodge %d%%" % [
 		_player_health,
 		_player_maximum_health,
 		roundi(_player_dodge_rate * 100.0),
-		weapon,
-		cadence,
-		target,
-		dummy_state,
-		state,
 	]
+	target_health_bar.max_value = maxi(1, _dummy_maximum_health)
+	target_health_bar.value = _dummy_health
+	target_health_label.text = "Target Dummy  %d/%d" % [_dummy_health, _dummy_maximum_health]
+
+	var has_aggro: bool = _dummy_target_id == _local_player_id
+	aggro_label.text = "ENEMY AGGRO" if has_aggro else "No aggro"
+	aggro_label.modulate = Color(1.0, 0.42, 0.32) if has_aggro else Color(0.65, 0.72, 0.78)
+	if _player_defeated:
+		combat_state_label.text = "Defeated — %s" % state
+	elif _dummy_defeated:
+		combat_state_label.text = "Target respawns in %d pulses" % maxi(0, _dummy_respawn_at_pulse - _action_pulse)
+	elif _auto_approaching:
+		combat_state_label.text = "Closing distance to target"
+	elif not _combat_target.is_empty():
+		combat_state_label.text = "Auto-attacking %s  •  Last: %s" % [_combat_target, state]
+	elif has_aggro:
+		combat_state_label.text = "Not attacking — create distance to escape"
+	else:
+		combat_state_label.text = "Out of combat"
+
+	var weapon_interval: int = 3 if _equipped_weapon == "dagger" else 4
+	var remaining: int = maxi(0, _next_attack_pulse - _action_pulse)
+	cooldown_bar.max_value = weapon_interval
+	cooldown_bar.value = weapon_interval - mini(weapon_interval, remaining)
+	if _auto_approaching:
+		cooldown_label.text = "Attack: closing distance"
+	elif _combat_target.is_empty():
+		cooldown_label.text = "Attack: idle"
+	elif remaining > 0:
+		cooldown_label.text = "Next attack in %d pulse%s" % [remaining, "" if remaining == 1 else "s"]
+	else:
+		cooldown_label.text = "Attack ready"
+
+	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
+	var displayed_weapon: String = _queued_weapon if equipment_pending else _equipped_weapon
+	sword_button.set_pressed_no_signal(displayed_weapon == "sword")
+	dagger_button.set_pressed_no_signal(displayed_weapon == "dagger")
+	sword_button.text = "1  Sword%s" % ("  • queued" if equipment_pending and _queued_weapon == "sword" else "")
+	dagger_button.text = "2  Dagger%s" % ("  • queued" if equipment_pending and _queued_weapon == "dagger" else "")
+	sword_button.disabled = _player_defeated
+	dagger_button.disabled = _player_defeated
+	disengage_button.disabled = _player_defeated or (_combat_target.is_empty() and _last_action_sequence >= _next_action_sequence - 1)

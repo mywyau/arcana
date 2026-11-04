@@ -88,6 +88,46 @@ font_color = Color(0.95, 0.97, 1, 1)
 outline_size = 5
 outline_color = Color(0.04, 0.06, 0.08, 0.85)
 
+[sub_resource type="StyleBoxFlat" id="HUDPanelStyle"]
+bg_color = Color(0.035, 0.055, 0.075, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.24, 0.31, 0.37, 0.95)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="HUDBarBackground"]
+bg_color = Color(0.08, 0.1, 0.12, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="PlayerHealthFill"]
+bg_color = Color(0.16, 0.68, 0.38, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="TargetHealthFill"]
+bg_color = Color(0.82, 0.22, 0.18, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="CooldownFill"]
+bg_color = Color(0.92, 0.63, 0.15, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [node name="Main" type="Node3D" unique_id=92871911]
 script = ExtResource("1_main")
 
@@ -236,13 +276,110 @@ layout_mode = 2
 text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
 label_settings = SubResource("StatusLabelSettings")
 
-[node name="CombatMargin" type="MarginContainer" parent="UI" unique_id=847918071]
-offset_top = 94.0
-offset_right = 1280.0
-offset_bottom = 144.0
-theme_override_constants/margin_left = 20
+[node name="CombatHUD" type="PanelContainer" parent="UI"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -330.0
+offset_top = -280.0
+offset_right = 330.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
 
-[node name="Combat" type="Label" parent="UI/CombatMargin" unique_id=15976531]
+[node name="Margin" type="MarginContainer" parent="UI/CombatHUD"]
 layout_mode = 2
-text = "pulse 0  |  hp 100/100 dodge 10%  |  weapon sword [1/2] idle  |  target none  |  dummy 100/100  |  none"
-label_settings = SubResource("StatusLabelSettings")
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/CombatHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TargetRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="TargetHealthLabel" type="Label" parent="UI/CombatHUD/Margin/VBox/TargetRow"]
+layout_mode = 2
+text = "Target Dummy  100/100"
+
+[node name="Spacer" type="Control" parent="UI/CombatHUD/Margin/VBox/TargetRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AggroLabel" type="Label" parent="UI/CombatHUD/Margin/VBox/TargetRow"]
+layout_mode = 2
+text = "No aggro"
+
+[node name="TargetHealth" type="ProgressBar" parent="UI/CombatHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("TargetHealthFill")
+
+[node name="PlayerRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="PlayerHealthLabel" type="Label" parent="UI/CombatHUD/Margin/VBox/PlayerRow"]
+layout_mode = 2
+text = "You  100/100  •  Dodge 10%"
+
+[node name="PlayerHealth" type="ProgressBar" parent="UI/CombatHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("PlayerHealthFill")
+
+[node name="CombatState" type="Label" parent="UI/CombatHUD/Margin/VBox"]
+layout_mode = 2
+text = "Out of combat"
+horizontal_alignment = 1
+
+[node name="CooldownLabel" type="Label" parent="UI/CombatHUD/Margin/VBox"]
+layout_mode = 2
+text = "Attack: idle"
+
+[node name="Cooldown" type="ProgressBar" parent="UI/CombatHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+max_value = 4.0
+value = 4.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("CooldownFill")
+
+[node name="WeaponRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Sword" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
+custom_minimum_size = Vector2(145, 38)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "1  Sword"
+
+[node name="Dagger" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
+custom_minimum_size = Vector2(145, 38)
+layout_mode = 2
+toggle_mode = true
+text = "2  Dagger"
+
+[node name="Spacer" type="Control" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Disengage" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
+custom_minimum_size = Vector2(145, 38)
+layout_mode = 2
+disabled = true
+text = "Disengage  [Esc]"
