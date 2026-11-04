@@ -39,12 +39,13 @@ type WorldSnapshot struct {
 }
 
 type PlayerSnapshot struct {
-	ID                  string    `json:"id"`
-	Position            Position  `json:"position"`
-	Destination         *Position `json:"destination,omitempty"`
-	Speed               float64   `json:"speed"`
-	LastCommandSequence uint64    `json:"last_command_sequence"`
-	LastCommandTick     uint64    `json:"last_command_tick"`
+	ID                  string     `json:"id"`
+	Position            Position   `json:"position"`
+	Destination         *Position  `json:"destination,omitempty"`
+	Path                []Position `json:"path"`
+	Speed               float64    `json:"speed"`
+	LastCommandSequence uint64     `json:"last_command_sequence"`
+	LastCommandTick     uint64     `json:"last_command_tick"`
 }
 
 type ErrorMessage struct {

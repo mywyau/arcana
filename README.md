@@ -60,3 +60,10 @@ snapshots. Remote players are smoothly interpolated.
 The green capsule is the local player. Other connected players are blue.
 The diagnostic line shows the latest server tick, sent and acknowledged command
 sequences, and the current authoritative correction distance.
+
+The prototype world has overlapping ground and upper-floor navigation layers
+connected by one authored ramp. Clicking either floor makes the server produce
+a continuous waypoint route through the ramp. Each layer uses a 0.5-unit A*
+navigation grid with player-radius obstacle clearance, diagonal corner checks,
+and simplified waypoints. The layout is still hardcoded and does not yet have a
+map-import pipeline.

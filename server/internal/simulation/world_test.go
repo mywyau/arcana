@@ -45,6 +45,21 @@ func TestWorldStopsPlayerAtDestinationWithoutOvershooting(t *testing.T) {
 	}
 }
 
+func TestWorldMovesThroughPathfinderWaypoints(t *testing.T) {
+	pathfinder := fixedPathfinder{path: []Position{{X: 3}, {X: 3, Y: 4}}}
+	world := NewWorldWithPathfinder(pathfinder)
+	mustAddPlayer(t, world, "player-one", Position{}, 5)
+	mustQueueMove(t, world, "player-one", 1, Position{X: 3, Y: 4})
+
+	world.Step(time.Second)
+
+	player := mustPlayer(t, world, "player-one")
+	assertPosition(t, player.Position, Position{X: 3, Y: 2})
+	if got, want := len(player.Path), 1; got != want {
+		t.Fatalf("len(Player().Path) = %d, want %d", got, want)
+	}
+}
+
 func TestWorldUsesLatestDestinationIntention(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 2)
@@ -123,12 +138,14 @@ func TestWorldSnapshotIsOrderedAndDetached(t *testing.T) {
 
 	snapshot.Players[0].Position = Position{X: 999}
 	*snapshot.Players[0].Destination = Position{Z: 999}
+	snapshot.Players[0].Path[0] = Position{Y: 999}
 	fresh := world.Snapshot()
 	assertPosition(t, fresh.Players[0].Position, Position{Z: 1})
 	if fresh.Players[0].Destination == nil {
 		t.Fatal("fresh snapshot destination is nil")
 	}
 	assertPosition(t, *fresh.Players[0].Destination, Position{Z: 10})
+	assertPosition(t, fresh.Players[0].Path[0], Position{Z: 10})
 }
 
 func TestWorldAppliesQueuedPlayerLifecycleOnStep(t *testing.T) {
@@ -198,4 +215,12 @@ func assertPosition(t *testing.T, got, want Position) {
 		math.Abs(got.Z-want.Z) > tolerance {
 		t.Fatalf("position = %+v, want %+v", got, want)
 	}
+}
+
+type fixedPathfinder struct {
+	path []Position
+}
+
+func (f fixedPathfinder) FindPath(_, _ Position) ([]Position, error) {
+	return f.path, nil
 }

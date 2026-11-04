@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mywyau/arcana/server/internal/navigation"
 	"github.com/mywyau/arcana/server/internal/simulation"
 	websockettransport "github.com/mywyau/arcana/server/internal/transport/websocket"
 )
@@ -22,7 +23,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	world := simulation.NewWorld()
+	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
 	runner, err := simulation.NewRunner(world, tickInterval)
 	if err != nil {
 		log.Fatal(err)

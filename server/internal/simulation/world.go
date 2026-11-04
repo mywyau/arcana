@@ -24,11 +24,16 @@ type MoveCommand struct {
 	Destination Position
 }
 
+type Pathfinder interface {
+	FindPath(start, destination Position) ([]Position, error)
+}
+
 // PlayerSnapshot is a detached view of a player's authoritative state.
 type PlayerSnapshot struct {
 	ID                  PlayerID
 	Position            Position
 	Destination         *Position
+	Path                []Position
 	Speed               float64
 	LastCommandSequence uint64
 	LastCommandTick     uint64
@@ -44,6 +49,7 @@ type playerState struct {
 	id                  PlayerID
 	position            Position
 	destination         *Position
+	path                []Position
 	speed               float64
 	lastCommandSequence uint64
 	lastCommandTick     uint64
@@ -56,7 +62,13 @@ type World struct {
 	players       map[PlayerID]*playerState
 	pendingJoins  map[PlayerID]*playerState
 	pendingLeaves map[PlayerID]struct{}
-	pendingMoves  map[PlayerID]MoveCommand
+	pendingMoves  map[PlayerID]pendingMove
+	pathfinder    Pathfinder
+}
+
+type pendingMove struct {
+	command MoveCommand
+	path    []Position
 }
 
 func NewWorld() *World {
@@ -64,8 +76,14 @@ func NewWorld() *World {
 		players:       make(map[PlayerID]*playerState),
 		pendingJoins:  make(map[PlayerID]*playerState),
 		pendingLeaves: make(map[PlayerID]struct{}),
-		pendingMoves:  make(map[PlayerID]MoveCommand),
+		pendingMoves:  make(map[PlayerID]pendingMove),
 	}
+}
+
+func NewWorldWithPathfinder(pathfinder Pathfinder) *World {
+	world := NewWorld()
+	world.pathfinder = pathfinder
+	return world
 }
 
 // AddPlayer registers a player before it enters the active simulation.
@@ -148,11 +166,23 @@ func (w *World) QueueMove(command MoveCommand) error {
 	if command.Sequence <= player.lastCommandSequence {
 		return fmt.Errorf("command sequence %d is not newer than %d", command.Sequence, player.lastCommandSequence)
 	}
-	if pending, exists := w.pendingMoves[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
-		return fmt.Errorf("command sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	if pending, exists := w.pendingMoves[command.PlayerID]; exists && command.Sequence <= pending.command.Sequence {
+		return fmt.Errorf("command sequence %d is not newer than pending sequence %d", command.Sequence, pending.command.Sequence)
 	}
 
-	w.pendingMoves[command.PlayerID] = command
+	path := []Position{command.Destination}
+	if w.pathfinder != nil {
+		var err error
+		path, err = w.pathfinder.FindPath(player.position, command.Destination)
+		if err != nil {
+			return fmt.Errorf("find path: %w", err)
+		}
+	}
+	if len(path) == 0 {
+		return fmt.Errorf("find path: empty path")
+	}
+
+	w.pendingMoves[command.PlayerID] = pendingMove{command: command, path: clonePositions(path)}
 	return nil
 }
 
@@ -171,10 +201,11 @@ func (w *World) Step(elapsed time.Duration) {
 		delete(w.pendingJoins, id)
 	}
 
-	for id, command := range w.pendingMoves {
+	for id, move := range w.pendingMoves {
 		player := w.players[id]
-		player.destination = positionPointer(command.Destination)
-		player.lastCommandSequence = command.Sequence
+		player.destination = positionPointer(move.command.Destination)
+		player.path = clonePositions(move.path)
+		player.lastCommandSequence = move.command.Sequence
 		player.lastCommandTick = w.tick
 		delete(w.pendingMoves, id)
 	}
@@ -230,25 +261,34 @@ func (w *World) Tick() uint64 {
 }
 
 func movePlayer(player *playerState, seconds float64) {
-	if player.destination == nil {
+	if player.destination == nil || len(player.path) == 0 {
 		return
 	}
 
-	dx := player.destination.X - player.position.X
-	dy := player.destination.Y - player.position.Y
-	dz := player.destination.Z - player.position.Z
-	distance := math.Sqrt(dx*dx + dy*dy + dz*dz)
-	maximumMovement := player.speed * seconds
+	remainingMovement := player.speed * seconds
+	for remainingMovement > 0 && len(player.path) > 0 {
+		waypoint := player.path[0]
+		dx := waypoint.X - player.position.X
+		dy := waypoint.Y - player.position.Y
+		dz := waypoint.Z - player.position.Z
+		distance := math.Sqrt(dx*dx + dy*dy + dz*dz)
 
-	if distance <= maximumMovement {
-		player.position = *player.destination
+		if distance <= remainingMovement {
+			player.position = waypoint
+			player.path = player.path[1:]
+			remainingMovement -= distance
+			continue
+		}
+
+		player.position.X += dx / distance * remainingMovement
+		player.position.Y += dy / distance * remainingMovement
+		player.position.Z += dz / distance * remainingMovement
+		remainingMovement = 0
+	}
+
+	if len(player.path) == 0 {
 		player.destination = nil
-		return
 	}
-
-	player.position.X += dx / distance * maximumMovement
-	player.position.Y += dy / distance * maximumMovement
-	player.position.Z += dz / distance * maximumMovement
 }
 
 func snapshotPlayer(player *playerState) PlayerSnapshot {
@@ -262,6 +302,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)
 	}
+	snapshot.Path = clonePositions(player.path)
 	return snapshot
 }
 
@@ -286,4 +327,8 @@ func (p Position) valid() bool {
 
 func positionPointer(position Position) *Position {
 	return &position
+}
+
+func clonePositions(positions []Position) []Position {
+	return append([]Position(nil), positions...)
 }

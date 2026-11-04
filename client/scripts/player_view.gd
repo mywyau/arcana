@@ -13,9 +13,9 @@ var _is_local: bool = false
 var _has_position: bool = false
 var _remote_target: Vector3
 var _authoritative_position: Vector3
-var _predicted_destination: Vector3
-var _has_predicted_destination: bool = false
+var _predicted_path: Array[Vector3] = []
 var _pending_correction: Vector3
+var _last_route_sequence: int = -1
 
 
 func _process(delta: float) -> void:
@@ -27,11 +27,13 @@ func _process(delta: float) -> void:
 		global_position = global_position.lerp(_remote_target, weight)
 		return
 
-	if _has_predicted_destination:
+	if not _predicted_path.is_empty():
 		global_position = global_position.move_toward(
-			_predicted_destination,
+			_predicted_path[0],
 			movement_speed * delta,
 		)
+		if global_position.is_equal_approx(_predicted_path[0]) and _predicted_path.size() > 1:
+			_predicted_path.pop_front()
 
 	if not _pending_correction.is_zero_approx():
 		var correction_step: Vector3 = _pending_correction.limit_length(correction_speed * delta)
@@ -42,14 +44,12 @@ func _process(delta: float) -> void:
 func predict_move(destination: Vector3) -> void:
 	if not _is_local or not _has_position:
 		return
-	_predicted_destination = destination
-	_has_predicted_destination = true
+	_predicted_path = [destination]
 
 
 func apply_authoritative_state(
 	position: Vector3,
-	destination: Vector3,
-	has_destination: bool,
+	path: Array[Vector3],
 	speed: float,
 	acknowledged_sequence: int,
 	latest_sent_sequence: int,
@@ -75,16 +75,15 @@ func apply_authoritative_state(
 	else:
 		_pending_correction = Vector3.ZERO
 
-	if acknowledged_sequence >= latest_sent_sequence:
-		_has_predicted_destination = has_destination
-		if has_destination:
-			_predicted_destination = destination
+	if acknowledged_sequence >= latest_sent_sequence and acknowledged_sequence > _last_route_sequence:
+		_predicted_path = path.duplicate()
+		_last_route_sequence = acknowledged_sequence
 
 	return correction_distance
 
 
 func cancel_prediction() -> void:
-	_has_predicted_destination = false
+	_predicted_path.clear()
 	_pending_correction = _authoritative_position - global_position
 
 

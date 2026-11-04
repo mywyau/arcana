@@ -1,7 +1,7 @@
 extends Node3D
 
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
-const GROUND_PLANE: Plane = Plane.PLANE_XZ
+const RAY_LENGTH: float = 1000.0
 
 @onready var camera: Camera3D = $Camera3D
 @onready var network: NetworkClient = $NetworkClient
@@ -13,6 +13,8 @@ const GROUND_PLANE: Plane = Plane.PLANE_XZ
 var _local_player_id: String = ""
 var _next_sequence: int = 1
 var _player_views: Dictionary = {}
+var _pending_click: Vector2
+var _has_pending_click: bool = false
 
 
 func _ready() -> void:
@@ -30,13 +32,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
-	var ray_origin: Vector3 = camera.project_ray_origin(mouse_event.position)
-	var ray_direction: Vector3 = camera.project_ray_normal(mouse_event.position)
-	var intersection: Variant = GROUND_PLANE.intersects_ray(ray_origin, ray_direction)
-	if intersection == null:
+	_pending_click = mouse_event.position
+	_has_pending_click = true
+
+
+func _physics_process(_delta: float) -> void:
+	if not _has_pending_click:
+		return
+	_has_pending_click = false
+
+	var ray_origin: Vector3 = camera.project_ray_origin(_pending_click)
+	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(_pending_click) * RAY_LENGTH
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
 		return
 
-	var destination := intersection as Vector3
+	var destination: Vector3 = result["position"]
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
 		_next_sequence += 1
@@ -53,7 +65,7 @@ func _on_status_changed(status: String) -> void:
 
 func _on_welcome_received(player_id: String) -> void:
 	_local_player_id = player_id
-	status_label.text = "Connected as %s — click the ground to move" % player_id
+	status_label.text = "Connected as %s — click a walkable surface to move" % player_id
 	for id: String in _player_views:
 		var view: PlayerView = _player_views[id]
 		view.set_local_player(id == _local_player_id)
@@ -81,17 +93,18 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			float(coordinates.get("y", 0.0)),
 			float(coordinates.get("z", 0.0)),
 		)
-		var destination := Vector3.ZERO
-		var has_destination: bool = false
-		var destination_data: Variant = player_data.get("destination")
-		if typeof(destination_data) == TYPE_DICTIONARY:
-			var destination_coordinates: Dictionary = destination_data
-			destination = Vector3(
-				float(destination_coordinates.get("x", 0.0)),
-				float(destination_coordinates.get("y", 0.0)),
-				float(destination_coordinates.get("z", 0.0)),
-			)
-			has_destination = true
+		var path: Array[Vector3] = []
+		var path_data: Variant = player_data.get("path", [])
+		if typeof(path_data) == TYPE_ARRAY:
+			for waypoint_data: Variant in path_data:
+				if typeof(waypoint_data) != TYPE_DICTIONARY:
+					continue
+				var waypoint: Dictionary = waypoint_data
+				path.append(Vector3(
+					float(waypoint.get("x", 0.0)),
+					float(waypoint.get("y", 0.0)),
+					float(waypoint.get("z", 0.0)),
+				))
 
 		var view: PlayerView = _player_views.get(id)
 		if view == null:
@@ -103,8 +116,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
 		var correction: float = view.apply_authoritative_state(
 			position,
-			destination,
-			has_destination,
+			path,
 			float(player_data.get("speed", 4.0)),
 			acknowledged_sequence,
 			_next_sequence - 1,

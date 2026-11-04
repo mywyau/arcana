@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/network_client.gd" id="2_network"]
@@ -7,11 +7,45 @@
 albedo_color = Color(0.24, 0.48, 0.29, 1)
 roughness = 1.0
 
-[sub_resource type="PlaneMesh" id="GroundMesh"]
+[sub_resource type="BoxMesh" id="GroundMesh"]
 material = SubResource("GroundMaterial")
-size = Vector2(40, 40)
-subdivide_width = 20
-subdivide_depth = 20
+size = Vector3(20, 0.2, 20)
+
+[sub_resource type="BoxShape3D" id="GroundShape"]
+size = Vector3(20, 0.2, 20)
+
+[sub_resource type="StandardMaterial3D" id="UpperMaterial"]
+albedo_color = Color(0.28, 0.38, 0.55, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="UpperMesh"]
+material = SubResource("UpperMaterial")
+size = Vector3(8, 0.2, 8)
+
+[sub_resource type="BoxShape3D" id="UpperShape"]
+size = Vector3(8, 0.2, 8)
+
+[sub_resource type="StandardMaterial3D" id="RampMaterial"]
+albedo_color = Color(0.48, 0.4, 0.3, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="RampMesh"]
+material = SubResource("RampMaterial")
+size = Vector3(3.6055, 0.18, 2)
+
+[sub_resource type="BoxMesh" id="GroundObstacleMesh"]
+material = SubResource("RampMaterial")
+size = Vector3(1, 2, 2)
+
+[sub_resource type="BoxShape3D" id="GroundObstacleShape"]
+size = Vector3(1, 2, 2)
+
+[sub_resource type="BoxMesh" id="UpperObstacleMesh"]
+material = SubResource("RampMaterial")
+size = Vector3(1, 2, 3)
+
+[sub_resource type="BoxShape3D" id="UpperObstacleShape"]
+size = Vector3(1, 2, 3)
 
 [sub_resource type="StandardMaterial3D" id="MarkerMaterial"]
 albedo_color = Color(0.95, 0.76, 0.2, 1)
@@ -49,7 +83,49 @@ light_energy = 1.1
 shadow_enabled = true
 
 [node name="Ground" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.1, 0)
 mesh = SubResource("GroundMesh")
+
+[node name="GroundBody" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody"]
+position = Vector3(0, -0.1, 0)
+shape = SubResource("GroundShape")
+
+[node name="UpperFloor" type="MeshInstance3D" parent="."]
+position = Vector3(-2, 2.9, 0)
+mesh = SubResource("UpperMesh")
+
+[node name="UpperFloorBody" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperFloorBody"]
+position = Vector3(-2, 2.9, 0)
+shape = SubResource("UpperShape")
+
+[node name="Ramp" type="MeshInstance3D" parent="."]
+position = Vector3(3, 1.5, 0)
+rotation_degrees = Vector3(0, 0, -56.31)
+mesh = SubResource("RampMesh")
+
+[node name="GroundObstacle" type="MeshInstance3D" parent="."]
+position = Vector3(2, 1, 0)
+mesh = SubResource("GroundObstacleMesh")
+
+[node name="GroundObstacleBody" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundObstacleBody"]
+position = Vector3(2, 1, 0)
+shape = SubResource("GroundObstacleShape")
+
+[node name="UpperObstacle" type="MeshInstance3D" parent="."]
+position = Vector3(-2.5, 4, 0.5)
+mesh = SubResource("UpperObstacleMesh")
+
+[node name="UpperObstacleBody" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UpperObstacleBody"]
+position = Vector3(-2.5, 4, 0.5)
+shape = SubResource("UpperObstacleShape")
 
 [node name="ClickMarker" type="MeshInstance3D" parent="."]
 visible = false
