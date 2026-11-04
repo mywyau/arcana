@@ -60,6 +60,25 @@ func TestWorldMovesThroughPathfinderWaypoints(t *testing.T) {
 	}
 }
 
+func TestWorldUpdatesNavigationLocationWhileMoving(t *testing.T) {
+	pathfinder := transitionPathfinder{}
+	world := NewWorldWithPathfinder(pathfinder)
+	mustAddPlayer(t, world, "player-one", Position{}, 1)
+	mustQueueMove(t, world, "player-one", 1, Position{Y: 3})
+
+	if got := mustPlayer(t, world, "player-one").NavigationLocation; got.ID != "ground" {
+		t.Fatalf("initial NavigationLocation = %+v, want ground", got)
+	}
+	world.Step(time.Second)
+	if got := mustPlayer(t, world, "player-one").NavigationLocation; got.Kind != NavigationLocationConnector {
+		t.Fatalf("mid-route NavigationLocation = %+v, want connector", got)
+	}
+	world.Step(2 * time.Second)
+	if got := mustPlayer(t, world, "player-one").NavigationLocation; got.ID != "upper" {
+		t.Fatalf("final NavigationLocation = %+v, want upper", got)
+	}
+}
+
 func TestWorldUsesLatestDestinationIntention(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 2)
@@ -223,4 +242,25 @@ type fixedPathfinder struct {
 
 func (f fixedPathfinder) FindPath(_, _ Position) ([]Position, error) {
 	return f.path, nil
+}
+
+func (f fixedPathfinder) Locate(_ Position) (NavigationLocation, error) {
+	return NavigationLocation{Kind: NavigationLocationUnknown}, nil
+}
+
+type transitionPathfinder struct{}
+
+func (transitionPathfinder) FindPath(_, destination Position) ([]Position, error) {
+	return []Position{destination}, nil
+}
+
+func (transitionPathfinder) Locate(position Position) (NavigationLocation, error) {
+	switch {
+	case position.Y <= 0:
+		return NavigationLocation{Kind: NavigationLocationLayer, ID: "ground"}, nil
+	case position.Y >= 3:
+		return NavigationLocation{Kind: NavigationLocationLayer, ID: "upper"}, nil
+	default:
+		return NavigationLocation{Kind: NavigationLocationConnector, ID: "ramp"}, nil
+	}
 }

@@ -165,7 +165,11 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			Speed:               player.Speed,
 			LastCommandSequence: player.LastCommandSequence,
 			LastCommandTick:     player.LastCommandTick,
-			Path:                make([]protocol.Position, 0, len(player.Path)),
+			NavigationLocation: protocol.NavigationLocation{
+				Kind: string(player.NavigationLocation.Kind),
+				ID:   player.NavigationLocation.ID,
+			},
+			Path: make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, waypoint := range player.Path {
 			playerMessage.Path = append(playerMessage.Path, protocol.Position{

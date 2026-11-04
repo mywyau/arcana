@@ -63,6 +63,8 @@ wheel to zoom. The camera follows the local player and pulls closer when world
 geometry obstructs its view.
 The diagnostic line shows the latest server tick, sent and acknowledged command
 sequences, and the current authoritative correction distance.
+It also shows the authoritative navigation location as `layer:ground`,
+`connector:ground_upper_ramp`, or `layer:upper`.
 
 The prototype world has overlapping ground and upper-floor navigation layers
 connected by one authored ramp. Clicking either floor makes the server produce
@@ -70,3 +72,10 @@ a continuous waypoint route through the ramp. Each layer uses a 0.5-unit A*
 navigation grid with player-radius obstacle clearance, diagonal corner checks,
 and simplified waypoints. The layout is still hardcoded and does not yet have a
 map-import pipeline.
+
+### Next navigation slice
+
+The next planned slice is client-side floor-aware interaction: tag colliders by
+navigation layer, filter clicks using the authoritative location above, keep
+the ramp selectable from either adjacent layer, and fade the upper floor while
+the local player is underneath it.

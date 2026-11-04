@@ -31,6 +31,32 @@ func TestPrototypeMapRejectsUnwalkableDestination(t *testing.T) {
 	}
 }
 
+func TestPrototypeMapLocatesLayersAndConnector(t *testing.T) {
+	world := NewPrototypeMap()
+	tests := []struct {
+		name     string
+		position simulation.Position
+		kind     simulation.NavigationLocationKind
+		id       string
+	}{
+		{name: "ground", position: simulation.Position{}, kind: simulation.NavigationLocationLayer, id: "ground"},
+		{name: "connector", position: simulation.Position{X: 3, Y: 1.5}, kind: simulation.NavigationLocationConnector, id: "ground_upper_ramp"},
+		{name: "upper", position: simulation.Position{X: -1, Y: 3}, kind: simulation.NavigationLocationLayer, id: "upper"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			location, err := world.Locate(test.position)
+			if err != nil {
+				t.Fatalf("Locate() returned an unexpected error: %v", err)
+			}
+			if location.Kind != test.kind || location.ID != test.id {
+				t.Fatalf("Locate() = %+v, want kind %q and ID %q", location, test.kind, test.id)
+			}
+		})
+	}
+}
+
 func TestPrototypeMapRejectsObstacleTopAsConnector(t *testing.T) {
 	_, err := NewPrototypeMap().FindPath(
 		simulation.Position{},

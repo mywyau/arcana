@@ -180,5 +180,5 @@ theme_override_constants/margin_left = 20
 
 [node name="Diagnostics" type="Label" parent="UI/DiagnosticsMargin"]
 layout_mode = 2
-text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000"
+text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
 label_settings = SubResource("StatusLabelSettings")

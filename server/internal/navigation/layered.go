@@ -25,6 +25,7 @@ type Layer struct {
 }
 
 type Link struct {
+	ID        string
 	FromLayer string
 	From      simulation.Position
 	ToLayer   string
@@ -66,6 +67,7 @@ func NewPrototypeMap() *LayeredMap {
 		},
 		[]Link{
 			{
+				ID:        "ground_upper_ramp",
 				FromLayer: "ground",
 				From:      simulation.Position{X: 4, Y: 0, Z: 0},
 				ToLayer:   "upper",
@@ -77,6 +79,28 @@ func NewPrototypeMap() *LayeredMap {
 			{LayerID: "upper", MinimumX: -3, MaximumX: -2, MinimumZ: -1, MaximumZ: 2},
 		},
 	)
+}
+
+func (m *LayeredMap) Locate(position simulation.Position) (simulation.NavigationLocation, error) {
+	if layer, err := m.layerAt(position); err == nil {
+		return simulation.NavigationLocation{
+			Kind: simulation.NavigationLocationLayer,
+			ID:   layer.ID,
+		}, nil
+	}
+	for _, link := range m.links {
+		if positionOnLink(position, link) {
+			id := link.ID
+			if id == "" {
+				id = link.FromLayer + "_" + link.ToLayer
+			}
+			return simulation.NavigationLocation{
+				Kind: simulation.NavigationLocationConnector,
+				ID:   id,
+			}, nil
+		}
+	}
+	return simulation.NavigationLocation{}, fmt.Errorf("position %+v has no navigation location", position)
 }
 
 func (m *LayeredMap) FindPath(start, destination simulation.Position) ([]simulation.Position, error) {

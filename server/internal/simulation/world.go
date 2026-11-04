@@ -26,6 +26,20 @@ type MoveCommand struct {
 
 type Pathfinder interface {
 	FindPath(start, destination Position) ([]Position, error)
+	Locate(position Position) (NavigationLocation, error)
+}
+
+type NavigationLocationKind string
+
+const (
+	NavigationLocationUnknown   NavigationLocationKind = "unknown"
+	NavigationLocationLayer     NavigationLocationKind = "layer"
+	NavigationLocationConnector NavigationLocationKind = "connector"
+)
+
+type NavigationLocation struct {
+	Kind NavigationLocationKind
+	ID   string
 }
 
 // PlayerSnapshot is a detached view of a player's authoritative state.
@@ -34,6 +48,7 @@ type PlayerSnapshot struct {
 	Position            Position
 	Destination         *Position
 	Path                []Position
+	NavigationLocation  NavigationLocation
 	Speed               float64
 	LastCommandSequence uint64
 	LastCommandTick     uint64
@@ -50,6 +65,7 @@ type playerState struct {
 	position            Position
 	destination         *Position
 	path                []Position
+	navigationLocation  NavigationLocation
 	speed               float64
 	lastCommandSequence uint64
 	lastCommandTick     uint64
@@ -92,6 +108,11 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		return err
 	}
 
+	location, err := w.locate(position)
+	if err != nil {
+		return fmt.Errorf("locate player: %w", err)
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -99,7 +120,9 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		return fmt.Errorf("player %q already exists", id)
 	}
 
-	w.players[id] = &playerState{id: id, position: position, speed: speed}
+	w.players[id] = &playerState{
+		id: id, position: position, speed: speed, navigationLocation: location,
+	}
 	return nil
 }
 
@@ -107,6 +130,11 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	if err := validatePlayer(id, position, speed); err != nil {
 		return err
+	}
+
+	location, err := w.locate(position)
+	if err != nil {
+		return fmt.Errorf("locate player: %w", err)
 	}
 
 	w.mu.Lock()
@@ -119,7 +147,9 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		return fmt.Errorf("player %q is already waiting to join", id)
 	}
 
-	w.pendingJoins[id] = &playerState{id: id, position: position, speed: speed}
+	w.pendingJoins[id] = &playerState{
+		id: id, position: position, speed: speed, navigationLocation: location,
+	}
 	return nil
 }
 
@@ -213,6 +243,9 @@ func (w *World) Step(elapsed time.Duration) {
 	seconds := elapsed.Seconds()
 	for _, player := range w.players {
 		movePlayer(player, seconds)
+		if location, err := w.locate(player.position); err == nil {
+			player.navigationLocation = location
+		}
 	}
 
 	for id := range w.pendingLeaves {
@@ -298,6 +331,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		Speed:               player.speed,
 		LastCommandSequence: player.lastCommandSequence,
 		LastCommandTick:     player.lastCommandTick,
+		NavigationLocation:  player.navigationLocation,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)
@@ -331,4 +365,11 @@ func positionPointer(position Position) *Position {
 
 func clonePositions(positions []Position) []Position {
 	return append([]Position(nil), positions...)
+}
+
+func (w *World) locate(position Position) (NavigationLocation, error) {
+	if w.pathfinder == nil {
+		return NavigationLocation{Kind: NavigationLocationUnknown}, nil
+	}
+	return w.pathfinder.Locate(position)
 }

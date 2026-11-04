@@ -12,6 +12,8 @@ const RAY_LENGTH: float = 1000.0
 @onready var click_marker: MeshInstance3D = $ClickMarker
 
 var _local_player_id: String = ""
+var _local_navigation_kind: String = "unknown"
+var _local_navigation_id: String = ""
 var _next_sequence: int = 1
 var _player_views: Dictionary = {}
 var _pending_click: Vector2
@@ -145,11 +147,18 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_next_sequence - 1,
 		)
 		if id == _local_player_id:
-			diagnostics_label.text = "tick %d  |  sent %d  |  acknowledged %d  |  correction %.3f" % [
+			var navigation_data: Variant = player_data.get("navigation_location", {})
+			if typeof(navigation_data) == TYPE_DICTIONARY:
+				var navigation_location: Dictionary = navigation_data
+				_local_navigation_kind = str(navigation_location.get("kind", "unknown"))
+				_local_navigation_id = str(navigation_location.get("id", ""))
+			diagnostics_label.text = "tick %d  |  sent %d  |  acknowledged %d  |  correction %.3f  |  %s:%s" % [
 				snapshot_tick,
 				_next_sequence - 1,
 				acknowledged_sequence,
 				correction,
+				_local_navigation_kind,
+				_local_navigation_id,
 			]
 		active_ids[id] = true
 
