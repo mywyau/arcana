@@ -10,6 +10,8 @@ extends Node3D
 @onready var visual_root: Node3D = $VisualRoot
 @onready var mesh: MeshInstance3D = $VisualRoot/Mesh
 @onready var sword_pivot: Node3D = $VisualRoot/SwordPivot
+@onready var blade: MeshInstance3D = $VisualRoot/SwordPivot/Blade
+@onready var hilt: MeshInstance3D = $VisualRoot/SwordPivot/Hilt
 @onready var damage_label: Label3D = $DamageLabel
 
 var _is_local: bool = false
@@ -24,6 +26,8 @@ var _hit_tween: Tween
 var _body_material: StandardMaterial3D
 var _rest_color: Color
 var _defeated: bool = false
+var _following_server_path: bool = false
+var _equipped_weapon: String = "sword"
 
 
 func _process(delta: float) -> void:
@@ -61,6 +65,7 @@ func apply_authoritative_state(
 	speed: float,
 	acknowledged_sequence: int,
 	latest_sent_sequence: int,
+	server_driven_path: bool,
 ) -> float:
 	_authoritative_position = position
 	movement_speed = speed
@@ -83,9 +88,14 @@ func apply_authoritative_state(
 	else:
 		_pending_correction = Vector3.ZERO
 
-	if acknowledged_sequence >= latest_sent_sequence and acknowledged_sequence > _last_route_sequence:
+	if server_driven_path:
+		_predicted_path = path.duplicate()
+	elif _following_server_path:
+		_predicted_path = path.duplicate()
+	elif acknowledged_sequence >= latest_sent_sequence and acknowledged_sequence > _last_route_sequence:
 		_predicted_path = path.duplicate()
 		_last_route_sequence = acknowledged_sequence
+	_following_server_path = server_driven_path
 
 	return correction_distance
 
@@ -95,7 +105,7 @@ func cancel_prediction() -> void:
 	_pending_correction = _authoritative_position - global_position
 
 
-func play_sword_attack(target_position: Vector3) -> void:
+func play_weapon_attack(target_position: Vector3) -> void:
 	if _defeated:
 		return
 	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
@@ -108,9 +118,19 @@ func play_sword_attack(target_position: Vector3) -> void:
 	_attack_tween = create_tween()
 	_attack_tween.set_trans(Tween.TRANS_QUAD)
 	_attack_tween.set_ease(Tween.EASE_OUT)
-	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", 70.0, 0.16)
+	var forward_duration: float = 0.11 if _equipped_weapon == "dagger" else 0.16
+	var return_duration: float = 0.14 if _equipped_weapon == "dagger" else 0.22
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", 70.0, forward_duration)
 	_attack_tween.set_ease(Tween.EASE_IN_OUT)
-	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", -55.0, 0.22)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", -55.0, return_duration)
+
+
+func set_weapon(weapon_id: String) -> void:
+	_equipped_weapon = weapon_id
+	var dagger_equipped: bool = weapon_id == "dagger"
+	blade.scale = Vector3(0.8, 0.55, 1.0) if dagger_equipped else Vector3.ONE
+	blade.position.y = 0.3 if dagger_equipped else 0.5
+	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
 
 
 func play_hit(damage: int) -> void:

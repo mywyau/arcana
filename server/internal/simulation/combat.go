@@ -8,21 +8,51 @@ import (
 )
 
 const (
-	actionPulseInterval       = 600 * time.Millisecond
-	swordAttackIntervalPulses = 4
-	swordRange                = 2.0
-	swordApproachRange        = 1.5
-	swordDamage               = 10
-	playerMaximumHealth       = 100
-	dummyMaximumHealth        = 100
-	dummyAttackDamage         = 15
-	dummyAttackIntervalPulses = 4
-	dummyAttackRange          = 2.0
-	dummyLeashRange           = 6.0
-	respawnDelayPulses        = 5
-	dummyTargetID             = "dummy"
-	combatEventHistoryLimit   = 32
+	actionPulseInterval        = 600 * time.Millisecond
+	swordAttackIntervalPulses  = 4
+	swordRange                 = 1.55
+	swordApproachRange         = 1.25
+	swordDamage                = 10
+	daggerRange                = 1.3
+	daggerApproachRange        = 1.05
+	daggerDamage               = 7
+	daggerAttackIntervalPulses = 3
+	playerMaximumHealth        = 100
+	dummyMaximumHealth         = 100
+	dummyAttackDamage          = 15
+	dummyAttackIntervalPulses  = 4
+	dummyAttackRange           = 1.55
+	dummyLeashRange            = 6.0
+	respawnDelayPulses         = 5
+	dummyTargetID              = "dummy"
+	combatEventHistoryLimit    = 32
 )
+
+type WeaponID string
+
+const (
+	WeaponSword  WeaponID = "sword"
+	WeaponDagger WeaponID = "dagger"
+)
+
+type WeaponDefinition struct {
+	ID             WeaponID
+	Damage         int
+	AttackInterval uint64
+	Range          float64
+	ApproachRange  float64
+}
+
+func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
+	switch id {
+	case WeaponSword:
+		return WeaponDefinition{ID: id, Damage: swordDamage, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
+	case WeaponDagger:
+		return WeaponDefinition{ID: id, Damage: daggerDamage, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
+	default:
+		return WeaponDefinition{}, false
+	}
+}
 
 type CombatEventType string
 
@@ -44,6 +74,12 @@ type TargetCommand struct {
 	TargetID string
 }
 
+type EquipCommand struct {
+	PlayerID PlayerID
+	Sequence uint64
+	ItemID   WeaponID
+}
+
 type DummySnapshot struct {
 	Position        Position
 	Health          int
@@ -55,12 +91,13 @@ type DummySnapshot struct {
 }
 
 type combatState struct {
-	elapsed        time.Duration
-	pulse          uint64
-	dummy          DummySnapshot
-	pendingTargets map[PlayerID]TargetCommand
-	nextEventID    uint64
-	events         []CombatEvent
+	elapsed          time.Duration
+	pulse            uint64
+	dummy            DummySnapshot
+	pendingTargets   map[PlayerID]TargetCommand
+	pendingEquipment map[PlayerID]EquipCommand
+	nextEventID      uint64
+	events           []CombatEvent
 }
 
 func newCombatState() *combatState {
@@ -70,8 +107,45 @@ func newCombatState() *combatState {
 			Health:        dummyMaximumHealth,
 			MaximumHealth: dummyMaximumHealth,
 		},
-		pendingTargets: make(map[PlayerID]TargetCommand),
+		pendingTargets:   make(map[PlayerID]TargetCommand),
+		pendingEquipment: make(map[PlayerID]EquipCommand),
 	}
+}
+
+// QueueEquip records an owned prototype weapon to equip on the next action pulse.
+func (w *World) QueueEquip(command EquipCommand) error {
+	if command.Sequence == 0 {
+		return fmt.Errorf("equipment sequence must be positive")
+	}
+	if _, exists := weaponDefinition(command.ItemID); !exists {
+		return fmt.Errorf("item %q does not exist", command.ItemID)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if _, leaving := w.pendingLeaves[command.PlayerID]; leaving {
+		return fmt.Errorf("player %q is leaving", command.PlayerID)
+	}
+	player, exists := w.players[command.PlayerID]
+	if !exists {
+		player, exists = w.pendingJoins[command.PlayerID]
+		if !exists {
+			return fmt.Errorf("player %q does not exist", command.PlayerID)
+		}
+	}
+	if player.defeated {
+		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if command.Sequence <= player.lastEquipmentSequence {
+		return fmt.Errorf("equipment sequence %d is not newer than %d", command.Sequence, player.lastEquipmentSequence)
+	}
+	if pending, exists := w.combat.pendingEquipment[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
+		return fmt.Errorf("equipment sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	}
+
+	w.combat.pendingEquipment[command.PlayerID] = command
+	return nil
 }
 
 // QueueTarget records an intention to engage TargetID, or to disengage when it
@@ -117,9 +191,27 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.combat.elapsed -= actionPulseInterval
 		w.combat.pulse++
 		w.respawnDefeatedEntities()
+		w.applyEquipmentCommands()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
 		w.resolveDummyAttack()
+	}
+}
+
+func (w *World) applyEquipmentCommands() {
+	playerIDs := make([]PlayerID, 0, len(w.combat.pendingEquipment))
+	for id := range w.combat.pendingEquipment {
+		playerIDs = append(playerIDs, id)
+	}
+	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
+	for _, id := range playerIDs {
+		command := w.combat.pendingEquipment[id]
+		if player, exists := w.players[id]; exists && !player.defeated {
+			player.equippedWeapon = command.ItemID
+			player.lastEquipmentSequence = command.Sequence
+			player.lastEquipmentPulse = w.combat.pulse
+		}
+		delete(w.combat.pendingEquipment, id)
 	}
 }
 
@@ -197,8 +289,9 @@ func (w *World) resolveAutoAttacks() {
 			w.clearPlayerTarget(player, "target_defeated")
 			continue
 		}
-		if distance(player.position, w.combat.dummy.Position) > swordRange {
-			if err := w.approachDummy(player); err != nil {
+		weapon, _ := weaponDefinition(player.equippedWeapon)
+		if distance(player.position, w.combat.dummy.Position) > weapon.Range {
+			if err := w.approachDummy(player, weapon.ApproachRange); err != nil {
 				player.lastActionResult = "target_unreachable"
 				player.autoApproaching = false
 			} else {
@@ -214,16 +307,16 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		w.combat.dummy.Health = max(0, w.combat.dummy.Health-swordDamage)
+		w.combat.dummy.Health = max(0, w.combat.dummy.Health-weapon.Damage)
 		player.lastActionPulse = w.combat.pulse
 		player.lastActionResult = "hit"
-		player.nextAttackPulse = w.combat.pulse + swordAttackIntervalPulses
+		player.nextAttackPulse = w.combat.pulse + weapon.AttackInterval
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDamage,
 			SourceID: string(player.id),
 			TargetID: dummyTargetID,
-			Amount:   swordDamage,
+			Amount:   weapon.Damage,
 		})
 		if w.combat.dummy.TargetID == "" {
 			w.combat.dummy.TargetID = player.id
@@ -279,6 +372,7 @@ func (w *World) defeatPlayer(player *playerState) {
 	stopPlayer(player)
 	delete(w.pendingMoves, player.id)
 	delete(w.combat.pendingTargets, player.id)
+	delete(w.combat.pendingEquipment, player.id)
 	if w.combat.dummy.TargetID == player.id {
 		w.clearDummyTarget()
 	}
@@ -320,7 +414,7 @@ func (combat *combatState) recordEvent(event CombatEvent) {
 	}
 }
 
-func (w *World) approachDummy(player *playerState) error {
+func (w *World) approachDummy(player *playerState, approachRange float64) error {
 	dx := player.position.X - w.combat.dummy.Position.X
 	dz := player.position.Z - w.combat.dummy.Position.Z
 	length := math.Hypot(dx, dz)
@@ -329,9 +423,9 @@ func (w *World) approachDummy(player *playerState) error {
 		length = 1
 	}
 	destination := Position{
-		X: w.combat.dummy.Position.X + dx/length*swordApproachRange,
+		X: w.combat.dummy.Position.X + dx/length*approachRange,
 		Y: w.combat.dummy.Position.Y,
-		Z: w.combat.dummy.Position.Z + dz/length*swordApproachRange,
+		Z: w.combat.dummy.Position.Z + dz/length*approachRange,
 	}
 	path := []Position{destination}
 	if w.pathfinder != nil {

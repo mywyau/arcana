@@ -44,24 +44,27 @@ type NavigationLocation struct {
 
 // PlayerSnapshot is a detached view of a player's authoritative state.
 type PlayerSnapshot struct {
-	ID                  PlayerID
-	Position            Position
-	Destination         *Position
-	Path                []Position
-	NavigationLocation  NavigationLocation
-	Speed               float64
-	LastCommandSequence uint64
-	LastCommandTick     uint64
-	LastActionSequence  uint64
-	LastActionPulse     uint64
-	LastActionResult    string
-	CombatTarget        string
-	NextAttackPulse     uint64
-	AutoApproaching     bool
-	Health              int
-	MaximumHealth       int
-	Defeated            bool
-	RespawnAtPulse      uint64
+	ID                    PlayerID
+	Position              Position
+	Destination           *Position
+	Path                  []Position
+	NavigationLocation    NavigationLocation
+	Speed                 float64
+	LastCommandSequence   uint64
+	LastCommandTick       uint64
+	LastActionSequence    uint64
+	LastActionPulse       uint64
+	LastActionResult      string
+	CombatTarget          string
+	NextAttackPulse       uint64
+	AutoApproaching       bool
+	Health                int
+	MaximumHealth         int
+	Defeated              bool
+	RespawnAtPulse        uint64
+	EquippedWeapon        WeaponID
+	LastEquipmentSequence uint64
+	LastEquipmentPulse    uint64
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -74,25 +77,28 @@ type Snapshot struct {
 }
 
 type playerState struct {
-	id                  PlayerID
-	position            Position
-	destination         *Position
-	path                []Position
-	navigationLocation  NavigationLocation
-	speed               float64
-	lastCommandSequence uint64
-	lastCommandTick     uint64
-	lastActionSequence  uint64
-	lastActionPulse     uint64
-	lastActionResult    string
-	combatTarget        string
-	nextAttackPulse     uint64
-	autoApproaching     bool
-	spawnPosition       Position
-	health              int
-	maximumHealth       int
-	defeated            bool
-	respawnAtPulse      uint64
+	id                    PlayerID
+	position              Position
+	destination           *Position
+	path                  []Position
+	navigationLocation    NavigationLocation
+	speed                 float64
+	lastCommandSequence   uint64
+	lastCommandTick       uint64
+	lastActionSequence    uint64
+	lastActionPulse       uint64
+	lastActionResult      string
+	combatTarget          string
+	nextAttackPulse       uint64
+	autoApproaching       bool
+	spawnPosition         Position
+	health                int
+	maximumHealth         int
+	defeated              bool
+	respawnAtPulse        uint64
+	equippedWeapon        WeaponID
+	lastEquipmentSequence uint64
+	lastEquipmentPulse    uint64
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
@@ -149,6 +155,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	w.players[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
+		equippedWeapon: WeaponSword,
 	}
 	return nil
 }
@@ -177,6 +184,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	w.pendingJoins[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
+		equippedWeapon: WeaponSword,
 	}
 	return nil
 }
@@ -195,6 +203,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	w.pendingLeaves[id] = struct{}{}
 	delete(w.pendingMoves, id)
 	delete(w.combat.pendingTargets, id)
+	delete(w.combat.pendingEquipment, id)
 	if w.combat.dummy.TargetID == id {
 		w.clearDummyTarget()
 	}
@@ -366,22 +375,25 @@ func movePlayer(player *playerState, seconds float64) {
 
 func snapshotPlayer(player *playerState) PlayerSnapshot {
 	snapshot := PlayerSnapshot{
-		ID:                  player.id,
-		Position:            player.position,
-		Speed:               player.speed,
-		LastCommandSequence: player.lastCommandSequence,
-		LastCommandTick:     player.lastCommandTick,
-		NavigationLocation:  player.navigationLocation,
-		LastActionSequence:  player.lastActionSequence,
-		LastActionPulse:     player.lastActionPulse,
-		LastActionResult:    player.lastActionResult,
-		CombatTarget:        player.combatTarget,
-		NextAttackPulse:     player.nextAttackPulse,
-		AutoApproaching:     player.autoApproaching,
-		Health:              player.health,
-		MaximumHealth:       player.maximumHealth,
-		Defeated:            player.defeated,
-		RespawnAtPulse:      player.respawnAtPulse,
+		ID:                    player.id,
+		Position:              player.position,
+		Speed:                 player.speed,
+		LastCommandSequence:   player.lastCommandSequence,
+		LastCommandTick:       player.lastCommandTick,
+		NavigationLocation:    player.navigationLocation,
+		LastActionSequence:    player.lastActionSequence,
+		LastActionPulse:       player.lastActionPulse,
+		LastActionResult:      player.lastActionResult,
+		CombatTarget:          player.combatTarget,
+		NextAttackPulse:       player.nextAttackPulse,
+		AutoApproaching:       player.autoApproaching,
+		Health:                player.health,
+		MaximumHealth:         player.maximumHealth,
+		Defeated:              player.defeated,
+		RespawnAtPulse:        player.respawnAtPulse,
+		EquippedWeapon:        player.equippedWeapon,
+		LastEquipmentSequence: player.lastEquipmentSequence,
+		LastEquipmentPulse:    player.lastEquipmentPulse,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

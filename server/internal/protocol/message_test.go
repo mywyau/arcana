@@ -35,6 +35,16 @@ func TestDecodeDisengageMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeEquipItemMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"equip_item","sequence":4,"item_id":"dagger"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageEquipItem || message.Sequence != 4 || message.ItemID != "dagger" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 	tests := map[string]string{
 		"malformed JSON":    `{"type":`,
@@ -43,6 +53,7 @@ func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 		"missing sequence":  `{"type":"move_to","destination":{"x":1,"z":2}}`,
 		"missing target":    `{"type":"move_to","sequence":1}`,
 		"missing target ID": `{"type":"engage_target","sequence":1}`,
+		"missing item ID":   `{"type":"equip_item","sequence":1}`,
 		"multiple values":   `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
 	}
 

@@ -94,6 +94,23 @@ func send_disengage(sequence: int) -> bool:
 	return true
 
 
+func send_equip_item(sequence: int, item_id: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot equip while disconnected")
+		return false
+
+	var message: Dictionary = {
+		"type": "equip_item",
+		"sequence": sequence,
+		"item_id": item_id,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not equip item: %s" % error_string(result))
+		return false
+	return true
+
+
 func _handle_state_change(state: WebSocketPeer.State) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:

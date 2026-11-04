@@ -100,3 +100,11 @@ damage every four action pulses while that player remains in range. Players and
 the dummy have 100 health. At zero health, movement and target locks are cleared
 for a five-pulse defeated state; players then respawn at their original position
 and the dummy resets in place, both with full health.
+
+Press `1` to equip the sword (10 damage, four-pulse cadence) or `2` to equip
+the dagger (7 damage, three-pulse cadence). Equipment changes are validated by
+the server and applied on the next action pulse without resetting an attack
+already on cooldown. Each weapon also supplies its own attack and approach
+range. Server-driven combat paths replace local movement prediction while
+approaching, preventing long-distance engagements from accumulating correction
+snaps.

@@ -136,6 +136,13 @@ func (h *Handler) readCommands(
 				PlayerID: playerID,
 				Sequence: message.Sequence,
 			})
+		case protocol.MessageEquipItem:
+			rejectionCode = "equipment_rejected"
+			err = h.world.QueueEquip(simulation.EquipCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				ItemID:   simulation.WeaponID(message.ItemID),
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
@@ -211,17 +218,20 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Kind: string(player.NavigationLocation.Kind),
 				ID:   player.NavigationLocation.ID,
 			},
-			LastActionSequence: player.LastActionSequence,
-			LastActionPulse:    player.LastActionPulse,
-			LastActionResult:   player.LastActionResult,
-			CombatTarget:       player.CombatTarget,
-			NextAttackPulse:    player.NextAttackPulse,
-			AutoApproaching:    player.AutoApproaching,
-			Health:             player.Health,
-			MaximumHealth:      player.MaximumHealth,
-			Defeated:           player.Defeated,
-			RespawnAtPulse:     player.RespawnAtPulse,
-			Path:               make([]protocol.Position, 0, len(player.Path)),
+			LastActionSequence:    player.LastActionSequence,
+			LastActionPulse:       player.LastActionPulse,
+			LastActionResult:      player.LastActionResult,
+			CombatTarget:          player.CombatTarget,
+			NextAttackPulse:       player.NextAttackPulse,
+			AutoApproaching:       player.AutoApproaching,
+			Health:                player.Health,
+			MaximumHealth:         player.MaximumHealth,
+			Defeated:              player.Defeated,
+			RespawnAtPulse:        player.RespawnAtPulse,
+			EquippedWeapon:        string(player.EquippedWeapon),
+			LastEquipmentSequence: player.LastEquipmentSequence,
+			LastEquipmentPulse:    player.LastEquipmentPulse,
+			Path:                  make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, waypoint := range player.Path {
 			playerMessage.Path = append(playerMessage.Path, protocol.Position{

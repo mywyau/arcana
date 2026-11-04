@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -69,6 +70,78 @@ func TestCombatEventHistoryIsBounded(t *testing.T) {
 	}
 }
 
+func TestDaggerUsesItsDamageAndCadence(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponDagger || player.LastEquipmentSequence != 1 || player.LastEquipmentPulse != 1 {
+		t.Fatalf("equipment state = %+v", player)
+	}
+	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-daggerDamage; got != want {
+		t.Fatalf("dummy health after dagger hit = %d, want %d", got, want)
+	}
+	if got, want := player.NextAttackPulse, uint64(1+daggerAttackIntervalPulses); got != want {
+		t.Fatalf("NextAttackPulse = %d, want %d", got, want)
+	}
+
+	world.Step(2 * actionPulseInterval)
+	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-daggerDamage; got != want {
+		t.Fatalf("dummy health before dagger cadence = %d, want %d", got, want)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-2*daggerDamage; got != want {
+		t.Fatalf("dummy health after second dagger hit = %d, want %d", got, want)
+	}
+}
+
+func TestWeaponSwapDoesNotResetCurrentAttackCooldown(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponDagger || player.NextAttackPulse != 5 {
+		t.Fatalf("state after weapon swap = %+v", player)
+	}
+	world.Step(3 * actionPulseInterval)
+	if got, want := world.Snapshot().Dummy.Health, dummyMaximumHealth-swordDamage-daggerDamage; got != want {
+		t.Fatalf("dummy health after swapped attack = %d, want %d", got, want)
+	}
+}
+
+func TestLatestEquipmentCommandWinsBeforePulse(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
+		t.Fatalf("QueueEquip(1) returned an unexpected error: %v", err)
+	}
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponSword}); err != nil {
+		t.Fatalf("QueueEquip(2) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").EquippedWeapon; got != WeaponSword {
+		t.Fatalf("EquippedWeapon = %q, want %q", got, WeaponSword)
+	}
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponDagger}); err == nil {
+		t.Fatal("QueueEquip() error = nil for stale sequence")
+	}
+}
+
 func TestEngagedPlayerApproachesBeforeAutoAttacking(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
@@ -97,6 +170,26 @@ func TestEngagedPlayerApproachesBeforeAutoAttacking(t *testing.T) {
 	player = mustPlayer(t, world, "player-one")
 	if player.AutoApproaching || player.Destination != nil || player.LastActionResult != "hit" {
 		t.Fatalf("player state after reaching target = %+v", player)
+	}
+}
+
+func TestSwordApproachesAtPreviouslyValidLongRange(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -0.3}, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	if got := world.Snapshot().Dummy.Health; got != dummyMaximumHealth {
+		t.Fatalf("dummy health at 1.7-unit range = %d, want %d", got, dummyMaximumHealth)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if !player.AutoApproaching || player.Destination == nil {
+		t.Fatalf("player approach state = %+v", player)
+	}
+	if got := distance(*player.Destination, world.Snapshot().Dummy.Position); math.Abs(got-swordApproachRange) > 0.001 {
+		t.Fatalf("approach distance = %.3f, want %.3f", got, swordApproachRange)
 	}
 }
 

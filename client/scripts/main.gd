@@ -24,6 +24,7 @@ var _local_navigation_kind: String = "unknown"
 var _local_navigation_id: String = ""
 var _next_sequence: int = 1
 var _next_action_sequence: int = 1
+var _next_equipment_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -38,6 +39,8 @@ var _player_health: int = 100
 var _player_maximum_health: int = 100
 var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
+var _equipped_weapon: String = "sword"
+var _last_equipment_sequence: int = 0
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
@@ -55,11 +58,19 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
-			if not _player_defeated and network.send_disengage(_next_action_sequence):
-				_next_action_sequence += 1
-				_update_combat_label()
-			get_viewport().set_input_as_handled()
+		if key_event.pressed and not key_event.echo:
+			match key_event.keycode:
+				KEY_ESCAPE:
+					if not _player_defeated and network.send_disengage(_next_action_sequence):
+						_next_action_sequence += 1
+						_update_combat_label()
+					get_viewport().set_input_as_handled()
+				KEY_1:
+					_request_equip("sword")
+					get_viewport().set_input_as_handled()
+				KEY_2:
+					_request_equip("dagger")
+					get_viewport().set_input_as_handled()
 		return
 	if not event is InputEventMouseButton:
 		return
@@ -123,6 +134,14 @@ func _can_predict_directly(
 	)
 	query.collision_mask = _active_collision_mask()
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _request_equip(item_id: String) -> void:
+	if _player_defeated:
+		return
+	if network.send_equip_item(_next_equipment_sequence, item_id):
+		_next_equipment_sequence += 1
+		_update_combat_label()
 
 
 func _active_collision_mask() -> int:
@@ -213,13 +232,16 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				camera_rig.follow(view)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
+		var server_driven_path: bool = bool(player_data.get("auto_approaching", false))
 		var correction: float = view.apply_authoritative_state(
 			position,
 			path,
 			float(player_data.get("speed", 4.0)),
 			acknowledged_sequence,
 			_next_sequence - 1,
+			server_driven_path,
 		)
+		view.set_weapon(str(player_data.get("equipped_weapon", "sword")))
 		view.set_defeated(bool(player_data.get("defeated", false)))
 		if id == _local_player_id:
 			_last_action_sequence = int(player_data.get("last_action_sequence", 0))
@@ -231,6 +253,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
 			_player_defeated = bool(player_data.get("defeated", false))
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
+			_equipped_weapon = str(player_data.get("equipped_weapon", "sword"))
+			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			if _last_action_result.is_empty():
 				_last_action_result = "none"
 			var navigation_data: Variant = player_data.get("navigation_location", {})
@@ -295,11 +319,11 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		if target_id == "dummy":
 			if source == null:
 				continue
-			source.play_sword_attack(target_dummy.global_position)
+			source.play_weapon_attack(target_dummy.global_position)
 			target_dummy.play_hit(amount, source.global_position)
 		elif target != null:
 			if source != null:
-				source.play_sword_attack(target.global_position)
+				source.play_weapon_attack(target.global_position)
 			target.play_hit(amount)
 
 
@@ -322,12 +346,14 @@ func _update_combat_label() -> void:
 	var dummy_state: String = "%d/%d" % [_dummy_health, _dummy_maximum_health]
 	if _dummy_defeated:
 		dummy_state = "respawn in %d" % maxi(0, _dummy_respawn_at_pulse - _action_pulse)
-	combat_label.text = "pulse %d  |  hp %d/%d  |  target %s  |  sword %s  |  dummy %s  |  %s" % [
+	var weapon: String = "queued" if _last_equipment_sequence < _next_equipment_sequence - 1 else _equipped_weapon
+	combat_label.text = "pulse %d  |  hp %d/%d  |  weapon %s [1/2] %s  |  target %s  |  dummy %s  |  %s" % [
 		_action_pulse,
 		_player_health,
 		_player_maximum_health,
-		target,
+		weapon,
 		cadence,
+		target,
 		dummy_state,
 		state,
 	]
