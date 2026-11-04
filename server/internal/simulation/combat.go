@@ -18,7 +18,9 @@ const (
 	daggerDamage               = 7
 	daggerAttackIntervalPulses = 3
 	playerMaximumHealth        = 100
+	playerDodgeRate            = 0.10
 	dummyMaximumHealth         = 100
+	dummyDodgeRate             = 0.10
 	dummyAttackDamage          = 15
 	dummyAttackIntervalPulses  = 4
 	dummyAttackRange           = 1.55
@@ -56,7 +58,10 @@ func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 
 type CombatEventType string
 
-const CombatEventDamage CombatEventType = "damage"
+const (
+	CombatEventDamage CombatEventType = "damage"
+	CombatEventDodged CombatEventType = "dodged"
+)
 
 // CombatEvent describes an authoritative outcome for client presentation.
 type CombatEvent struct {
@@ -88,6 +93,7 @@ type DummySnapshot struct {
 	NextAttackPulse uint64
 	Defeated        bool
 	RespawnAtPulse  uint64
+	DodgeRate       float64
 }
 
 type combatState struct {
@@ -106,6 +112,7 @@ func newCombatState() *combatState {
 			Position:      Position{X: -4, Z: -2},
 			Health:        dummyMaximumHealth,
 			MaximumHealth: dummyMaximumHealth,
+			DodgeRate:     dummyDodgeRate,
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
@@ -307,10 +314,21 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		w.combat.dummy.Health = max(0, w.combat.dummy.Health-weapon.Damage)
 		player.lastActionPulse = w.combat.pulse
-		player.lastActionResult = "hit"
 		player.nextAttackPulse = w.combat.pulse + weapon.AttackInterval
+		if w.rollSource.Float64() < w.combat.dummy.DodgeRate {
+			player.lastActionResult = "dodged"
+			w.combat.recordEvent(CombatEvent{
+				Pulse:    w.combat.pulse,
+				Type:     CombatEventDodged,
+				SourceID: string(player.id),
+				TargetID: dummyTargetID,
+			})
+			continue
+		}
+
+		w.combat.dummy.Health = max(0, w.combat.dummy.Health-weapon.Damage)
+		player.lastActionResult = "hit"
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDamage,
@@ -347,8 +365,18 @@ func (w *World) resolveDummyAttack() {
 		return
 	}
 
-	player.health = max(0, player.health-dummyAttackDamage)
 	dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+	if w.rollSource.Float64() < player.dodgeRate {
+		w.combat.recordEvent(CombatEvent{
+			Pulse:    w.combat.pulse,
+			Type:     CombatEventDodged,
+			SourceID: dummyTargetID,
+			TargetID: string(player.id),
+		})
+		return
+	}
+
+	player.health = max(0, player.health-dummyAttackDamage)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,
 		Type:     CombatEventDamage,

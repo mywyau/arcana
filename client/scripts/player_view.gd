@@ -155,6 +155,20 @@ func play_hit(damage: int) -> void:
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
+func play_dodge() -> void:
+	if _hit_tween != null:
+		_hit_tween.kill()
+	damage_label.text = "DODGE"
+	damage_label.position = Vector3(0.0, 2.1, 0.0)
+	damage_label.modulate = Color(0.4, 0.85, 1.0, 1.0)
+	damage_label.visible = true
+	_hit_tween = create_tween()
+	_hit_tween.set_parallel(true)
+	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
+	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
+	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+
+
 func set_defeated(defeated: bool) -> void:
 	if _defeated == defeated:
 		return

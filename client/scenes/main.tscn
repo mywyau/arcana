@@ -171,7 +171,9 @@ script = ExtResource("5_target_dummy")
 
 [node name="Visual" type="Node3D" parent="TargetDummy"]
 
-[node name="Mesh" type="MeshInstance3D" parent="TargetDummy/Visual" unique_id=1872277111]
+[node name="AttackPivot" type="Node3D" parent="TargetDummy/Visual"]
+
+[node name="Mesh" type="MeshInstance3D" parent="TargetDummy/Visual/AttackPivot" unique_id=1872277111]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 mesh = SubResource("DummyMesh")
 
@@ -242,5 +244,5 @@ theme_override_constants/margin_left = 20
 
 [node name="Combat" type="Label" parent="UI/CombatMargin" unique_id=15976531]
 layout_mode = 2
-text = "pulse 0  |  hp 100/100  |  weapon sword [1/2] idle  |  target none  |  dummy 100/100  |  none"
+text = "pulse 0  |  hp 100/100 dodge 10%  |  weapon sword [1/2] idle  |  target none  |  dummy 100/100  |  none"
 label_settings = SubResource("StatusLabelSettings")

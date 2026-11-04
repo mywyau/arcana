@@ -63,6 +63,7 @@ type DummySnapshot struct {
 	NextAttackPulse uint64   `json:"next_attack_pulse"`
 	Defeated        bool     `json:"defeated"`
 	RespawnAtPulse  uint64   `json:"respawn_at_pulse"`
+	DodgeRate       float64  `json:"dodge_rate"`
 }
 
 type PlayerSnapshot struct {
@@ -87,6 +88,7 @@ type PlayerSnapshot struct {
 	EquippedWeapon        string             `json:"equipped_weapon"`
 	LastEquipmentSequence uint64             `json:"last_equipment_sequence"`
 	LastEquipmentPulse    uint64             `json:"last_equipment_pulse"`
+	DodgeRate             float64            `json:"dodge_rate"`
 }
 
 type NavigationLocation struct {

@@ -108,3 +108,9 @@ already on cooldown. Each weapon also supplies its own attack and approach
 range. Server-driven combat paths replace local movement prediction while
 approaching, preventing long-distance engagements from accumulating correction
 snaps.
+
+Players and the dummy each have a separate 10% dodge rate. Every ready attack
+rolls dodge before damage: a dodge consumes the normal attack cadence, deals no
+damage, and produces an authoritative `dodged` event shown as blue `DODGE`
+feedback. Dodge is deliberately independent from future percentage defence and
+flat armour calculations.

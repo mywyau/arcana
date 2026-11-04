@@ -39,6 +39,7 @@ var _player_health: int = 100
 var _player_maximum_health: int = 100
 var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
+var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "sword"
 var _last_equipment_sequence: int = 0
 var _player_views: Dictionary = {}
@@ -253,6 +254,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
 			_player_defeated = bool(player_data.get("defeated", false))
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
+			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
 			_equipped_weapon = str(player_data.get("equipped_weapon", "sword"))
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			if _last_action_result.is_empty():
@@ -309,7 +311,8 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		if event_id <= _last_combat_event_id:
 			continue
 		_last_combat_event_id = event_id
-		if str(event.get("type", "")) != "damage":
+		var event_type: String = str(event.get("type", ""))
+		if event_type != "damage" and event_type != "dodged":
 			continue
 		var source_id: String = str(event.get("source_id", ""))
 		var target_id: String = str(event.get("target_id", ""))
@@ -320,11 +323,19 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 			if source == null:
 				continue
 			source.play_weapon_attack(target_dummy.global_position)
-			target_dummy.play_hit(amount, source.global_position)
+			if event_type == "damage":
+				target_dummy.play_hit(amount, source.global_position)
+			else:
+				target_dummy.play_dodge()
 		elif target != null:
 			if source != null:
 				source.play_weapon_attack(target.global_position)
-			target.play_hit(amount)
+			elif source_id == "dummy":
+				target_dummy.play_attack(target.global_position)
+			if event_type == "damage":
+				target.play_hit(amount)
+			else:
+				target.play_dodge()
 
 
 func _on_server_error(code: String, message: String) -> void:
@@ -347,10 +358,11 @@ func _update_combat_label() -> void:
 	if _dummy_defeated:
 		dummy_state = "respawn in %d" % maxi(0, _dummy_respawn_at_pulse - _action_pulse)
 	var weapon: String = "queued" if _last_equipment_sequence < _next_equipment_sequence - 1 else _equipped_weapon
-	combat_label.text = "pulse %d  |  hp %d/%d  |  weapon %s [1/2] %s  |  target %s  |  dummy %s  |  %s" % [
+	combat_label.text = "pulse %d  |  hp %d/%d dodge %d%%  |  weapon %s [1/2] %s  |  target %s  |  dummy %s  |  %s" % [
 		_action_pulse,
 		_player_health,
 		_player_maximum_health,
+		roundi(_player_dodge_rate * 100.0),
 		weapon,
 		cadence,
 		target,

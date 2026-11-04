@@ -1,14 +1,37 @@
 package simulation
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"math"
+	mathrand "math/rand"
 	"sort"
 	"sync"
 	"time"
 )
 
 type PlayerID string
+
+type RollSource interface {
+	Float64() float64
+}
+
+type randomRollSource struct {
+	random *mathrand.Rand
+}
+
+func (source *randomRollSource) Float64() float64 {
+	return source.random.Float64()
+}
+
+func newRandomRollSource() RollSource {
+	var seedBytes [8]byte
+	if _, err := cryptorand.Read(seedBytes[:]); err == nil {
+		return &randomRollSource{random: mathrand.New(mathrand.NewSource(int64(binary.LittleEndian.Uint64(seedBytes[:]))))}
+	}
+	return &randomRollSource{random: mathrand.New(mathrand.NewSource(time.Now().UnixNano()))}
+}
 
 // Position is a precise point in three-dimensional world space.
 type Position struct {
@@ -65,6 +88,7 @@ type PlayerSnapshot struct {
 	EquippedWeapon        WeaponID
 	LastEquipmentSequence uint64
 	LastEquipmentPulse    uint64
+	DodgeRate             float64
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -99,6 +123,7 @@ type playerState struct {
 	equippedWeapon        WeaponID
 	lastEquipmentSequence uint64
 	lastEquipmentPulse    uint64
+	dodgeRate             float64
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
@@ -111,6 +136,7 @@ type World struct {
 	pendingMoves  map[PlayerID]pendingMove
 	pathfinder    Pathfinder
 	combat        *combatState
+	rollSource    RollSource
 }
 
 type pendingMove struct {
@@ -119,12 +145,21 @@ type pendingMove struct {
 }
 
 func NewWorld() *World {
+	return NewWorldWithRollSource(newRandomRollSource())
+}
+
+// NewWorldWithRollSource allows deterministic combat rolls in tests.
+func NewWorldWithRollSource(rollSource RollSource) *World {
+	if rollSource == nil {
+		rollSource = newRandomRollSource()
+	}
 	return &World{
 		players:       make(map[PlayerID]*playerState),
 		pendingJoins:  make(map[PlayerID]*playerState),
 		pendingLeaves: make(map[PlayerID]struct{}),
 		pendingMoves:  make(map[PlayerID]pendingMove),
 		combat:        newCombatState(),
+		rollSource:    rollSource,
 	}
 }
 
@@ -155,7 +190,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	w.players[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
-		equippedWeapon: WeaponSword,
+		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate,
 	}
 	return nil
 }
@@ -184,7 +219,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	w.pendingJoins[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
-		equippedWeapon: WeaponSword,
+		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate,
 	}
 	return nil
 }
@@ -394,6 +429,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		EquippedWeapon:        player.equippedWeapon,
 		LastEquipmentSequence: player.lastEquipmentSequence,
 		LastEquipmentPulse:    player.lastEquipmentPulse,
+		DodgeRate:             player.dodgeRate,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

@@ -6,8 +6,27 @@ import (
 	"time"
 )
 
+type fixedRollSource float64
+
+func (source fixedRollSource) Float64() float64 { return float64(source) }
+
+type sequenceRollSource struct {
+	values []float64
+	index  int
+}
+
+func (source *sequenceRollSource) Float64() float64 {
+	value := source.values[source.index]
+	source.index++
+	return value
+}
+
+func newCombatTestWorld() *World {
+	return NewWorldWithRollSource(fixedRollSource(0.5))
+}
+
 func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -70,8 +89,56 @@ func TestCombatEventHistoryIsBounded(t *testing.T) {
 	}
 }
 
+func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
+	world := NewWorldWithRollSource(&sequenceRollSource{values: []float64{0.05}})
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	snapshot := world.Snapshot()
+	if snapshot.Dummy.Health != dummyMaximumHealth || snapshot.Dummy.TargetID != "" {
+		t.Fatalf("dummy state after dodge = %+v", snapshot.Dummy)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if player.LastActionResult != "dodged" || player.NextAttackPulse != 5 {
+		t.Fatalf("player state after dodge = %+v", player)
+	}
+	if len(snapshot.CombatEvents) != 1 {
+		t.Fatalf("combat event count = %d, want 1", len(snapshot.CombatEvents))
+	}
+	event := snapshot.CombatEvents[0]
+	if event.Type != CombatEventDodged || event.SourceID != "player-one" || event.TargetID != dummyTargetID || event.Amount != 0 {
+		t.Fatalf("dodge event = %+v", event)
+	}
+}
+
+func TestPlayerDodgeAvoidsDummyDamageAndConsumesCadence(t *testing.T) {
+	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.05}}
+	world := NewWorldWithRollSource(rolls)
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	world.Step(4 * actionPulseInterval)
+	snapshot := world.Snapshot()
+	if got := mustPlayer(t, world, "player-one").Health; got != playerMaximumHealth {
+		t.Fatalf("player health after dodge = %d, want %d", got, playerMaximumHealth)
+	}
+	if got, want := snapshot.Dummy.NextAttackPulse, uint64(5+dummyAttackIntervalPulses); got != want {
+		t.Fatalf("dummy NextAttackPulse = %d, want %d", got, want)
+	}
+	event := snapshot.CombatEvents[len(snapshot.CombatEvents)-1]
+	if event.Type != CombatEventDodged || event.SourceID != dummyTargetID || event.TargetID != "player-one" {
+		t.Fatalf("player dodge event = %+v", event)
+	}
+}
+
 func TestDaggerUsesItsDamageAndCadence(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
@@ -103,7 +170,7 @@ func TestDaggerUsesItsDamageAndCadence(t *testing.T) {
 }
 
 func TestWeaponSwapDoesNotResetCurrentAttackCooldown(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -125,7 +192,7 @@ func TestWeaponSwapDoesNotResetCurrentAttackCooldown(t *testing.T) {
 }
 
 func TestLatestEquipmentCommandWinsBeforePulse(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
 		t.Fatalf("QueueEquip(1) returned an unexpected error: %v", err)
@@ -143,7 +210,7 @@ func TestLatestEquipmentCommandWinsBeforePulse(t *testing.T) {
 }
 
 func TestEngagedPlayerApproachesBeforeAutoAttacking(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -174,7 +241,7 @@ func TestEngagedPlayerApproachesBeforeAutoAttacking(t *testing.T) {
 }
 
 func TestSwordApproachesAtPreviouslyValidLongRange(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -0.3}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -194,7 +261,7 @@ func TestSwordApproachesAtPreviouslyValidLongRange(t *testing.T) {
 }
 
 func TestDisengageStopsAutomaticApproach(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget(engage) returned an unexpected error: %v", err)
@@ -215,7 +282,7 @@ func TestDisengageStopsAutomaticApproach(t *testing.T) {
 }
 
 func TestManualMovementKeepsTargetAndApproachResumes(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -241,7 +308,7 @@ func TestManualMovementKeepsTargetAndApproachResumes(t *testing.T) {
 }
 
 func TestLatestTargetCommandWinsBeforePulse(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget(1) returned an unexpected error: %v", err)
@@ -263,7 +330,7 @@ func TestLatestTargetCommandWinsBeforePulse(t *testing.T) {
 }
 
 func TestDummyTargetsFirstAttackerAndRetaliates(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	mustAddPlayer(t, world, "player-two", Position{X: -3, Z: -2}, 4)
 	for _, id := range []PlayerID{"player-one", "player-two"} {
@@ -295,7 +362,7 @@ func TestDummyTargetsFirstAttackerAndRetaliates(t *testing.T) {
 }
 
 func TestDefeatedPlayerRespawnsAtFullHealthAndSpawn(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	spawn := Position{X: -4, Z: -1}
 	mustAddPlayer(t, world, "player-one", spawn, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
@@ -332,7 +399,7 @@ func TestDefeatedPlayerRespawnsAtFullHealthAndSpawn(t *testing.T) {
 }
 
 func TestDefeatedDummyRespawnsAtFullHealth(t *testing.T) {
-	world := NewWorld()
+	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	world.combat.dummy.Health = swordDamage
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {

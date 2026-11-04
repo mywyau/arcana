@@ -111,6 +111,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			NextAttackPulse: 16,
 			Defeated:        true,
 			RespawnAtPulse:  20,
+			DodgeRate:       0.2,
 		},
 		CombatEvents: []simulation.CombatEvent{{
 			ID:       7,
@@ -129,6 +130,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			EquippedWeapon:        simulation.WeaponDagger,
 			LastEquipmentSequence: 3,
 			LastEquipmentPulse:    11,
+			DodgeRate:             0.15,
 		}},
 	})
 
@@ -141,12 +143,13 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		t.Fatalf("combat event = %+v", event)
 	}
 	if message.Dummy.TargetID != "player-one" || message.Dummy.NextAttackPulse != 16 ||
-		!message.Dummy.Defeated || message.Dummy.RespawnAtPulse != 20 {
+		!message.Dummy.Defeated || message.Dummy.RespawnAtPulse != 20 || message.Dummy.DodgeRate != 0.2 {
 		t.Fatalf("dummy combat state = %+v", message.Dummy)
 	}
 	player := message.Players[0]
 	if player.Health != 40 || player.MaximumHealth != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||
-		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 {
+		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
+		player.DodgeRate != 0.15 {
 		t.Fatalf("player vital state = %+v", player)
 	}
 }

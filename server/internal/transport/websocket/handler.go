@@ -189,6 +189,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			NextAttackPulse: snapshot.Dummy.NextAttackPulse,
 			Defeated:        snapshot.Dummy.Defeated,
 			RespawnAtPulse:  snapshot.Dummy.RespawnAtPulse,
+			DodgeRate:       snapshot.Dummy.DodgeRate,
 		},
 		CombatEvents: make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
 		Players:      make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
@@ -231,6 +232,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			EquippedWeapon:        string(player.EquippedWeapon),
 			LastEquipmentSequence: player.LastEquipmentSequence,
 			LastEquipmentPulse:    player.LastEquipmentPulse,
+			DodgeRate:             player.DodgeRate,
 			Path:                  make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, waypoint := range player.Path {
