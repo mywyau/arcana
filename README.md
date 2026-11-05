@@ -218,14 +218,21 @@ already collected it. The first shard uses a free slot and later shards stack.
 Automatic walking to loot, ground-drop persistence, trading, and item use are
 not included in this slice.
 
-The Skills tab shows authoritative Attack, Range, and Magic progression. A
-successful sword, dagger, mace, or battle-axe hit grants 10 Attack XP; a bow hit
-grants 10 Range XP; and a staff hit grants 10 Magic XP. Dodged attacks grant no
-XP. Level 2 begins at 100 XP, with prototype level thresholds following
+The Skills tab shows authoritative Attack, Strength, Defence, Range, and Magic
+progression. Each successful hit grants XP equal to the target's actual health
+lost, routed to the skill associated with the selected combat technique. Sword
+and dagger Stab, mace Crush, and battle-axe
+Measured Slash train Attack; Slash and Heavy Crush techniques train Strength;
+and the melee Defensive technique trains Defence. Bow techniques train Range,
+staff techniques train Magic, and Unfocused attacks grant no combat XP. Dodged
+attacks also grant no XP. The HUD displays `COMBAT XP LOCKED` while Unfocused is
+selected.
+
+Level 2 begins at 100 XP, with prototype level thresholds following
 `100 × (level - 1)²` up to level 100. XP is persisted with the character, while
-levels are derived from total XP so the curve can be adjusted later. These
-skills do not modify combat stats yet. Strength, Defence, and the non-combat
-skills remain presentation-only placeholders.
+levels are derived from total XP so the curve can be adjusted later. Skills do
+not modify combat stats yet, and non-combat skills remain presentation-only
+placeholders.
 
 The Equipment tab provides an icon-based overview of the authoritative
 main-hand weapon plus placeholder head, body, hands, legs, and trinket slots.

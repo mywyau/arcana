@@ -6,12 +6,13 @@ import (
 )
 
 const (
-	SkillAttack SkillID = "attack"
-	SkillMagic  SkillID = "magic"
-	SkillRange  SkillID = "range"
+	SkillAttack   SkillID = "attack"
+	SkillDefence  SkillID = "defence"
+	SkillMagic    SkillID = "magic"
+	SkillRange    SkillID = "range"
+	SkillStrength SkillID = "strength"
 
 	MaximumSkillLevel               = 100
-	skillExperiencePerHit     int64 = 10
 	skillLevelExperienceScale int64 = 100
 )
 
@@ -35,7 +36,9 @@ type PersistentSkillState struct {
 type skillState map[SkillID]int64
 
 func newDefaultSkills() skillState {
-	return skillState{SkillAttack: 0, SkillMagic: 0, SkillRange: 0}
+	return skillState{
+		SkillAttack: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
+	}
 }
 
 func skillsFromPersistent(states []PersistentSkillState) (skillState, error) {
@@ -125,18 +128,47 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 }
 
 func skillIDValid(skill SkillID) bool {
-	return skill == SkillAttack || skill == SkillRange || skill == SkillMagic
+	return skill == SkillAttack || skill == SkillStrength || skill == SkillDefence ||
+		skill == SkillRange || skill == SkillMagic
 }
 
-func skillForWeapon(weapon WeaponID) (SkillID, bool) {
+func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
+	if style == CombatStyleUnfocused {
+		return "", false
+	}
 	switch weapon {
-	case WeaponSword, WeaponDagger, WeaponMace, WeaponBattleAxe:
-		return SkillAttack, true
 	case WeaponBow:
 		return SkillRange, true
 	case WeaponStaff:
 		return SkillMagic, true
+	case WeaponSword, WeaponDagger:
+		switch style {
+		case CombatStyleStab:
+			return SkillAttack, true
+		case CombatStyleSlash:
+			return SkillStrength, true
+		case CombatStyleDefensive:
+			return SkillDefence, true
+		}
+	case WeaponMace:
+		switch style {
+		case CombatStyleCrush:
+			return SkillAttack, true
+		case CombatStyleHeavyCrush:
+			return SkillStrength, true
+		case CombatStyleDefensive:
+			return SkillDefence, true
+		}
+	case WeaponBattleAxe:
+		switch style {
+		case CombatStyleSlash:
+			return SkillAttack, true
+		case CombatStyleHeavyCrush:
+			return SkillStrength, true
+		case CombatStyleDefensive:
+			return SkillDefence, true
+		}
 	default:
-		return "", false
 	}
+	return "", false
 }

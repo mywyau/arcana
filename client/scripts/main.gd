@@ -36,11 +36,15 @@ const PLACEHOLDER_SKILLS: Array = [
 ]
 const ACTIVE_SKILL_IDS: Dictionary = {
 	"Attack": "attack",
+	"Strength": "strength",
+	"Defence": "defence",
 	"Range": "range",
 	"Magic": "magic",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
+	"strength": "Strength",
+	"defence": "Defence",
 	"range": "Range",
 	"magic": "Magic",
 }
@@ -61,30 +65,40 @@ const PLACEHOLDER_SPELLS: Array = [
 ]
 const COMBAT_STYLES: Dictionary = {
 	"sword": [
-		{"id": "slash", "name": "Slash"},
-		{"id": "stab", "name": "Stab"},
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"dagger": [
-		{"id": "stab", "name": "Stab"},
-		{"id": "slash", "name": "Slash"},
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"mace": [
-		{"id": "crush", "name": "Crush"},
-		{"id": "heavy_crush", "name": "Heavy Crush"}
+		{"id": "crush", "name": "Crush", "training": "Attack"},
+		{"id": "heavy_crush", "name": "Heavy Crush", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"battle_axe": [
-		{"id": "slash", "name": "Slash"},
-		{"id": "heavy_crush", "name": "Heavy Crush"}
+		{"id": "slash", "name": "Measured Slash", "training": "Attack"},
+		{"id": "heavy_crush", "name": "Heavy Crush", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"bow": [
-		{"id": "rapid", "name": "Rapid"},
-		{"id": "accurate", "name": "Accurate"},
-		{"id": "long_range", "name": "Long Range"},
+		{"id": "rapid", "name": "Rapid", "training": "Range"},
+		{"id": "accurate", "name": "Accurate", "training": "Range"},
+		{"id": "long_range", "name": "Long Range", "training": "Range"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"staff": [
-		{"id": "rapid", "name": "Rapid"},
-		{"id": "accurate", "name": "Accurate"},
-		{"id": "long_range", "name": "Long Range"},
+		{"id": "rapid", "name": "Rapid", "training": "Magic"},
+		{"id": "accurate", "name": "Accurate", "training": "Magic"},
+		{"id": "long_range", "name": "Long Range", "training": "Magic"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 }
 const EQUIPMENT_ICONS: Dictionary = {
@@ -213,6 +227,8 @@ var _inventory_items: Array = []
 var _inventory_signature: String = ""
 var _skill_progress: Dictionary = {
 	"attack": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"strength": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"defence": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"range": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"magic": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
@@ -913,10 +929,14 @@ func _update_active_skills_hud() -> void:
 	for skill_id: String in ACTIVE_SKILL_NAMES:
 		_update_progression_skill_tile(skill_id)
 	var attack: Dictionary = _skill_progress["attack"] as Dictionary
+	var strength: Dictionary = _skill_progress["strength"] as Dictionary
+	var defence: Dictionary = _skill_progress["defence"] as Dictionary
 	var ranged: Dictionary = _skill_progress["range"] as Dictionary
 	var magic: Dictionary = _skill_progress["magic"] as Dictionary
-	skills_summary.text = "Attack %d  •  Range %d  •  Magic %d" % [
+	skills_summary.text = "Attack %d  •  Strength %d  •  Defence %d\nRange %d  •  Magic %d" % [
 		int(attack.get("level", 1)),
+		int(strength.get("level", 1)),
+		int(defence.get("level", 1)),
 		int(ranged.get("level", 1)),
 		int(magic.get("level", 1)),
 	]
@@ -936,7 +956,11 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 	var training_description: String = "successful hits grant %s XP" % skill_name
 	match skill_id:
 		"attack":
-			training_description = "successful melee hits grant Attack XP"
+			training_description = "Attack techniques grant Attack XP"
+		"strength":
+			training_description = "Strength techniques grant Strength XP"
+		"defence":
+			training_description = "Defensive techniques grant Defence XP"
 		"range":
 			training_description = "successful bow hits grant Range XP"
 		"magic":
@@ -948,7 +972,7 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 	var level_span: int = maxi(1, next_level_experience - current_level_experience)
 	var level_progress: int = experience - current_level_experience
 	var progress_percent: int = roundi(float(level_progress) / float(level_span) * 100.0)
-	skill_tile.tooltip_text = "10 XP per hit • %s • %d XP to level %d • %d%%" % [
+	skill_tile.tooltip_text = "XP equals damage dealt • %s • %d XP to level %d • %d%%" % [
 		training_description,
 		experience_remaining,
 		level + 1,
@@ -974,20 +998,36 @@ func _update_combat_styles_hud() -> void:
 		styles_grid.remove_child(child)
 		child.queue_free()
 
-	if _equipped_weapon == "bow":
-		styles_summary.text = "Bow styles  •  Rapid: faster  •  Long Range: 14 units"
-	else:
-		styles_summary.text = "%s styles  •  modifiers not active yet" % _equipped_weapon.capitalize()
 	var style_options: Array = COMBAT_STYLES.get(_equipped_weapon, []) as Array
 	var selected_style: String = _queued_combat_style if not _queued_combat_style.is_empty() else _combat_style
+	var selected_training: String = ""
+	for style_data: Variant in style_options:
+		var candidate: Dictionary = style_data
+		if str(candidate.get("id", "")) == selected_style:
+			selected_training = str(candidate.get("training", ""))
+			break
+	if selected_style == "unfocused":
+		styles_summary.text = "%s  •  COMBAT XP LOCKED" % _equipped_weapon.capitalize()
+	elif _equipped_weapon == "bow":
+		styles_summary.text = "Bow  •  trains %s  •  Rapid: faster  •  Long Range: 14 units" % selected_training
+	else:
+		styles_summary.text = "%s  •  selected technique trains %s" % [
+			_equipped_weapon.capitalize(),
+			selected_training,
+		]
 	for style_data: Variant in style_options:
 		var style: Dictionary = style_data
 		var style_id: String = str(style.get("id", ""))
+		var training: String = str(style.get("training", ""))
 		var style_button := Button.new()
 		style_button.custom_minimum_size = Vector2(145, 64)
 		style_button.toggle_mode = true
 		style_button.disabled = _player_defeated
-		style_button.text = str(style.get("name", style_id.capitalize()))
+		style_button.text = "%s\n%s" % [
+			style.get("name", style_id.capitalize()),
+			"No XP" if training.is_empty() else "%s XP" % training,
+		]
+		style_button.tooltip_text = "Combat XP is locked" if training.is_empty() else "Successful hits train %s" % training
 		style_button.set_pressed_no_signal(style_id == selected_style)
 		style_button.pressed.connect(_request_combat_style.bind(style_id))
 		styles_grid.add_child(style_button)
@@ -1157,6 +1197,8 @@ func _update_combat_hud() -> void:
 		combat_state_label.text = "Not attacking — create distance to escape"
 	else:
 		combat_state_label.text = "Out of combat"
+	if _combat_style == "unfocused":
+		combat_state_label.text += "  •  COMBAT XP LOCKED"
 
 	var weapon_interval: int = 4
 	if _equipped_weapon == "dagger":

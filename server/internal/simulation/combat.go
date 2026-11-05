@@ -79,6 +79,8 @@ const (
 	CombatStyleLongRange  CombatStyleID = "long_range"
 	CombatStyleCrush      CombatStyleID = "crush"
 	CombatStyleHeavyCrush CombatStyleID = "heavy_crush"
+	CombatStyleDefensive  CombatStyleID = "defensive"
+	CombatStyleUnfocused  CombatStyleID = "unfocused"
 )
 
 func defaultCombatStyle(weapon WeaponID) CombatStyleID {
@@ -91,19 +93,26 @@ func defaultCombatStyle(weapon WeaponID) CombatStyleID {
 	if weapon == WeaponDagger {
 		return CombatStyleStab
 	}
+	if weapon == WeaponSword {
+		return CombatStyleStab
+	}
 	return CombatStyleSlash
 }
 
 func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
+	if style == CombatStyleUnfocused {
+		_, exists := weaponDefinition(weapon)
+		return exists
+	}
 	switch weapon {
 	case WeaponBow, WeaponStaff:
 		return style == CombatStyleRapid || style == CombatStyleAccurate || style == CombatStyleLongRange
 	case WeaponMace:
-		return style == CombatStyleCrush || style == CombatStyleHeavyCrush
+		return style == CombatStyleCrush || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
 	case WeaponBattleAxe:
-		return style == CombatStyleSlash || style == CombatStyleHeavyCrush
+		return style == CombatStyleSlash || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
 	case WeaponSword, WeaponDagger:
-		return style == CombatStyleStab || style == CombatStyleSlash
+		return style == CombatStyleStab || style == CombatStyleSlash || style == CombatStyleDefensive
 	default:
 		return false
 	}
@@ -300,8 +309,8 @@ func newCombatState() *combatState {
 	}
 }
 
-// QueueCombatStyle records a style selection for the currently equipped weapon.
-// Styles are state only for now; combat modifiers will be introduced separately.
+// QueueCombatStyle records a technique selection for the equipped weapon.
+// Techniques route combat XP and may also modify weapon behaviour.
 func (w *World) QueueCombatStyle(command CombatStyleCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("combat style sequence must be positive")
@@ -575,9 +584,10 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		target.Health = max(0, target.Health-weapon.Damage)
-		if skill, trains := skillForWeapon(player.equippedWeapon); trains {
-			grantSkillExperience(player, skill, skillExperiencePerHit)
+		damageDealt := min(weapon.Damage, target.Health)
+		target.Health -= damageDealt
+		if skill, trains := skillForCombatStyle(player.equippedWeapon, player.combatStyle); trains {
+			grantSkillExperience(player, skill, int64(damageDealt))
 		}
 		player.lastActionResult = "hit"
 		w.combat.recordEvent(CombatEvent{
@@ -585,7 +595,7 @@ func (w *World) resolveAutoAttacks() {
 			Type:     CombatEventDamage,
 			SourceID: string(player.id),
 			TargetID: player.combatTarget,
-			Amount:   weapon.Damage,
+			Amount:   damageDealt,
 		})
 		if target.TargetID == "" {
 			target.TargetID = player.id

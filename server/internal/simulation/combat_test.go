@@ -143,7 +143,7 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 		t.Fatalf("player combat state after first hit = %+v", player)
 	}
 	attack := mustSkill(t, player, SkillAttack)
-	if attack.Experience != skillExperiencePerHit || attack.Level != 1 || attack.NextLevelExperience != 100 {
+	if attack.Experience != swordDamage || attack.Level != 1 || attack.NextLevelExperience != 100 {
 		t.Fatalf("Attack after first sword hit = %+v", attack)
 	}
 
@@ -157,6 +157,31 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 	}
 	if got := world.Snapshot().CombatEvents[1].ID; got != 2 {
 		t.Fatalf("second combat event ID = %d, want 2", got)
+	}
+}
+
+func TestOverkillAwardsOnlyActualDamageAsXP(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	target, found := world.combat.dummyByID(dummyTargetID)
+	if !found {
+		t.Fatal("ground dummy is missing")
+	}
+	target.Health = 3
+	if err := world.QueueTarget(TargetCommand{
+		PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID,
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 3 {
+		t.Fatalf("Attack after overkill = %+v, want 3 XP", attack)
+	}
+	events := world.Snapshot().CombatEvents
+	if len(events) != 1 || events[0].Amount != 3 {
+		t.Fatalf("overkill combat events = %+v, want actual damage 3", events)
 	}
 }
 
@@ -444,8 +469,8 @@ func TestLatestEquipmentCommandWinsBeforePulse(t *testing.T) {
 func TestCombatStyleSelectionIsAuthoritativeAndWeaponSpecific(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleSlash {
-		t.Fatalf("default sword style = %q, want slash", got)
+	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleStab {
+		t.Fatalf("default sword style = %q, want stab", got)
 	}
 	if err := world.QueueCombatStyle(CombatStyleCommand{
 		PlayerID: "player-one", Sequence: 1, Style: CombatStyleStab,
@@ -538,8 +563,8 @@ func TestBowRapidSchedulesFasterNextAttack(t *testing.T) {
 	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 0 {
 		t.Fatalf("Attack after bow hit = %+v, want zero XP", attack)
 	}
-	if ranged := mustSkill(t, player, SkillRange); ranged.Experience != skillExperiencePerHit {
-		t.Fatalf("Range after bow hit = %+v, want %d XP", ranged, skillExperiencePerHit)
+	if ranged := mustSkill(t, player, SkillRange); ranged.Experience != bowDamage {
+		t.Fatalf("Range after bow hit = %+v, want %d XP", ranged, bowDamage)
 	}
 }
 
@@ -555,11 +580,54 @@ func TestStaffHitTrainsMagic(t *testing.T) {
 	}
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	if magic := mustSkill(t, player, SkillMagic); magic.Experience != skillExperiencePerHit {
-		t.Fatalf("Magic after staff hit = %+v, want %d XP", magic, skillExperiencePerHit)
+	if magic := mustSkill(t, player, SkillMagic); magic.Experience != staffDamage {
+		t.Fatalf("Magic after staff hit = %+v, want %d XP", magic, staffDamage)
 	}
 	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 0 {
 		t.Fatalf("Attack after staff hit = %+v, want zero XP", attack)
+	}
+}
+
+func TestSwordStylesRouteOrSuppressCombatXP(t *testing.T) {
+	tests := []struct {
+		name       string
+		style      CombatStyleID
+		trained    SkillID
+		experience int64
+	}{
+		{name: "stab", style: CombatStyleStab, trained: SkillAttack, experience: swordDamage},
+		{name: "slash", style: CombatStyleSlash, trained: SkillStrength, experience: swordDamage},
+		{name: "defensive", style: CombatStyleDefensive, trained: SkillDefence, experience: swordDamage},
+		{name: "unfocused", style: CombatStyleUnfocused},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			world := newCombatTestWorld()
+			mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+			if err := world.QueueCombatStyle(CombatStyleCommand{
+				PlayerID: "player-one", Sequence: 1, Style: test.style,
+			}); err != nil {
+				t.Fatalf("QueueCombatStyle(%s): %v", test.style, err)
+			}
+			world.Step(actionPulseInterval)
+			if err := world.QueueTarget(TargetCommand{
+				PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID,
+			}); err != nil {
+				t.Fatalf("QueueTarget(): %v", err)
+			}
+			world.Step(actionPulseInterval)
+
+			player := mustPlayer(t, world, "player-one")
+			for _, skillID := range []SkillID{SkillAttack, SkillStrength, SkillDefence} {
+				want := int64(0)
+				if skillID == test.trained {
+					want = test.experience
+				}
+				if got := mustSkill(t, player, skillID).Experience; got != want {
+					t.Errorf("%s XP = %d, want %d", skillID, got, want)
+				}
+			}
+		})
 	}
 }
 
@@ -582,7 +650,9 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 	}
 	if !combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponMace) ||
 		!combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponBattleAxe) ||
-		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) {
+		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) ||
+		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
+		!combatStyleValidForWeapon(CombatStyleUnfocused, WeaponBow) {
 		t.Fatal("additional weapon combat styles are not valid")
 	}
 }

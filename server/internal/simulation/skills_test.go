@@ -25,15 +25,27 @@ func TestAttackLevelCurve(t *testing.T) {
 }
 
 func TestWeaponsTrainExpectedSkills(t *testing.T) {
-	tests := map[WeaponID]SkillID{
-		WeaponSword: SkillAttack, WeaponDagger: SkillAttack,
-		WeaponMace: SkillAttack, WeaponBattleAxe: SkillAttack,
-		WeaponBow: SkillRange, WeaponStaff: SkillMagic,
+	tests := []struct {
+		weapon WeaponID
+		style  CombatStyleID
+		skill  SkillID
+		trains bool
+	}{
+		{WeaponSword, CombatStyleStab, SkillAttack, true},
+		{WeaponSword, CombatStyleSlash, SkillStrength, true},
+		{WeaponSword, CombatStyleDefensive, SkillDefence, true},
+		{WeaponMace, CombatStyleCrush, SkillAttack, true},
+		{WeaponMace, CombatStyleHeavyCrush, SkillStrength, true},
+		{WeaponBattleAxe, CombatStyleSlash, SkillAttack, true},
+		{WeaponBow, CombatStyleRapid, SkillRange, true},
+		{WeaponStaff, CombatStyleAccurate, SkillMagic, true},
+		{WeaponSword, CombatStyleUnfocused, "", false},
 	}
-	for weapon, want := range tests {
-		got, trains := skillForWeapon(weapon)
-		if !trains || got != want {
-			t.Errorf("skillForWeapon(%q) = %q, %t; want %q, true", weapon, got, trains, want)
+	for _, test := range tests {
+		got, trains := skillForCombatStyle(test.weapon, test.style)
+		if trains != test.trains || got != test.skill {
+			t.Errorf("skillForCombatStyle(%q, %q) = %q, %t; want %q, %t",
+				test.weapon, test.style, got, trains, test.skill, test.trains)
 		}
 	}
 }
