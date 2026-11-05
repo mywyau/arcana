@@ -13,15 +13,21 @@ const (
 	linkTolerance   = 1.05
 	gridCellSize    = 0.5
 	agentRadius     = 0.4
+	hillCenterX     = -12.0
+	hillCenterZ     = 10.0
+	hillRadius      = 4.0
+	hillHeight      = 2.0
 )
 
 type Layer struct {
-	ID       string
-	Height   float64
-	MinimumX float64
-	MaximumX float64
-	MinimumZ float64
-	MaximumZ float64
+	ID           string
+	Height       float64
+	MinimumX     float64
+	MaximumX     float64
+	MinimumZ     float64
+	MaximumZ     float64
+	Elevation    func(x, z float64) float64
+	MaximumSlope float64
 }
 
 type Link struct {
@@ -62,7 +68,15 @@ func NewLayeredMapWithObstacles(layers []Layer, links []Link, obstacles []Obstac
 func NewPrototypeMap() *LayeredMap {
 	return NewLayeredMapWithObstacles(
 		[]Layer{
-			{ID: "ground", Height: 0, MinimumX: -20, MaximumX: 20, MinimumZ: -20, MaximumZ: 20},
+			{
+				ID:           "ground",
+				MinimumX:     -20,
+				MaximumX:     20,
+				MinimumZ:     -20,
+				MaximumZ:     20,
+				Elevation:    prototypeGroundHeight,
+				MaximumSlope: 1,
+			},
 			{ID: "upper", Height: 3, MinimumX: -6, MaximumX: 2, MinimumZ: -4, MaximumZ: 4},
 		},
 		[]Link{
@@ -213,7 +227,7 @@ func (m *LayeredMap) findLayerPath(layer Layer, start, destination simulation.Po
 		return nil, fmt.Errorf("route endpoint is blocked on layer %q", layer.ID)
 	}
 	if m.lineWalkable(layer, start, destination) {
-		return []simulation.Position{destination}, nil
+		return layer.surfaceSegment(start, destination), nil
 	}
 
 	cells, err := m.findCellPath(layer, startCell, destinationCell)
@@ -228,7 +242,7 @@ func (m *LayeredMap) findLayerPath(layer Layer, start, destination simulation.Po
 	raw[len(raw)-1] = destination
 
 	smoothed := m.smoothPath(layer, raw)
-	return smoothed[1:], nil
+	return layer.expandSurfacePath(smoothed), nil
 }
 
 func (m *LayeredMap) findCellPath(layer Layer, start, destination gridCell) ([]gridCell, error) {
@@ -246,13 +260,17 @@ func (m *LayeredMap) findCellPath(layer Layer, start, destination gridCell) ([]g
 
 		for _, offset := range neighborOffsets {
 			next := gridCell{X: current.X + offset.X, Z: current.Z + offset.Z}
-			if !m.cellWalkable(layer, next) {
+			if !m.cellTraversable(layer, current, next) {
 				continue
 			}
 			diagonal := offset.X != 0 && offset.Z != 0
-			if diagonal && (!m.cellWalkable(layer, gridCell{X: current.X + offset.X, Z: current.Z}) ||
-				!m.cellWalkable(layer, gridCell{X: current.X, Z: current.Z + offset.Z})) {
-				continue
+			if diagonal {
+				xSide := gridCell{X: current.X + offset.X, Z: current.Z}
+				zSide := gridCell{X: current.X, Z: current.Z + offset.Z}
+				if !m.cellTraversable(layer, current, xSide) || !m.cellTraversable(layer, current, zSide) ||
+					!m.cellTraversable(layer, xSide, next) || !m.cellTraversable(layer, zSide, next) {
+					continue
+				}
 			}
 
 			stepCost := 10
@@ -299,14 +317,18 @@ func (m *LayeredMap) lineWalkable(layer Layer, start, end simulation.Position) b
 	distance := math.Hypot(end.X-start.X, end.Z-start.Z)
 	steps := max(1, int(math.Ceil(distance/(gridCellSize/2))))
 	previous := layer.positionToCell(start)
+	previousPosition := start
 	for index := 0; index <= steps; index++ {
 		progress := float64(index) / float64(steps)
 		position := simulation.Position{
 			X: start.X + (end.X-start.X)*progress,
-			Y: layer.Height,
 			Z: start.Z + (end.Z-start.Z)*progress,
 		}
+		position.Y = layer.surfaceHeight(position.X, position.Z)
 		if !m.positionWalkable(layer, position) {
+			return false
+		}
+		if index > 0 && !layer.slopeWalkable(previousPosition, position) {
 			return false
 		}
 		cell := layer.positionToCell(position)
@@ -320,8 +342,16 @@ func (m *LayeredMap) lineWalkable(layer Layer, start, end simulation.Position) b
 			}
 		}
 		previous = cell
+		previousPosition = position
 	}
 	return true
+}
+
+func (m *LayeredMap) cellTraversable(layer Layer, from, to gridCell) bool {
+	if !m.cellWalkable(layer, from) || !m.cellWalkable(layer, to) {
+		return false
+	}
+	return layer.slopeWalkable(layer.cellPosition(from), layer.cellPosition(to))
 }
 
 func (m *LayeredMap) cellWalkable(layer Layer, cell gridCell) bool {
@@ -350,7 +380,7 @@ func (m *LayeredMap) positionWalkable(layer Layer, position simulation.Position)
 
 func (m *LayeredMap) layerAt(position simulation.Position) (Layer, error) {
 	for _, layer := range m.layers {
-		if math.Abs(position.Y-layer.Height) <= heightTolerance &&
+		if math.Abs(position.Y-layer.surfaceHeight(position.X, position.Z)) <= heightTolerance &&
 			position.X >= layer.MinimumX && position.X <= layer.MaximumX &&
 			position.Z >= layer.MinimumZ && position.Z <= layer.MaximumZ {
 			return layer, nil
@@ -377,11 +407,64 @@ func (l Layer) positionToCell(position simulation.Position) gridCell {
 }
 
 func (l Layer) cellPosition(cell gridCell) simulation.Position {
+	x := l.MinimumX + float64(cell.X)*gridCellSize
+	z := l.MinimumZ + float64(cell.Z)*gridCellSize
 	return simulation.Position{
-		X: l.MinimumX + float64(cell.X)*gridCellSize,
-		Y: l.Height,
-		Z: l.MinimumZ + float64(cell.Z)*gridCellSize,
+		X: x,
+		Y: l.surfaceHeight(x, z),
+		Z: z,
 	}
+}
+
+func (l Layer) surfaceHeight(x, z float64) float64 {
+	if l.Elevation != nil {
+		return l.Elevation(x, z)
+	}
+	return l.Height
+}
+
+func (l Layer) slopeWalkable(from, to simulation.Position) bool {
+	if l.MaximumSlope <= 0 {
+		return true
+	}
+	horizontalDistance := math.Hypot(to.X-from.X, to.Z-from.Z)
+	if horizontalDistance == 0 {
+		return math.Abs(to.Y-from.Y) <= heightTolerance
+	}
+	return math.Abs(to.Y-from.Y)/horizontalDistance <= l.MaximumSlope
+}
+
+// surfaceSegment returns waypoints that follow an elevated surface rather than
+// cutting a straight chord through it. Flat layers retain their compact path.
+func (l Layer) surfaceSegment(start, destination simulation.Position) []simulation.Position {
+	if l.Elevation == nil {
+		return []simulation.Position{destination}
+	}
+	distance := math.Hypot(destination.X-start.X, destination.Z-start.Z)
+	steps := max(1, int(math.Ceil(distance/gridCellSize)))
+	path := make([]simulation.Position, 0, steps)
+	for index := 1; index <= steps; index++ {
+		progress := float64(index) / float64(steps)
+		position := simulation.Position{
+			X: start.X + (destination.X-start.X)*progress,
+			Z: start.Z + (destination.Z-start.Z)*progress,
+		}
+		position.Y = l.surfaceHeight(position.X, position.Z)
+		path = append(path, position)
+	}
+	path[len(path)-1] = destination
+	return path
+}
+
+func (l Layer) expandSurfacePath(path []simulation.Position) []simulation.Position {
+	if len(path) < 2 {
+		return nil
+	}
+	expanded := make([]simulation.Position, 0, len(path)-1)
+	for index := 1; index < len(path); index++ {
+		expanded = appendWithoutDuplicate(expanded, l.surfaceSegment(path[index-1], path[index])...)
+	}
+	return expanded
 }
 
 func (l Layer) maximumCellX() int {
@@ -390,6 +473,14 @@ func (l Layer) maximumCellX() int {
 
 func (l Layer) maximumCellZ() int {
 	return int(math.Round((l.MaximumZ - l.MinimumZ) / gridCellSize))
+}
+
+func prototypeGroundHeight(x, z float64) float64 {
+	distance := math.Hypot(x-hillCenterX, z-hillCenterZ)
+	if distance >= hillRadius {
+		return 0
+	}
+	return hillHeight * 0.5 * (1 + math.Cos(math.Pi*distance/hillRadius))
 }
 
 func positionOnLink(position simulation.Position, link Link) bool {

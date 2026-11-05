@@ -60,6 +60,12 @@ func predict_move(destination: Vector3) -> void:
 	_predicted_path = [destination]
 
 
+func predict_path(path: Array[Vector3]) -> void:
+	if not _is_local or not _has_position:
+		return
+	_predicted_path = path.duplicate()
+
+
 func apply_authoritative_state(
 	position: Vector3,
 	path: Array[Vector3],

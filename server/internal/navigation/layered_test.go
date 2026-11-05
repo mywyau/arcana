@@ -48,6 +48,61 @@ func TestPrototypeMapUsesExpandedGroundBounds(t *testing.T) {
 	}
 }
 
+func TestPrototypeMapRoutesUpAndDownHill(t *testing.T) {
+	world := NewPrototypeMap()
+	bottom := simulation.Position{X: hillCenterX - hillRadius, Z: hillCenterZ}
+	top := simulation.Position{X: hillCenterX, Y: hillHeight, Z: hillCenterZ}
+
+	uphill, err := world.FindPath(bottom, top)
+	if err != nil {
+		t.Fatalf("uphill FindPath() returned an unexpected error: %v", err)
+	}
+	if len(uphill) < 2 {
+		t.Fatalf("uphill FindPath() = %+v, want surface-following waypoints", uphill)
+	}
+	for index := 1; index < len(uphill); index++ {
+		if uphill[index].Y < uphill[index-1].Y {
+			t.Fatalf("uphill waypoint heights decreased: %+v", uphill)
+		}
+	}
+	if got := uphill[len(uphill)-1]; got != top {
+		t.Fatalf("uphill final waypoint = %+v, want %+v", got, top)
+	}
+
+	downhill, err := world.FindPath(top, bottom)
+	if err != nil {
+		t.Fatalf("downhill FindPath() returned an unexpected error: %v", err)
+	}
+	for index := 1; index < len(downhill); index++ {
+		if downhill[index].Y > downhill[index-1].Y {
+			t.Fatalf("downhill waypoint heights increased: %+v", downhill)
+		}
+	}
+}
+
+func TestLayeredMapRejectsRouteAcrossExcessiveSlope(t *testing.T) {
+	steepHeight := func(x, _ float64) float64 {
+		if x == 0 {
+			return 2
+		}
+		return 0
+	}
+	world := NewLayeredMap([]Layer{{
+		ID:           "steep",
+		MinimumX:     -1,
+		MaximumX:     1,
+		MinimumZ:     0,
+		MaximumZ:     0,
+		Elevation:    steepHeight,
+		MaximumSlope: 0.5,
+	}}, nil)
+
+	_, err := world.FindPath(simulation.Position{X: -1}, simulation.Position{X: 1})
+	if err == nil {
+		t.Fatal("FindPath() error = nil across an excessive slope")
+	}
+}
+
 func TestPrototypeMapLocatesLayersAndConnector(t *testing.T) {
 	world := NewPrototypeMap()
 	tests := []struct {

@@ -37,6 +37,7 @@ const ITEM_ICONS: Dictionary = {
 
 @onready var camera_rig: GuidedCamera = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
+@onready var ground: PrototypeTerrain = $Ground
 @onready var network: NetworkClient = $NetworkClient
 @onready var players: Node3D = $Players
 @onready var targets: Node3D = $Targets
@@ -230,7 +231,10 @@ func _physics_process(_delta: float) -> void:
 			_request_disengage()
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null and _can_predict_directly(local_view, destination, clicked_body):
-			local_view.predict_move(destination)
+			if clicked_body.name == &"GroundBody":
+				local_view.predict_path(ground.surface_path(local_view.global_position, destination))
+			else:
+				local_view.predict_move(destination)
 		click_marker.position = destination + Vector3.UP * 0.03
 		click_marker.visible = true
 

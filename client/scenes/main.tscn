@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://dkokialdfv0o7" path="res://scripts/network_client.gd" id="2_network"]
 [ext_resource type="Script" uid="uid://t7lir1ekw8pp" path="res://scripts/guided_camera.gd" id="3_camera"]
 [ext_resource type="Script" uid="uid://tys80ciwbtbq" path="res://scripts/floor_visibility.gd" id="4_floor_visibility"]
+[ext_resource type="Script" path="res://scripts/prototype_terrain.gd" id="5_terrain"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -142,14 +143,15 @@ light_energy = 1.1
 shadow_enabled = true
 
 [node name="Ground" type="MeshInstance3D" parent="." unique_id=527671356]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0015332699, -0.10511241, 0.0027843714)
 mesh = SubResource("GroundMesh")
+material_override = SubResource("GroundMaterial")
+script = ExtResource("5_terrain")
+collision_shape_path = NodePath("../GroundBody/CollisionShape3D")
 
 [node name="GroundBody" type="StaticBody3D" parent="." unique_id=1175225259]
 metadata/navigation_layer_id = "ground"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody" unique_id=1744783982]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 shape = SubResource("GroundShape")
 
 [node name="UpperLevel" type="Node3D" parent="." unique_id=607603903]
