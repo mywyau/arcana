@@ -62,7 +62,7 @@ func NewLayeredMapWithObstacles(layers []Layer, links []Link, obstacles []Obstac
 func NewPrototypeMap() *LayeredMap {
 	return NewLayeredMapWithObstacles(
 		[]Layer{
-			{ID: "ground", Height: 0, MinimumX: -10, MaximumX: 10, MinimumZ: -10, MaximumZ: 10},
+			{ID: "ground", Height: 0, MinimumX: -20, MaximumX: 20, MinimumZ: -20, MaximumZ: 20},
 			{ID: "upper", Height: 3, MinimumX: -6, MaximumX: 2, MinimumZ: -4, MaximumZ: 4},
 		},
 		[]Link{
