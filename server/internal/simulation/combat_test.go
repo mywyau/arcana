@@ -142,6 +142,10 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 	if player.CombatTarget != dummyTargetID || player.LastActionResult != "hit" || player.NextAttackPulse != 5 {
 		t.Fatalf("player combat state after first hit = %+v", player)
 	}
+	attack := mustSkill(t, player, SkillAttack)
+	if attack.Experience != skillExperiencePerHit || attack.Level != 1 || attack.NextLevelExperience != 100 {
+		t.Fatalf("Attack after first sword hit = %+v", attack)
+	}
 
 	world.Step(3 * actionPulseInterval)
 	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-swordDamage; got != want {
@@ -188,6 +192,9 @@ func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
 	player := mustPlayer(t, world, "player-one")
 	if player.LastActionResult != "dodged" || player.NextAttackPulse != 5 {
 		t.Fatalf("player state after dodge = %+v", player)
+	}
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 0 {
+		t.Fatalf("Attack after dodged hit = %+v, want zero XP", attack)
 	}
 	if len(snapshot.CombatEvents) != 1 {
 		t.Fatalf("combat event count = %d, want 1", len(snapshot.CombatEvents))
@@ -526,6 +533,33 @@ func TestBowRapidSchedulesFasterNextAttack(t *testing.T) {
 	world.Step(actionPulseInterval)
 	if got, want := mustPlayer(t, world, "player-one").NextAttackPulse, uint64(6); got != want {
 		t.Fatalf("rapid bow next attack pulse = %d, want %d", got, want)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 0 {
+		t.Fatalf("Attack after bow hit = %+v, want zero XP", attack)
+	}
+	if ranged := mustSkill(t, player, SkillRange); ranged.Experience != skillExperiencePerHit {
+		t.Fatalf("Range after bow hit = %+v, want %d XP", ranged, skillExperiencePerHit)
+	}
+}
+
+func TestStaffHitTrainsMagic(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponStaff}); err != nil {
+		t.Fatalf("QueueEquip(staff) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if magic := mustSkill(t, player, SkillMagic); magic.Experience != skillExperiencePerHit {
+		t.Fatalf("Magic after staff hit = %+v, want %d XP", magic, skillExperiencePerHit)
+	}
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 0 {
+		t.Fatalf("Attack after staff hit = %+v, want zero XP", attack)
 	}
 }
 

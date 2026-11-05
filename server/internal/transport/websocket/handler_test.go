@@ -174,6 +174,39 @@ func TestHandlerSavesCharacterOnDisconnect(t *testing.T) {
 	t.Fatal("character movement was not saved after disconnect")
 }
 
+func TestSaveAllPersistsEveryActiveCharacter(t *testing.T) {
+	world := simulation.NewWorld()
+	if err := world.AddPlayer("player-one", simulation.Position{X: 2}, 4); err != nil {
+		t.Fatalf("AddPlayer(player-one): %v", err)
+	}
+	if err := world.AddPlayer("player-two", simulation.Position{Z: -3}, 4); err != nil {
+		t.Fatalf("AddPlayer(player-two): %v", err)
+	}
+	characters := character.NewMemoryRepository()
+	guestIdentities, err := identity.NewGuestManager(identity.NewMemoryGuestRepository())
+	if err != nil {
+		t.Fatalf("NewGuestManager() returned an unexpected error: %v", err)
+	}
+	handler, err := NewHandlerWithRepositories(
+		world,
+		5*time.Millisecond,
+		guestIdentities,
+		characters,
+	)
+	if err != nil {
+		t.Fatalf("NewHandlerWithRepositories() returned an unexpected error: %v", err)
+	}
+
+	if err := handler.SaveAll(context.Background()); err != nil {
+		t.Fatalf("SaveAll() returned an unexpected error: %v", err)
+	}
+	for _, playerID := range []string{"player-one", "player-two"} {
+		if _, found, loadErr := characters.Load(context.Background(), playerID); loadErr != nil || !found {
+			t.Fatalf("Load(%s) = found %t, error %v", playerID, found, loadErr)
+		}
+	}
+}
+
 func authenticateGuest(t *testing.T, ctx context.Context, connection *websocket.Conn, token string) {
 	t.Helper()
 	if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
@@ -236,6 +269,10 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 					Slot: 0, ItemID: "sword", Quantity: 1,
 				}},
 			},
+			Skills: []simulation.SkillSnapshot{{
+				ID: simulation.SkillAttack, Experience: 125, Level: 2,
+				CurrentLevelExperience: 100, NextLevelExperience: 400,
+			}},
 		}},
 	})
 
@@ -274,6 +311,11 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		player.Inventory.Items[0].Slot != 0 || player.Inventory.Items[0].ItemID != "sword" ||
 		player.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("player inventory = %+v", player.Inventory)
+	}
+	if len(player.Skills) != 1 || player.Skills[0].ID != "attack" ||
+		player.Skills[0].Experience != 125 || player.Skills[0].Level != 2 ||
+		player.Skills[0].CurrentLevelExperience != 100 || player.Skills[0].NextLevelExperience != 400 {
+		t.Fatalf("player skills = %+v", player.Skills)
 	}
 }
 

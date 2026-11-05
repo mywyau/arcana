@@ -561,7 +561,7 @@ text = "Styles"
 
 [node name="Summary" type="Label" parent="UI/SkillsHUD/Margin/VBox"]
 layout_mode = 2
-text = "Placeholder skills  •  progression not active"
+text = "Attack level 1  •  0/100 XP  •  0%"
 
 [node name="Grid" type="GridContainer" parent="UI/SkillsHUD/Margin/VBox"]
 layout_mode = 2

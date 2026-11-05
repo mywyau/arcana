@@ -576,6 +576,9 @@ func (w *World) resolveAutoAttacks() {
 		}
 
 		target.Health = max(0, target.Health-weapon.Damage)
+		if skill, trains := skillForWeapon(player.equippedWeapon); trains {
+			grantSkillExperience(player, skill, skillExperiencePerHit)
+		}
 		player.lastActionResult = "hit"
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,

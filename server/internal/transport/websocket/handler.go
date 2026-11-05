@@ -97,29 +97,42 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	guestIdentity, err := h.authenticate(ctx, connection)
 	if err != nil {
 		code := "authentication_failed"
+		clientError := errors.New("authentication unavailable")
 		if errors.Is(err, identity.ErrInvalidGuestToken) {
 			code = "invalid_guest_token"
+			clientError = identity.ErrInvalidGuestToken
+		} else {
+			log.Printf("authenticate WebSocket connection: %v", err)
 		}
-		_ = writeMessage(ctx, connection, errorMessage(code, err))
+		_ = writeMessage(ctx, connection, errorMessage(code, clientError))
 		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
 		return
 	}
 	playerID := simulation.PlayerID(guestIdentity.PlayerID)
 	characterState, found, err := h.characters.Load(ctx, string(playerID))
 	if err != nil {
-		_ = writeMessage(ctx, connection, errorMessage("character_load_failed", err))
+		log.Printf("load character %s: %v", playerID, err)
+		_ = writeMessage(ctx, connection, errorMessage(
+			"character_load_failed",
+			errors.New("could not load character"),
+		))
 		_ = connection.Close(websocket.StatusInternalError, "could not load character")
 		return
 	}
 	if !found {
 		characterState = simulation.DefaultPersistentPlayerState()
 		if err := h.characters.Save(ctx, string(playerID), characterState); err != nil {
-			_ = writeMessage(ctx, connection, errorMessage("character_save_failed", err))
+			log.Printf("create character %s: %v", playerID, err)
+			_ = writeMessage(ctx, connection, errorMessage(
+				"character_save_failed",
+				errors.New("could not create character"),
+			))
 			_ = connection.Close(websocket.StatusInternalError, "could not create character")
 			return
 		}
 	}
 	if err := h.world.QueueJoinWithPersistentState(playerID, characterState, playerSpeed); err != nil {
+		log.Printf("join character %s: %v", playerID, err)
 		_ = connection.Close(websocket.StatusInternalError, "could not join world")
 		return
 	}
@@ -378,11 +391,21 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 			},
 			LastPickupSequence: player.LastPickupSequence,
+			Skills:             make([]protocol.SkillSnapshot, 0, len(player.Skills)),
 			Path:               make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, item := range player.Inventory.Items {
 			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{
 				Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+			})
+		}
+		for _, skill := range player.Skills {
+			playerMessage.Skills = append(playerMessage.Skills, protocol.SkillSnapshot{
+				ID:                     string(skill.ID),
+				Experience:             skill.Experience,
+				Level:                  skill.Level,
+				CurrentLevelExperience: skill.CurrentLevelExperience,
+				NextLevelExperience:    skill.NextLevelExperience,
 			})
 		}
 		for _, waypoint := range player.Path {

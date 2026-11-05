@@ -59,6 +59,37 @@ Stop PostgreSQL with `docker compose down`. Its named volume is retained. Only
 run `docker compose down -v` when you deliberately want to erase local
 identities and characters.
 
+The server exposes `GET /health` for process liveness and `GET /ready` for
+database readiness. With the local server running, check them with:
+
+```sh
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+```
+
+The normal Go suite skips the database integration test. Run that test against
+the local PostgreSQL container with:
+
+```sh
+cd server
+set -a; source ../.env; set +a
+ARCANA_TEST_DATABASE_URL="${DATABASE_URL}" go test ./internal/persistence/postgres -run RoundTrip -v
+```
+
+The test creates a random guest identity, verifies identity and character data
+through a second database connection, links an email account, and removes its
+records afterward.
+
+### Account foundation
+
+The server database separates private account credentials from character state.
+Email addresses are normalized for case-insensitive login, each account can own
+one character, and account creation links an existing guest character in one
+transaction. Passwords use salted Argon2id hashes with their cost parameters
+stored in the encoded hash. Registration, login sessions, and client account UI
+are intentionally deferred to the next slices; guest authentication remains the
+only active login flow for now.
+
 ## WebSocket protocol
 
 The client authenticates first with its saved guest token (or an empty token to
@@ -184,13 +215,17 @@ authoritative world entities with unique IDs and appear as glowing blue-violet
 pickups. Click a drop from within 3 world units to collect it; the server
 validates distance, available inventory space, and that another player has not
 already collected it. The first shard uses a free slot and later shards stack.
-Automatic walking to loot, persistence, trading, and item use are not included
-in this slice.
+Automatic walking to loot, ground-drop persistence, trading, and item use are
+not included in this slice.
 
-The adjacent Skills tab currently previews six placeholder skills—Blades,
-Vitality, Agility, Arcana, Devotion, and Crafting—at level 1. These values are
-client-only presentation placeholders; skill progression and XP are not yet
-part of the authoritative server state.
+The Skills tab shows the authoritative Attack skill alongside the remaining
+placeholder skills. A successful sword, dagger, mace, or battle-axe hit grants
+10 Attack XP; dodged attacks, bows, and staves grant none. Level 2 begins at
+100 XP, with prototype level thresholds following `100 × (level - 1)²` up to
+level 100. Attack XP is persisted with the character, while levels are derived
+from total XP so the curve can be adjusted later. Attack does not modify combat
+stats yet. Strength, Defence, Range, Magic, and the non-combat skills remain
+presentation-only placeholders.
 
 The Equipment tab provides an icon-based overview of the authoritative
 main-hand weapon plus placeholder head, body, hands, legs, and trinket slots.

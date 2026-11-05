@@ -111,6 +111,15 @@ type PlayerSnapshot struct {
 	DodgeRate               float64            `json:"dodge_rate"`
 	Inventory               InventorySnapshot  `json:"inventory"`
 	LastPickupSequence      uint64             `json:"last_pickup_sequence"`
+	Skills                  []SkillSnapshot    `json:"skills"`
+}
+
+type SkillSnapshot struct {
+	ID                     string `json:"id"`
+	Experience             int64  `json:"experience"`
+	Level                  int    `json:"level"`
+	CurrentLevelExperience int64  `json:"current_level_experience"`
+	NextLevelExperience    int64  `json:"next_level_experience"`
 }
 
 type InventorySnapshot struct {

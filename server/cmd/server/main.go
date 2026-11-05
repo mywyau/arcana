@@ -13,6 +13,7 @@ import (
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/navigation"
 	postgrespersistence "github.com/mywyau/arcana/server/internal/persistence/postgres"
+	"github.com/mywyau/arcana/server/internal/serverhealth"
 	"github.com/mywyau/arcana/server/internal/simulation"
 	websockettransport "github.com/mywyau/arcana/server/internal/transport/websocket"
 )
@@ -32,6 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 	var handler *websockettransport.Handler
+	var readinessChecker serverhealth.Checker
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		handler, err = websockettransport.NewHandler(world, tickInterval)
@@ -53,6 +55,7 @@ func main() {
 		}
 		cancelStartup()
 		defer store.Close()
+		readinessChecker = store
 
 		guestIdentities, identityErr := identity.NewGuestManager(store)
 		if identityErr != nil {
@@ -72,6 +75,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/ws", handler)
+	mux.Handle("/health", serverhealth.Liveness())
+	mux.Handle("/ready", serverhealth.Readiness(readinessChecker))
 	server := &http.Server{
 		Addr:              listenAddress,
 		Handler:           mux,
@@ -86,6 +91,7 @@ func main() {
 		serverErrors <- server.ListenAndServe()
 	}()
 	log.Printf("WebSocket endpoint listening on ws://localhost%s/ws", listenAddress)
+	log.Printf("Health endpoints listening on http://localhost%s/health and /ready", listenAddress)
 
 	select {
 	case <-ctx.Done():

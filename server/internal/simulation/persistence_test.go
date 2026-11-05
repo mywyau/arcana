@@ -12,6 +12,7 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	state.Health = 64
 	state.EquippedWeapon = WeaponBow
 	state.CombatStyle = CombatStyleLongRange
+	state.Skills = []PersistentSkillState{{ID: SkillAttack, Experience: 125}}
 
 	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
 		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
@@ -24,6 +25,9 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	if player.Position != state.Position || player.Health != 64 ||
 		player.EquippedWeapon != WeaponBow || player.CombatStyle != CombatStyleLongRange {
 		t.Fatalf("restored player = %+v", player)
+	}
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 125 || attack.Level != 2 {
+		t.Fatalf("restored Attack = %+v", attack)
 	}
 }
 

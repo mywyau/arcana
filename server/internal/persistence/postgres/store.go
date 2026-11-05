@@ -47,6 +47,13 @@ func (store *Store) Close() error {
 	return store.database.Close()
 }
 
+func (store *Store) Ping(ctx context.Context) error {
+	if err := store.database.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping PostgreSQL: %w", err)
+	}
+	return nil
+}
+
 func (store *Store) Migrate(ctx context.Context) error {
 	if _, err := store.database.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -183,6 +190,26 @@ func (store *Store) Load(
 	if err := rows.Err(); err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read inventory: %w", err)
 	}
+	if err := rows.Close(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close inventory rows: %w", err)
+	}
+	skillRows, err := store.database.QueryContext(ctx, `
+		SELECT skill_id, experience FROM character_skills
+		WHERE player_id = $1 ORDER BY skill_id`, playerID)
+	if err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query skills: %w", err)
+	}
+	defer skillRows.Close()
+	for skillRows.Next() {
+		var skill simulation.PersistentSkillState
+		if err := skillRows.Scan(&skill.ID, &skill.Experience); err != nil {
+			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan skill: %w", err)
+		}
+		state.Skills = append(state.Skills, skill)
+	}
+	if err := skillRows.Err(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read skills: %w", err)
+	}
 	return state, true, nil
 }
 
@@ -223,6 +250,16 @@ func (store *Store) Save(
 			INSERT INTO character_inventory (player_id, slot, item_id, quantity)
 			VALUES ($1, $2, $3, $4)`, playerID, item.Slot, item.ItemID, item.Quantity); err != nil {
 			return fmt.Errorf("insert inventory item: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM character_skills WHERE player_id = $1", playerID); err != nil {
+		return fmt.Errorf("replace skills: %w", err)
+	}
+	for _, skill := range state.Skills {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO character_skills (player_id, skill_id, experience)
+			VALUES ($1, $2, $3)`, playerID, skill.ID, skill.Experience); err != nil {
+			return fmt.Errorf("insert skill: %w", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {

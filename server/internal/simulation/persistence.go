@@ -10,6 +10,7 @@ type PersistentPlayerState struct {
 	EquippedWeapon WeaponID
 	CombatStyle    CombatStyleID
 	Inventory      InventorySnapshot
+	Skills         []PersistentSkillState
 }
 
 // DefaultPersistentPlayerState is used for a newly created character.
@@ -19,6 +20,7 @@ func DefaultPersistentPlayerState() PersistentPlayerState {
 		EquippedWeapon: WeaponSword,
 		CombatStyle:    defaultCombatStyle(WeaponSword),
 		Inventory:      snapshotInventory(newStarterInventory()),
+		Skills:         persistentSkills(newDefaultSkills()),
 	}
 }
 
@@ -33,6 +35,10 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 			Capacity: snapshot.Inventory.Capacity,
 			Items:    append([]InventoryItem(nil), snapshot.Inventory.Items...),
 		},
+		Skills: make([]PersistentSkillState, 0, len(snapshot.Skills)),
+	}
+	for _, skill := range snapshot.Skills {
+		state.Skills = append(state.Skills, PersistentSkillState{ID: skill.ID, Experience: skill.Experience})
 	}
 	// A defeated character reconnects at the normal spawn rather than restoring
 	// an incomplete respawn timer from the previous server process.
@@ -65,6 +71,10 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if !inventory.contains(string(state.EquippedWeapon)) {
 		return fmt.Errorf("equipped weapon %q is not in inventory", state.EquippedWeapon)
 	}
+	skills, err := skillsFromPersistent(state.Skills)
+	if err != nil {
+		return fmt.Errorf("restore skills: %w", err)
+	}
 	location, err := w.locate(state.Position)
 	if err != nil {
 		return fmt.Errorf("locate player: %w", err)
@@ -83,6 +93,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		navigationLocation: location, health: state.Health, maximumHealth: playerMaximumHealth,
 		equippedWeapon: state.EquippedWeapon, dodgeRate: playerDodgeRate, inventory: inventory,
 		combatStyle: state.CombatStyle,
+		skills:      skills,
 	}
 	return nil
 }

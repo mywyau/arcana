@@ -130,6 +130,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var skills_equipment_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Equipment
 @onready var skills_magic_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Magic
 @onready var skills_styles_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Styles
+@onready var skills_summary: Label = $UI/SkillsHUD/Margin/VBox/Summary
 @onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/Grid
 @onready var equipment_combat_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Combat
 @onready var equipment_inventory_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Inventory
@@ -200,6 +201,11 @@ var _queued_combat_style: String = ""
 var _inventory_capacity: int = 8
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
+var _attack_experience: int = 0
+var _attack_level: int = 1
+var _attack_current_level_experience: int = 0
+var _attack_next_level_experience: int = 100
+var _skill_tiles: Dictionary = {}
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
@@ -528,6 +534,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_defeated = bool(player_data.get("defeated", false))
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
+			var skills_data: Variant = player_data.get("skills", [])
+			if typeof(skills_data) == TYPE_ARRAY:
+				_apply_skills_snapshot(skills_data as Array)
 			var inventory_data: Variant = player_data.get("inventory", {})
 			if typeof(inventory_data) == TYPE_DICTIONARY:
 				_apply_inventory_snapshot(inventory_data as Dictionary)
@@ -838,13 +847,72 @@ func _show_styles_tab() -> void:
 func _populate_placeholder_skills() -> void:
 	for skill_data: Variant in PLACEHOLDER_SKILLS:
 		var skill: Dictionary = skill_data
+		var skill_name: String = str(skill.get("name", "Skill"))
 		var skill_tile := Button.new()
 		skill_tile.custom_minimum_size = Vector2(145, 72)
 		skill_tile.focus_mode = Control.FOCUS_NONE
 		skill_tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		skill_tile.text = "%s\nLevel %d" % [skill.get("name", "Skill"), skill.get("level", 1)]
-		skill_tile.tooltip_text = "Placeholder skill — progression is not active yet"
+		skill_tile.text = "%s\nLevel %d" % [skill_name, skill.get("level", 1)]
+		if skill_name == "Attack":
+			_skill_tiles[skill_name] = skill_tile
+		else:
+			skill_tile.tooltip_text = "Placeholder skill — progression is not active yet"
 		skills_grid.add_child(skill_tile)
+	_update_attack_skill_hud()
+
+
+func _apply_skills_snapshot(skills: Array) -> void:
+	for payload: Variant in skills:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var skill: Dictionary = payload
+		if str(skill.get("id", "")) != "attack":
+			continue
+		var experience: int = int(skill.get("experience", _attack_experience))
+		var level: int = int(skill.get("level", _attack_level))
+		var current_level_experience: int = int(skill.get(
+			"current_level_experience",
+			_attack_current_level_experience,
+		))
+		var next_level_experience: int = int(skill.get(
+			"next_level_experience",
+			_attack_next_level_experience,
+		))
+		if experience == _attack_experience and level == _attack_level and \
+			current_level_experience == _attack_current_level_experience and \
+			next_level_experience == _attack_next_level_experience:
+			return
+		_attack_experience = experience
+		_attack_level = level
+		_attack_current_level_experience = current_level_experience
+		_attack_next_level_experience = next_level_experience
+		_update_attack_skill_hud()
+		return
+
+
+func _update_attack_skill_hud() -> void:
+	var attack_tile: Button = _skill_tiles.get("Attack") as Button
+	if attack_tile == null:
+		return
+	attack_tile.text = "Attack\nLevel %d  •  %d XP" % [_attack_level, _attack_experience]
+	if _attack_next_level_experience <= 0:
+		attack_tile.tooltip_text = "Maximum level • successful melee hits grant Attack XP"
+		skills_summary.text = "Attack level %d  •  maximum level" % _attack_level
+		return
+	var experience_remaining: int = maxi(0, _attack_next_level_experience - _attack_experience)
+	var level_span: int = maxi(1, _attack_next_level_experience - _attack_current_level_experience)
+	var level_progress: int = _attack_experience - _attack_current_level_experience
+	var progress_percent: int = roundi(float(level_progress) / float(level_span) * 100.0)
+	attack_tile.tooltip_text = "10 XP per successful melee hit • %d XP to level %d" % [
+		experience_remaining,
+		_attack_level + 1,
+	]
+	skills_summary.text = "Attack level %d  •  %d/%d XP  •  %d%%" % [
+		_attack_level,
+		_attack_experience,
+		_attack_next_level_experience,
+		progress_percent,
+	]
 
 
 func _populate_placeholder_spells() -> void:

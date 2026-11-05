@@ -46,5 +46,6 @@ func (repository *MemoryRepository) Save(
 
 func cloneState(state simulation.PersistentPlayerState) simulation.PersistentPlayerState {
 	state.Inventory.Items = append([]simulation.InventoryItem(nil), state.Inventory.Items...)
+	state.Skills = append([]simulation.PersistentSkillState(nil), state.Skills...)
 	return state
 }
