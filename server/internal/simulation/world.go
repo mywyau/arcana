@@ -90,6 +90,7 @@ type PlayerSnapshot struct {
 	LastEquipmentPulse    uint64
 	DodgeRate             float64
 	Inventory             InventorySnapshot
+	LastPickupSequence    uint64
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -98,6 +99,7 @@ type Snapshot struct {
 	Players      []PlayerSnapshot
 	ActionPulse  uint64
 	Targets      []TargetSnapshot
+	Drops        []DropSnapshot
 	CombatEvents []CombatEvent
 }
 
@@ -126,19 +128,23 @@ type playerState struct {
 	lastEquipmentPulse    uint64
 	dodgeRate             float64
 	inventory             inventoryState
+	lastPickupSequence    uint64
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
 type World struct {
-	mu            sync.RWMutex
-	tick          uint64
-	players       map[PlayerID]*playerState
-	pendingJoins  map[PlayerID]*playerState
-	pendingLeaves map[PlayerID]struct{}
-	pendingMoves  map[PlayerID]pendingMove
-	pathfinder    Pathfinder
-	combat        *combatState
-	rollSource    RollSource
+	mu             sync.RWMutex
+	tick           uint64
+	players        map[PlayerID]*playerState
+	pendingJoins   map[PlayerID]*playerState
+	pendingLeaves  map[PlayerID]struct{}
+	pendingMoves   map[PlayerID]pendingMove
+	pendingPickups map[PlayerID]PickupCommand
+	drops          map[string]DropSnapshot
+	nextDropID     uint64
+	pathfinder     Pathfinder
+	combat         *combatState
+	rollSource     RollSource
 }
 
 type pendingMove struct {
@@ -156,12 +162,14 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		rollSource = newRandomRollSource()
 	}
 	return &World{
-		players:       make(map[PlayerID]*playerState),
-		pendingJoins:  make(map[PlayerID]*playerState),
-		pendingLeaves: make(map[PlayerID]struct{}),
-		pendingMoves:  make(map[PlayerID]pendingMove),
-		combat:        newCombatState(),
-		rollSource:    rollSource,
+		players:        make(map[PlayerID]*playerState),
+		pendingJoins:   make(map[PlayerID]*playerState),
+		pendingLeaves:  make(map[PlayerID]struct{}),
+		pendingMoves:   make(map[PlayerID]pendingMove),
+		pendingPickups: make(map[PlayerID]PickupCommand),
+		drops:          make(map[string]DropSnapshot),
+		combat:         newCombatState(),
+		rollSource:     rollSource,
 	}
 }
 
@@ -239,6 +247,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 
 	w.pendingLeaves[id] = struct{}{}
 	delete(w.pendingMoves, id)
+	delete(w.pendingPickups, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	for _, target := range w.combat.dummyTargets() {
@@ -343,6 +352,7 @@ func (w *World) Step(elapsed time.Duration) {
 			player.navigationLocation = location
 		}
 	}
+	w.applyPendingPickups()
 	w.advanceCombat(elapsed)
 
 	for id := range w.pendingLeaves {
@@ -374,10 +384,19 @@ func (w *World) Snapshot() Snapshot {
 		Players:      make([]PlayerSnapshot, 0, len(w.players)),
 		ActionPulse:  w.combat.pulse,
 		Targets:      make([]TargetSnapshot, 0, len(w.combat.targets)),
+		Drops:        make([]DropSnapshot, 0, len(w.drops)),
 		CombatEvents: append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {
 		snapshot.Targets = append(snapshot.Targets, *target.dummy)
+	}
+	dropIDs := make([]string, 0, len(w.drops))
+	for id := range w.drops {
+		dropIDs = append(dropIDs, id)
+	}
+	sort.Strings(dropIDs)
+	for _, id := range dropIDs {
+		snapshot.Drops = append(snapshot.Drops, w.drops[id])
 	}
 	for _, player := range w.players {
 		snapshot.Players = append(snapshot.Players, snapshotPlayer(player))
@@ -450,6 +469,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastEquipmentPulse:    player.lastEquipmentPulse,
 		DodgeRate:             player.dodgeRate,
 		Inventory:             snapshotInventory(player.inventory),
+		LastPickupSequence:    player.lastPickupSequence,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

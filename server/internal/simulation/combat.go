@@ -477,6 +477,7 @@ func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
 	dummy.Defeated = true
 	dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
 	clearDummyTarget(dummy)
+	w.spawnDrop(dummy.Position, trainingShardItem, 1)
 	for _, player := range w.players {
 		if player.combatTarget == dummyID {
 			w.clearPlayerTarget(player, "target_defeated")

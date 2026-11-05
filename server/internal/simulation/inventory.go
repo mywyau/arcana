@@ -1,5 +1,7 @@
 package simulation
 
+import "sort"
+
 const BaseInventoryCapacity = 8
 
 // InventoryItem is one occupied slot in a player's authoritative inventory.
@@ -36,6 +38,35 @@ func (inventory inventoryState) contains(itemID string) bool {
 		if item.ItemID == itemID && item.Quantity > 0 {
 			return true
 		}
+	}
+	return false
+}
+
+func (inventory inventoryState) canAdd(itemID string) bool {
+	return inventory.contains(itemID) || len(inventory.items) < inventory.capacity
+}
+
+func (inventory *inventoryState) add(itemID string, quantity int) bool {
+	if itemID == "" || quantity <= 0 || !inventory.canAdd(itemID) {
+		return false
+	}
+	for index := range inventory.items {
+		if inventory.items[index].ItemID == itemID {
+			inventory.items[index].Quantity += quantity
+			return true
+		}
+	}
+	occupied := make(map[int]struct{}, len(inventory.items))
+	for _, item := range inventory.items {
+		occupied[item.Slot] = struct{}{}
+	}
+	for slot := 0; slot < inventory.capacity; slot++ {
+		if _, exists := occupied[slot]; exists {
+			continue
+		}
+		inventory.items = append(inventory.items, InventoryItem{Slot: slot, ItemID: itemID, Quantity: quantity})
+		sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+		return true
 	}
 	return false
 }

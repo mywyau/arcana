@@ -45,6 +45,16 @@ func TestDecodeEquipItemMessage(t *testing.T) {
 	}
 }
 
+func TestDecodePickupItemMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"pickup_item","sequence":5,"drop_id":"drop-1"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessagePickupItem || message.Sequence != 5 || message.DropID != "drop-1" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 	tests := map[string]string{
 		"malformed JSON":    `{"type":`,
@@ -54,6 +64,7 @@ func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 		"missing target":    `{"type":"move_to","sequence":1}`,
 		"missing target ID": `{"type":"engage_target","sequence":1}`,
 		"missing item ID":   `{"type":"equip_item","sequence":1}`,
+		"missing drop ID":   `{"type":"pickup_item","sequence":1}`,
 		"multiple values":   `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
 	}
 

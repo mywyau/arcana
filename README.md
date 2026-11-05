@@ -149,7 +149,15 @@ bottom-right HUD to view its 4×2 grid. Slots are display-only in this first
 slice for non-equipment actions: weapon slots show their icons and can be
 clicked to send the same server-authoritative equip request as the `1`, `2`,
 and `3` shortcuts. The selected slot distinguishes equipped and queued state.
-Item pickup, dragging, and dropping are not implemented.
+Inventory dragging, manual dropping, and item use are not implemented.
+
+Defeated training targets drop one stackable Training Shard. Drops are
+authoritative world entities with unique IDs and appear as glowing blue-violet
+pickups. Click a drop from within 3 world units to collect it; the server
+validates distance, available inventory space, and that another player has not
+already collected it. The first shard uses a free slot and later shards stack.
+Automatic walking to loot, persistence, trading, and item use are not included
+in this slice.
 
 The adjacent Skills tab currently previews six placeholder skills—Blades,
 Vitality, Agility, Arcana, Devotion, and Crafting—at level 1. These values are

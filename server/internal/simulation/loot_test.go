@@ -1,0 +1,91 @@
+package simulation
+
+import (
+	"testing"
+	"time"
+)
+
+func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.spawnDrop(Position{X: pickupRange}, trainingShardItem, 1)
+
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+
+	if got := len(world.Snapshot().Drops); got != 0 {
+		t.Fatalf("drop count after pickup = %d, want 0", got)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if got, want := len(player.Inventory.Items), 4; got != want {
+		t.Fatalf("inventory item count = %d, want %d", got, want)
+	}
+	shard := player.Inventory.Items[3]
+	if shard.Slot != 3 || shard.ItemID != trainingShardItem || shard.Quantity != 1 {
+		t.Fatalf("picked up shard = %+v", shard)
+	}
+}
+
+func TestPickupRejectsDropOutsideForgivingRange(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.spawnDrop(Position{X: pickupRange + 0.01}, trainingShardItem, 1)
+
+	err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"})
+	if err == nil {
+		t.Fatal("QueuePickup() error = nil for drop outside pickup range")
+	}
+	if got := len(world.Snapshot().Drops); got != 1 {
+		t.Fatalf("drop count after rejected pickup = %d, want 1", got)
+	}
+}
+
+func TestCompetingPickupAwardsDropOnlyOnce(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	mustAddPlayer(t, world, "player-two", Position{}, 4)
+	world.spawnDrop(Position{}, trainingShardItem, 1)
+
+	for _, id := range []PlayerID{"player-two", "player-one"} {
+		if err := world.QueuePickup(PickupCommand{PlayerID: id, Sequence: 1, DropID: "drop-1"}); err != nil {
+			t.Fatalf("QueuePickup(%q) returned an unexpected error: %v", id, err)
+		}
+	}
+	world.Step(50 * time.Millisecond)
+
+	if !snapshotInventoryContains(mustPlayer(t, world, "player-one").Inventory, trainingShardItem) {
+		t.Fatal("deterministic first player did not receive contested drop")
+	}
+	if snapshotInventoryContains(mustPlayer(t, world, "player-two").Inventory, trainingShardItem) {
+		t.Fatal("second player also received contested drop")
+	}
+}
+
+func snapshotInventoryContains(inventory InventorySnapshot, itemID string) bool {
+	for _, item := range inventory.Items {
+		if item.ItemID == itemID && item.Quantity > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func TestDefeatedTargetSpawnsTrainingShard(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	world.combat.targets[dummyTargetID].Health = swordDamage
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != trainingShardItem || drops[0].Quantity != 1 {
+		t.Fatalf("target drops = %+v", drops)
+	}
+	if drops[0].Position != world.combat.targets[dummyTargetID].Position {
+		t.Fatalf("drop position = %+v, want target position %+v", drops[0].Position, world.combat.targets[dummyTargetID].Position)
+	}
+}

@@ -12,6 +12,7 @@ const (
 	MessageEngageTarget = "engage_target"
 	MessageDisengage    = "disengage"
 	MessageEquipItem    = "equip_item"
+	MessagePickupItem   = "pickup_item"
 	MessageWelcome      = "welcome"
 	MessageSnapshot     = "snapshot"
 	MessageError        = "error"
@@ -29,6 +30,7 @@ type ClientMessage struct {
 	Destination *Position `json:"destination"`
 	TargetID    string    `json:"target_id,omitempty"`
 	ItemID      string    `json:"item_id,omitempty"`
+	DropID      string    `json:"drop_id,omitempty"`
 }
 
 type ServerMessage struct {
@@ -42,6 +44,7 @@ type WorldSnapshot struct {
 	Tick         uint64           `json:"tick"`
 	ActionPulse  uint64           `json:"action_pulse"`
 	Targets      []TargetSnapshot `json:"targets"`
+	Drops        []DropSnapshot   `json:"drops"`
 	CombatEvents []CombatEvent    `json:"combat_events"`
 	Players      []PlayerSnapshot `json:"players"`
 }
@@ -68,6 +71,13 @@ type TargetSnapshot struct {
 	DodgeRate       float64  `json:"dodge_rate"`
 }
 
+type DropSnapshot struct {
+	ID       string   `json:"id"`
+	Position Position `json:"position"`
+	ItemID   string   `json:"item_id"`
+	Quantity int      `json:"quantity"`
+}
+
 type PlayerSnapshot struct {
 	ID                    string             `json:"id"`
 	Position              Position           `json:"position"`
@@ -92,6 +102,7 @@ type PlayerSnapshot struct {
 	LastEquipmentPulse    uint64             `json:"last_equipment_pulse"`
 	DodgeRate             float64            `json:"dodge_rate"`
 	Inventory             InventorySnapshot  `json:"inventory"`
+	LastPickupSequence    uint64             `json:"last_pickup_sequence"`
 }
 
 type InventorySnapshot struct {
@@ -128,7 +139,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 
 	if message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
-		message.Type != MessageDisengage && message.Type != MessageEquipItem {
+		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
+		message.Type != MessagePickupItem {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Sequence == 0 {
@@ -142,6 +154,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageEquipItem && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
+	}
+	if message.Type == MessagePickupItem && message.DropID == "" {
+		return ClientMessage{}, fmt.Errorf("drop ID is required")
 	}
 
 	return message, nil

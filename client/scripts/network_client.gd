@@ -111,6 +111,23 @@ func send_equip_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
+func send_pickup_item(sequence: int, drop_id: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot pick up loot while disconnected")
+		return false
+
+	var message: Dictionary = {
+		"type": "pickup_item",
+		"sequence": sequence,
+		"drop_id": drop_id,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not pick up loot: %s" % error_string(result))
+		return false
+	return true
+
+
 func _handle_state_change(state: WebSocketPeer.State) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:

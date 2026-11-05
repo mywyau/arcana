@@ -123,6 +123,12 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 				DodgeRate:     0.1,
 			},
 		},
+		Drops: []simulation.DropSnapshot{{
+			ID:       "drop-1",
+			Position: simulation.Position{X: 2, Y: 3, Z: 4},
+			ItemID:   "training_shard",
+			Quantity: 2,
+		}},
 		CombatEvents: []simulation.CombatEvent{{
 			ID:       7,
 			Pulse:    12,
@@ -168,6 +174,12 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		upperDummy.Position.Z != 2 || upperDummy.Health != 75 ||
 		upperDummy.MaximumHealth != 100 || upperDummy.DodgeRate != 0.1 {
 		t.Fatalf("upper dummy combat state = %+v, found %t", upperDummy, found)
+	}
+	if len(message.Drops) != 1 || message.Drops[0].ID != "drop-1" ||
+		message.Drops[0].Position.X != 2 || message.Drops[0].Position.Y != 3 ||
+		message.Drops[0].Position.Z != 4 || message.Drops[0].ItemID != "training_shard" ||
+		message.Drops[0].Quantity != 2 {
+		t.Fatalf("drop snapshot = %+v", message.Drops)
 	}
 	player := message.Players[0]
 	if player.Health != 40 || player.MaximumHealth != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||

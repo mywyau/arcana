@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/loot_drop.gd" id="1_loot"]
+
+[sub_resource type="StandardMaterial3D" id="ShardMaterial"]
+albedo_color = Color(0.35, 0.78, 1, 1)
+emission_enabled = true
+emission = Color(0.25, 0.32, 1, 1)
+emission_energy_multiplier = 1.8
+roughness = 0.35
+
+[sub_resource type="SphereMesh" id="ShardMesh"]
+material = SubResource("ShardMaterial")
+radius = 0.22
+height = 0.55
+radial_segments = 6
+rings = 4
+
+[sub_resource type="SphereShape3D" id="PickupShape"]
+radius = 0.42
+
+[node name="LootDrop" type="Node3D"]
+script = ExtResource("1_loot")
+
+[node name="Visual" type="Node3D" parent="."]
+position = Vector3(0, 0.35, 0)
+rotation_degrees = Vector3(0, 0, 18)
+
+[node name="Mesh" type="MeshInstance3D" parent="Visual"]
+mesh = SubResource("ShardMesh")
+
+[node name="Body" type="StaticBody3D" parent="."]
+collision_layer = 16
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Body"]
+position = Vector3(0, 0.35, 0)
+shape = SubResource("PickupShape")

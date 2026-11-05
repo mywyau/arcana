@@ -2,11 +2,13 @@ extends Node3D
 
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const TARGET_SCENE: PackedScene = preload("res://scenes/target_dummy.tscn")
+const LOOT_SCENE: PackedScene = preload("res://scenes/loot_drop.tscn")
 const RAY_LENGTH: float = 1000.0
 const GROUND_COLLISION_MASK: int = 1
 const UPPER_COLLISION_MASK: int = 2
 const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
+const LOOT_COLLISION_MASK: int = 16
 const ALL_WORLD_COLLISION_MASK: int = 7
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Blades", "level": 1},
@@ -20,10 +22,17 @@ const SWORD_ICON: Texture2D = preload("res://assets/icons/sword.svg")
 const DAGGER_ICON: Texture2D = preload("res://assets/icons/dagger.svg")
 const BOW_ICON: Texture2D = preload("res://assets/icons/bow.svg")
 const EMPTY_SLOT_ICON: Texture2D = preload("res://assets/icons/empty_slot.svg")
+const TRAINING_SHARD_ICON: Texture2D = preload("res://assets/icons/training_shard.svg")
 const EQUIPMENT_ICONS: Dictionary = {
 	"sword": SWORD_ICON,
 	"dagger": DAGGER_ICON,
 	"bow": BOW_ICON,
+}
+const ITEM_ICONS: Dictionary = {
+	"sword": SWORD_ICON,
+	"dagger": DAGGER_ICON,
+	"bow": BOW_ICON,
+	"training_shard": TRAINING_SHARD_ICON,
 }
 
 @onready var camera_rig: GuidedCamera = $CameraRig
@@ -31,6 +40,7 @@ const EQUIPMENT_ICONS: Dictionary = {
 @onready var network: NetworkClient = $NetworkClient
 @onready var players: Node3D = $Players
 @onready var targets: Node3D = $Targets
+@onready var drops: Node3D = $Drops
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var combat_hud: PanelContainer = $UI/CombatHUD
@@ -79,6 +89,7 @@ var _local_navigation_id: String = ""
 var _next_sequence: int = 1
 var _next_action_sequence: int = 1
 var _next_equipment_sequence: int = 1
+var _next_pickup_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -87,6 +98,7 @@ var _auto_approaching: bool = false
 var _action_pulse: int = 0
 var _target_views: Dictionary = {}
 var _target_states: Dictionary = {}
+var _drop_views: Dictionary = {}
 var _player_health: int = 100
 var _player_maximum_health: int = 100
 var _player_defeated: bool = false
@@ -189,6 +201,18 @@ func _physics_process(_delta: float) -> void:
 				click_marker.visible = false
 				_play_target_click_feedback(target_body.global_position)
 				_update_combat_hud()
+			return
+
+	var loot_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	loot_query.collision_mask = LOOT_COLLISION_MASK
+	var loot_result: Dictionary = get_world_3d().direct_space_state.intersect_ray(loot_query)
+	if not loot_result.is_empty():
+		var loot_body := loot_result.get("collider") as CollisionObject3D
+		if loot_body != null and loot_body.has_meta(&"drop_id"):
+			var drop_id: String = str(loot_body.get_meta(&"drop_id"))
+			if network.send_pickup_item(_next_pickup_sequence, drop_id):
+				_next_pickup_sequence += 1
+				_play_target_click_feedback(loot_body.global_position)
 			return
 
 	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
@@ -300,6 +324,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 	var snapshot_tick: int = int(snapshot.get("tick", 0))
 	_action_pulse = int(snapshot.get("action_pulse", 0))
 	_sync_targets(snapshot.get("targets", []))
+	_sync_drops(snapshot.get("drops", []))
 	var player_payloads: Variant = snapshot.get("players", [])
 	if typeof(player_payloads) != TYPE_ARRAY:
 		return
@@ -446,6 +471,41 @@ func _sync_targets(target_payloads: Variant) -> void:
 		departed.queue_free()
 		_target_views.erase(target_id)
 		_target_states.erase(target_id)
+
+
+func _sync_drops(drop_payloads: Variant) -> void:
+	if typeof(drop_payloads) != TYPE_ARRAY:
+		return
+	var active_ids: Dictionary = {}
+	for payload: Variant in drop_payloads:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var drop_data: Dictionary = payload
+		var drop_id: String = str(drop_data.get("id", ""))
+		var position_data: Variant = drop_data.get("position", {})
+		if drop_id.is_empty() or typeof(position_data) != TYPE_DICTIONARY:
+			continue
+		var view: LootDrop = _drop_views.get(drop_id)
+		if view == null:
+			view = LOOT_SCENE.instantiate() as LootDrop
+			view.name = "Drop_%s" % drop_id
+			drops.add_child(view)
+			view.set_drop_id(drop_id)
+			_drop_views[drop_id] = view
+		var coordinates: Dictionary = position_data
+		view.position = Vector3(
+			float(coordinates.get("x", 0.0)),
+			float(coordinates.get("y", 0.0)),
+			float(coordinates.get("z", 0.0)),
+		)
+		active_ids[drop_id] = true
+
+	for drop_id: String in _drop_views.keys():
+		if active_ids.has(drop_id):
+			continue
+		var collected: LootDrop = _drop_views[drop_id]
+		collected.queue_free()
+		_drop_views.erase(drop_id)
 
 
 func _process_combat_events(snapshot: Dictionary) -> void:
@@ -673,7 +733,7 @@ func _update_inventory_hud() -> void:
 			var is_equipped: bool = not equipment_pending and _equipped_weapon == item_id
 			slot_button.toggle_mode = is_weapon
 			slot_button.set_pressed_no_signal(is_queued or is_equipped)
-			slot_button.icon = EQUIPMENT_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
 			slot_button.expand_icon = true
 			var item_status: String = ""
 			if is_queued:

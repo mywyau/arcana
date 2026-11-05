@@ -143,6 +143,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				ItemID:   simulation.WeaponID(message.ItemID),
 			})
+		case protocol.MessagePickupItem:
+			rejectionCode = "pickup_rejected"
+			err = h.world.QueuePickup(simulation.PickupCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				DropID:   message.DropID,
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
@@ -178,11 +185,20 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 		Tick:         snapshot.Tick,
 		ActionPulse:  snapshot.ActionPulse,
 		Targets:      make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
+		Drops:        make([]protocol.DropSnapshot, 0, len(snapshot.Drops)),
 		CombatEvents: make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
 		Players:      make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
 	}
 	for _, target := range snapshot.Targets {
 		message.Targets = append(message.Targets, targetSnapshotMessage(target))
+	}
+	for _, drop := range snapshot.Drops {
+		message.Drops = append(message.Drops, protocol.DropSnapshot{
+			ID:       drop.ID,
+			Position: protocol.Position{X: drop.Position.X, Y: drop.Position.Y, Z: drop.Position.Z},
+			ItemID:   drop.ItemID,
+			Quantity: drop.Quantity,
+		})
 	}
 	for _, event := range snapshot.CombatEvents {
 		message.CombatEvents = append(message.CombatEvents, protocol.CombatEvent{
@@ -227,7 +243,8 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 			},
-			Path: make([]protocol.Position, 0, len(player.Path)),
+			LastPickupSequence: player.LastPickupSequence,
+			Path:               make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, item := range player.Inventory.Items {
 			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{

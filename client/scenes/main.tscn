@@ -214,6 +214,8 @@ mesh = SubResource("TargetPulseMesh")
 
 [node name="Targets" type="Node3D" parent="."]
 
+[node name="Drops" type="Node3D" parent="."]
+
 [node name="Players" type="Node3D" parent="." unique_id=459163009]
 
 [node name="CameraRig" type="Node3D" parent="." unique_id=2094638855]
