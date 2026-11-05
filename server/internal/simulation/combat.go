@@ -450,7 +450,11 @@ func (w *World) applyEquipmentCommands() {
 		command := w.combat.pendingEquipment[id]
 		if player, exists := w.players[id]; exists && !player.defeated {
 			if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
-				player.equippedArmour[slot] = string(command.ItemID)
+				if player.equippedArmour[slot] == string(command.ItemID) {
+					delete(player.equippedArmour, slot)
+				} else {
+					player.equippedArmour[slot] = string(command.ItemID)
+				}
 			} else {
 				player.equippedWeapon = command.ItemID
 				player.combatStyle = defaultCombatStyle(command.ItemID)

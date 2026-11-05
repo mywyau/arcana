@@ -112,57 +112,59 @@ type Snapshot struct {
 }
 
 type playerState struct {
-	id                      PlayerID
-	position                Position
-	destination             *Position
-	path                    []Position
-	navigationLocation      NavigationLocation
-	speed                   float64
-	lastCommandSequence     uint64
-	lastCommandTick         uint64
-	lastActionSequence      uint64
-	lastActionPulse         uint64
-	lastActionResult        string
-	combatTarget            string
-	nextAttackPulse         uint64
-	autoApproaching         bool
-	spawnPosition           Position
-	health                  int
-	maximumHealth           int
-	mana                    int
-	maximumMana             int
-	prayer                  int
-	maximumPrayer           int
-	defeated                bool
-	respawnAtPulse          uint64
-	equippedWeapon          WeaponID
-	equippedArmour          map[ArmourSlot]string
-	lastEquipmentSequence   uint64
-	lastEquipmentPulse      uint64
-	combatStyle             CombatStyleID
-	lastCombatStyleSequence uint64
-	dodgeRate               float64
-	inventory               inventoryState
-	lastPickupSequence      uint64
-	lastDropSequence        uint64
-	skills                  skillState
+	id                        PlayerID
+	position                  Position
+	destination               *Position
+	path                      []Position
+	navigationLocation        NavigationLocation
+	speed                     float64
+	lastCommandSequence       uint64
+	lastCommandTick           uint64
+	lastActionSequence        uint64
+	lastActionPulse           uint64
+	lastActionResult          string
+	combatTarget              string
+	nextAttackPulse           uint64
+	autoApproaching           bool
+	spawnPosition             Position
+	health                    int
+	maximumHealth             int
+	mana                      int
+	maximumMana               int
+	prayer                    int
+	maximumPrayer             int
+	defeated                  bool
+	respawnAtPulse            uint64
+	equippedWeapon            WeaponID
+	equippedArmour            map[ArmourSlot]string
+	lastEquipmentSequence     uint64
+	lastEquipmentPulse        uint64
+	combatStyle               CombatStyleID
+	lastCombatStyleSequence   uint64
+	dodgeRate                 float64
+	inventory                 inventoryState
+	lastPickupSequence        uint64
+	lastDropSequence          uint64
+	lastInventoryMoveSequence uint64
+	skills                    skillState
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
 type World struct {
-	mu               sync.RWMutex
-	tick             uint64
-	players          map[PlayerID]*playerState
-	pendingJoins     map[PlayerID]*playerState
-	pendingLeaves    map[PlayerID]struct{}
-	pendingMoves     map[PlayerID]pendingMove
-	pendingPickups   map[PlayerID]PickupCommand
-	pendingItemDrops map[PlayerID]DropItemCommand
-	drops            map[string]DropSnapshot
-	nextDropID       uint64
-	pathfinder       Pathfinder
-	combat           *combatState
-	rollSource       RollSource
+	mu                    sync.RWMutex
+	tick                  uint64
+	players               map[PlayerID]*playerState
+	pendingJoins          map[PlayerID]*playerState
+	pendingLeaves         map[PlayerID]struct{}
+	pendingMoves          map[PlayerID]pendingMove
+	pendingPickups        map[PlayerID]PickupCommand
+	pendingItemDrops      map[PlayerID]DropItemCommand
+	pendingInventoryMoves map[PlayerID]MoveInventoryItemCommand
+	drops                 map[string]DropSnapshot
+	nextDropID            uint64
+	pathfinder            Pathfinder
+	combat                *combatState
+	rollSource            RollSource
 }
 
 type pendingMove struct {
@@ -180,15 +182,16 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		rollSource = newRandomRollSource()
 	}
 	return &World{
-		players:          make(map[PlayerID]*playerState),
-		pendingJoins:     make(map[PlayerID]*playerState),
-		pendingLeaves:    make(map[PlayerID]struct{}),
-		pendingMoves:     make(map[PlayerID]pendingMove),
-		pendingPickups:   make(map[PlayerID]PickupCommand),
-		pendingItemDrops: make(map[PlayerID]DropItemCommand),
-		drops:            make(map[string]DropSnapshot),
-		combat:           newCombatState(),
-		rollSource:       rollSource,
+		players:               make(map[PlayerID]*playerState),
+		pendingJoins:          make(map[PlayerID]*playerState),
+		pendingLeaves:         make(map[PlayerID]struct{}),
+		pendingMoves:          make(map[PlayerID]pendingMove),
+		pendingPickups:        make(map[PlayerID]PickupCommand),
+		pendingItemDrops:      make(map[PlayerID]DropItemCommand),
+		pendingInventoryMoves: make(map[PlayerID]MoveInventoryItemCommand),
+		drops:                 make(map[string]DropSnapshot),
+		combat:                newCombatState(),
+		rollSource:            rollSource,
 	}
 }
 
@@ -276,6 +279,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingMoves, id)
 	delete(w.pendingPickups, id)
 	delete(w.pendingItemDrops, id)
+	delete(w.pendingInventoryMoves, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -382,6 +386,7 @@ func (w *World) Step(elapsed time.Duration) {
 		}
 	}
 	w.moveRoamingEnemies(seconds)
+	w.applyPendingInventoryMoves()
 	w.applyPendingPickups()
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)

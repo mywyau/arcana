@@ -302,6 +302,14 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				ItemID:   message.ItemID,
 			})
+		case protocol.MessageMoveInventoryItem:
+			rejectionCode = "inventory_move_rejected"
+			err = h.world.QueueMoveInventoryItem(simulation.MoveInventoryItemCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				FromSlot: message.FromSlot,
+				ToSlot:   message.ToSlot,
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))

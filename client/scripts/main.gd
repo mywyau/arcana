@@ -3,6 +3,7 @@ extends Node3D
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const TARGET_SCENE: PackedScene = preload("res://scenes/target_dummy.tscn")
 const LOOT_SCENE: PackedScene = preload("res://scenes/loot_drop.tscn")
+const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
 const RAY_LENGTH: float = 1000.0
 const GROUND_COLLISION_MASK: int = 1
 const UPPER_COLLISION_MASK: int = 2
@@ -16,6 +17,7 @@ const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
 const INVENTORY_DISPLAY_SLOTS: int = 16
+const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Attack", "level": 1},
@@ -271,6 +273,7 @@ var _next_action_sequence: int = 1
 var _next_equipment_sequence: int = 1
 var _next_pickup_sequence: int = 1
 var _next_drop_sequence: int = 1
+var _next_inventory_move_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -547,7 +550,8 @@ func _request_equip(item_id: String) -> void:
 	if _player_defeated:
 		return
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-	if _is_item_equipped(item_id) and not equipment_pending:
+	var is_armour: bool = ARMOUR_SLOTS.has(item_id)
+	if item_id == _equipped_weapon and not is_armour and not equipment_pending:
 		return
 	if network.send_equip_item(_next_equipment_sequence, item_id):
 		_queued_item = item_id
@@ -572,6 +576,13 @@ func _on_inventory_item_input(event: InputEvent, item_id: String, is_equipable: 
 			if network.send_drop_item(_next_drop_sequence, item_id):
 				_next_drop_sequence += 1
 			get_viewport().set_input_as_handled()
+
+
+func _request_inventory_swap(from_slot: int, to_slot: int) -> void:
+	if _player_defeated or from_slot == to_slot:
+		return
+	if network.send_move_inventory_item(_next_inventory_move_sequence, from_slot, to_slot):
+		_next_inventory_move_sequence += 1
 
 
 func _request_combat_style(combat_style: String) -> void:
@@ -964,11 +975,16 @@ func _toggle_combat_debug_hud() -> void:
 
 
 func _setup_hud_layout() -> void:
+	var menu_panels: Array[Control] = [
+		combat_hud, inventory_hud, skills_hud, equipment_hud, magic_hud, prayer_hud, styles_hud,
+	]
+	for panel: Control in menu_panels:
+		panel.size = MENU_HUD_BASE_SIZE
 	_register_hud_group("player", [player_vitals_hud], player_vitals_hud)
 	_register_hud_group("target", [target_hud], target_hud)
 	_register_hud_group(
 		"menu",
-		[combat_hud, inventory_hud, skills_hud, equipment_hud, magic_hud, prayer_hud, styles_hud],
+		menu_panels,
 		inventory_hud,
 	)
 	_load_hud_layout()
@@ -1592,18 +1608,20 @@ func _update_inventory_hud() -> void:
 	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), _inventory_capacity]
 	var displayed_slots: int = maxi(_inventory_capacity, INVENTORY_DISPLAY_SLOTS)
 	for slot: int in range(displayed_slots):
-		var slot_button := Button.new()
+		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
 		slot_button.custom_minimum_size = Vector2(124, 112)
 		slot_button.focus_mode = Control.FOCUS_NONE
 		slot_button.mouse_filter = Control.MOUSE_FILTER_STOP
 		slot_button.text = ""
 		if slot >= _inventory_capacity:
+			slot_button.configure(slot, false, false)
 			slot_button.icon = EMPTY_SLOT_ICON
 			slot_button.expand_icon = true
 			slot_button.disabled = true
 			slot_button.modulate = Color(0.28, 0.31, 0.34)
 			slot_button.tooltip_text = "Locked inventory slot"
 		elif items_by_slot.has(slot):
+			slot_button.configure(slot, true, true)
 			var item: Dictionary = items_by_slot[slot]
 			var item_id: String = str(item.get("item_id", ""))
 			var quantity: int = int(item.get("quantity", 1))
@@ -1622,10 +1640,11 @@ func _update_inventory_hud() -> void:
 				item_status = "Equipped"
 			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
 			var status_text: String = " • %s" % item_status if not item_status.is_empty() else ""
+			var equip_action: String = "left-click to unequip" if is_equipped and ARMOUR_SLOTS.has(item_id) else "left-click to equip"
 			slot_button.tooltip_text = "%s%s%s • slot %d%s" % [
 				item_id.capitalize(), quantity_text, status_text,
 				slot + 1,
-				" — left-click to equip • right-click to drop when unequipped" if is_equipable else "",
+				" — %s • right-click to drop when unequipped" % equip_action if is_equipable else "",
 			]
 			slot_button.disabled = _player_defeated and is_equipable
 			if is_equipped or is_queued:
@@ -1646,9 +1665,11 @@ func _update_inventory_hud() -> void:
 				slot_button.pressed.connect(_request_equip.bind(item_id))
 				slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id, is_equipable))
 		else:
+			slot_button.configure(slot, false, true)
 			slot_button.icon = EMPTY_SLOT_ICON
 			slot_button.expand_icon = true
 			slot_button.modulate = Color(0.9, 0.93, 0.96)
+		slot_button.swap_requested.connect(_request_inventory_swap)
 		inventory_grid.add_child(slot_button)
 
 

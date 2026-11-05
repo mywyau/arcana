@@ -8,17 +8,18 @@ import (
 )
 
 const (
-	MessageAuthenticate = "authenticate"
-	MessageMoveTo       = "move_to"
-	MessageEngageTarget = "engage_target"
-	MessageDisengage    = "disengage"
-	MessageEquipItem    = "equip_item"
-	MessageCombatStyle  = "set_combat_style"
-	MessagePickupItem   = "pickup_item"
-	MessageDropItem     = "drop_item"
-	MessageWelcome      = "welcome"
-	MessageSnapshot     = "snapshot"
-	MessageError        = "error"
+	MessageAuthenticate      = "authenticate"
+	MessageMoveTo            = "move_to"
+	MessageEngageTarget      = "engage_target"
+	MessageDisengage         = "disengage"
+	MessageEquipItem         = "equip_item"
+	MessageCombatStyle       = "set_combat_style"
+	MessagePickupItem        = "pickup_item"
+	MessageDropItem          = "drop_item"
+	MessageMoveInventoryItem = "move_inventory_item"
+	MessageWelcome           = "welcome"
+	MessageSnapshot          = "snapshot"
+	MessageError             = "error"
 )
 
 type Position struct {
@@ -34,6 +35,8 @@ type ClientMessage struct {
 	TargetID    string    `json:"target_id,omitempty"`
 	ItemID      string    `json:"item_id,omitempty"`
 	DropID      string    `json:"drop_id,omitempty"`
+	FromSlot    int       `json:"from_slot,omitempty"`
+	ToSlot      int       `json:"to_slot,omitempty"`
 	CombatStyle string    `json:"combat_style,omitempty"`
 	GuestToken  string    `json:"guest_token,omitempty"`
 }
@@ -163,7 +166,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 
 	if message.Type != MessageAuthenticate && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
-		message.Type != MessagePickupItem && message.Type != MessageDropItem && message.Type != MessageCombatStyle {
+		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
+		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -183,6 +187,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageDropItem && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
+	}
+	if message.Type == MessageMoveInventoryItem && message.FromSlot == message.ToSlot {
+		return ClientMessage{}, fmt.Errorf("inventory slots must be different")
 	}
 	if message.Type == MessageCombatStyle && message.CombatStyle == "" {
 		return ClientMessage{}, fmt.Errorf("combat style is required")

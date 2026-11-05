@@ -304,6 +304,19 @@ func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
 	if player.EquippedWeapon != WeaponSword {
 		t.Fatalf("equipping armour changed weapon to %q", player.EquippedWeapon)
 	}
+	if err := world.QueueEquip(EquipCommand{
+		PlayerID: "player-one", Sequence: 2, ItemID: WeaponID(ItemTrainingHelm),
+	}); err != nil {
+		t.Fatalf("QueueEquip() toggle returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player = mustPlayer(t, world, "player-one")
+	if _, equipped := player.EquippedArmour[ArmourSlotHead]; equipped {
+		t.Fatalf("head armour remains equipped after toggle: %+v", player.EquippedArmour)
+	}
+	if !snapshotInventoryContains(player.Inventory, ItemTrainingHelm) {
+		t.Fatal("unequipped helm was removed from inventory")
+	}
 }
 
 func TestBowAttacksFromRangeWithoutApproaching(t *testing.T) {

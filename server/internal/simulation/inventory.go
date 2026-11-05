@@ -25,6 +25,13 @@ type inventoryState struct {
 	items    []InventoryItem
 }
 
+type MoveInventoryItemCommand struct {
+	PlayerID PlayerID
+	Sequence uint64
+	FromSlot int
+	ToSlot   int
+}
+
 func newStarterInventory() inventoryState {
 	return inventoryState{
 		capacity: BaseInventoryCapacity,
@@ -92,6 +99,87 @@ func (inventory *inventoryState) remove(itemID string, quantity int) bool {
 		return true
 	}
 	return false
+}
+
+func (inventory *inventoryState) swapSlots(fromSlot, toSlot int) bool {
+	if fromSlot < 0 || fromSlot >= inventory.capacity || toSlot < 0 || toSlot >= inventory.capacity || fromSlot == toSlot {
+		return false
+	}
+	fromIndex := -1
+	toIndex := -1
+	for index := range inventory.items {
+		if inventory.items[index].Slot == fromSlot {
+			fromIndex = index
+		}
+		if inventory.items[index].Slot == toSlot {
+			toIndex = index
+		}
+	}
+	if fromIndex < 0 {
+		return false
+	}
+	inventory.items[fromIndex].Slot = toSlot
+	if toIndex >= 0 {
+		inventory.items[toIndex].Slot = fromSlot
+	}
+	sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+	return true
+}
+
+func (w *World) QueueMoveInventoryItem(command MoveInventoryItemCommand) error {
+	if command.Sequence == 0 {
+		return fmt.Errorf("inventory move sequence must be positive")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	player, exists := w.players[command.PlayerID]
+	if !exists {
+		return fmt.Errorf("player %q does not exist", command.PlayerID)
+	}
+	if player.defeated {
+		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if command.FromSlot < 0 || command.FromSlot >= player.inventory.capacity ||
+		command.ToSlot < 0 || command.ToSlot >= player.inventory.capacity || command.FromSlot == command.ToSlot {
+		return fmt.Errorf("inventory move from %d to %d is invalid", command.FromSlot, command.ToSlot)
+	}
+	if command.Sequence <= player.lastInventoryMoveSequence {
+		return fmt.Errorf("inventory move sequence %d is not newer than %d", command.Sequence, player.lastInventoryMoveSequence)
+	}
+	if pending, found := w.pendingInventoryMoves[command.PlayerID]; found && command.Sequence <= pending.Sequence {
+		return fmt.Errorf("inventory move sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	}
+	itemFound := false
+	for _, item := range player.inventory.items {
+		if item.Slot == command.FromSlot {
+			itemFound = true
+			break
+		}
+	}
+	if !itemFound {
+		return fmt.Errorf("inventory slot %d is empty", command.FromSlot)
+	}
+	w.pendingInventoryMoves[command.PlayerID] = command
+	return nil
+}
+
+func (w *World) applyPendingInventoryMoves() {
+	playerIDs := make([]PlayerID, 0, len(w.pendingInventoryMoves))
+	for id := range w.pendingInventoryMoves {
+		playerIDs = append(playerIDs, id)
+	}
+	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
+	for _, id := range playerIDs {
+		command := w.pendingInventoryMoves[id]
+		delete(w.pendingInventoryMoves, id)
+		player, exists := w.players[id]
+		if !exists || player.defeated {
+			continue
+		}
+		if player.inventory.swapSlots(command.FromSlot, command.ToSlot) {
+			player.lastInventoryMoveSequence = command.Sequence
+		}
+	}
 }
 
 func snapshotInventory(inventory inventoryState) InventorySnapshot {
