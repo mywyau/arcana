@@ -218,14 +218,14 @@ already collected it. The first shard uses a free slot and later shards stack.
 Automatic walking to loot, ground-drop persistence, trading, and item use are
 not included in this slice.
 
-The Skills tab shows the authoritative Attack skill alongside the remaining
-placeholder skills. A successful sword, dagger, mace, or battle-axe hit grants
-10 Attack XP; dodged attacks, bows, and staves grant none. Level 2 begins at
-100 XP, with prototype level thresholds following `100 × (level - 1)²` up to
-level 100. Attack XP is persisted with the character, while levels are derived
-from total XP so the curve can be adjusted later. Attack does not modify combat
-stats yet. Strength, Defence, Range, Magic, and the non-combat skills remain
-presentation-only placeholders.
+The Skills tab shows authoritative Attack, Range, and Magic progression. A
+successful sword, dagger, mace, or battle-axe hit grants 10 Attack XP; a bow hit
+grants 10 Range XP; and a staff hit grants 10 Magic XP. Dodged attacks grant no
+XP. Level 2 begins at 100 XP, with prototype level thresholds following
+`100 × (level - 1)²` up to level 100. XP is persisted with the character, while
+levels are derived from total XP so the curve can be adjusted later. These
+skills do not modify combat stats yet. Strength, Defence, and the non-combat
+skills remain presentation-only placeholders.
 
 The Equipment tab provides an icon-based overview of the authoritative
 main-hand weapon plus placeholder head, body, hands, legs, and trinket slots.

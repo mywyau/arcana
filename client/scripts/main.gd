@@ -34,6 +34,16 @@ const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Thieving", "level": 1},
 	{"name": "Construction", "level": 1},
 ]
+const ACTIVE_SKILL_IDS: Dictionary = {
+	"Attack": "attack",
+	"Range": "range",
+	"Magic": "magic",
+}
+const ACTIVE_SKILL_NAMES: Dictionary = {
+	"attack": "Attack",
+	"range": "Range",
+	"magic": "Magic",
+}
 
 const SWORD_ICON: Texture2D = preload("res://assets/icons/sword.svg")
 const DAGGER_ICON: Texture2D = preload("res://assets/icons/dagger.svg")
@@ -201,10 +211,11 @@ var _queued_combat_style: String = ""
 var _inventory_capacity: int = 8
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
-var _attack_experience: int = 0
-var _attack_level: int = 1
-var _attack_current_level_experience: int = 0
-var _attack_next_level_experience: int = 100
+var _skill_progress: Dictionary = {
+	"attack": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"range": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"magic": {"experience": 0, "level": 1, "current": 0, "next": 100},
+}
 var _skill_tiles: Dictionary = {}
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
@@ -853,64 +864,94 @@ func _populate_placeholder_skills() -> void:
 		skill_tile.focus_mode = Control.FOCUS_NONE
 		skill_tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		skill_tile.text = "%s\nLevel %d" % [skill_name, skill.get("level", 1)]
-		if skill_name == "Attack":
-			_skill_tiles[skill_name] = skill_tile
+		var skill_id: String = str(ACTIVE_SKILL_IDS.get(skill_name, ""))
+		if not skill_id.is_empty():
+			_skill_tiles[skill_id] = skill_tile
 		else:
 			skill_tile.tooltip_text = "Placeholder skill — progression is not active yet"
 		skills_grid.add_child(skill_tile)
-	_update_attack_skill_hud()
+	_update_active_skills_hud()
 
 
 func _apply_skills_snapshot(skills: Array) -> void:
+	var changed: bool = false
 	for payload: Variant in skills:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
 		var skill: Dictionary = payload
-		if str(skill.get("id", "")) != "attack":
+		var skill_id: String = str(skill.get("id", ""))
+		if not _skill_progress.has(skill_id):
 			continue
-		var experience: int = int(skill.get("experience", _attack_experience))
-		var level: int = int(skill.get("level", _attack_level))
+		var current_progress: Dictionary = _skill_progress[skill_id] as Dictionary
+		var experience: int = int(skill.get("experience", current_progress.get("experience", 0)))
+		var level: int = int(skill.get("level", current_progress.get("level", 1)))
 		var current_level_experience: int = int(skill.get(
 			"current_level_experience",
-			_attack_current_level_experience,
+			current_progress.get("current", 0),
 		))
 		var next_level_experience: int = int(skill.get(
 			"next_level_experience",
-			_attack_next_level_experience,
+			current_progress.get("next", 100),
 		))
-		if experience == _attack_experience and level == _attack_level and \
-			current_level_experience == _attack_current_level_experience and \
-			next_level_experience == _attack_next_level_experience:
-			return
-		_attack_experience = experience
-		_attack_level = level
-		_attack_current_level_experience = current_level_experience
-		_attack_next_level_experience = next_level_experience
-		_update_attack_skill_hud()
-		return
+		if experience == int(current_progress.get("experience", 0)) and \
+			level == int(current_progress.get("level", 1)) and \
+			current_level_experience == int(current_progress.get("current", 0)) and \
+			next_level_experience == int(current_progress.get("next", 100)):
+			continue
+		_skill_progress[skill_id] = {
+			"experience": experience,
+			"level": level,
+			"current": current_level_experience,
+			"next": next_level_experience,
+		}
+		changed = true
+	if changed:
+		_update_active_skills_hud()
 
 
-func _update_attack_skill_hud() -> void:
-	var attack_tile: Button = _skill_tiles.get("Attack") as Button
-	if attack_tile == null:
-		return
-	attack_tile.text = "Attack\nLevel %d  •  %d XP" % [_attack_level, _attack_experience]
-	if _attack_next_level_experience <= 0:
-		attack_tile.tooltip_text = "Maximum level • successful melee hits grant Attack XP"
-		skills_summary.text = "Attack level %d  •  maximum level" % _attack_level
-		return
-	var experience_remaining: int = maxi(0, _attack_next_level_experience - _attack_experience)
-	var level_span: int = maxi(1, _attack_next_level_experience - _attack_current_level_experience)
-	var level_progress: int = _attack_experience - _attack_current_level_experience
-	var progress_percent: int = roundi(float(level_progress) / float(level_span) * 100.0)
-	attack_tile.tooltip_text = "10 XP per successful melee hit • %d XP to level %d" % [
-		experience_remaining,
-		_attack_level + 1,
+func _update_active_skills_hud() -> void:
+	for skill_id: String in ACTIVE_SKILL_NAMES:
+		_update_progression_skill_tile(skill_id)
+	var attack: Dictionary = _skill_progress["attack"] as Dictionary
+	var ranged: Dictionary = _skill_progress["range"] as Dictionary
+	var magic: Dictionary = _skill_progress["magic"] as Dictionary
+	skills_summary.text = "Attack %d  •  Range %d  •  Magic %d" % [
+		int(attack.get("level", 1)),
+		int(ranged.get("level", 1)),
+		int(magic.get("level", 1)),
 	]
-	skills_summary.text = "Attack level %d  •  %d/%d XP  •  %d%%" % [
-		_attack_level,
-		_attack_experience,
-		_attack_next_level_experience,
+
+
+func _update_progression_skill_tile(skill_id: String) -> void:
+	var skill_tile: Button = _skill_tiles.get(skill_id) as Button
+	if skill_tile == null:
+		return
+	var progress: Dictionary = _skill_progress[skill_id] as Dictionary
+	var skill_name: String = str(ACTIVE_SKILL_NAMES.get(skill_id, skill_id.capitalize()))
+	var experience: int = int(progress.get("experience", 0))
+	var level: int = int(progress.get("level", 1))
+	var current_level_experience: int = int(progress.get("current", 0))
+	var next_level_experience: int = int(progress.get("next", 100))
+	skill_tile.text = "%s\nLevel %d  •  %d XP" % [skill_name, level, experience]
+	var training_description: String = "successful hits grant %s XP" % skill_name
+	match skill_id:
+		"attack":
+			training_description = "successful melee hits grant Attack XP"
+		"range":
+			training_description = "successful bow hits grant Range XP"
+		"magic":
+			training_description = "successful staff hits grant Magic XP"
+	if next_level_experience <= 0:
+		skill_tile.tooltip_text = "Maximum level • %s" % training_description
+		return
+	var experience_remaining: int = maxi(0, next_level_experience - experience)
+	var level_span: int = maxi(1, next_level_experience - current_level_experience)
+	var level_progress: int = experience - current_level_experience
+	var progress_percent: int = roundi(float(level_progress) / float(level_span) * 100.0)
+	skill_tile.tooltip_text = "10 XP per hit • %s • %d XP to level %d • %d%%" % [
+		training_description,
+		experience_remaining,
+		level + 1,
 		progress_percent,
 	]
 

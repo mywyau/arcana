@@ -10,9 +10,9 @@ const (
 	SkillMagic  SkillID = "magic"
 	SkillRange  SkillID = "range"
 
-	MaximumSkillLevel                 = 100
-	skillExperiencePerHit     int64   = 10
-	skillLevelExperienceScale int64   = 100
+	MaximumSkillLevel               = 100
+	skillExperiencePerHit     int64 = 10
+	skillLevelExperienceScale int64 = 100
 )
 
 type SkillID string
