@@ -1,6 +1,9 @@
 package simulation
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 const BaseInventoryCapacity = 8
 
@@ -79,4 +82,35 @@ func snapshotInventory(inventory inventoryState) InventorySnapshot {
 		Capacity: inventory.capacity,
 		Items:    append([]InventoryItem(nil), inventory.items...),
 	}
+}
+
+func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
+	if snapshot.Capacity <= 0 || snapshot.Capacity > 100 {
+		return inventoryState{}, fmt.Errorf("inventory capacity must be between 1 and 100")
+	}
+	if len(snapshot.Items) > snapshot.Capacity {
+		return inventoryState{}, fmt.Errorf("inventory has more items than its capacity")
+	}
+
+	items := append([]InventoryItem(nil), snapshot.Items...)
+	occupiedSlots := make(map[int]struct{}, len(items))
+	itemIDs := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		if item.Slot < 0 || item.Slot >= snapshot.Capacity {
+			return inventoryState{}, fmt.Errorf("inventory slot %d is outside its capacity", item.Slot)
+		}
+		if item.ItemID == "" || item.Quantity <= 0 {
+			return inventoryState{}, fmt.Errorf("inventory slot %d has an invalid item", item.Slot)
+		}
+		if _, exists := occupiedSlots[item.Slot]; exists {
+			return inventoryState{}, fmt.Errorf("inventory slot %d is duplicated", item.Slot)
+		}
+		if _, exists := itemIDs[item.ItemID]; exists {
+			return inventoryState{}, fmt.Errorf("inventory item %q is duplicated", item.ItemID)
+		}
+		occupiedSlots[item.Slot] = struct{}{}
+		itemIDs[item.ItemID] = struct{}{}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
+	return inventoryState{capacity: snapshot.Capacity, items: items}, nil
 }

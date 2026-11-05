@@ -32,9 +32,37 @@ cd server
 go test ./...
 ```
 
+### Local persistence
+
+By default, the server keeps guest identities and characters in memory. To
+retain them across restarts, start the local PostgreSQL container. The
+repository-root `run-server.sh` automatically loads `DATABASE_URL` from the
+ignored local `.env` file when the variable is not already set:
+
+```sh
+docker compose up -d postgres
+./run-server.sh
+```
+
+Copy `.env.example` to `.env` if the local file is ever removed. An explicitly
+exported `DATABASE_URL` takes precedence, so hosted environments do not need an
+`.env` file.
+
+The server applies embedded schema migrations automatically. Guest token
+hashes, position, health, inventory, equipped weapon, and combat style are
+saved every 30 seconds, when a client disconnects, and during a graceful server
+shutdown. The raw guest token stays only in the Godot client's
+`user://guest_identity.cfg` file; losing that file currently means losing
+access to that guest character.
+
+Stop PostgreSQL with `docker compose down`. Its named volume is retained. Only
+run `docker compose down -v` when you deliberately want to erase local
+identities and characters.
+
 ## WebSocket protocol
 
-Each connection receives a temporary player identity. To move, send:
+The client authenticates first with its saved guest token (or an empty token to
+create an identity). After the `welcome` message, movement intentions look like:
 
 ```json
 {

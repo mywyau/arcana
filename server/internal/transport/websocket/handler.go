@@ -2,38 +2,85 @@ package websockettransport
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 
+	"github.com/mywyau/arcana/server/internal/character"
+	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/protocol"
 	"github.com/mywyau/arcana/server/internal/simulation"
 )
 
 const (
-	connectionReadLimit = 4 * 1024
-	playerSpeed         = 4.0
-	writeTimeout        = 2 * time.Second
+	connectionReadLimit   = 4 * 1024
+	playerSpeed           = 4.0
+	writeTimeout          = 2 * time.Second
+	authenticationTimeout = 5 * time.Second
+	characterSaveTimeout  = 2 * time.Second
+	characterSaveInterval = 30 * time.Second
 )
 
 type Handler struct {
 	world            *simulation.World
 	snapshotInterval time.Duration
-	nextPlayer       atomic.Uint64
+	guestIdentities  *identity.GuestManager
+	characters       character.Repository
 }
 
 func NewHandler(world *simulation.World, snapshotInterval time.Duration) (*Handler, error) {
+	guestIdentities, err := identity.NewGuestManager(identity.NewMemoryGuestRepository())
+	if err != nil {
+		return nil, err
+	}
+	return NewHandlerWithRepositories(
+		world,
+		snapshotInterval,
+		guestIdentities,
+		character.NewMemoryRepository(),
+	)
+}
+
+func NewHandlerWithGuestManager(
+	world *simulation.World,
+	snapshotInterval time.Duration,
+	guestIdentities *identity.GuestManager,
+) (*Handler, error) {
+	return NewHandlerWithRepositories(
+		world,
+		snapshotInterval,
+		guestIdentities,
+		character.NewMemoryRepository(),
+	)
+}
+
+func NewHandlerWithRepositories(
+	world *simulation.World,
+	snapshotInterval time.Duration,
+	guestIdentities *identity.GuestManager,
+	characters character.Repository,
+) (*Handler, error) {
 	if world == nil {
 		return nil, fmt.Errorf("world is required")
 	}
 	if snapshotInterval <= 0 {
 		return nil, fmt.Errorf("snapshot interval must be positive")
 	}
-	return &Handler{world: world, snapshotInterval: snapshotInterval}, nil
+	if guestIdentities == nil {
+		return nil, fmt.Errorf("guest identity manager is required")
+	}
+	if characters == nil {
+		return nil, fmt.Errorf("character repository is required")
+	}
+	return &Handler{
+		world: world, snapshotInterval: snapshotInterval,
+		guestIdentities: guestIdentities, characters: characters,
+	}, nil
 }
 
 func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
@@ -44,30 +91,58 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	defer connection.CloseNow()
 	connection.SetReadLimit(connectionReadLimit)
 
-	playerID := simulation.PlayerID(fmt.Sprintf("player-%d", h.nextPlayer.Add(1)))
-	if err := h.world.QueueJoin(playerID, simulation.Position{}, playerSpeed); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	guestIdentity, err := h.authenticate(ctx, connection)
+	if err != nil {
+		code := "authentication_failed"
+		if errors.Is(err, identity.ErrInvalidGuestToken) {
+			code = "invalid_guest_token"
+		}
+		_ = writeMessage(ctx, connection, errorMessage(code, err))
+		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
+		return
+	}
+	playerID := simulation.PlayerID(guestIdentity.PlayerID)
+	characterState, found, err := h.characters.Load(ctx, string(playerID))
+	if err != nil {
+		_ = writeMessage(ctx, connection, errorMessage("character_load_failed", err))
+		_ = connection.Close(websocket.StatusInternalError, "could not load character")
+		return
+	}
+	if !found {
+		characterState = simulation.DefaultPersistentPlayerState()
+		if err := h.characters.Save(ctx, string(playerID), characterState); err != nil {
+			_ = writeMessage(ctx, connection, errorMessage("character_save_failed", err))
+			_ = connection.Close(websocket.StatusInternalError, "could not create character")
+			return
+		}
+	}
+	if err := h.world.QueueJoinWithPersistentState(playerID, characterState, playerSpeed); err != nil {
 		_ = connection.Close(websocket.StatusInternalError, "could not join world")
 		return
 	}
 	defer func() {
+		h.saveCharacter(playerID)
 		_ = h.world.QueueLeave(playerID)
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	responses := make(chan protocol.ServerMessage, 8)
-	go h.readCommands(ctx, cancel, connection, playerID, responses)
 
 	if err := writeMessage(ctx, connection, protocol.ServerMessage{
-		Type:     protocol.MessageWelcome,
-		PlayerID: string(playerID),
+		Type:       protocol.MessageWelcome,
+		PlayerID:   string(playerID),
+		GuestToken: guestIdentity.Token,
 	}); err != nil {
 		return
 	}
+	go h.readCommands(ctx, cancel, connection, playerID, responses)
 
 	ticker := time.NewTicker(h.snapshotInterval)
 	defer ticker.Stop()
+	saveTicker := time.NewTicker(characterSaveInterval)
+	defer saveTicker.Stop()
 
 	for {
 		select {
@@ -85,8 +160,55 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 			if err := writeMessage(ctx, connection, message); err != nil {
 				return
 			}
+		case <-saveTicker.C:
+			h.saveCharacter(playerID)
 		}
 	}
+}
+
+func (h *Handler) saveCharacter(playerID simulation.PlayerID) {
+	player, found := h.world.Player(playerID)
+	if !found {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), characterSaveTimeout)
+	defer cancel()
+	if err := h.characters.Save(ctx, string(playerID), simulation.PersistentStateFromSnapshot(player)); err != nil {
+		log.Printf("save character %s: %v", playerID, err)
+	}
+}
+
+// SaveAll writes the durable state of every active player. It is used during
+// graceful server shutdown in addition to periodic and disconnect saves.
+func (h *Handler) SaveAll(ctx context.Context) error {
+	var saveErrors []error
+	for _, player := range h.world.Snapshot().Players {
+		if err := h.characters.Save(
+			ctx,
+			string(player.ID),
+			simulation.PersistentStateFromSnapshot(player),
+		); err != nil {
+			saveErrors = append(saveErrors, fmt.Errorf("save character %s: %w", player.ID, err))
+		}
+	}
+	return errors.Join(saveErrors...)
+}
+
+func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) (identity.GuestIdentity, error) {
+	authCtx, cancel := context.WithTimeout(ctx, authenticationTimeout)
+	defer cancel()
+	_, data, err := connection.Read(authCtx)
+	if err != nil {
+		return identity.GuestIdentity{}, fmt.Errorf("read authentication: %w", err)
+	}
+	message, err := protocol.DecodeClientMessage(data)
+	if err != nil {
+		return identity.GuestIdentity{}, err
+	}
+	if message.Type != protocol.MessageAuthenticate {
+		return identity.GuestIdentity{}, fmt.Errorf("authentication must be the first message")
+	}
+	return h.guestIdentities.Authenticate(ctx, message.GuestToken)
 }
 
 func (h *Handler) readCommands(
@@ -112,6 +234,9 @@ func (h *Handler) readCommands(
 
 		rejectionCode := "command_rejected"
 		switch message.Type {
+		case protocol.MessageAuthenticate:
+			rejectionCode = "invalid_message"
+			err = fmt.Errorf("connection is already authenticated")
 		case protocol.MessageMoveTo:
 			destination := simulation.Position{
 				X: message.Destination.X,

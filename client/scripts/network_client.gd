@@ -1,6 +1,8 @@
 class_name NetworkClient
 extends Node
 
+const GUEST_IDENTITY_PATH: String = "user://guest_identity.cfg"
+
 signal status_changed(status: String)
 signal welcome_received(player_id: String)
 signal snapshot_received(snapshot: Dictionary)
@@ -10,9 +12,12 @@ signal server_error(code: String, message: String)
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
+var _guest_token: String = ""
+var _retry_without_guest_token: bool = false
 
 
 func _ready() -> void:
+	_load_guest_token()
 	_connect_to_server.call_deferred()
 
 
@@ -28,16 +33,16 @@ func _connect_to_server() -> void:
 
 func _process(_delta: float) -> void:
 	_socket.poll()
+	# A server may send a final error packet immediately before closing. Drain
+	# available packets first so an invalid saved guest token can be cleared and
+	# retried instead of losing the error when the closed socket is replaced.
+	while _socket.get_available_packet_count() > 0:
+		_handle_packet(_socket.get_packet())
+
 	var state: WebSocketPeer.State = _socket.get_ready_state()
 	if state != _last_state:
 		_handle_state_change(state)
 		_last_state = state
-
-	if state != WebSocketPeer.STATE_OPEN:
-		return
-
-	while _socket.get_available_packet_count() > 0:
-		_handle_packet(_socket.get_packet())
 
 
 func send_move(sequence: int, destination: Vector3) -> bool:
@@ -148,7 +153,10 @@ func send_pickup_item(sequence: int, drop_id: String) -> bool:
 func _handle_state_change(state: WebSocketPeer.State) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:
-			status_changed.emit("Connected")
+			if _send_authentication():
+				status_changed.emit("Connected — authenticating")
+			else:
+				_socket.close(1008, "could not authenticate")
 		WebSocketPeer.STATE_CLOSING:
 			status_changed.emit("Disconnecting")
 		WebSocketPeer.STATE_CLOSED:
@@ -156,6 +164,10 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 			if reason.is_empty():
 				reason = "connection closed"
 			status_changed.emit("Disconnected: %s" % reason)
+			if _retry_without_guest_token:
+				_retry_without_guest_token = false
+				_socket = WebSocketPeer.new()
+				_connect_to_server.call_deferred()
 
 
 func _handle_packet(packet: PackedByteArray) -> void:
@@ -174,6 +186,10 @@ func _handle_packet(packet: PackedByteArray) -> void:
 	var message_type: String = str(message.get("type", ""))
 	match message_type:
 		"welcome":
+			var issued_token: String = str(message.get("guest_token", ""))
+			if not issued_token.is_empty():
+				_guest_token = issued_token
+				_save_guest_token()
 			welcome_received.emit(str(message.get("player_id", "")))
 		"snapshot":
 			var snapshot: Variant = message.get("snapshot")
@@ -185,9 +201,40 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			var error_payload: Variant = message.get("error", {})
 			if typeof(error_payload) == TYPE_DICTIONARY:
 				var details: Dictionary = error_payload
+				var error_code: String = str(details.get("code", "server_error"))
+				if error_code == "invalid_guest_token":
+					_guest_token = ""
+					_save_guest_token()
+					_retry_without_guest_token = true
 				server_error.emit(
-					str(details.get("code", "server_error")),
+					error_code,
 					str(details.get("message", "Unknown server error")),
 				)
 		_:
 			server_error.emit("unknown_message", "Unknown server message: %s" % message_type)
+
+
+func _send_authentication() -> bool:
+	var message: Dictionary = {"type": "authenticate"}
+	if not _guest_token.is_empty():
+		message["guest_token"] = _guest_token
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not authenticate: %s" % error_string(result))
+		return false
+	return true
+
+
+func _load_guest_token() -> void:
+	var config := ConfigFile.new()
+	if config.load(GUEST_IDENTITY_PATH) != OK:
+		return
+	_guest_token = str(config.get_value("identity", "guest_token", ""))
+
+
+func _save_guest_token() -> void:
+	var config := ConfigFile.new()
+	config.set_value("identity", "guest_token", _guest_token)
+	var result: Error = config.save(GUEST_IDENTITY_PATH)
+	if result != OK:
+		status_changed.emit("Could not save guest identity: %s" % error_string(result))

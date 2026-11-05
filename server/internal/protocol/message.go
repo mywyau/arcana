@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	MessageAuthenticate = "authenticate"
 	MessageMoveTo       = "move_to"
 	MessageEngageTarget = "engage_target"
 	MessageDisengage    = "disengage"
@@ -33,13 +34,15 @@ type ClientMessage struct {
 	ItemID      string    `json:"item_id,omitempty"`
 	DropID      string    `json:"drop_id,omitempty"`
 	CombatStyle string    `json:"combat_style,omitempty"`
+	GuestToken  string    `json:"guest_token,omitempty"`
 }
 
 type ServerMessage struct {
-	Type     string         `json:"type"`
-	PlayerID string         `json:"player_id,omitempty"`
-	Snapshot *WorldSnapshot `json:"snapshot,omitempty"`
-	Error    *ErrorMessage  `json:"error,omitempty"`
+	Type       string         `json:"type"`
+	PlayerID   string         `json:"player_id,omitempty"`
+	GuestToken string         `json:"guest_token,omitempty"`
+	Snapshot   *WorldSnapshot `json:"snapshot,omitempty"`
+	Error      *ErrorMessage  `json:"error,omitempty"`
 }
 
 type WorldSnapshot struct {
@@ -143,12 +146,12 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		return ClientMessage{}, fmt.Errorf("message must contain one JSON value")
 	}
 
-	if message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
+	if message.Type != MessageAuthenticate && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageCombatStyle {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
-	if message.Sequence == 0 {
+	if message.Type != MessageAuthenticate && message.Sequence == 0 {
 		return ClientMessage{}, fmt.Errorf("sequence must be positive")
 	}
 	if message.Type == MessageMoveTo && message.Destination == nil {

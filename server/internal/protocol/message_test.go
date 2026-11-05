@@ -2,6 +2,16 @@ package protocol
 
 import "testing"
 
+func TestDecodeAuthenticateMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageAuthenticate || message.GuestToken != "token" || message.Sequence != 0 {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodeClientMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"move_to","sequence":3,"destination":{"x":1.5,"y":4,"z":-2}}`))
 	if err != nil {

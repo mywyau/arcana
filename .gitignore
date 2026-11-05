@@ -1,2 +1,5 @@
 # Godot editor-generated state and imported resources.
 client/.godot/
+
+# Local environment variables may contain deployment credentials.
+.env

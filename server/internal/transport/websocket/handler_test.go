@@ -12,6 +12,8 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 
+	"github.com/mywyau/arcana/server/internal/character"
+	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/protocol"
 	"github.com/mywyau/arcana/server/internal/simulation"
 )
@@ -42,8 +44,9 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 	}
 	defer connection.CloseNow()
 
+	authenticateGuest(t, ctx, connection, "")
 	welcome := readServerMessage(t, ctx, connection)
-	if welcome.Type != protocol.MessageWelcome || welcome.PlayerID == "" {
+	if welcome.Type != protocol.MessageWelcome || welcome.PlayerID == "" || welcome.GuestToken == "" {
 		t.Fatalf("welcome message = %+v", welcome)
 	}
 
@@ -87,6 +90,7 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 		t.Fatalf("websocket.Dial() returned an unexpected error: %v", err)
 	}
 	defer connection.CloseNow()
+	authenticateGuest(t, ctx, connection, "")
 	_ = readServerMessage(t, ctx, connection)
 
 	if err := wsjson.Write(ctx, connection, map[string]any{"type": "dance"}); err != nil {
@@ -101,6 +105,82 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 			}
 			break
 		}
+	}
+}
+
+func TestHandlerSavesCharacterOnDisconnect(t *testing.T) {
+	world := simulation.NewWorld()
+	const interval = 5 * time.Millisecond
+	runner, err := simulation.NewRunner(world, interval)
+	if err != nil {
+		t.Fatalf("NewRunner() returned an unexpected error: %v", err)
+	}
+	runnerCtx, stopRunner := context.WithCancel(context.Background())
+	defer stopRunner()
+	go runner.Run(runnerCtx)
+
+	guestIdentities, err := identity.NewGuestManager(identity.NewMemoryGuestRepository())
+	if err != nil {
+		t.Fatalf("NewGuestManager() returned an unexpected error: %v", err)
+	}
+	characters := character.NewMemoryRepository()
+	handler, err := NewHandlerWithRepositories(world, interval, guestIdentities, characters)
+	if err != nil {
+		t.Fatalf("NewHandlerWithRepositories() returned an unexpected error: %v", err)
+	}
+	server := startTestServer(t, handler)
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	connection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("websocket.Dial() returned an unexpected error: %v", err)
+	}
+	authenticateGuest(t, ctx, connection, "")
+	welcome := readServerMessage(t, ctx, connection)
+	if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
+		Type: protocol.MessageMoveTo, Sequence: 1,
+		Destination: &protocol.Position{Y: 10},
+	}); err != nil {
+		t.Fatalf("write movement: %v", err)
+	}
+
+	for {
+		message := readServerMessage(t, ctx, connection)
+		if message.Type != protocol.MessageSnapshot || message.Snapshot == nil {
+			continue
+		}
+		player, found := findPlayer(message.Snapshot, welcome.PlayerID)
+		if found && player.Position.Y > 0 {
+			break
+		}
+	}
+	if err := connection.Close(websocket.StatusNormalClosure, "test complete"); err != nil {
+		t.Fatalf("close connection: %v", err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		state, found, loadErr := characters.Load(ctx, welcome.PlayerID)
+		if loadErr != nil {
+			t.Fatalf("load saved character: %v", loadErr)
+		}
+		if found && state.Position.Y > 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("character movement was not saved after disconnect")
+}
+
+func authenticateGuest(t *testing.T, ctx context.Context, connection *websocket.Conn, token string) {
+	t.Helper()
+	if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
+		Type:       protocol.MessageAuthenticate,
+		GuestToken: token,
+	}); err != nil {
+		t.Fatalf("write authentication message: %v", err)
 	}
 }
 
