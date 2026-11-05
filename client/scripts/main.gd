@@ -23,6 +23,12 @@ const DAGGER_ICON: Texture2D = preload("res://assets/icons/dagger.svg")
 const BOW_ICON: Texture2D = preload("res://assets/icons/bow.svg")
 const EMPTY_SLOT_ICON: Texture2D = preload("res://assets/icons/empty_slot.svg")
 const TRAINING_SHARD_ICON: Texture2D = preload("res://assets/icons/training_shard.svg")
+const PLACEHOLDER_SPELLS: Array = [
+	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spell_ember.svg")},
+	{"name": "Frost Bind", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_ward.svg")},
+	{"name": "Blink", "icon": preload("res://assets/icons/spell_blink.svg")},
+]
 const EQUIPMENT_ICONS: Dictionary = {
 	"sword": SWORD_ICON,
 	"dagger": DAGGER_ICON,
@@ -48,26 +54,37 @@ const ITEM_ICONS: Dictionary = {
 @onready var inventory_hud: PanelContainer = $UI/InventoryHUD
 @onready var skills_hud: PanelContainer = $UI/SkillsHUD
 @onready var equipment_hud: PanelContainer = $UI/EquipmentHUD
+@onready var magic_hud: PanelContainer = $UI/MagicHUD
 @onready var combat_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Combat
 @onready var inventory_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Inventory
 @onready var combat_skills_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Skills
 @onready var combat_equipment_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Equipment
+@onready var combat_magic_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Magic
 @onready var inventory_combat_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Combat
 @onready var inventory_active_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Inventory
 @onready var inventory_skills_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Skills
 @onready var inventory_equipment_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Equipment
+@onready var inventory_magic_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Magic
 @onready var inventory_summary: Label = $UI/InventoryHUD/Margin/VBox/Summary
 @onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/Grid
 @onready var skills_combat_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Combat
 @onready var skills_inventory_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Inventory
 @onready var skills_active_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Skills
 @onready var skills_equipment_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Equipment
+@onready var skills_magic_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Magic
 @onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/Grid
 @onready var equipment_combat_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Combat
 @onready var equipment_inventory_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Inventory
 @onready var equipment_skills_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Skills
 @onready var equipment_active_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Equipment
+@onready var equipment_magic_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Magic
 @onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/Grid
+@onready var magic_combat_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Combat
+@onready var magic_inventory_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Inventory
+@onready var magic_skills_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Skills
+@onready var magic_equipment_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Equipment
+@onready var magic_active_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Magic
+@onready var magic_grid: GridContainer = $UI/MagicHUD/Margin/VBox/Grid
 @onready var player_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/PlayerHealth
 @onready var player_health_label: Label = $UI/CombatHUD/Margin/VBox/PlayerRow/PlayerHealthLabel
 @onready var target_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/TargetHealth
@@ -132,21 +149,31 @@ func _ready() -> void:
 	inventory_tab_button.pressed.connect(_show_inventory_tab)
 	combat_skills_tab_button.pressed.connect(_show_skills_tab)
 	combat_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	combat_magic_tab_button.pressed.connect(_show_magic_tab)
 	inventory_combat_tab_button.pressed.connect(_show_combat_tab)
 	inventory_active_tab_button.pressed.connect(_show_inventory_tab)
 	inventory_skills_tab_button.pressed.connect(_show_skills_tab)
 	inventory_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	inventory_magic_tab_button.pressed.connect(_show_magic_tab)
 	skills_combat_tab_button.pressed.connect(_show_combat_tab)
 	skills_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	skills_active_tab_button.pressed.connect(_show_skills_tab)
 	skills_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	skills_magic_tab_button.pressed.connect(_show_magic_tab)
 	equipment_combat_tab_button.pressed.connect(_show_combat_tab)
 	equipment_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	equipment_skills_tab_button.pressed.connect(_show_skills_tab)
 	equipment_active_tab_button.pressed.connect(_show_equipment_tab)
+	equipment_magic_tab_button.pressed.connect(_show_magic_tab)
+	magic_combat_tab_button.pressed.connect(_show_combat_tab)
+	magic_inventory_tab_button.pressed.connect(_show_inventory_tab)
+	magic_skills_tab_button.pressed.connect(_show_skills_tab)
+	magic_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	magic_active_tab_button.pressed.connect(_show_magic_tab)
 	_update_combat_hud()
 	_update_inventory_hud()
 	_populate_placeholder_skills()
+	_populate_placeholder_spells()
 	_update_equipment_hud()
 
 
@@ -603,10 +630,12 @@ func _show_combat_tab() -> void:
 	inventory_hud.visible = false
 	skills_hud.visible = false
 	equipment_hud.visible = false
+	magic_hud.visible = false
 	combat_tab_button.set_pressed_no_signal(true)
 	inventory_tab_button.set_pressed_no_signal(false)
 	combat_skills_tab_button.set_pressed_no_signal(false)
 	combat_equipment_tab_button.set_pressed_no_signal(false)
+	combat_magic_tab_button.set_pressed_no_signal(false)
 
 
 func _show_inventory_tab() -> void:
@@ -614,10 +643,12 @@ func _show_inventory_tab() -> void:
 	inventory_hud.visible = true
 	skills_hud.visible = false
 	equipment_hud.visible = false
+	magic_hud.visible = false
 	inventory_combat_tab_button.set_pressed_no_signal(false)
 	inventory_active_tab_button.set_pressed_no_signal(true)
 	inventory_skills_tab_button.set_pressed_no_signal(false)
 	inventory_equipment_tab_button.set_pressed_no_signal(false)
+	inventory_magic_tab_button.set_pressed_no_signal(false)
 
 
 func _show_skills_tab() -> void:
@@ -625,10 +656,12 @@ func _show_skills_tab() -> void:
 	inventory_hud.visible = false
 	skills_hud.visible = true
 	equipment_hud.visible = false
+	magic_hud.visible = false
 	skills_combat_tab_button.set_pressed_no_signal(false)
 	skills_inventory_tab_button.set_pressed_no_signal(false)
 	skills_active_tab_button.set_pressed_no_signal(true)
 	skills_equipment_tab_button.set_pressed_no_signal(false)
+	skills_magic_tab_button.set_pressed_no_signal(false)
 
 
 func _show_equipment_tab() -> void:
@@ -636,10 +669,25 @@ func _show_equipment_tab() -> void:
 	inventory_hud.visible = false
 	skills_hud.visible = false
 	equipment_hud.visible = true
+	magic_hud.visible = false
 	equipment_combat_tab_button.set_pressed_no_signal(false)
 	equipment_inventory_tab_button.set_pressed_no_signal(false)
 	equipment_skills_tab_button.set_pressed_no_signal(false)
 	equipment_active_tab_button.set_pressed_no_signal(true)
+	equipment_magic_tab_button.set_pressed_no_signal(false)
+
+
+func _show_magic_tab() -> void:
+	combat_hud.visible = false
+	inventory_hud.visible = false
+	skills_hud.visible = false
+	equipment_hud.visible = false
+	magic_hud.visible = true
+	magic_combat_tab_button.set_pressed_no_signal(false)
+	magic_inventory_tab_button.set_pressed_no_signal(false)
+	magic_skills_tab_button.set_pressed_no_signal(false)
+	magic_equipment_tab_button.set_pressed_no_signal(false)
+	magic_active_tab_button.set_pressed_no_signal(true)
 
 
 func _populate_placeholder_skills() -> void:
@@ -652,6 +700,19 @@ func _populate_placeholder_skills() -> void:
 		skill_tile.text = "%s\nLevel %d" % [skill.get("name", "Skill"), skill.get("level", 1)]
 		skill_tile.tooltip_text = "Placeholder skill — progression is not active yet"
 		skills_grid.add_child(skill_tile)
+
+
+func _populate_placeholder_spells() -> void:
+	for spell_data: Variant in PLACEHOLDER_SPELLS:
+		var spell: Dictionary = spell_data
+		var spell_button := Button.new()
+		spell_button.custom_minimum_size = Vector2(104, 88)
+		spell_button.focus_mode = Control.FOCUS_NONE
+		spell_button.disabled = true
+		spell_button.icon = spell.get("icon") as Texture2D
+		spell_button.expand_icon = true
+		spell_button.tooltip_text = "%s — placeholder spell" % spell.get("name", "Spell")
+		magic_grid.add_child(spell_button)
 
 
 func _update_equipment_hud() -> void:

@@ -289,29 +289,35 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Combat" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
 text = "Combat"
 
 [node name="Inventory" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Inventory"
 
 [node name="Skills" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Skills"
 
 [node name="Equipment" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/CombatHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Magic"
 
 [node name="TargetRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
 layout_mode = 2
@@ -433,29 +439,35 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Combat" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Combat"
 
 [node name="Inventory" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
 text = "Inventory"
 
 [node name="Skills" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Skills"
 
 [node name="Equipment" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Magic"
 
 [node name="Summary" type="Label" parent="UI/InventoryHUD/Margin/VBox"]
 layout_mode = 2
@@ -499,29 +511,35 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Combat" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Combat"
 
 [node name="Inventory" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Inventory"
 
 [node name="Skills" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
 text = "Skills"
 
 [node name="Equipment" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Magic"
 
 [node name="Summary" type="Label" parent="UI/SkillsHUD/Margin/VBox"]
 layout_mode = 2
@@ -565,29 +583,35 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Combat" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Combat"
 
 [node name="Inventory" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Inventory"
 
 [node name="Skills" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Skills"
 
 [node name="Equipment" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
-custom_minimum_size = Vector2(110, 30)
+custom_minimum_size = Vector2(88, 30)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
 text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Magic"
 
 [node name="Summary" type="Label" parent="UI/EquipmentHUD/Margin/VBox"]
 layout_mode = 2
@@ -599,3 +623,75 @@ size_flags_vertical = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 4
 columns = 3
+
+[node name="MagicHUD" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -530.0
+offset_top = -320.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/MagicHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/MagicHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TabRow" type="HBoxContainer" parent="UI/MagicHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(88, 30)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Magic"
+
+[node name="Summary" type="Label" parent="UI/MagicHUD/Margin/VBox"]
+layout_mode = 2
+text = "Spellbook  •  placeholder spells"
+
+[node name="Grid" type="GridContainer" parent="UI/MagicHUD/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 4
