@@ -19,11 +19,11 @@ func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 		t.Fatalf("drop count after pickup = %d, want 0", got)
 	}
 	player := mustPlayer(t, world, "player-one")
-	if got, want := len(player.Inventory.Items), 4; got != want {
+	if got, want := len(player.Inventory.Items), 7; got != want {
 		t.Fatalf("inventory item count = %d, want %d", got, want)
 	}
-	shard := player.Inventory.Items[3]
-	if shard.Slot != 3 || shard.ItemID != trainingShardItem || shard.Quantity != 1 {
+	shard := player.Inventory.Items[6]
+	if shard.Slot != 6 || shard.ItemID != trainingShardItem || shard.Quantity != 1 {
 		t.Fatalf("picked up shard = %+v", shard)
 	}
 }

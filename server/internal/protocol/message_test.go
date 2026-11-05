@@ -45,6 +45,16 @@ func TestDecodeEquipItemMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeCombatStyleMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"set_combat_style","sequence":6,"combat_style":"rapid"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageCombatStyle || message.Sequence != 6 || message.CombatStyle != "rapid" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodePickupItemMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"pickup_item","sequence":5,"drop_id":"drop-1"}`))
 	if err != nil {
@@ -65,6 +75,7 @@ func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 		"missing target ID": `{"type":"engage_target","sequence":1}`,
 		"missing item ID":   `{"type":"equip_item","sequence":1}`,
 		"missing drop ID":   `{"type":"pickup_item","sequence":1}`,
+		"missing style":     `{"type":"set_combat_style","sequence":1}`,
 		"multiple values":   `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
 	}
 

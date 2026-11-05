@@ -12,6 +12,7 @@ const (
 	MessageEngageTarget = "engage_target"
 	MessageDisengage    = "disengage"
 	MessageEquipItem    = "equip_item"
+	MessageCombatStyle  = "set_combat_style"
 	MessagePickupItem   = "pickup_item"
 	MessageWelcome      = "welcome"
 	MessageSnapshot     = "snapshot"
@@ -31,6 +32,7 @@ type ClientMessage struct {
 	TargetID    string    `json:"target_id,omitempty"`
 	ItemID      string    `json:"item_id,omitempty"`
 	DropID      string    `json:"drop_id,omitempty"`
+	CombatStyle string    `json:"combat_style,omitempty"`
 }
 
 type ServerMessage struct {
@@ -80,30 +82,32 @@ type DropSnapshot struct {
 }
 
 type PlayerSnapshot struct {
-	ID                    string             `json:"id"`
-	Position              Position           `json:"position"`
-	Destination           *Position          `json:"destination,omitempty"`
-	Path                  []Position         `json:"path"`
-	Speed                 float64            `json:"speed"`
-	LastCommandSequence   uint64             `json:"last_command_sequence"`
-	LastCommandTick       uint64             `json:"last_command_tick"`
-	NavigationLocation    NavigationLocation `json:"navigation_location"`
-	LastActionSequence    uint64             `json:"last_action_sequence"`
-	LastActionPulse       uint64             `json:"last_action_pulse"`
-	LastActionResult      string             `json:"last_action_result"`
-	CombatTarget          string             `json:"combat_target"`
-	NextAttackPulse       uint64             `json:"next_attack_pulse"`
-	AutoApproaching       bool               `json:"auto_approaching"`
-	Health                int                `json:"health"`
-	MaximumHealth         int                `json:"maximum_health"`
-	Defeated              bool               `json:"defeated"`
-	RespawnAtPulse        uint64             `json:"respawn_at_pulse"`
-	EquippedWeapon        string             `json:"equipped_weapon"`
-	LastEquipmentSequence uint64             `json:"last_equipment_sequence"`
-	LastEquipmentPulse    uint64             `json:"last_equipment_pulse"`
-	DodgeRate             float64            `json:"dodge_rate"`
-	Inventory             InventorySnapshot  `json:"inventory"`
-	LastPickupSequence    uint64             `json:"last_pickup_sequence"`
+	ID                      string             `json:"id"`
+	Position                Position           `json:"position"`
+	Destination             *Position          `json:"destination,omitempty"`
+	Path                    []Position         `json:"path"`
+	Speed                   float64            `json:"speed"`
+	LastCommandSequence     uint64             `json:"last_command_sequence"`
+	LastCommandTick         uint64             `json:"last_command_tick"`
+	NavigationLocation      NavigationLocation `json:"navigation_location"`
+	LastActionSequence      uint64             `json:"last_action_sequence"`
+	LastActionPulse         uint64             `json:"last_action_pulse"`
+	LastActionResult        string             `json:"last_action_result"`
+	CombatTarget            string             `json:"combat_target"`
+	NextAttackPulse         uint64             `json:"next_attack_pulse"`
+	AutoApproaching         bool               `json:"auto_approaching"`
+	Health                  int                `json:"health"`
+	MaximumHealth           int                `json:"maximum_health"`
+	Defeated                bool               `json:"defeated"`
+	RespawnAtPulse          uint64             `json:"respawn_at_pulse"`
+	EquippedWeapon          string             `json:"equipped_weapon"`
+	LastEquipmentSequence   uint64             `json:"last_equipment_sequence"`
+	LastEquipmentPulse      uint64             `json:"last_equipment_pulse"`
+	CombatStyle             string             `json:"combat_style"`
+	LastCombatStyleSequence uint64             `json:"last_combat_style_sequence"`
+	DodgeRate               float64            `json:"dodge_rate"`
+	Inventory               InventorySnapshot  `json:"inventory"`
+	LastPickupSequence      uint64             `json:"last_pickup_sequence"`
 }
 
 type InventorySnapshot struct {
@@ -141,7 +145,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 
 	if message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
-		message.Type != MessagePickupItem {
+		message.Type != MessagePickupItem && message.Type != MessageCombatStyle {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Sequence == 0 {
@@ -158,6 +162,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {
 		return ClientMessage{}, fmt.Errorf("drop ID is required")
+	}
+	if message.Type == MessageCombatStyle && message.CombatStyle == "" {
+		return ClientMessage{}, fmt.Errorf("combat style is required")
 	}
 
 	return message, nil

@@ -434,6 +434,125 @@ func TestLatestEquipmentCommandWinsBeforePulse(t *testing.T) {
 	}
 }
 
+func TestCombatStyleSelectionIsAuthoritativeAndWeaponSpecific(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleSlash {
+		t.Fatalf("default sword style = %q, want slash", got)
+	}
+	if err := world.QueueCombatStyle(CombatStyleCommand{
+		PlayerID: "player-one", Sequence: 1, Style: CombatStyleStab,
+	}); err != nil {
+		t.Fatalf("QueueCombatStyle(stab) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.CombatStyle != CombatStyleStab || player.LastCombatStyleSequence != 1 {
+		t.Fatalf("sword style state = %+v", player)
+	}
+	if err := world.QueueCombatStyle(CombatStyleCommand{
+		PlayerID: "player-one", Sequence: 2, Style: CombatStyleRapid,
+	}); err == nil {
+		t.Fatal("QueueCombatStyle(rapid) error = nil while sword equipped")
+	}
+
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
+		t.Fatalf("QueueEquip(bow) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleAccurate {
+		t.Fatalf("default bow style = %q, want accurate", got)
+	}
+	if err := world.QueueCombatStyle(CombatStyleCommand{
+		PlayerID: "player-one", Sequence: 2, Style: CombatStyleLongRange,
+	}); err != nil {
+		t.Fatalf("QueueCombatStyle(long range) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleLongRange {
+		t.Fatalf("selected bow style = %q, want long range", got)
+	}
+}
+
+func TestBowStylesModifyCadenceAndRange(t *testing.T) {
+	accurate, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleAccurate)
+	rapid, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleRapid)
+	longRange, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleLongRange)
+	if rapid.AttackInterval != 4 || accurate.AttackInterval != bowAttackIntervalPulses {
+		t.Fatalf("bow intervals: rapid=%d accurate=%d", rapid.AttackInterval, accurate.AttackInterval)
+	}
+	if longRange.Range != 14 || longRange.ApproachRange != 13.25 || accurate.Range != bowRange {
+		t.Fatalf("bow ranges: long=%+v accurate=%+v", longRange, accurate)
+	}
+}
+
+func TestBowLongRangeHitsBeyondAccurateRange(t *testing.T) {
+	world := newCombatTestWorld()
+	target := world.combat.targets[dummyTargetID]
+	mustAddPlayer(t, world, "player-one", Position{X: target.Position.X + 13, Z: target.Position.Z}, 4)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
+		t.Fatalf("QueueEquip(bow) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if err := world.QueueCombatStyle(CombatStyleCommand{
+		PlayerID: "player-one", Sequence: 1, Style: CombatStyleLongRange,
+	}); err != nil {
+		t.Fatalf("QueueCombatStyle(long range) returned an unexpected error: %v", err)
+	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := target.Health, dummyMaximumHealth-bowDamage; got != want {
+		t.Fatalf("dummy health after 13-unit long-range attack = %d, want %d", got, want)
+	}
+}
+
+func TestBowRapidSchedulesFasterNextAttack(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
+		t.Fatalf("QueueEquip(bow) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if err := world.QueueCombatStyle(CombatStyleCommand{
+		PlayerID: "player-one", Sequence: 1, Style: CombatStyleRapid,
+	}); err != nil {
+		t.Fatalf("QueueCombatStyle(rapid) returned an unexpected error: %v", err)
+	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := mustPlayer(t, world, "player-one").NextAttackPulse, uint64(6); got != want {
+		t.Fatalf("rapid bow next attack pulse = %d, want %d", got, want)
+	}
+}
+
+func TestAdditionalWeaponDefinitions(t *testing.T) {
+	tests := []struct {
+		id       WeaponID
+		damage   int
+		interval uint64
+		range_   float64
+	}{
+		{id: WeaponMace, damage: maceDamage, interval: maceAttackIntervalPulses, range_: maceRange},
+		{id: WeaponBattleAxe, damage: battleAxeDamage, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
+		{id: WeaponStaff, damage: staffDamage, interval: staffAttackIntervalPulses, range_: staffRange},
+	}
+	for _, test := range tests {
+		weapon, exists := weaponDefinition(test.id)
+		if !exists || weapon.Damage != test.damage || weapon.AttackInterval != test.interval || weapon.Range != test.range_ {
+			t.Fatalf("weaponDefinition(%q) = %+v, exists %t", test.id, weapon, exists)
+		}
+	}
+	if !combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponMace) ||
+		!combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponBattleAxe) ||
+		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) {
+		t.Fatal("additional weapon combat styles are not valid")
+	}
+}
+
 func TestEngagedPlayerApproachesBeforeAutoAttacking(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)

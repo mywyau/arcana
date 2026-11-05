@@ -13,6 +13,9 @@ extends Node3D
 @onready var blade: MeshInstance3D = $VisualRoot/SwordPivot/Blade
 @onready var hilt: MeshInstance3D = $VisualRoot/SwordPivot/Hilt
 @onready var bow_pivot: Node3D = $VisualRoot/BowPivot
+@onready var mace_pivot: Node3D = $VisualRoot/MacePivot
+@onready var battle_axe_pivot: Node3D = $VisualRoot/BattleAxePivot
+@onready var staff_pivot: Node3D = $VisualRoot/StaffPivot
 @onready var damage_label: Label3D = $DamageLabel
 
 var _is_local: bool = false
@@ -125,19 +128,36 @@ func play_weapon_attack(target_position: Vector3) -> float:
 		visual_root.look_at(flat_target, Vector3.UP, true)
 	if _equipped_weapon == "bow":
 		return _play_bow_attack(target_position)
+	if _equipped_weapon == "staff":
+		return _play_staff_attack(target_position)
+	if _equipped_weapon == "mace":
+		_play_melee_attack(mace_pivot, -50.0, 65.0, 0.2, 0.28)
+		return 0.0
+	if _equipped_weapon == "battle_axe":
+		_play_melee_attack(battle_axe_pivot, -55.0, 75.0, 0.24, 0.34)
+		return 0.0
 
-	if _attack_tween != null:
-		_attack_tween.kill()
-	sword_pivot.rotation_degrees = Vector3(0.0, 0.0, -55.0)
-	_attack_tween = create_tween()
-	_attack_tween.set_trans(Tween.TRANS_QUAD)
-	_attack_tween.set_ease(Tween.EASE_OUT)
 	var forward_duration: float = 0.11 if _equipped_weapon == "dagger" else 0.16
 	var return_duration: float = 0.14 if _equipped_weapon == "dagger" else 0.22
-	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", 70.0, forward_duration)
-	_attack_tween.set_ease(Tween.EASE_IN_OUT)
-	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", -55.0, return_duration)
+	_play_melee_attack(sword_pivot, -55.0, 70.0, forward_duration, return_duration)
 	return 0.0
+
+
+func _play_melee_attack(
+	pivot: Node3D,
+	rest_angle: float,
+	attack_angle: float,
+	forward_duration: float,
+	return_duration: float,
+) -> void:
+	if _attack_tween != null:
+		_attack_tween.kill()
+	pivot.rotation_degrees.z = rest_angle
+	_attack_tween = create_tween()
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(pivot, "rotation_degrees:z", attack_angle, forward_duration)
+	_attack_tween.set_ease(Tween.EASE_IN_OUT)
+	_attack_tween.tween_property(pivot, "rotation_degrees:z", rest_angle, return_duration)
 
 
 func _play_bow_attack(target_position: Vector3) -> float:
@@ -205,15 +225,55 @@ func _move_arrow_along_arc(
 		arrow.look_at(look_position, Vector3.UP, true)
 
 
+func _play_staff_attack(target_position: Vector3) -> float:
+	if _attack_tween != null:
+		_attack_tween.kill()
+	staff_pivot.rotation_degrees.z = -15.0
+	_attack_tween = create_tween()
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(staff_pivot, "rotation_degrees:z", 10.0, 0.14)
+	_attack_tween.set_ease(Tween.EASE_IN_OUT)
+	_attack_tween.tween_property(staff_pivot, "rotation_degrees:z", -15.0, 0.2)
+
+	var bolt := MeshInstance3D.new()
+	var bolt_mesh := SphereMesh.new()
+	bolt_mesh.radius = 0.11
+	bolt_mesh.height = 0.22
+	var bolt_material := StandardMaterial3D.new()
+	bolt_material.albedo_color = Color(0.45, 0.86, 1.0)
+	bolt_material.emission_enabled = true
+	bolt_material.emission = Color(0.25, 0.55, 1.0)
+	bolt_material.emission_energy_multiplier = 3.0
+	bolt_mesh.material = bolt_material
+	bolt.mesh = bolt_mesh
+	var projectile_parent: Node = get_tree().current_scene
+	if projectile_parent == null:
+		projectile_parent = get_tree().root
+	projectile_parent.add_child(bolt)
+	bolt.global_position = global_position + Vector3.UP * 1.35
+	var bolt_target := target_position + Vector3.UP * 1.0
+	var flight_time: float = clampf(bolt.global_position.distance_to(bolt_target) / 16.0, 0.2, 0.65)
+	var projectile_tween := bolt.create_tween()
+	projectile_tween.tween_property(bolt, "global_position", bolt_target, flight_time)
+	projectile_tween.tween_callback(bolt.queue_free)
+	return flight_time
+
+
 func set_weapon(weapon_id: String) -> void:
 	_equipped_weapon = weapon_id
 	var dagger_equipped: bool = weapon_id == "dagger"
-	var bow_equipped: bool = weapon_id == "bow"
-	sword_pivot.visible = not _defeated and not bow_equipped
-	bow_pivot.visible = not _defeated and bow_equipped
+	_update_weapon_visibility()
 	blade.scale = Vector3(0.8, 0.55, 1.0) if dagger_equipped else Vector3.ONE
 	blade.position.y = 0.3 if dagger_equipped else 0.5
 	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
+
+
+func _update_weapon_visibility() -> void:
+	sword_pivot.visible = not _defeated and (_equipped_weapon == "sword" or _equipped_weapon == "dagger")
+	bow_pivot.visible = not _defeated and _equipped_weapon == "bow"
+	mace_pivot.visible = not _defeated and _equipped_weapon == "mace"
+	battle_axe_pivot.visible = not _defeated and _equipped_weapon == "battle_axe"
+	staff_pivot.visible = not _defeated and _equipped_weapon == "staff"
 
 
 func play_hit(damage: int) -> void:
@@ -257,8 +317,7 @@ func set_defeated(defeated: bool) -> void:
 		return
 	_defeated = defeated
 	visual_root.rotation_degrees.z = 90.0 if defeated else 0.0
-	sword_pivot.visible = not defeated and _equipped_weapon != "bow"
-	bow_pivot.visible = not defeated and _equipped_weapon == "bow"
+	_update_weapon_visibility()
 	if defeated:
 		_predicted_path.clear()
 		_pending_correction = Vector3.ZERO

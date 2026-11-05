@@ -143,6 +143,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				ItemID:   simulation.WeaponID(message.ItemID),
 			})
+		case protocol.MessageCombatStyle:
+			rejectionCode = "combat_style_rejected"
+			err = h.world.QueueCombatStyle(simulation.CombatStyleCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				Style:    simulation.CombatStyleID(message.CombatStyle),
+			})
 		case protocol.MessagePickupItem:
 			rejectionCode = "pickup_rejected"
 			err = h.world.QueuePickup(simulation.PickupCommand{
@@ -225,20 +232,22 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Kind: string(player.NavigationLocation.Kind),
 				ID:   player.NavigationLocation.ID,
 			},
-			LastActionSequence:    player.LastActionSequence,
-			LastActionPulse:       player.LastActionPulse,
-			LastActionResult:      player.LastActionResult,
-			CombatTarget:          player.CombatTarget,
-			NextAttackPulse:       player.NextAttackPulse,
-			AutoApproaching:       player.AutoApproaching,
-			Health:                player.Health,
-			MaximumHealth:         player.MaximumHealth,
-			Defeated:              player.Defeated,
-			RespawnAtPulse:        player.RespawnAtPulse,
-			EquippedWeapon:        string(player.EquippedWeapon),
-			LastEquipmentSequence: player.LastEquipmentSequence,
-			LastEquipmentPulse:    player.LastEquipmentPulse,
-			DodgeRate:             player.DodgeRate,
+			LastActionSequence:      player.LastActionSequence,
+			LastActionPulse:         player.LastActionPulse,
+			LastActionResult:        player.LastActionResult,
+			CombatTarget:            player.CombatTarget,
+			NextAttackPulse:         player.NextAttackPulse,
+			AutoApproaching:         player.AutoApproaching,
+			Health:                  player.Health,
+			MaximumHealth:           player.MaximumHealth,
+			Defeated:                player.Defeated,
+			RespawnAtPulse:          player.RespawnAtPulse,
+			EquippedWeapon:          string(player.EquippedWeapon),
+			LastEquipmentSequence:   player.LastEquipmentSequence,
+			LastEquipmentPulse:      player.LastEquipmentPulse,
+			CombatStyle:             string(player.CombatStyle),
+			LastCombatStyleSequence: player.LastCombatStyleSequence,
+			DodgeRate:               player.DodgeRate,
 			Inventory: protocol.InventorySnapshot{
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),

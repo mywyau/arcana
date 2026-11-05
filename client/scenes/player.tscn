@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/player_view.gd" id="1_player"]
 
@@ -38,6 +38,38 @@ roughness = 0.7
 [sub_resource type="BoxMesh" id="BowStringMesh"]
 material = SubResource("BowStringMaterial")
 size = Vector3(0.025, 1.12, 0.025)
+
+[sub_resource type="BoxMesh" id="HeavyHandleMesh"]
+material = SubResource("SwordHiltMaterial")
+size = Vector3(0.11, 0.9, 0.11)
+
+[sub_resource type="StandardMaterial3D" id="HeavyWeaponMaterial"]
+albedo_color = Color(0.42, 0.48, 0.52, 1)
+metallic = 0.7
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="MaceHeadMesh"]
+material = SubResource("HeavyWeaponMaterial")
+size = Vector3(0.42, 0.3, 0.3)
+
+[sub_resource type="BoxMesh" id="AxeBladeMesh"]
+material = SubResource("HeavyWeaponMaterial")
+size = Vector3(0.5, 0.44, 0.12)
+
+[sub_resource type="BoxMesh" id="StaffShaftMesh"]
+material = SubResource("SwordHiltMaterial")
+size = Vector3(0.09, 1.55, 0.09)
+
+[sub_resource type="StandardMaterial3D" id="StaffOrbMaterial"]
+albedo_color = Color(0.45, 0.86, 1, 1)
+emission_enabled = true
+emission = Color(0.25, 0.55, 1, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="SphereMesh" id="StaffOrbMesh"]
+material = SubResource("StaffOrbMaterial")
+radius = 0.16
+height = 0.32
 
 [node name="Player" type="Node3D"]
 script = ExtResource("1_player")
@@ -79,6 +111,45 @@ mesh = SubResource("BowLimbMesh")
 [node name="String" type="MeshInstance3D" parent="VisualRoot/BowPivot"]
 position = Vector3(0.07, 0, 0)
 mesh = SubResource("BowStringMesh")
+
+[node name="MacePivot" type="Node3D" parent="VisualRoot"]
+position = Vector3(0.45, 1.0, -0.05)
+rotation_degrees = Vector3(0, 0, -50)
+visible = false
+
+[node name="Handle" type="MeshInstance3D" parent="VisualRoot/MacePivot"]
+position = Vector3(0, 0.38, 0)
+mesh = SubResource("HeavyHandleMesh")
+
+[node name="Head" type="MeshInstance3D" parent="VisualRoot/MacePivot"]
+position = Vector3(0, 0.88, 0)
+mesh = SubResource("MaceHeadMesh")
+
+[node name="BattleAxePivot" type="Node3D" parent="VisualRoot"]
+position = Vector3(0.45, 1.0, -0.05)
+rotation_degrees = Vector3(0, 0, -55)
+visible = false
+
+[node name="Handle" type="MeshInstance3D" parent="VisualRoot/BattleAxePivot"]
+position = Vector3(0, 0.38, 0)
+mesh = SubResource("HeavyHandleMesh")
+
+[node name="Blade" type="MeshInstance3D" parent="VisualRoot/BattleAxePivot"]
+position = Vector3(0.16, 0.86, 0)
+mesh = SubResource("AxeBladeMesh")
+
+[node name="StaffPivot" type="Node3D" parent="VisualRoot"]
+position = Vector3(0.48, 0.95, -0.05)
+rotation_degrees = Vector3(0, 0, -15)
+visible = false
+
+[node name="Shaft" type="MeshInstance3D" parent="VisualRoot/StaffPivot"]
+position = Vector3(0, 0.62, 0)
+mesh = SubResource("StaffShaftMesh")
+
+[node name="Orb" type="MeshInstance3D" parent="VisualRoot/StaffPivot"]
+position = Vector3(0, 1.46, 0)
+mesh = SubResource("StaffOrbMesh")
 
 [node name="DamageLabel" type="Label3D" parent="."]
 position = Vector3(0, 2.1, 0)

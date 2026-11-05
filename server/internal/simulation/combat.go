@@ -8,37 +8,49 @@ import (
 )
 
 const (
-	actionPulseInterval        = 600 * time.Millisecond
-	swordAttackIntervalPulses  = 4
-	swordRange                 = 1.55
-	swordApproachRange         = 1.25
-	swordDamage                = 10
-	daggerRange                = 1.3
-	daggerApproachRange        = 1.05
-	daggerDamage               = 7
-	daggerAttackIntervalPulses = 3
-	bowRange                   = 12.0
-	bowApproachRange           = 11.25
-	bowDamage                  = 4
-	bowAttackIntervalPulses    = 5
-	playerMaximumHealth        = 100
-	playerDodgeRate            = 0.10
-	dummyMaximumHealth         = 100
-	dummyDodgeRate             = 0.10
-	dummyAttackDamage          = 15
-	dummyAttackIntervalPulses  = 4
-	dummyAttackRange           = 1.55
-	dummyLeashRange            = 6.0
-	roamingEnemySpeed          = 3.0
-	roamingDetectionRange      = 5.0
-	roamingLeashRange          = 8.0
-	roamingRepathPulses        = 1
-	respawnDelayPulses         = 5
-	dummyTargetID              = "dummy"
-	upperDummyTargetID         = "upper_dummy"
-	overlookDummyTargetID      = "overlook_dummy"
-	hillWardenTargetID         = "hill_warden"
-	combatEventHistoryLimit    = 32
+	actionPulseInterval           = 600 * time.Millisecond
+	swordAttackIntervalPulses     = 4
+	swordRange                    = 1.55
+	swordApproachRange            = 1.25
+	swordDamage                   = 10
+	daggerRange                   = 1.3
+	daggerApproachRange           = 1.05
+	daggerDamage                  = 7
+	daggerAttackIntervalPulses    = 3
+	bowRange                      = 12.0
+	bowApproachRange              = 11.25
+	bowDamage                     = 4
+	bowAttackIntervalPulses       = 5
+	maceRange                     = 1.45
+	maceApproachRange             = 1.15
+	maceDamage                    = 12
+	maceAttackIntervalPulses      = 5
+	battleAxeRange                = 1.55
+	battleAxeApproachRange        = 1.25
+	battleAxeDamage               = 15
+	battleAxeAttackIntervalPulses = 6
+	staffRange                    = 10.0
+	staffApproachRange            = 9.25
+	staffDamage                   = 6
+	staffAttackIntervalPulses     = 5
+	playerMaximumHealth           = 100
+	playerDodgeRate               = 0.10
+	dummyMaximumHealth            = 100
+	dummyDodgeRate                = 0.10
+	dummyAttackDamage             = 15
+	dummyAttackIntervalPulses     = 4
+	dummyAttackRange              = 1.55
+	dummyLeashRange               = 6.0
+	roamingEnemySpeed             = 3.0
+	roamingDetectionRange         = 5.0
+	roamingLeashRange             = 8.0
+	roamingRepathPulses           = 1
+	respawnDelayPulses            = 5
+	dummyTargetID                 = "dummy"
+	upperDummyTargetID            = "upper_dummy"
+	overlookDummyTargetID         = "overlook_dummy"
+	hillWardenTargetID            = "hill_warden"
+	combatEventHistoryLimit       = 32
 )
 
 const (
@@ -49,10 +61,53 @@ const (
 type WeaponID string
 
 const (
-	WeaponSword  WeaponID = "sword"
-	WeaponDagger WeaponID = "dagger"
-	WeaponBow    WeaponID = "bow"
+	WeaponSword     WeaponID = "sword"
+	WeaponDagger    WeaponID = "dagger"
+	WeaponBow       WeaponID = "bow"
+	WeaponMace      WeaponID = "mace"
+	WeaponBattleAxe WeaponID = "battle_axe"
+	WeaponStaff     WeaponID = "staff"
 )
+
+type CombatStyleID string
+
+const (
+	CombatStyleSlash      CombatStyleID = "slash"
+	CombatStyleStab       CombatStyleID = "stab"
+	CombatStyleRapid      CombatStyleID = "rapid"
+	CombatStyleAccurate   CombatStyleID = "accurate"
+	CombatStyleLongRange  CombatStyleID = "long_range"
+	CombatStyleCrush      CombatStyleID = "crush"
+	CombatStyleHeavyCrush CombatStyleID = "heavy_crush"
+)
+
+func defaultCombatStyle(weapon WeaponID) CombatStyleID {
+	if weapon == WeaponBow || weapon == WeaponStaff {
+		return CombatStyleAccurate
+	}
+	if weapon == WeaponMace {
+		return CombatStyleCrush
+	}
+	if weapon == WeaponDagger {
+		return CombatStyleStab
+	}
+	return CombatStyleSlash
+}
+
+func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
+	switch weapon {
+	case WeaponBow, WeaponStaff:
+		return style == CombatStyleRapid || style == CombatStyleAccurate || style == CombatStyleLongRange
+	case WeaponMace:
+		return style == CombatStyleCrush || style == CombatStyleHeavyCrush
+	case WeaponBattleAxe:
+		return style == CombatStyleSlash || style == CombatStyleHeavyCrush
+	case WeaponSword, WeaponDagger:
+		return style == CombatStyleStab || style == CombatStyleSlash
+	default:
+		return false
+	}
+}
 
 type WeaponDefinition struct {
 	ID             WeaponID
@@ -70,9 +125,32 @@ func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 		return WeaponDefinition{ID: id, Damage: daggerDamage, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
 	case WeaponBow:
 		return WeaponDefinition{ID: id, Damage: bowDamage, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
+	case WeaponMace:
+		return WeaponDefinition{ID: id, Damage: maceDamage, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, true
+	case WeaponBattleAxe:
+		return WeaponDefinition{ID: id, Damage: battleAxeDamage, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, true
+	case WeaponStaff:
+		return WeaponDefinition{ID: id, Damage: staffDamage, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, true
 	default:
 		return WeaponDefinition{}, false
 	}
+}
+
+func weaponDefinitionForStyle(id WeaponID, style CombatStyleID) (WeaponDefinition, bool) {
+	weapon, exists := weaponDefinition(id)
+	if !exists {
+		return WeaponDefinition{}, false
+	}
+	if id == WeaponBow {
+		switch style {
+		case CombatStyleRapid:
+			weapon.AttackInterval = 4
+		case CombatStyleLongRange:
+			weapon.Range = 14
+			weapon.ApproachRange = 13.25
+		}
+	}
+	return weapon, true
 }
 
 type CombatEventType string
@@ -104,6 +182,12 @@ type EquipCommand struct {
 	ItemID   WeaponID
 }
 
+type CombatStyleCommand struct {
+	PlayerID PlayerID
+	Sequence uint64
+	Style    CombatStyleID
+}
+
 type TargetSnapshot struct {
 	ID              string
 	Name            string
@@ -124,6 +208,7 @@ type combatState struct {
 	targets          map[string]*TargetSnapshot
 	pendingTargets   map[PlayerID]TargetCommand
 	pendingEquipment map[PlayerID]EquipCommand
+	pendingStyles    map[PlayerID]CombatStyleCommand
 	nextEventID      uint64
 	events           []CombatEvent
 	roamingEnemies   map[string]*roamingEnemyState
@@ -204,6 +289,7 @@ func newCombatState() *combatState {
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
+		pendingStyles:    make(map[PlayerID]CombatStyleCommand),
 		roamingEnemies: map[string]*roamingEnemyState{
 			hillWardenTargetID: {
 				target: hillWarden,
@@ -212,6 +298,41 @@ func newCombatState() *combatState {
 			},
 		},
 	}
+}
+
+// QueueCombatStyle records a style selection for the currently equipped weapon.
+// Styles are state only for now; combat modifiers will be introduced separately.
+func (w *World) QueueCombatStyle(command CombatStyleCommand) error {
+	if command.Sequence == 0 {
+		return fmt.Errorf("combat style sequence must be positive")
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, leaving := w.pendingLeaves[command.PlayerID]; leaving {
+		return fmt.Errorf("player %q is leaving", command.PlayerID)
+	}
+	player, exists := w.players[command.PlayerID]
+	if !exists {
+		player, exists = w.pendingJoins[command.PlayerID]
+		if !exists {
+			return fmt.Errorf("player %q does not exist", command.PlayerID)
+		}
+	}
+	if player.defeated {
+		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if !combatStyleValidForWeapon(command.Style, player.equippedWeapon) {
+		return fmt.Errorf("style %q is invalid for weapon %q", command.Style, player.equippedWeapon)
+	}
+	if command.Sequence <= player.lastCombatStyleSequence {
+		return fmt.Errorf("combat style sequence %d is not newer than %d", command.Sequence, player.lastCombatStyleSequence)
+	}
+	if pending, found := w.combat.pendingStyles[command.PlayerID]; found && command.Sequence <= pending.Sequence {
+		return fmt.Errorf("combat style sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	}
+	w.combat.pendingStyles[command.PlayerID] = command
+	return nil
 }
 
 // QueueEquip records an owned prototype weapon to equip on the next action pulse.
@@ -298,6 +419,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.combat.pulse++
 		w.respawnDefeatedEntities()
 		w.applyEquipmentCommands()
+		w.applyCombatStyleCommands()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
 		w.updateRoamingEnemies()
@@ -315,10 +437,29 @@ func (w *World) applyEquipmentCommands() {
 		command := w.combat.pendingEquipment[id]
 		if player, exists := w.players[id]; exists && !player.defeated {
 			player.equippedWeapon = command.ItemID
+			player.combatStyle = defaultCombatStyle(command.ItemID)
 			player.lastEquipmentSequence = command.Sequence
 			player.lastEquipmentPulse = w.combat.pulse
 		}
 		delete(w.combat.pendingEquipment, id)
+	}
+}
+
+func (w *World) applyCombatStyleCommands() {
+	playerIDs := make([]PlayerID, 0, len(w.combat.pendingStyles))
+	for id := range w.combat.pendingStyles {
+		playerIDs = append(playerIDs, id)
+	}
+	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
+	for _, id := range playerIDs {
+		command := w.combat.pendingStyles[id]
+		if player, exists := w.players[id]; exists && !player.defeated {
+			if combatStyleValidForWeapon(command.Style, player.equippedWeapon) {
+				player.combatStyle = command.Style
+			}
+			player.lastCombatStyleSequence = command.Sequence
+		}
+		delete(w.combat.pendingStyles, id)
 	}
 }
 
@@ -403,7 +544,7 @@ func (w *World) resolveAutoAttacks() {
 			w.clearPlayerTarget(player, "target_defeated")
 			continue
 		}
-		weapon, _ := weaponDefinition(player.equippedWeapon)
+		weapon, _ := weaponDefinitionForStyle(player.equippedWeapon, player.combatStyle)
 		if distance(player.position, target.Position) > weapon.Range {
 			if err := w.approachDummy(player, target.Position, weapon.ApproachRange); err != nil {
 				player.lastActionResult = "target_unreachable"
@@ -607,6 +748,7 @@ func (w *World) defeatPlayer(player *playerState) {
 	delete(w.pendingMoves, player.id)
 	delete(w.combat.pendingTargets, player.id)
 	delete(w.combat.pendingEquipment, player.id)
+	delete(w.combat.pendingStyles, player.id)
 	for _, target := range w.combat.dummyTargets() {
 		if target.dummy.TargetID == player.id {
 			clearDummyTarget(target.dummy)

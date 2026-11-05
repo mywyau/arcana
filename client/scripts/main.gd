@@ -10,17 +10,37 @@ const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const LOOT_COLLISION_MASK: int = 16
 const ALL_WORLD_COLLISION_MASK: int = 7
+
 const PLACEHOLDER_SKILLS: Array = [
-	{"name": "Blades", "level": 1},
+	{"name": "Attack", "level": 1},
+	{"name": "Magic", "level": 1},
+	{"name": "Range", "level": 1},
+	{"name": "Defence", "level": 1},
+	{"name": "Strength", "level": 1},
+	{"name": "Prayer", "level": 1},
 	{"name": "Vitality", "level": 1},
+	{"name": "Mana", "level": 1},
 	{"name": "Agility", "level": 1},
-	{"name": "Arcana", "level": 1},
-	{"name": "Devotion", "level": 1},
+	{"name": "Mining", "level": 1},
+	{"name": "Smithing", "level": 1},
 	{"name": "Crafting", "level": 1},
+	{"name": "Woodcutting", "level": 1},
+	{"name": "Runecrafting", "level": 1},
+	{"name": "Herblore", "level": 1},
+	{"name": "Fletching", "level": 1},
+	{"name": "Fishing", "level": 1},
+	{"name": "Cooking", "level": 1},
+	{"name": "Farming", "level": 1},
+	{"name": "Thieving", "level": 1},
+	{"name": "Construction", "level": 1},
 ]
+
 const SWORD_ICON: Texture2D = preload("res://assets/icons/sword.svg")
 const DAGGER_ICON: Texture2D = preload("res://assets/icons/dagger.svg")
 const BOW_ICON: Texture2D = preload("res://assets/icons/bow.svg")
+const MACE_ICON: Texture2D = preload("res://assets/icons/mace.svg")
+const BATTLE_AXE_ICON: Texture2D = preload("res://assets/icons/battle_axe.svg")
+const STAFF_ICON: Texture2D = preload("res://assets/icons/staff.svg")
 const EMPTY_SLOT_ICON: Texture2D = preload("res://assets/icons/empty_slot.svg")
 const TRAINING_SHARD_ICON: Texture2D = preload("res://assets/icons/training_shard.svg")
 const PLACEHOLDER_SPELLS: Array = [
@@ -29,15 +49,49 @@ const PLACEHOLDER_SPELLS: Array = [
 	{"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_ward.svg")},
 	{"name": "Blink", "icon": preload("res://assets/icons/spell_blink.svg")},
 ]
+const COMBAT_STYLES: Dictionary = {
+	"sword": [
+		{"id": "slash", "name": "Slash"},
+		{"id": "stab", "name": "Stab"},
+	],
+	"dagger": [
+		{"id": "stab", "name": "Stab"},
+		{"id": "slash", "name": "Slash"},
+	],
+	"mace": [
+		{"id": "crush", "name": "Crush"},
+		{"id": "heavy_crush", "name": "Heavy Crush"}
+	],
+	"battle_axe": [
+		{"id": "slash", "name": "Slash"},
+		{"id": "heavy_crush", "name": "Heavy Crush"}
+	],
+	"bow": [
+		{"id": "rapid", "name": "Rapid"},
+		{"id": "accurate", "name": "Accurate"},
+		{"id": "long_range", "name": "Long Range"},
+	],
+	"staff": [
+		{"id": "rapid", "name": "Rapid"},
+		{"id": "accurate", "name": "Accurate"},
+		{"id": "long_range", "name": "Long Range"},
+	],
+}
 const EQUIPMENT_ICONS: Dictionary = {
 	"sword": SWORD_ICON,
 	"dagger": DAGGER_ICON,
 	"bow": BOW_ICON,
+	"mace": MACE_ICON,
+	"battle_axe": BATTLE_AXE_ICON,
+	"staff": STAFF_ICON,
 }
 const ITEM_ICONS: Dictionary = {
 	"sword": SWORD_ICON,
 	"dagger": DAGGER_ICON,
 	"bow": BOW_ICON,
+	"mace": MACE_ICON,
+	"battle_axe": BATTLE_AXE_ICON,
+	"staff": STAFF_ICON,
 	"training_shard": TRAINING_SHARD_ICON,
 }
 
@@ -55,16 +109,19 @@ const ITEM_ICONS: Dictionary = {
 @onready var skills_hud: PanelContainer = $UI/SkillsHUD
 @onready var equipment_hud: PanelContainer = $UI/EquipmentHUD
 @onready var magic_hud: PanelContainer = $UI/MagicHUD
+@onready var styles_hud: PanelContainer = $UI/StylesHUD
 @onready var combat_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Combat
 @onready var inventory_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Inventory
 @onready var combat_skills_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Skills
 @onready var combat_equipment_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Equipment
 @onready var combat_magic_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Magic
+@onready var combat_styles_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Styles
 @onready var inventory_combat_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Combat
 @onready var inventory_active_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Inventory
 @onready var inventory_skills_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Skills
 @onready var inventory_equipment_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Equipment
 @onready var inventory_magic_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Magic
+@onready var inventory_styles_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Styles
 @onready var inventory_summary: Label = $UI/InventoryHUD/Margin/VBox/Summary
 @onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/Grid
 @onready var skills_combat_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Combat
@@ -72,19 +129,30 @@ const ITEM_ICONS: Dictionary = {
 @onready var skills_active_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Skills
 @onready var skills_equipment_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Equipment
 @onready var skills_magic_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Magic
+@onready var skills_styles_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Styles
 @onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/Grid
 @onready var equipment_combat_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Combat
 @onready var equipment_inventory_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Inventory
 @onready var equipment_skills_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Skills
 @onready var equipment_active_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Equipment
 @onready var equipment_magic_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Magic
+@onready var equipment_styles_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Styles
 @onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/Grid
 @onready var magic_combat_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Combat
 @onready var magic_inventory_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Inventory
 @onready var magic_skills_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Skills
 @onready var magic_equipment_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Equipment
 @onready var magic_active_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Magic
+@onready var magic_styles_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Styles
 @onready var magic_grid: GridContainer = $UI/MagicHUD/Margin/VBox/Grid
+@onready var styles_combat_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Combat
+@onready var styles_inventory_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Inventory
+@onready var styles_skills_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Skills
+@onready var styles_equipment_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Equipment
+@onready var styles_magic_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Magic
+@onready var styles_active_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Styles
+@onready var styles_summary: Label = $UI/StylesHUD/Margin/VBox/Summary
+@onready var styles_grid: GridContainer = $UI/StylesHUD/Margin/VBox/Grid
 @onready var player_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/PlayerHealth
 @onready var player_health_label: Label = $UI/CombatHUD/Margin/VBox/PlayerRow/PlayerHealthLabel
 @onready var target_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/TargetHealth
@@ -125,6 +193,10 @@ var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "sword"
 var _last_equipment_sequence: int = 0
 var _queued_weapon: String = ""
+var _combat_style: String = "slash"
+var _last_combat_style_sequence: int = 0
+var _next_combat_style_sequence: int = 1
+var _queued_combat_style: String = ""
 var _inventory_capacity: int = 8
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
@@ -150,30 +222,42 @@ func _ready() -> void:
 	combat_skills_tab_button.pressed.connect(_show_skills_tab)
 	combat_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	combat_magic_tab_button.pressed.connect(_show_magic_tab)
+	combat_styles_tab_button.pressed.connect(_show_styles_tab)
 	inventory_combat_tab_button.pressed.connect(_show_combat_tab)
 	inventory_active_tab_button.pressed.connect(_show_inventory_tab)
 	inventory_skills_tab_button.pressed.connect(_show_skills_tab)
 	inventory_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	inventory_magic_tab_button.pressed.connect(_show_magic_tab)
+	inventory_styles_tab_button.pressed.connect(_show_styles_tab)
 	skills_combat_tab_button.pressed.connect(_show_combat_tab)
 	skills_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	skills_active_tab_button.pressed.connect(_show_skills_tab)
 	skills_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	skills_magic_tab_button.pressed.connect(_show_magic_tab)
+	skills_styles_tab_button.pressed.connect(_show_styles_tab)
 	equipment_combat_tab_button.pressed.connect(_show_combat_tab)
 	equipment_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	equipment_skills_tab_button.pressed.connect(_show_skills_tab)
 	equipment_active_tab_button.pressed.connect(_show_equipment_tab)
 	equipment_magic_tab_button.pressed.connect(_show_magic_tab)
+	equipment_styles_tab_button.pressed.connect(_show_styles_tab)
 	magic_combat_tab_button.pressed.connect(_show_combat_tab)
 	magic_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	magic_skills_tab_button.pressed.connect(_show_skills_tab)
 	magic_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	magic_active_tab_button.pressed.connect(_show_magic_tab)
+	magic_styles_tab_button.pressed.connect(_show_styles_tab)
+	styles_combat_tab_button.pressed.connect(_show_combat_tab)
+	styles_inventory_tab_button.pressed.connect(_show_inventory_tab)
+	styles_skills_tab_button.pressed.connect(_show_skills_tab)
+	styles_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	styles_magic_tab_button.pressed.connect(_show_magic_tab)
+	styles_active_tab_button.pressed.connect(_show_styles_tab)
 	_update_combat_hud()
 	_update_inventory_hud()
 	_populate_placeholder_skills()
 	_populate_placeholder_spells()
+	_update_combat_styles_hud()
 	_update_equipment_hud()
 
 
@@ -193,6 +277,15 @@ func _unhandled_input(event: InputEvent) -> void:
 					get_viewport().set_input_as_handled()
 				KEY_3:
 					_request_equip("bow")
+					get_viewport().set_input_as_handled()
+				KEY_4:
+					_request_equip("mace")
+					get_viewport().set_input_as_handled()
+				KEY_5:
+					_request_equip("battle_axe")
+					get_viewport().set_input_as_handled()
+				KEY_6:
+					_request_equip("staff")
 					get_viewport().set_input_as_handled()
 		return
 	if not event is InputEventMouseButton:
@@ -317,6 +410,18 @@ func _request_equip(item_id: String) -> void:
 		_update_inventory_hud()
 
 
+func _request_combat_style(combat_style: String) -> void:
+	if _player_defeated:
+		return
+	var style_pending: bool = _last_combat_style_sequence < _next_combat_style_sequence - 1
+	if combat_style == _combat_style and not style_pending:
+		return
+	if network.send_combat_style(_next_combat_style_sequence, combat_style):
+		_queued_combat_style = combat_style
+		_next_combat_style_sequence += 1
+		_update_combat_styles_hud()
+
+
 func _request_disengage() -> void:
 	if _player_defeated:
 		return
@@ -412,6 +517,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		view.set_defeated(bool(player_data.get("defeated", false)))
 		if id == _local_player_id:
 			var inventory_selection_changed: bool = false
+			var combat_style_changed: bool = false
 			_last_action_sequence = int(player_data.get("last_action_sequence", 0))
 			_last_action_result = str(player_data.get("last_action_result", "none"))
 			_combat_target = str(player_data.get("combat_target", ""))
@@ -430,12 +536,23 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_equipped_weapon = equipped_weapon
 				_update_equipment_hud()
 				inventory_selection_changed = true
+				combat_style_changed = true
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			if _last_equipment_sequence >= _next_equipment_sequence - 1 and not _queued_weapon.is_empty():
 				_queued_weapon = ""
 				inventory_selection_changed = true
+			var combat_style: String = str(player_data.get("combat_style", "slash"))
+			if combat_style != _combat_style:
+				_combat_style = combat_style
+				combat_style_changed = true
+			_last_combat_style_sequence = int(player_data.get("last_combat_style_sequence", 0))
+			if _last_combat_style_sequence >= _next_combat_style_sequence - 1 and not _queued_combat_style.is_empty():
+				_queued_combat_style = ""
+				combat_style_changed = true
 			if inventory_selection_changed:
 				_update_inventory_hud()
+			if combat_style_changed:
+				_update_combat_styles_hud()
 			if _last_action_result.is_empty():
 				_last_action_result = "none"
 			var navigation_data: Variant = player_data.get("navigation_location", {})
@@ -619,6 +736,9 @@ func _play_dummy_impact_after_delay(
 
 func _on_server_error(code: String, message: String) -> void:
 	status_label.text = "%s: %s" % [code, message]
+	if code == "combat_style_rejected":
+		_queued_combat_style = ""
+		_update_combat_styles_hud()
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -631,11 +751,13 @@ func _show_combat_tab() -> void:
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	styles_hud.visible = false
 	combat_tab_button.set_pressed_no_signal(true)
 	inventory_tab_button.set_pressed_no_signal(false)
 	combat_skills_tab_button.set_pressed_no_signal(false)
 	combat_equipment_tab_button.set_pressed_no_signal(false)
 	combat_magic_tab_button.set_pressed_no_signal(false)
+	combat_styles_tab_button.set_pressed_no_signal(false)
 
 
 func _show_inventory_tab() -> void:
@@ -644,11 +766,13 @@ func _show_inventory_tab() -> void:
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	styles_hud.visible = false
 	inventory_combat_tab_button.set_pressed_no_signal(false)
 	inventory_active_tab_button.set_pressed_no_signal(true)
 	inventory_skills_tab_button.set_pressed_no_signal(false)
 	inventory_equipment_tab_button.set_pressed_no_signal(false)
 	inventory_magic_tab_button.set_pressed_no_signal(false)
+	inventory_styles_tab_button.set_pressed_no_signal(false)
 
 
 func _show_skills_tab() -> void:
@@ -657,11 +781,13 @@ func _show_skills_tab() -> void:
 	skills_hud.visible = true
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	styles_hud.visible = false
 	skills_combat_tab_button.set_pressed_no_signal(false)
 	skills_inventory_tab_button.set_pressed_no_signal(false)
 	skills_active_tab_button.set_pressed_no_signal(true)
 	skills_equipment_tab_button.set_pressed_no_signal(false)
 	skills_magic_tab_button.set_pressed_no_signal(false)
+	skills_styles_tab_button.set_pressed_no_signal(false)
 
 
 func _show_equipment_tab() -> void:
@@ -670,11 +796,13 @@ func _show_equipment_tab() -> void:
 	skills_hud.visible = false
 	equipment_hud.visible = true
 	magic_hud.visible = false
+	styles_hud.visible = false
 	equipment_combat_tab_button.set_pressed_no_signal(false)
 	equipment_inventory_tab_button.set_pressed_no_signal(false)
 	equipment_skills_tab_button.set_pressed_no_signal(false)
 	equipment_active_tab_button.set_pressed_no_signal(true)
 	equipment_magic_tab_button.set_pressed_no_signal(false)
+	equipment_styles_tab_button.set_pressed_no_signal(false)
 
 
 func _show_magic_tab() -> void:
@@ -683,11 +811,28 @@ func _show_magic_tab() -> void:
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = true
+	styles_hud.visible = false
 	magic_combat_tab_button.set_pressed_no_signal(false)
 	magic_inventory_tab_button.set_pressed_no_signal(false)
 	magic_skills_tab_button.set_pressed_no_signal(false)
 	magic_equipment_tab_button.set_pressed_no_signal(false)
 	magic_active_tab_button.set_pressed_no_signal(true)
+	magic_styles_tab_button.set_pressed_no_signal(false)
+
+
+func _show_styles_tab() -> void:
+	combat_hud.visible = false
+	inventory_hud.visible = false
+	skills_hud.visible = false
+	equipment_hud.visible = false
+	magic_hud.visible = false
+	styles_hud.visible = true
+	styles_combat_tab_button.set_pressed_no_signal(false)
+	styles_inventory_tab_button.set_pressed_no_signal(false)
+	styles_skills_tab_button.set_pressed_no_signal(false)
+	styles_equipment_tab_button.set_pressed_no_signal(false)
+	styles_magic_tab_button.set_pressed_no_signal(false)
+	styles_active_tab_button.set_pressed_no_signal(true)
 
 
 func _populate_placeholder_skills() -> void:
@@ -713,6 +858,30 @@ func _populate_placeholder_spells() -> void:
 		spell_button.expand_icon = true
 		spell_button.tooltip_text = "%s — placeholder spell" % spell.get("name", "Spell")
 		magic_grid.add_child(spell_button)
+
+
+func _update_combat_styles_hud() -> void:
+	for child: Node in styles_grid.get_children():
+		styles_grid.remove_child(child)
+		child.queue_free()
+
+	if _equipped_weapon == "bow":
+		styles_summary.text = "Bow styles  •  Rapid: faster  •  Long Range: 14 units"
+	else:
+		styles_summary.text = "%s styles  •  modifiers not active yet" % _equipped_weapon.capitalize()
+	var style_options: Array = COMBAT_STYLES.get(_equipped_weapon, []) as Array
+	var selected_style: String = _queued_combat_style if not _queued_combat_style.is_empty() else _combat_style
+	for style_data: Variant in style_options:
+		var style: Dictionary = style_data
+		var style_id: String = str(style.get("id", ""))
+		var style_button := Button.new()
+		style_button.custom_minimum_size = Vector2(145, 64)
+		style_button.toggle_mode = true
+		style_button.disabled = _player_defeated
+		style_button.text = str(style.get("name", style_id.capitalize()))
+		style_button.set_pressed_no_signal(style_id == selected_style)
+		style_button.pressed.connect(_request_combat_style.bind(style_id))
+		styles_grid.add_child(style_button)
 
 
 func _update_equipment_hud() -> void:
@@ -768,6 +937,7 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 
 
 func _update_inventory_hud() -> void:
+
 	for child: Node in inventory_grid.get_children():
 		inventory_grid.remove_child(child)
 		child.queue_free()
@@ -883,7 +1053,11 @@ func _update_combat_hud() -> void:
 	if _equipped_weapon == "dagger":
 		weapon_interval = 3
 	elif _equipped_weapon == "bow":
+		weapon_interval = 4 if _combat_style == "rapid" else 5
+	elif _equipped_weapon == "mace" or _equipped_weapon == "staff":
 		weapon_interval = 5
+	elif _equipped_weapon == "battle_axe":
+		weapon_interval = 6
 	var remaining: int = maxi(0, _next_attack_pulse - _action_pulse)
 	cooldown_bar.max_value = weapon_interval
 	cooldown_bar.value = weapon_interval - mini(weapon_interval, remaining)

@@ -10,7 +10,7 @@ func TestPlayerStartsWithEightSlotInventory(t *testing.T) {
 	if got, want := player.Inventory.Capacity, 8; got != want {
 		t.Fatalf("Inventory.Capacity = %d, want %d", got, want)
 	}
-	if got, want := len(player.Inventory.Items), 3; got != want {
+	if got, want := len(player.Inventory.Items), 6; got != want {
 		t.Fatalf("len(Inventory.Items) = %d, want %d", got, want)
 	}
 	if player.Inventory.Items[0].ItemID != "sword" || player.Inventory.Items[0].Slot != 0 {
@@ -21,6 +21,13 @@ func TestPlayerStartsWithEightSlotInventory(t *testing.T) {
 	}
 	if player.Inventory.Items[2].ItemID != "bow" || player.Inventory.Items[2].Slot != 2 {
 		t.Fatalf("third inventory item = %+v, want bow in slot 2", player.Inventory.Items[2])
+	}
+	wantAdditional := []string{"mace", "battle_axe", "staff"}
+	for index, itemID := range wantAdditional {
+		item := player.Inventory.Items[index+3]
+		if item.ItemID != itemID || item.Slot != index+3 {
+			t.Fatalf("inventory item %d = %+v, want %s in slot %d", index+3, item, itemID, index+3)
+		}
 	}
 
 	player.Inventory.Items[0].ItemID = "changed"

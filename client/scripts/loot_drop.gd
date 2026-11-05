@@ -6,7 +6,6 @@ extends Node3D
 
 var _phase: float = 0.0
 
-
 func _process(delta: float) -> void:
 	visual.rotation.y += delta * 1.8
 	_phase += delta * 2.5

@@ -29,6 +29,9 @@ func newStarterInventory() inventoryState {
 			{Slot: 0, ItemID: string(WeaponSword), Quantity: 1},
 			{Slot: 1, ItemID: string(WeaponDagger), Quantity: 1},
 			{Slot: 2, ItemID: string(WeaponBow), Quantity: 1},
+			{Slot: 3, ItemID: string(WeaponMace), Quantity: 1},
+			{Slot: 4, ItemID: string(WeaponBattleAxe), Quantity: 1},
+			{Slot: 5, ItemID: string(WeaponStaff), Quantity: 1},
 		},
 	}
 }
