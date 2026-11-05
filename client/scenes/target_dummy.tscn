@@ -1,0 +1,43 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/target_dummy.gd" id="1_target"]
+
+[sub_resource type="StandardMaterial3D" id="DummyMaterial"]
+albedo_color = Color(0.75, 0.16, 0.12, 1)
+roughness = 0.85
+
+[sub_resource type="CapsuleMesh" id="DummyMesh"]
+material = SubResource("DummyMaterial")
+radius = 0.45
+
+[sub_resource type="CapsuleShape3D" id="DummyShape"]
+radius = 0.45
+height = 2.0
+
+[node name="TargetDummy" type="Node3D"]
+script = ExtResource("1_target")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="AttackPivot" type="Node3D" parent="Visual"]
+
+[node name="Mesh" type="MeshInstance3D" parent="Visual/AttackPivot"]
+position = Vector3(0, 1, 0)
+mesh = SubResource("DummyMesh")
+
+[node name="DamageLabel" type="Label3D" parent="."]
+position = Vector3(0, 2.1, 0)
+visible = false
+modulate = Color(1, 0.25, 0.18, 1)
+text = "-10"
+font_size = 48
+outline_size = 10
+billboard = 1
+no_depth_test = true
+
+[node name="TargetBody" type="StaticBody3D" parent="."]
+collision_layer = 8
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TargetBody"]
+position = Vector3(0, 1, 0)
+shape = SubResource("DummyShape")

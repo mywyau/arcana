@@ -114,14 +114,31 @@ for a five-pulse defeated state; players then respawn at their original position
 and the dummy resets in place, both with full health.
 
 Press `1` to equip the sword (10 damage, four-pulse cadence), `2` to equip
-the dagger (7 damage, three-pulse cadence), or `3` to equip the bow (8 damage,
-five-pulse cadence, 6-unit range). Bow attacks launch a lightweight projectile
-presentation while their hit result remains server authoritative. Equipment changes are validated by
+the dagger (7 damage, three-pulse cadence), or `3` to equip the bow (4 damage,
+five-pulse cadence, 12-unit range). Targeting immediately stops leftover manual
+movement; when the target is within weapon range, the player remains planted.
+Attack recovery persists across disengaging, re-engaging, and changing targets,
+so target clicks cannot reset a weapon's cadence.
+Bow attacks launch a lightweight projectile
+presentation along a shallow arc, and hit feedback waits for the arrow to reach
+the target while the underlying result remains server authoritative. Equipment changes are validated by
 the server and applied on the next action pulse without resetting an attack
 already on cooldown. Each weapon also supplies its own attack and approach
 range. Server-driven combat paths replace local movement prediction while
 approaching, preventing long-distance engagements from accumulating correction
 snaps.
+
+The world contains independent training targets for vertical ranged testing.
+The upper dummy stands on the platform reached by the ramp and can be targeted
+from below. An overlook dummy stands just beyond the platform edge at
+`(2.75, 0, 3.5)` and can be
+shot from the upper platform. Each dummy has separate health, aggro, defeat,
+and respawn state.
+
+Authoritative targets are stored by unique ID and sent as a deterministic
+`targets` collection in each snapshot. The Godot client creates target scenes
+from that collection, so adding another stationary training target no longer
+requires new protocol fields or hardcoded nodes in the main scene.
 
 ### Inventory prototype
 
@@ -129,7 +146,10 @@ Each player has an authoritative eight-slot base inventory, with capacity sent
 in snapshots so future upgrades can expand it per player. The starter inventory
 contains the prototype sword, dagger, and bow. Use the Inventory tab in the
 bottom-right HUD to view its 4×2 grid. Slots are display-only in this first
-slice; item pickup, dragging, and equipping from the grid are not implemented.
+slice for non-equipment actions: weapon slots show their icons and can be
+clicked to send the same server-authoritative equip request as the `1`, `2`,
+and `3` shortcuts. The selected slot distinguishes equipped and queued state.
+Item pickup, dragging, and dropping are not implemented.
 
 The adjacent Skills tab currently previews six placeholder skills—Blades,
 Vitality, Agility, Arcana, Devotion, and Crafting—at level 1. These values are

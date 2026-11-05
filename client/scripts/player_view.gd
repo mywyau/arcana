@@ -106,15 +106,19 @@ func cancel_prediction() -> void:
 	_pending_correction = _authoritative_position - global_position
 
 
-func play_weapon_attack(target_position: Vector3) -> void:
+func stop_prediction() -> void:
+	_predicted_path.clear()
+	_pending_correction = Vector3.ZERO
+
+
+func play_weapon_attack(target_position: Vector3) -> float:
 	if _defeated:
-		return
+		return 0.0
 	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
 	if global_position.distance_squared_to(flat_target) > 0.001:
 		visual_root.look_at(flat_target, Vector3.UP, true)
 	if _equipped_weapon == "bow":
-		_play_bow_attack(flat_target)
-		return
+		return _play_bow_attack(target_position)
 
 	if _attack_tween != null:
 		_attack_tween.kill()
@@ -127,9 +131,10 @@ func play_weapon_attack(target_position: Vector3) -> void:
 	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", 70.0, forward_duration)
 	_attack_tween.set_ease(Tween.EASE_IN_OUT)
 	_attack_tween.tween_property(sword_pivot, "rotation_degrees:z", -55.0, return_duration)
+	return 0.0
 
 
-func _play_bow_attack(target_position: Vector3) -> void:
+func _play_bow_attack(target_position: Vector3) -> float:
 	if _attack_tween != null:
 		_attack_tween.kill()
 	bow_pivot.rotation_degrees.z = -10.0
@@ -151,13 +156,47 @@ func _play_bow_attack(target_position: Vector3) -> void:
 	if projectile_parent == null:
 		projectile_parent = get_tree().root
 	projectile_parent.add_child(arrow)
-	arrow.global_position = global_position + Vector3.UP * 1.15
+	var arrow_start := global_position + Vector3.UP * 1.15
 	var arrow_target := target_position + Vector3.UP * 1.0
-	arrow.look_at(arrow_target, Vector3.UP, true)
-	var flight_time: float = clampf(arrow.global_position.distance_to(arrow_target) / 18.0, 0.12, 0.35)
+	var horizontal_distance := Vector2(
+		arrow_target.x - arrow_start.x,
+		arrow_target.z - arrow_start.z,
+	).length()
+	var arc_height: float = maxf(1.25, horizontal_distance * 0.2)
+	var arc_control := (arrow_start + arrow_target) * 0.5 + Vector3.UP * arc_height
+	arrow.global_position = arrow_start
+	arrow.look_at(arc_control, Vector3.UP, true)
+	var flight_time: float = clampf(arrow_start.distance_to(arrow_target) / 18.0, 0.18, 0.55)
 	var projectile_tween := arrow.create_tween()
-	projectile_tween.tween_property(arrow, "global_position", arrow_target, flight_time)
+	projectile_tween.tween_method(
+		_move_arrow_along_arc.bind(arrow, arrow_start, arc_control, arrow_target),
+		0.0,
+		1.0,
+		flight_time,
+	).set_trans(Tween.TRANS_LINEAR)
 	projectile_tween.tween_callback(arrow.queue_free)
+	return flight_time
+
+
+func _move_arrow_along_arc(
+	progress: float,
+	arrow: MeshInstance3D,
+	start: Vector3,
+	control: Vector3,
+	target: Vector3,
+) -> void:
+	if not is_instance_valid(arrow):
+		return
+	var first_leg := start.lerp(control, progress)
+	var second_leg := control.lerp(target, progress)
+	var position := first_leg.lerp(second_leg, progress)
+	var look_progress: float = minf(1.0, progress + 0.025)
+	var look_first := start.lerp(control, look_progress)
+	var look_second := control.lerp(target, look_progress)
+	var look_position := look_first.lerp(look_second, look_progress)
+	arrow.global_position = position
+	if not position.is_equal_approx(look_position):
+		arrow.look_at(look_position, Vector3.UP, true)
 
 
 func set_weapon(weapon_id: String) -> void:

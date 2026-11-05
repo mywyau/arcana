@@ -41,7 +41,7 @@ type ServerMessage struct {
 type WorldSnapshot struct {
 	Tick         uint64           `json:"tick"`
 	ActionPulse  uint64           `json:"action_pulse"`
-	Dummy        DummySnapshot    `json:"dummy"`
+	Targets      []TargetSnapshot `json:"targets"`
 	CombatEvents []CombatEvent    `json:"combat_events"`
 	Players      []PlayerSnapshot `json:"players"`
 }
@@ -55,7 +55,9 @@ type CombatEvent struct {
 	Amount   int    `json:"amount"`
 }
 
-type DummySnapshot struct {
+type TargetSnapshot struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
 	Position        Position `json:"position"`
 	Health          int      `json:"health"`
 	MaximumHealth   int      `json:"maximum_health"`

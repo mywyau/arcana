@@ -175,24 +175,14 @@ func errorMessage(code string, err error) protocol.ServerMessage {
 
 func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
-		Tick:        snapshot.Tick,
-		ActionPulse: snapshot.ActionPulse,
-		Dummy: protocol.DummySnapshot{
-			Position: protocol.Position{
-				X: snapshot.Dummy.Position.X,
-				Y: snapshot.Dummy.Position.Y,
-				Z: snapshot.Dummy.Position.Z,
-			},
-			Health:          snapshot.Dummy.Health,
-			MaximumHealth:   snapshot.Dummy.MaximumHealth,
-			TargetID:        string(snapshot.Dummy.TargetID),
-			NextAttackPulse: snapshot.Dummy.NextAttackPulse,
-			Defeated:        snapshot.Dummy.Defeated,
-			RespawnAtPulse:  snapshot.Dummy.RespawnAtPulse,
-			DodgeRate:       snapshot.Dummy.DodgeRate,
-		},
+		Tick:         snapshot.Tick,
+		ActionPulse:  snapshot.ActionPulse,
+		Targets:      make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
 		CombatEvents: make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
 		Players:      make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+	}
+	for _, target := range snapshot.Targets {
+		message.Targets = append(message.Targets, targetSnapshotMessage(target))
 	}
 	for _, event := range snapshot.CombatEvents {
 		message.CombatEvents = append(message.CombatEvents, protocol.CombatEvent{
@@ -261,4 +251,23 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 		message.Players = append(message.Players, playerMessage)
 	}
 	return message
+}
+
+func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnapshot {
+	return protocol.TargetSnapshot{
+		ID:   target.ID,
+		Name: target.Name,
+		Position: protocol.Position{
+			X: target.Position.X,
+			Y: target.Position.Y,
+			Z: target.Position.Z,
+		},
+		Health:          target.Health,
+		MaximumHealth:   target.MaximumHealth,
+		TargetID:        string(target.TargetID),
+		NextAttackPulse: target.NextAttackPulse,
+		Defeated:        target.Defeated,
+		RespawnAtPulse:  target.RespawnAtPulse,
+		DodgeRate:       target.DodgeRate,
+	}
 }

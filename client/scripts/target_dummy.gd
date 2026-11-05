@@ -23,6 +23,10 @@ func _ready() -> void:
 		mesh.material_override = _material
 
 
+func set_target_id(target_id: String) -> void:
+	target_body.set_meta(&"combat_target_id", target_id)
+
+
 func play_hit(damage: int, attacker_position: Vector3) -> void:
 	if _hit_tween != null:
 		_hit_tween.kill()

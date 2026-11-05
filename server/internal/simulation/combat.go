@@ -17,9 +17,9 @@ const (
 	daggerApproachRange        = 1.05
 	daggerDamage               = 7
 	daggerAttackIntervalPulses = 3
-	bowRange                   = 6.0
-	bowApproachRange           = 5.5
-	bowDamage                  = 8
+	bowRange                   = 12.0
+	bowApproachRange           = 11.25
+	bowDamage                  = 4
 	bowAttackIntervalPulses    = 5
 	playerMaximumHealth        = 100
 	playerDodgeRate            = 0.10
@@ -31,6 +31,8 @@ const (
 	dummyLeashRange            = 6.0
 	respawnDelayPulses         = 5
 	dummyTargetID              = "dummy"
+	upperDummyTargetID         = "upper_dummy"
+	overlookDummyTargetID      = "overlook_dummy"
 	combatEventHistoryLimit    = 32
 )
 
@@ -92,7 +94,9 @@ type EquipCommand struct {
 	ItemID   WeaponID
 }
 
-type DummySnapshot struct {
+type TargetSnapshot struct {
+	ID              string
+	Name            string
 	Position        Position
 	Health          int
 	MaximumHealth   int
@@ -106,20 +110,63 @@ type DummySnapshot struct {
 type combatState struct {
 	elapsed          time.Duration
 	pulse            uint64
-	dummy            DummySnapshot
+	targets          map[string]*TargetSnapshot
 	pendingTargets   map[PlayerID]TargetCommand
 	pendingEquipment map[PlayerID]EquipCommand
 	nextEventID      uint64
 	events           []CombatEvent
 }
 
+type dummyTarget struct {
+	id    string
+	dummy *TargetSnapshot
+}
+
+func (combat *combatState) dummyTargets() []dummyTarget {
+	ids := make([]string, 0, len(combat.targets))
+	for id := range combat.targets {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	targets := make([]dummyTarget, 0, len(ids))
+	for _, id := range ids {
+		targets = append(targets, dummyTarget{id: id, dummy: combat.targets[id]})
+	}
+	return targets
+}
+
+func (combat *combatState) dummyByID(id string) (*TargetSnapshot, bool) {
+	target, exists := combat.targets[id]
+	return target, exists
+}
+
 func newCombatState() *combatState {
 	return &combatState{
-		dummy: DummySnapshot{
-			Position:      Position{X: -4, Z: -2},
-			Health:        dummyMaximumHealth,
-			MaximumHealth: dummyMaximumHealth,
-			DodgeRate:     dummyDodgeRate,
+		targets: map[string]*TargetSnapshot{
+			dummyTargetID: {
+				ID:            dummyTargetID,
+				Name:          "Ground Dummy",
+				Position:      Position{X: -4, Z: -2},
+				Health:        dummyMaximumHealth,
+				MaximumHealth: dummyMaximumHealth,
+				DodgeRate:     dummyDodgeRate,
+			},
+			upperDummyTargetID: {
+				ID:            upperDummyTargetID,
+				Name:          "Upper Dummy",
+				Position:      Position{X: -4, Y: 3, Z: 2},
+				Health:        dummyMaximumHealth,
+				MaximumHealth: dummyMaximumHealth,
+				DodgeRate:     dummyDodgeRate,
+			},
+			overlookDummyTargetID: {
+				ID:            overlookDummyTargetID,
+				Name:          "Overlook Dummy",
+				Position:      Position{X: 2.75, Y: 0, Z: 3.5},
+				Health:        dummyMaximumHealth,
+				MaximumHealth: dummyMaximumHealth,
+				DodgeRate:     dummyDodgeRate,
+			},
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
@@ -171,12 +218,13 @@ func (w *World) QueueTarget(command TargetCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("action sequence must be positive")
 	}
-	if command.TargetID != "" && command.TargetID != dummyTargetID {
-		return fmt.Errorf("target %q does not exist", command.TargetID)
-	}
-
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if command.TargetID != "" {
+		if _, exists := w.combat.dummyByID(command.TargetID); !exists {
+			return fmt.Errorf("target %q does not exist", command.TargetID)
+		}
+	}
 
 	if _, leaving := w.pendingLeaves[command.PlayerID]; leaving {
 		return fmt.Errorf("player %q is leaving", command.PlayerID)
@@ -233,10 +281,12 @@ func (w *World) applyEquipmentCommands() {
 }
 
 func (w *World) respawnDefeatedEntities() {
-	if w.combat.dummy.Defeated && w.combat.pulse >= w.combat.dummy.RespawnAtPulse {
-		w.combat.dummy.Health = w.combat.dummy.MaximumHealth
-		w.combat.dummy.Defeated = false
-		w.combat.dummy.RespawnAtPulse = 0
+	for _, target := range w.combat.dummyTargets() {
+		if target.dummy.Defeated && w.combat.pulse >= target.dummy.RespawnAtPulse {
+			target.dummy.Health = target.dummy.MaximumHealth
+			target.dummy.Defeated = false
+			target.dummy.RespawnAtPulse = 0
+		}
 	}
 	for _, player := range w.players {
 		if !player.defeated || w.combat.pulse < player.respawnAtPulse {
@@ -274,13 +324,11 @@ func (w *World) applyTargetCommands() {
 		player.combatTarget = command.TargetID
 		if command.TargetID == "" {
 			player.lastActionResult = "disengaged"
-			player.nextAttackPulse = 0
 			if player.autoApproaching {
 				stopPlayer(player)
 			}
 		} else {
 			player.lastActionResult = "engaged"
-			player.nextAttackPulse = w.combat.pulse
 		}
 		player.autoApproaching = false
 		delete(w.combat.pendingTargets, id)
@@ -296,16 +344,21 @@ func (w *World) resolveAutoAttacks() {
 
 	for _, id := range playerIDs {
 		player := w.players[id]
-		if player.defeated || player.combatTarget != dummyTargetID {
+		if player.defeated || player.combatTarget == "" {
 			continue
 		}
-		if w.combat.dummy.Defeated {
+		target, exists := w.combat.dummyByID(player.combatTarget)
+		if !exists {
+			w.clearPlayerTarget(player, "target_missing")
+			continue
+		}
+		if target.Defeated {
 			w.clearPlayerTarget(player, "target_defeated")
 			continue
 		}
 		weapon, _ := weaponDefinition(player.equippedWeapon)
-		if distance(player.position, w.combat.dummy.Position) > weapon.Range {
-			if err := w.approachDummy(player, weapon.ApproachRange); err != nil {
+		if distance(player.position, target.Position) > weapon.Range {
+			if err := w.approachDummy(player, target.Position, weapon.ApproachRange); err != nil {
 				player.lastActionResult = "target_unreachable"
 				player.autoApproaching = false
 			} else {
@@ -323,49 +376,54 @@ func (w *World) resolveAutoAttacks() {
 
 		player.lastActionPulse = w.combat.pulse
 		player.nextAttackPulse = w.combat.pulse + weapon.AttackInterval
-		if w.rollSource.Float64() < w.combat.dummy.DodgeRate {
+		if w.rollSource.Float64() < target.DodgeRate {
 			player.lastActionResult = "dodged"
 			w.combat.recordEvent(CombatEvent{
 				Pulse:    w.combat.pulse,
 				Type:     CombatEventDodged,
 				SourceID: string(player.id),
-				TargetID: dummyTargetID,
+				TargetID: player.combatTarget,
 			})
 			continue
 		}
 
-		w.combat.dummy.Health = max(0, w.combat.dummy.Health-weapon.Damage)
+		target.Health = max(0, target.Health-weapon.Damage)
 		player.lastActionResult = "hit"
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDamage,
 			SourceID: string(player.id),
-			TargetID: dummyTargetID,
+			TargetID: player.combatTarget,
 			Amount:   weapon.Damage,
 		})
-		if w.combat.dummy.TargetID == "" {
-			w.combat.dummy.TargetID = player.id
-			w.combat.dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+		if target.TargetID == "" {
+			target.TargetID = player.id
+			target.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
 		}
-		if w.combat.dummy.Health == 0 {
-			w.defeatDummy()
+		if target.Health == 0 {
+			w.defeatDummy(player.combatTarget, target)
 		}
 	}
 }
 
 func (w *World) resolveDummyAttack() {
-	dummy := &w.combat.dummy
+	for _, target := range w.combat.dummyTargets() {
+		w.resolveOneDummyAttack(target.id, target.dummy)
+	}
+}
+
+func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	if dummy.Defeated || dummy.TargetID == "" {
 		return
 	}
 	player, exists := w.players[dummy.TargetID]
 	if !exists || player.defeated {
-		w.clearDummyTarget()
+		clearDummyTarget(dummy)
 		return
 	}
 	distanceToPlayer := distance(dummy.Position, player.position)
 	if distanceToPlayer > dummyLeashRange {
-		w.clearDummyTarget()
+		clearDummyTarget(dummy)
 		return
 	}
 	if distanceToPlayer > dummyAttackRange || w.combat.pulse < dummy.NextAttackPulse {
@@ -377,7 +435,7 @@ func (w *World) resolveDummyAttack() {
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDodged,
-			SourceID: dummyTargetID,
+			SourceID: dummyID,
 			TargetID: string(player.id),
 		})
 		return
@@ -387,7 +445,7 @@ func (w *World) resolveDummyAttack() {
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,
 		Type:     CombatEventDamage,
-		SourceID: dummyTargetID,
+		SourceID: dummyID,
 		TargetID: string(player.id),
 		Amount:   dummyAttackDamage,
 	})
@@ -408,17 +466,19 @@ func (w *World) defeatPlayer(player *playerState) {
 	delete(w.pendingMoves, player.id)
 	delete(w.combat.pendingTargets, player.id)
 	delete(w.combat.pendingEquipment, player.id)
-	if w.combat.dummy.TargetID == player.id {
-		w.clearDummyTarget()
+	for _, target := range w.combat.dummyTargets() {
+		if target.dummy.TargetID == player.id {
+			clearDummyTarget(target.dummy)
+		}
 	}
 }
 
-func (w *World) defeatDummy() {
-	w.combat.dummy.Defeated = true
-	w.combat.dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
-	w.clearDummyTarget()
+func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
+	dummy.Defeated = true
+	dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
+	clearDummyTarget(dummy)
 	for _, player := range w.players {
-		if player.combatTarget == dummyTargetID {
+		if player.combatTarget == dummyID {
 			w.clearPlayerTarget(player, "target_defeated")
 		}
 	}
@@ -426,7 +486,6 @@ func (w *World) defeatDummy() {
 
 func (w *World) clearPlayerTarget(player *playerState, result string) {
 	player.combatTarget = ""
-	player.nextAttackPulse = 0
 	player.lastActionPulse = w.combat.pulse
 	player.lastActionResult = result
 	if player.autoApproaching {
@@ -435,9 +494,9 @@ func (w *World) clearPlayerTarget(player *playerState, result string) {
 	}
 }
 
-func (w *World) clearDummyTarget() {
-	w.combat.dummy.TargetID = ""
-	w.combat.dummy.NextAttackPulse = 0
+func clearDummyTarget(dummy *TargetSnapshot) {
+	dummy.TargetID = ""
+	dummy.NextAttackPulse = 0
 }
 
 func (combat *combatState) recordEvent(event CombatEvent) {
@@ -449,18 +508,18 @@ func (combat *combatState) recordEvent(event CombatEvent) {
 	}
 }
 
-func (w *World) approachDummy(player *playerState, approachRange float64) error {
-	dx := player.position.X - w.combat.dummy.Position.X
-	dz := player.position.Z - w.combat.dummy.Position.Z
+func (w *World) approachDummy(player *playerState, target Position, approachRange float64) error {
+	dx := player.position.X - target.X
+	dz := player.position.Z - target.Z
 	length := math.Hypot(dx, dz)
 	if length == 0 {
 		dx = 1
 		length = 1
 	}
 	destination := Position{
-		X: w.combat.dummy.Position.X + dx/length*approachRange,
-		Y: w.combat.dummy.Position.Y,
-		Z: w.combat.dummy.Position.Z + dz/length*approachRange,
+		X: target.X + dx/length*approachRange,
+		Y: target.Y,
+		Z: target.Z + dz/length*approachRange,
 	}
 	path := []Position{destination}
 	if w.pathfinder != nil {

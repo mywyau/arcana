@@ -106,12 +106,22 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 
 func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	message := snapshotMessage(simulation.Snapshot{
-		Dummy: simulation.DummySnapshot{
-			TargetID:        "player-one",
-			NextAttackPulse: 16,
-			Defeated:        true,
-			RespawnAtPulse:  20,
-			DodgeRate:       0.2,
+		Targets: []simulation.TargetSnapshot{
+			{
+				ID:              "dummy",
+				TargetID:        "player-one",
+				NextAttackPulse: 16,
+				Defeated:        true,
+				RespawnAtPulse:  20,
+				DodgeRate:       0.2,
+			},
+			{
+				ID:            "upper_dummy",
+				Position:      simulation.Position{X: -4, Y: 3, Z: 2},
+				Health:        75,
+				MaximumHealth: 100,
+				DodgeRate:     0.1,
+			},
 		},
 		CombatEvents: []simulation.CombatEvent{{
 			ID:       7,
@@ -148,9 +158,16 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		event.SourceID != "player-one" || event.TargetID != "dummy" || event.Amount != 10 {
 		t.Fatalf("combat event = %+v", event)
 	}
-	if message.Dummy.TargetID != "player-one" || message.Dummy.NextAttackPulse != 16 ||
-		!message.Dummy.Defeated || message.Dummy.RespawnAtPulse != 20 || message.Dummy.DodgeRate != 0.2 {
-		t.Fatalf("dummy combat state = %+v", message.Dummy)
+	dummy, found := findTarget(message, "dummy")
+	if !found || dummy.TargetID != "player-one" || dummy.NextAttackPulse != 16 ||
+		!dummy.Defeated || dummy.RespawnAtPulse != 20 || dummy.DodgeRate != 0.2 {
+		t.Fatalf("dummy combat state = %+v, found %t", dummy, found)
+	}
+	upperDummy, found := findTarget(message, "upper_dummy")
+	if !found || upperDummy.Position.X != -4 || upperDummy.Position.Y != 3 ||
+		upperDummy.Position.Z != 2 || upperDummy.Health != 75 ||
+		upperDummy.MaximumHealth != 100 || upperDummy.DodgeRate != 0.1 {
+		t.Fatalf("upper dummy combat state = %+v, found %t", upperDummy, found)
 	}
 	player := message.Players[0]
 	if player.Health != 40 || player.MaximumHealth != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||
@@ -197,4 +214,13 @@ func findPlayer(snapshot *protocol.WorldSnapshot, id string) (protocol.PlayerSna
 		}
 	}
 	return protocol.PlayerSnapshot{}, false
+}
+
+func findTarget(snapshot *protocol.WorldSnapshot, id string) (protocol.TargetSnapshot, bool) {
+	for _, target := range snapshot.Targets {
+		if target.ID == id {
+			return target, true
+		}
+	}
+	return protocol.TargetSnapshot{}, false
 }

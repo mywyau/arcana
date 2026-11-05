@@ -97,7 +97,7 @@ type Snapshot struct {
 	Tick         uint64
 	Players      []PlayerSnapshot
 	ActionPulse  uint64
-	Dummy        DummySnapshot
+	Targets      []TargetSnapshot
 	CombatEvents []CombatEvent
 }
 
@@ -241,8 +241,10 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingMoves, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
-	if w.combat.dummy.TargetID == id {
-		w.clearDummyTarget()
+	for _, target := range w.combat.dummyTargets() {
+		if target.dummy.TargetID == id {
+			clearDummyTarget(target.dummy)
+		}
 	}
 	return nil
 }
@@ -322,6 +324,18 @@ func (w *World) Step(elapsed time.Duration) {
 		delete(w.pendingMoves, id)
 	}
 
+	// A target click supersedes an existing movement route immediately on the
+	// next simulation step. Combat still begins on an action pulse, but the
+	// player does not continue walking while that intention waits to apply.
+	for id, command := range w.combat.pendingTargets {
+		if command.TargetID == "" {
+			continue
+		}
+		if player, exists := w.players[id]; exists && !player.defeated {
+			stopPlayer(player)
+		}
+	}
+
 	seconds := elapsed.Seconds()
 	for _, player := range w.players {
 		movePlayer(player, seconds)
@@ -359,8 +373,11 @@ func (w *World) Snapshot() Snapshot {
 		Tick:         w.tick,
 		Players:      make([]PlayerSnapshot, 0, len(w.players)),
 		ActionPulse:  w.combat.pulse,
-		Dummy:        w.combat.dummy,
+		Targets:      make([]TargetSnapshot, 0, len(w.combat.targets)),
 		CombatEvents: append([]CombatEvent(nil), w.combat.events...),
+	}
+	for _, target := range w.combat.dummyTargets() {
+		snapshot.Targets = append(snapshot.Targets, *target.dummy)
 	}
 	for _, player := range w.players {
 		snapshot.Players = append(snapshot.Players, snapshotPlayer(player))
