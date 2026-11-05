@@ -8,6 +8,7 @@ type PersistentPlayerState struct {
 	Position       Position
 	Health         int
 	EquippedWeapon WeaponID
+	EquippedArmour map[ArmourSlot]string
 	CombatStyle    CombatStyleID
 	Inventory      InventorySnapshot
 	Skills         []PersistentSkillState
@@ -18,6 +19,7 @@ func DefaultPersistentPlayerState() PersistentPlayerState {
 	return PersistentPlayerState{
 		Health:         playerMaximumHealth,
 		EquippedWeapon: WeaponSword,
+		EquippedArmour: make(map[ArmourSlot]string),
 		CombatStyle:    defaultCombatStyle(WeaponSword),
 		Inventory:      snapshotInventory(newStarterInventory()),
 		Skills:         persistentSkills(newDefaultSkills()),
@@ -30,6 +32,7 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 		Position:       snapshot.Position,
 		Health:         snapshot.Health,
 		EquippedWeapon: snapshot.EquippedWeapon,
+		EquippedArmour: cloneEquippedArmour(snapshot.EquippedArmour),
 		CombatStyle:    snapshot.CombatStyle,
 		Inventory: InventorySnapshot{
 			Capacity: snapshot.Inventory.Capacity,
@@ -71,6 +74,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if !inventory.contains(string(state.EquippedWeapon)) {
 		return fmt.Errorf("equipped weapon %q is not in inventory", state.EquippedWeapon)
 	}
+	if err := validateEquippedArmour(state.EquippedArmour, inventory); err != nil {
+		return fmt.Errorf("restore equipment: %w", err)
+	}
 	skills, err := skillsFromPersistent(state.Skills)
 	if err != nil {
 		return fmt.Errorf("restore skills: %w", err)
@@ -94,8 +100,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		equippedWeapon: state.EquippedWeapon, dodgeRate: playerDodgeRate, inventory: inventory,
-		combatStyle: state.CombatStyle,
-		skills:      skills,
+		equippedArmour: cloneEquippedArmour(state.EquippedArmour),
+		combatStyle:    state.CombatStyle,
+		skills:         skills,
 	}
 	return nil
 }

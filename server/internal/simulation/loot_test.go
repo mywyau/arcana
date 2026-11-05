@@ -63,6 +63,37 @@ func TestCompetingPickupAwardsDropOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestDropUnequippedEquipmentCreatesPickup(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: 2, Z: 3}, 4)
+
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: string(WeaponDagger),
+	}); err != nil {
+		t.Fatalf("QueueDropItem() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+
+	player := mustPlayer(t, world, "player-one")
+	if snapshotInventoryContains(player.Inventory, string(WeaponDagger)) {
+		t.Fatal("dropped dagger remains in inventory")
+	}
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != string(WeaponDagger) || drops[0].Position != player.Position {
+		t.Fatalf("equipment drop = %+v", drops)
+	}
+}
+
+func TestDropRejectsEquippedItem(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: string(WeaponSword),
+	}); err == nil {
+		t.Fatal("QueueDropItem() error = nil for equipped sword")
+	}
+}
+
 func snapshotInventoryContains(inventory InventorySnapshot, itemID string) bool {
 	for _, item := range inventory.Items {
 		if item.ItemID == itemID && item.Quantity > 0 {
@@ -87,5 +118,26 @@ func TestDefeatedTargetSpawnsTrainingShard(t *testing.T) {
 	}
 	if drops[0].Position != world.combat.targets[dummyTargetID].Position {
 		t.Fatalf("drop position = %+v, want target position %+v", drops[0].Position, world.combat.targets[dummyTargetID].Position)
+	}
+}
+
+func TestArmourTargetsSpawnTrainingArmour(t *testing.T) {
+	tests := []struct {
+		targetID string
+		itemID   string
+	}{
+		{targetID: upperDummyTargetID, itemID: ItemTrainingHelm},
+		{targetID: hillWardenTargetID, itemID: ItemTrainingPlate},
+	}
+	for _, test := range tests {
+		t.Run(test.itemID, func(t *testing.T) {
+			world := newCombatTestWorld()
+			target := world.combat.targets[test.targetID]
+			world.defeatDummy(test.targetID, target)
+			drops := world.Snapshot().Drops
+			if len(drops) != 1 || drops[0].ItemID != test.itemID {
+				t.Fatalf("target drops = %+v, want %q", drops, test.itemID)
+			}
+		})
 	}
 }

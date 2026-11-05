@@ -90,6 +90,7 @@ type PlayerSnapshot struct {
 	Defeated                bool
 	RespawnAtPulse          uint64
 	EquippedWeapon          WeaponID
+	EquippedArmour          map[ArmourSlot]string
 	LastEquipmentSequence   uint64
 	LastEquipmentPulse      uint64
 	CombatStyle             CombatStyleID
@@ -135,6 +136,7 @@ type playerState struct {
 	defeated                bool
 	respawnAtPulse          uint64
 	equippedWeapon          WeaponID
+	equippedArmour          map[ArmourSlot]string
 	lastEquipmentSequence   uint64
 	lastEquipmentPulse      uint64
 	combatStyle             CombatStyleID
@@ -142,23 +144,25 @@ type playerState struct {
 	dodgeRate               float64
 	inventory               inventoryState
 	lastPickupSequence      uint64
+	lastDropSequence        uint64
 	skills                  skillState
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
 type World struct {
-	mu             sync.RWMutex
-	tick           uint64
-	players        map[PlayerID]*playerState
-	pendingJoins   map[PlayerID]*playerState
-	pendingLeaves  map[PlayerID]struct{}
-	pendingMoves   map[PlayerID]pendingMove
-	pendingPickups map[PlayerID]PickupCommand
-	drops          map[string]DropSnapshot
-	nextDropID     uint64
-	pathfinder     Pathfinder
-	combat         *combatState
-	rollSource     RollSource
+	mu               sync.RWMutex
+	tick             uint64
+	players          map[PlayerID]*playerState
+	pendingJoins     map[PlayerID]*playerState
+	pendingLeaves    map[PlayerID]struct{}
+	pendingMoves     map[PlayerID]pendingMove
+	pendingPickups   map[PlayerID]PickupCommand
+	pendingItemDrops map[PlayerID]DropItemCommand
+	drops            map[string]DropSnapshot
+	nextDropID       uint64
+	pathfinder       Pathfinder
+	combat           *combatState
+	rollSource       RollSource
 }
 
 type pendingMove struct {
@@ -176,14 +180,15 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		rollSource = newRandomRollSource()
 	}
 	return &World{
-		players:        make(map[PlayerID]*playerState),
-		pendingJoins:   make(map[PlayerID]*playerState),
-		pendingLeaves:  make(map[PlayerID]struct{}),
-		pendingMoves:   make(map[PlayerID]pendingMove),
-		pendingPickups: make(map[PlayerID]PickupCommand),
-		drops:          make(map[string]DropSnapshot),
-		combat:         newCombatState(),
-		rollSource:     rollSource,
+		players:          make(map[PlayerID]*playerState),
+		pendingJoins:     make(map[PlayerID]*playerState),
+		pendingLeaves:    make(map[PlayerID]struct{}),
+		pendingMoves:     make(map[PlayerID]pendingMove),
+		pendingPickups:   make(map[PlayerID]PickupCommand),
+		pendingItemDrops: make(map[PlayerID]DropItemCommand),
+		drops:            make(map[string]DropSnapshot),
+		combat:           newCombatState(),
+		rollSource:       rollSource,
 	}
 }
 
@@ -217,7 +222,8 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
-		combatStyle: defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
+		equippedArmour: make(map[ArmourSlot]string),
+		combatStyle:    defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
 	}
 	return nil
 }
@@ -249,7 +255,8 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
-		combatStyle: defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
+		equippedArmour: make(map[ArmourSlot]string),
+		combatStyle:    defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
 	}
 	return nil
 }
@@ -268,6 +275,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	w.pendingLeaves[id] = struct{}{}
 	delete(w.pendingMoves, id)
 	delete(w.pendingPickups, id)
+	delete(w.pendingItemDrops, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -375,6 +383,7 @@ func (w *World) Step(elapsed time.Duration) {
 	}
 	w.moveRoamingEnemies(seconds)
 	w.applyPendingPickups()
+	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
 
 	for id := range w.pendingLeaves {
@@ -521,6 +530,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		Defeated:                player.defeated,
 		RespawnAtPulse:          player.respawnAtPulse,
 		EquippedWeapon:          player.equippedWeapon,
+		EquippedArmour:          cloneEquippedArmour(player.equippedArmour),
 		LastEquipmentSequence:   player.lastEquipmentSequence,
 		LastEquipmentPulse:      player.lastEquipmentPulse,
 		CombatStyle:             player.combatStyle,

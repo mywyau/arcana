@@ -2,7 +2,7 @@ class_name PlayerView
 extends Node3D
 
 @export var interpolation_speed: float = 14.0
-@export var movement_speed: float = 4.0
+@export var movement_speed: float = 6.0
 @export var correction_threshold: float = 0.75
 @export var snap_threshold: float = 3.0
 @export var correction_speed: float = 1.5

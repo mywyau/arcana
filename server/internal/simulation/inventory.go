@@ -77,6 +77,23 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 	return false
 }
 
+func (inventory *inventoryState) remove(itemID string, quantity int) bool {
+	if itemID == "" || quantity <= 0 {
+		return false
+	}
+	for index := range inventory.items {
+		if inventory.items[index].ItemID != itemID || inventory.items[index].Quantity < quantity {
+			continue
+		}
+		inventory.items[index].Quantity -= quantity
+		if inventory.items[index].Quantity == 0 {
+			inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
+		}
+		return true
+	}
+	return false
+}
+
 func snapshotInventory(inventory inventoryState) InventorySnapshot {
 	return InventorySnapshot{
 		Capacity: inventory.capacity,

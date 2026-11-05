@@ -193,6 +193,28 @@ func (store *Store) Load(
 	if err := rows.Close(); err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close inventory rows: %w", err)
 	}
+	equipmentRows, err := store.database.QueryContext(ctx, `
+		SELECT slot, item_id FROM character_equipment
+		WHERE player_id = $1 ORDER BY slot`, playerID)
+	if err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query equipment: %w", err)
+	}
+	defer equipmentRows.Close()
+	state.EquippedArmour = make(map[simulation.ArmourSlot]string)
+	for equipmentRows.Next() {
+		var slot simulation.ArmourSlot
+		var itemID string
+		if err := equipmentRows.Scan(&slot, &itemID); err != nil {
+			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan equipment: %w", err)
+		}
+		state.EquippedArmour[slot] = itemID
+	}
+	if err := equipmentRows.Err(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read equipment: %w", err)
+	}
+	if err := equipmentRows.Close(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close equipment rows: %w", err)
+	}
 	skillRows, err := store.database.QueryContext(ctx, `
 		SELECT skill_id, experience FROM character_skills
 		WHERE player_id = $1 ORDER BY skill_id`, playerID)
@@ -250,6 +272,16 @@ func (store *Store) Save(
 			INSERT INTO character_inventory (player_id, slot, item_id, quantity)
 			VALUES ($1, $2, $3, $4)`, playerID, item.Slot, item.ItemID, item.Quantity); err != nil {
 			return fmt.Errorf("insert inventory item: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM character_equipment WHERE player_id = $1", playerID); err != nil {
+		return fmt.Errorf("replace equipment: %w", err)
+	}
+	for slot, itemID := range state.EquippedArmour {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO character_equipment (player_id, slot, item_id)
+			VALUES ($1, $2, $3)`, playerID, slot, itemID); err != nil {
+			return fmt.Errorf("insert equipment: %w", err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM character_skills WHERE player_id = $1", playerID); err != nil {

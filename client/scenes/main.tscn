@@ -399,8 +399,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -230.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -517,8 +517,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -320.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -584,12 +584,18 @@ toggle_mode = true
 text = "Styles"
 
 [node name="Summary" type="Label" parent="UI/InventoryHUD/Margin/VBox"]
+visible = false
 layout_mode = 2
 text = "Inventory  •  0/8 slots used"
 
-[node name="Grid" type="GridContainer" parent="UI/InventoryHUD/Margin/VBox"]
+[node name="ContentScroll" type="ScrollContainer" parent="UI/InventoryHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="UI/InventoryHUD/Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 4
@@ -601,8 +607,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -320.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -668,15 +674,21 @@ toggle_mode = true
 text = "Styles"
 
 [node name="Summary" type="Label" parent="UI/SkillsHUD/Margin/VBox"]
+visible = false
 layout_mode = 2
 text = "Attack 1  •  Strength 1  •  Defence 1\nRange 1  •  Magic 1"
 
-[node name="Grid" type="GridContainer" parent="UI/SkillsHUD/Margin/VBox"]
+[node name="ContentScroll" type="ScrollContainer" parent="UI/SkillsHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="UI/SkillsHUD/Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
-columns = 3
+columns = 4
 
 [node name="EquipmentHUD" type="PanelContainer" parent="UI"]
 visible = false
@@ -685,8 +697,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -320.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -753,11 +765,16 @@ text = "Styles"
 
 [node name="Summary" type="Label" parent="UI/EquipmentHUD/Margin/VBox"]
 layout_mode = 2
-text = "Equipped items  •  server authoritative"
+text = "Equipment  •  paper-doll overview"
 
-[node name="Grid" type="GridContainer" parent="UI/EquipmentHUD/Margin/VBox"]
+[node name="ContentScroll" type="ScrollContainer" parent="UI/EquipmentHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="UI/EquipmentHUD/Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 4
 columns = 3
@@ -769,8 +786,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -320.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -839,9 +856,14 @@ text = "Styles"
 layout_mode = 2
 text = "Spellbook  •  placeholder spells"
 
-[node name="Grid" type="GridContainer" parent="UI/MagicHUD/Margin/VBox"]
+[node name="ContentScroll" type="ScrollContainer" parent="UI/MagicHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="UI/MagicHUD/Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 4
@@ -853,8 +875,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -320.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -924,9 +946,14 @@ text = "Styles"
 layout_mode = 2
 text = "Prayer book  •  placeholder prayers"
 
-[node name="Grid" type="GridContainer" parent="UI/PrayerHUD/Margin/VBox"]
+[node name="ContentScroll" type="ScrollContainer" parent="UI/PrayerHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="UI/PrayerHUD/Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 4
@@ -937,8 +964,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -530.0
-offset_top = -320.0
+offset_left = -620.0
+offset_top = -670.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1007,9 +1034,14 @@ text = "Styles"
 layout_mode = 2
 text = "Sword styles  •  modifiers not active yet"
 
-[node name="Grid" type="GridContainer" parent="UI/StylesHUD/Margin/VBox"]
+[node name="ContentScroll" type="ScrollContainer" parent="UI/StylesHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="UI/StylesHUD/Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 3

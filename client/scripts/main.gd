@@ -15,6 +15,7 @@ const HUD_MINIMUM_SCALE: float = 0.75
 const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
+const INVENTORY_DISPLAY_SLOTS: int = 16
 
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Attack", "level": 1},
@@ -62,6 +63,14 @@ const BATTLE_AXE_ICON: Texture2D = preload("res://assets/icons/battle_axe.svg")
 const STAFF_ICON: Texture2D = preload("res://assets/icons/staff.svg")
 const EMPTY_SLOT_ICON: Texture2D = preload("res://assets/icons/empty_slot.svg")
 const TRAINING_SHARD_ICON: Texture2D = preload("res://assets/icons/training_shard.svg")
+const TRAINING_HELM_ICON: Texture2D = preload("res://assets/icons/training_helm.svg")
+const TRAINING_PLATE_ICON: Texture2D = preload("res://assets/icons/training_plate.svg")
+const TAB_STYLES_ICON: Texture2D = preload("res://assets/icons/tab_styles.svg")
+const TAB_INVENTORY_ICON: Texture2D = preload("res://assets/icons/tab_inventory.svg")
+const TAB_SKILLS_ICON: Texture2D = preload("res://assets/icons/tab_skills.svg")
+const TAB_EQUIPMENT_ICON: Texture2D = preload("res://assets/icons/tab_equipment.svg")
+const TAB_MAGIC_ICON: Texture2D = preload("res://assets/icons/tab_magic.svg")
+const TAB_PRAYER_ICON: Texture2D = preload("res://assets/icons/tab_prayer.svg")
 const PLACEHOLDER_SPELLS: Array = [
 	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spell_ember.svg")},
 	{"name": "Frost Bind", "icon": preload("res://assets/icons/spell_frost.svg")},
@@ -120,6 +129,10 @@ const EQUIPMENT_ICONS: Dictionary = {
 	"battle_axe": BATTLE_AXE_ICON,
 	"staff": STAFF_ICON,
 }
+const ARMOUR_SLOTS: Dictionary = {
+	"training_helm": "head",
+	"training_plate": "body",
+}
 const ITEM_ICONS: Dictionary = {
 	"sword": SWORD_ICON,
 	"dagger": DAGGER_ICON,
@@ -128,6 +141,31 @@ const ITEM_ICONS: Dictionary = {
 	"battle_axe": BATTLE_AXE_ICON,
 	"staff": STAFF_ICON,
 	"training_shard": TRAINING_SHARD_ICON,
+	"training_helm": TRAINING_HELM_ICON,
+	"training_plate": TRAINING_PLATE_ICON,
+}
+const SKILL_ICONS: Dictionary = {
+	"Attack": SWORD_ICON,
+	"Magic": preload("res://assets/icons/spell_ember.svg"),
+	"Range": BOW_ICON,
+	"Defence": TAB_EQUIPMENT_ICON,
+	"Strength": BATTLE_AXE_ICON,
+	"Prayer": TAB_PRAYER_ICON,
+	"Vitality": preload("res://assets/icons/spell_ward.svg"),
+	"Mana": TAB_MAGIC_ICON,
+	"Agility": preload("res://assets/icons/spell_blink.svg"),
+	"Mining": MACE_ICON,
+	"Smithing": MACE_ICON,
+	"Crafting": TRAINING_SHARD_ICON,
+	"Woodcutting": BATTLE_AXE_ICON,
+	"Runecrafting": preload("res://assets/icons/spell_frost.svg"),
+	"Herblore": preload("res://assets/icons/spell_ward.svg"),
+	"Fletching": BOW_ICON,
+	"Fishing": preload("res://assets/icons/spell_frost.svg"),
+	"Cooking": preload("res://assets/icons/spell_ember.svg"),
+	"Farming": TAB_INVENTORY_ICON,
+	"Thieving": DAGGER_ICON,
+	"Construction": TAB_EQUIPMENT_ICON,
 }
 
 @onready var camera_rig: GuidedCamera = $CameraRig
@@ -162,7 +200,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var inventory_prayer_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Prayer
 @onready var inventory_styles_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Styles
 @onready var inventory_summary: Label = $UI/InventoryHUD/Margin/VBox/Summary
-@onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/Grid
+@onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/ContentScroll/Grid
 @onready var skills_combat_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Combat
 @onready var skills_inventory_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Inventory
 @onready var skills_active_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Skills
@@ -171,7 +209,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var skills_prayer_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Prayer
 @onready var skills_styles_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Styles
 @onready var skills_summary: Label = $UI/SkillsHUD/Margin/VBox/Summary
-@onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/Grid
+@onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/ContentScroll/Grid
 @onready var equipment_combat_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Combat
 @onready var equipment_inventory_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Inventory
 @onready var equipment_skills_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Skills
@@ -179,7 +217,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var equipment_magic_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Magic
 @onready var equipment_prayer_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Prayer
 @onready var equipment_styles_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Styles
-@onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/Grid
+@onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/ContentScroll/Grid
 @onready var magic_combat_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Combat
 @onready var magic_inventory_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Inventory
 @onready var magic_skills_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Skills
@@ -187,14 +225,14 @@ const ITEM_ICONS: Dictionary = {
 @onready var magic_active_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Magic
 @onready var magic_prayer_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Prayer
 @onready var magic_styles_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Styles
-@onready var magic_grid: GridContainer = $UI/MagicHUD/Margin/VBox/Grid
+@onready var magic_grid: GridContainer = $UI/MagicHUD/Margin/VBox/ContentScroll/Grid
 @onready var prayer_inventory_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Inventory
 @onready var prayer_skills_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Skills
 @onready var prayer_equipment_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Equipment
 @onready var prayer_magic_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Magic
 @onready var prayer_active_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Prayer
 @onready var prayer_styles_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Styles
-@onready var prayer_grid: GridContainer = $UI/PrayerHUD/Margin/VBox/Grid
+@onready var prayer_grid: GridContainer = $UI/PrayerHUD/Margin/VBox/ContentScroll/Grid
 @onready var styles_combat_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Combat
 @onready var styles_inventory_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Inventory
 @onready var styles_skills_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Skills
@@ -203,7 +241,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var styles_prayer_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Prayer
 @onready var styles_active_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Styles
 @onready var styles_summary: Label = $UI/StylesHUD/Margin/VBox/Summary
-@onready var styles_grid: GridContainer = $UI/StylesHUD/Margin/VBox/Grid
+@onready var styles_grid: GridContainer = $UI/StylesHUD/Margin/VBox/ContentScroll/Grid
 @onready var target_hud: PanelContainer = $UI/TargetHUD
 @onready var player_health_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Health
 @onready var player_health_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/HealthLabel
@@ -232,6 +270,7 @@ var _next_sequence: int = 1
 var _next_action_sequence: int = 1
 var _next_equipment_sequence: int = 1
 var _next_pickup_sequence: int = 1
+var _next_drop_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -252,7 +291,8 @@ var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "sword"
 var _last_equipment_sequence: int = 0
-var _queued_weapon: String = ""
+var _queued_item: String = ""
+var _equipped_armour: Dictionary = {}
 var _combat_style: String = "slash"
 var _last_combat_style_sequence: int = 0
 var _next_combat_style_sequence: int = 1
@@ -507,13 +547,31 @@ func _request_equip(item_id: String) -> void:
 	if _player_defeated:
 		return
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-	if item_id == _equipped_weapon and not equipment_pending:
+	if _is_item_equipped(item_id) and not equipment_pending:
 		return
 	if network.send_equip_item(_next_equipment_sequence, item_id):
-		_queued_weapon = item_id
+		_queued_item = item_id
 		_next_equipment_sequence += 1
 		_update_combat_hud()
 		_update_inventory_hud()
+
+
+func _is_item_equipped(item_id: String) -> bool:
+	if item_id == _equipped_weapon:
+		return true
+	var armour_slot: String = str(ARMOUR_SLOTS.get(item_id, ""))
+	return not armour_slot.is_empty() and str(_equipped_armour.get(armour_slot, "")) == item_id
+
+
+func _on_inventory_item_input(event: InputEvent, item_id: String, is_equipable: bool) -> void:
+	if not is_equipable or _is_item_equipped(item_id) or _player_defeated:
+		return
+	if event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.pressed and mouse_button.button_index == MOUSE_BUTTON_RIGHT:
+			if network.send_drop_item(_next_drop_sequence, item_id):
+				_next_drop_sequence += 1
+			get_viewport().set_input_as_handled()
 
 
 func _request_combat_style(combat_style: String) -> void:
@@ -614,7 +672,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var correction: float = view.apply_authoritative_state(
 			position,
 			path,
-			float(player_data.get("speed", 4.0)),
+			float(player_data.get("speed", 6.0)),
 			acknowledged_sequence,
 			_next_sequence - 1,
 			server_driven_path,
@@ -650,9 +708,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_update_equipment_hud()
 				inventory_selection_changed = true
 				combat_style_changed = true
+			var equipped_armour_data: Variant = player_data.get("equipped_armour", {})
+			if typeof(equipped_armour_data) == TYPE_DICTIONARY and equipped_armour_data != _equipped_armour:
+				_equipped_armour = (equipped_armour_data as Dictionary).duplicate(true)
+				_update_equipment_hud()
+				inventory_selection_changed = true
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
-			if _last_equipment_sequence >= _next_equipment_sequence - 1 and not _queued_weapon.is_empty():
-				_queued_weapon = ""
+			if _last_equipment_sequence >= _next_equipment_sequence - 1 and not _queued_item.is_empty():
+				_queued_item = ""
 				inventory_selection_changed = true
 			var combat_style: String = str(player_data.get("combat_style", "slash"))
 			if combat_style != _combat_style:
@@ -859,6 +922,14 @@ func _on_server_error(code: String, message: String) -> void:
 
 
 func _configure_player_menu() -> void:
+	var tab_icons: Dictionary = {
+		"Styles": TAB_STYLES_ICON,
+		"Inventory": TAB_INVENTORY_ICON,
+		"Skills": TAB_SKILLS_ICON,
+		"Equipment": TAB_EQUIPMENT_ICON,
+		"Magic": TAB_MAGIC_ICON,
+		"Prayer": TAB_PRAYER_ICON,
+	}
 	var tab_rows: Array[HBoxContainer] = [
 		inventory_active_tab_button.get_parent() as HBoxContainer,
 		skills_active_tab_button.get_parent() as HBoxContainer,
@@ -872,6 +943,15 @@ func _configure_player_menu() -> void:
 		var styles_button := tab_row.get_node("Styles") as Button
 		combat_button.visible = false
 		tab_row.move_child(styles_button, 0)
+		for tab_name_value: Variant in tab_icons.keys():
+			var tab_name: String = str(tab_name_value)
+			var tab_button := tab_row.get_node(tab_name) as Button
+			tab_button.custom_minimum_size = Vector2(84, 64)
+			tab_button.text = ""
+			tab_button.icon = tab_icons[tab_name] as Texture2D
+			tab_button.expand_icon = true
+			tab_button.add_theme_constant_override("icon_max_width", 52)
+			tab_button.tooltip_text = tab_name
 	(combat_tab_button.get_parent() as HBoxContainer).visible = false
 	_show_styles_tab()
 
@@ -1244,15 +1324,30 @@ func _populate_placeholder_skills() -> void:
 		var skill: Dictionary = skill_data
 		var skill_name: String = str(skill.get("name", "Skill"))
 		var skill_tile := Button.new()
-		skill_tile.custom_minimum_size = Vector2(145, 72)
+		skill_tile.custom_minimum_size = Vector2(124, 108)
 		skill_tile.focus_mode = Control.FOCUS_NONE
-		skill_tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		skill_tile.text = "%s\nLevel %d" % [skill_name, skill.get("level", 1)]
+		skill_tile.icon = SKILL_ICONS.get(skill_name, TAB_SKILLS_ICON) as Texture2D
+		skill_tile.expand_icon = true
+		skill_tile.add_theme_constant_override("icon_max_width", 58)
+		var level_label := Label.new()
+		var starting_level: int = int(skill.get("level", 1))
+		level_label.text = "%d/%d" % [starting_level, starting_level]
+		level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		level_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		level_label.offset_top = -26.0
+		level_label.offset_bottom = -5.0
+		level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		skill_tile.add_child(level_label)
 		var skill_id: String = str(ACTIVE_SKILL_IDS.get(skill_name, ""))
 		if not skill_id.is_empty():
-			_skill_tiles[skill_id] = skill_tile
+			_skill_tiles[skill_id] = {
+				"tile": skill_tile,
+				"level_label": level_label,
+			}
 		else:
-			skill_tile.tooltip_text = "Placeholder skill — progression is not active yet"
+			skill_tile.tooltip_text = "%s • Level %d/%d • progression is not active yet" % [
+				skill_name, starting_level, starting_level,
+			]
 		skills_grid.add_child(skill_tile)
 	_update_active_skills_hud()
 
@@ -1296,31 +1391,21 @@ func _apply_skills_snapshot(skills: Array) -> void:
 func _update_active_skills_hud() -> void:
 	for skill_id: String in ACTIVE_SKILL_NAMES:
 		_update_progression_skill_tile(skill_id)
-	var attack: Dictionary = _skill_progress["attack"] as Dictionary
-	var strength: Dictionary = _skill_progress["strength"] as Dictionary
-	var defence: Dictionary = _skill_progress["defence"] as Dictionary
-	var ranged: Dictionary = _skill_progress["range"] as Dictionary
-	var magic: Dictionary = _skill_progress["magic"] as Dictionary
-	skills_summary.text = "Attack %d  •  Strength %d  •  Defence %d\nRange %d  •  Magic %d" % [
-		int(attack.get("level", 1)),
-		int(strength.get("level", 1)),
-		int(defence.get("level", 1)),
-		int(ranged.get("level", 1)),
-		int(magic.get("level", 1)),
-	]
 
 
 func _update_progression_skill_tile(skill_id: String) -> void:
-	var skill_tile: Button = _skill_tiles.get(skill_id) as Button
-	if skill_tile == null:
+	var skill_tile: Dictionary = _skill_tiles.get(skill_id, {}) as Dictionary
+	if skill_tile.is_empty():
 		return
+	var tile := skill_tile["tile"] as Button
+	var level_label := skill_tile["level_label"] as Label
 	var progress: Dictionary = _skill_progress[skill_id] as Dictionary
 	var skill_name: String = str(ACTIVE_SKILL_NAMES.get(skill_id, skill_id.capitalize()))
 	var experience: int = int(progress.get("experience", 0))
 	var level: int = int(progress.get("level", 1))
 	var current_level_experience: int = int(progress.get("current", 0))
 	var next_level_experience: int = int(progress.get("next", 100))
-	skill_tile.text = "%s\nLevel %d  •  %d XP" % [skill_name, level, experience]
+	level_label.text = "%d/%d" % [level, level]
 	var training_description: String = "successful hits grant %s XP" % skill_name
 	match skill_id:
 		"attack":
@@ -1334,13 +1419,19 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 		"magic":
 			training_description = "successful staff hits grant Magic XP"
 	if next_level_experience <= 0:
-		skill_tile.tooltip_text = "Maximum level • %s" % training_description
+		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
+			skill_name, level, level, experience, training_description,
+		]
 		return
 	var experience_remaining: int = maxi(0, next_level_experience - experience)
 	var level_span: int = maxi(1, next_level_experience - current_level_experience)
-	var level_progress: int = experience - current_level_experience
+	var level_progress: int = clampi(experience - current_level_experience, 0, level_span)
 	var progress_percent: int = roundi(float(level_progress) / float(level_span) * 100.0)
-	skill_tile.tooltip_text = "XP equals damage dealt • %s • %d XP to level %d • %d%%" % [
+	tile.tooltip_text = "%s • Level %d/%d • %d XP • XP equals damage dealt • %s • %d XP to level %d • %d%%" % [
+		skill_name,
+		level,
+		level,
+		experience,
 		training_description,
 		experience_remaining,
 		level + 1,
@@ -1417,26 +1508,43 @@ func _update_equipment_hud() -> void:
 		equipment_grid.remove_child(child)
 		child.queue_free()
 
+	# Three columns form a simple paper-doll silhouette. Spacer cells keep the
+	# head, legs, and feet aligned down the centre of the body.
 	var equipment_slots: Array = [
+		{"spacer": true},
+		{"name": "Head", "item": str(_equipped_armour.get("head", ""))},
+		{"spacer": true},
+		{"name": "Cape", "item": ""},
+		{"name": "Neck", "item": ""},
+		{"name": "Ring", "item": ""},
 		{"name": "Main Hand", "item": _equipped_weapon},
-		{"name": "Head", "item": ""},
-		{"name": "Body", "item": ""},
+		{"name": "Body", "item": str(_equipped_armour.get("body", ""))},
 		{"name": "Hands", "item": ""},
+		{"spacer": true},
 		{"name": "Legs", "item": ""},
-		{"name": "Trinket", "item": ""},
+		{"spacer": true},
+		{"spacer": true},
+		{"name": "Feet", "item": ""},
+		{"spacer": true},
 	]
 	for slot_data: Variant in equipment_slots:
 		var slot: Dictionary = slot_data
+		if bool(slot.get("spacer", false)):
+			var spacer := Control.new()
+			spacer.custom_minimum_size = Vector2(145, 58)
+			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			equipment_grid.add_child(spacer)
+			continue
 		var item_id: String = str(slot.get("item", ""))
 		var tile := VBoxContainer.new()
-		tile.custom_minimum_size = Vector2(145, 92)
+		tile.custom_minimum_size = Vector2(145, 58)
 		tile.alignment = BoxContainer.ALIGNMENT_CENTER
 		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(48, 58)
+		icon.custom_minimum_size = Vector2(28, 28)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture = EQUIPMENT_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+		icon.texture = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tile.add_child(icon)
 		var label := Label.new()
@@ -1482,20 +1590,28 @@ func _update_inventory_hud() -> void:
 			items_by_slot[slot] = item
 
 	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), _inventory_capacity]
-	for slot: int in range(_inventory_capacity):
+	var displayed_slots: int = maxi(_inventory_capacity, INVENTORY_DISPLAY_SLOTS)
+	for slot: int in range(displayed_slots):
 		var slot_button := Button.new()
-		slot_button.custom_minimum_size = Vector2(108, 72)
+		slot_button.custom_minimum_size = Vector2(124, 112)
 		slot_button.focus_mode = Control.FOCUS_NONE
 		slot_button.mouse_filter = Control.MOUSE_FILTER_STOP
-		if items_by_slot.has(slot):
+		slot_button.text = ""
+		if slot >= _inventory_capacity:
+			slot_button.icon = EMPTY_SLOT_ICON
+			slot_button.expand_icon = true
+			slot_button.disabled = true
+			slot_button.modulate = Color(0.28, 0.31, 0.34)
+			slot_button.tooltip_text = "Locked inventory slot"
+		elif items_by_slot.has(slot):
 			var item: Dictionary = items_by_slot[slot]
 			var item_id: String = str(item.get("item_id", ""))
 			var quantity: int = int(item.get("quantity", 1))
-			var is_weapon: bool = EQUIPMENT_ICONS.has(item_id)
+			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-			var is_queued: bool = equipment_pending and _queued_weapon == item_id
-			var is_equipped: bool = not equipment_pending and _equipped_weapon == item_id
-			slot_button.toggle_mode = is_weapon
+			var is_queued: bool = equipment_pending and _queued_item == item_id
+			var is_equipped: bool = _is_item_equipped(item_id)
+			slot_button.toggle_mode = is_equipable
 			slot_button.set_pressed_no_signal(is_queued or is_equipped)
 			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
 			slot_button.expand_icon = true
@@ -1504,26 +1620,35 @@ func _update_inventory_hud() -> void:
 				item_status = "Queued"
 			elif is_equipped:
 				item_status = "Equipped"
-			elif quantity > 1:
-				item_status = "×%d" % quantity
-			slot_button.text = "%s%s" % [
-				item_id.capitalize(),
-				"\n%s" % item_status if not item_status.is_empty() else "",
-			]
-			slot_button.tooltip_text = "%s — slot %d%s" % [
-				item_id.capitalize(),
+			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
+			var status_text: String = " • %s" % item_status if not item_status.is_empty() else ""
+			slot_button.tooltip_text = "%s%s%s • slot %d%s" % [
+				item_id.capitalize(), quantity_text, status_text,
 				slot + 1,
-				" — click to equip" if is_weapon else "",
+				" — left-click to equip • right-click to drop when unequipped" if is_equipable else "",
 			]
-			slot_button.disabled = _player_defeated or not is_weapon
-			if is_weapon:
+			slot_button.disabled = _player_defeated and is_equipable
+			if is_equipped or is_queued:
+				var selection_style := StyleBoxFlat.new()
+				selection_style.bg_color = Color(0.06, 0.09, 0.12, 0.96)
+				selection_style.border_width_left = 4
+				selection_style.border_width_top = 4
+				selection_style.border_width_right = 4
+				selection_style.border_width_bottom = 4
+				selection_style.border_color = Color(0.35, 0.7, 1.0) if is_queued else Color(0.95, 0.72, 0.2)
+				selection_style.corner_radius_top_left = 6
+				selection_style.corner_radius_top_right = 6
+				selection_style.corner_radius_bottom_left = 6
+				selection_style.corner_radius_bottom_right = 6
+				slot_button.add_theme_stylebox_override("pressed", selection_style)
+				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
+			if is_equipable:
 				slot_button.pressed.connect(_request_equip.bind(item_id))
+				slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id, is_equipable))
 		else:
-			slot_button.text = "Empty"
 			slot_button.icon = EMPTY_SLOT_ICON
 			slot_button.expand_icon = true
-			slot_button.disabled = true
-			slot_button.modulate = Color(0.66, 0.7, 0.74)
+			slot_button.modulate = Color(0.9, 0.93, 0.96)
 		inventory_grid.add_child(slot_button)
 
 
@@ -1607,13 +1732,14 @@ func _update_combat_hud() -> void:
 		cooldown_label.text = "Attack ready"
 
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-	var displayed_weapon: String = _queued_weapon if equipment_pending else _equipped_weapon
+	var queued_weapon: String = _queued_item if EQUIPMENT_ICONS.has(_queued_item) else ""
+	var displayed_weapon: String = queued_weapon if equipment_pending and not queued_weapon.is_empty() else _equipped_weapon
 	sword_button.set_pressed_no_signal(displayed_weapon == "sword")
 	dagger_button.set_pressed_no_signal(displayed_weapon == "dagger")
 	bow_button.set_pressed_no_signal(displayed_weapon == "bow")
-	sword_button.text = "1  Sword%s" % ("  • queued" if equipment_pending and _queued_weapon == "sword" else "")
-	dagger_button.text = "2  Dagger%s" % ("  • queued" if equipment_pending and _queued_weapon == "dagger" else "")
-	bow_button.text = "3  Bow%s" % ("  • queued" if equipment_pending and _queued_weapon == "bow" else "")
+	sword_button.text = "1  Sword%s" % ("  • queued" if equipment_pending and queued_weapon == "sword" else "")
+	dagger_button.text = "2  Dagger%s" % ("  • queued" if equipment_pending and queued_weapon == "dagger" else "")
+	bow_button.text = "3  Bow%s" % ("  • queued" if equipment_pending and queued_weapon == "bow" else "")
 	sword_button.disabled = _player_defeated
 	dagger_button.disabled = _player_defeated
 	bow_button.disabled = _player_defeated

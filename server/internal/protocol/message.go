@@ -15,6 +15,7 @@ const (
 	MessageEquipItem    = "equip_item"
 	MessageCombatStyle  = "set_combat_style"
 	MessagePickupItem   = "pickup_item"
+	MessageDropItem     = "drop_item"
 	MessageWelcome      = "welcome"
 	MessageSnapshot     = "snapshot"
 	MessageError        = "error"
@@ -108,6 +109,7 @@ type PlayerSnapshot struct {
 	Defeated                bool               `json:"defeated"`
 	RespawnAtPulse          uint64             `json:"respawn_at_pulse"`
 	EquippedWeapon          string             `json:"equipped_weapon"`
+	EquippedArmour          map[string]string  `json:"equipped_armour"`
 	LastEquipmentSequence   uint64             `json:"last_equipment_sequence"`
 	LastEquipmentPulse      uint64             `json:"last_equipment_pulse"`
 	CombatStyle             string             `json:"combat_style"`
@@ -161,7 +163,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 
 	if message.Type != MessageAuthenticate && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
-		message.Type != MessagePickupItem && message.Type != MessageCombatStyle {
+		message.Type != MessagePickupItem && message.Type != MessageDropItem && message.Type != MessageCombatStyle {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -178,6 +180,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {
 		return ClientMessage{}, fmt.Errorf("drop ID is required")
+	}
+	if message.Type == MessageDropItem && message.ItemID == "" {
+		return ClientMessage{}, fmt.Errorf("item ID is required")
 	}
 	if message.Type == MessageCombatStyle && message.CombatStyle == "" {
 		return ClientMessage{}, fmt.Errorf("combat style is required")

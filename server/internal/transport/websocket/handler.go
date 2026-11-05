@@ -19,7 +19,7 @@ import (
 
 const (
 	connectionReadLimit   = 4 * 1024
-	playerSpeed           = 4.0
+	playerSpeed           = 6.0
 	writeTimeout          = 2 * time.Second
 	authenticationTimeout = 5 * time.Second
 	characterSaveTimeout  = 2 * time.Second
@@ -295,6 +295,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				DropID:   message.DropID,
 			})
+		case protocol.MessageDropItem:
+			rejectionCode = "drop_rejected"
+			err = h.world.QueueDropItem(simulation.DropItemCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				ItemID:   message.ItemID,
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
@@ -385,6 +392,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			Defeated:                player.Defeated,
 			RespawnAtPulse:          player.RespawnAtPulse,
 			EquippedWeapon:          string(player.EquippedWeapon),
+			EquippedArmour:          make(map[string]string, len(player.EquippedArmour)),
 			LastEquipmentSequence:   player.LastEquipmentSequence,
 			LastEquipmentPulse:      player.LastEquipmentPulse,
 			CombatStyle:             string(player.CombatStyle),
@@ -397,6 +405,9 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			LastPickupSequence: player.LastPickupSequence,
 			Skills:             make([]protocol.SkillSnapshot, 0, len(player.Skills)),
 			Path:               make([]protocol.Position, 0, len(player.Path)),
+		}
+		for slot, itemID := range player.EquippedArmour {
+			playerMessage.EquippedArmour[string(slot)] = itemID
 		}
 		for _, item := range player.Inventory.Items {
 			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{

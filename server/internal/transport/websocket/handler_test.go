@@ -66,6 +66,9 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 		}
 		player, exists := findPlayer(message.Snapshot, welcome.PlayerID)
 		if exists && player.LastCommandSequence == 1 {
+			if player.Speed != playerSpeed {
+				t.Fatalf("player speed = %v, want %v", player.Speed, playerSpeed)
+			}
 			if player.Position.Y <= 0 {
 				t.Fatalf("player position = %+v, want positive Y movement", player.Position)
 			}

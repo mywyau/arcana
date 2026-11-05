@@ -346,12 +346,14 @@ func (w *World) QueueCombatStyle(command CombatStyleCommand) error {
 	return nil
 }
 
-// QueueEquip records an owned prototype weapon to equip on the next action pulse.
+// QueueEquip records an owned weapon or armour item to equip on the next action pulse.
 func (w *World) QueueEquip(command EquipCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("equipment sequence must be positive")
 	}
-	if _, exists := weaponDefinition(command.ItemID); !exists {
+	_, weaponExists := weaponDefinition(command.ItemID)
+	_, armourExists := armourSlot(string(command.ItemID))
+	if !weaponExists && !armourExists {
 		return fmt.Errorf("item %q does not exist", command.ItemID)
 	}
 
@@ -447,8 +449,12 @@ func (w *World) applyEquipmentCommands() {
 	for _, id := range playerIDs {
 		command := w.combat.pendingEquipment[id]
 		if player, exists := w.players[id]; exists && !player.defeated {
-			player.equippedWeapon = command.ItemID
-			player.combatStyle = defaultCombatStyle(command.ItemID)
+			if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
+				player.equippedArmour[slot] = string(command.ItemID)
+			} else {
+				player.equippedWeapon = command.ItemID
+				player.combatStyle = defaultCombatStyle(command.ItemID)
+			}
 			player.lastEquipmentSequence = command.Sequence
 			player.lastEquipmentPulse = w.combat.pulse
 		}
@@ -779,7 +785,13 @@ func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
 		enemy.path = nil
 		enemy.nextRepathPulse = 0
 	}
-	w.spawnDrop(dummy.Position, trainingShardItem, 1)
+	itemID := trainingShardItem
+	if dummyID == upperDummyTargetID {
+		itemID = ItemTrainingHelm
+	} else if dummyID == hillWardenTargetID {
+		itemID = ItemTrainingPlate
+	}
+	w.spawnDrop(dummy.Position, itemID, 1)
 	for _, player := range w.players {
 		if player.combatTarget == dummyID {
 			w.clearPlayerTarget(player, "target_defeated")

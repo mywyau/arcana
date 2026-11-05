@@ -285,6 +285,27 @@ func TestDaggerUsesItsDamageAndCadence(t *testing.T) {
 	}
 }
 
+func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.players["player-one"].inventory.add(ItemTrainingHelm, 1)
+
+	if err := world.QueueEquip(EquipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemTrainingHelm),
+	}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+
+	player := mustPlayer(t, world, "player-one")
+	if got := player.EquippedArmour[ArmourSlotHead]; got != ItemTrainingHelm {
+		t.Fatalf("equipped head item = %q, want %q", got, ItemTrainingHelm)
+	}
+	if player.EquippedWeapon != WeaponSword {
+		t.Fatalf("equipping armour changed weapon to %q", player.EquippedWeapon)
+	}
+}
+
 func TestBowAttacksFromRangeWithoutApproaching(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: 9.5}, 4)
