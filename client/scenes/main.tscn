@@ -124,6 +124,20 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
+[sub_resource type="StyleBoxFlat" id="ManaFill"]
+bg_color = Color(0.2, 0.45, 0.88, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="PrayerFill"]
+bg_color = Color(0.72, 0.56, 0.22, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [sub_resource type="StyleBoxFlat" id="CooldownFill"]
 bg_color = Color(0.92, 0.63, 0.15, 1)
 corner_radius_top_left = 4
@@ -259,14 +273,134 @@ layout_mode = 2
 text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
 label_settings = SubResource("StatusLabelSettings")
 
+[node name="HudEditHint" type="Label" parent="UI"]
+visible = false
+mouse_filter = 2
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -360.0
+offset_top = 112.0
+offset_right = 360.0
+offset_bottom = 142.0
+grow_horizontal = 2
+text = "HUD EDIT MODE  •  drag MOVE  •  drag ↘ to scale  •  F10 save/close  •  Shift+F10 reset"
+label_settings = SubResource("StatusLabelSettings")
+horizontal_alignment = 1
+
+[node name="PlayerVitalsHUD" type="PanelContainer" parent="UI"]
+mouse_filter = 2
+anchors_preset = 3
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -190.0
+offset_right = 340.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/PlayerVitalsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="UI/PlayerVitalsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="HealthLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Health  100/100  •  Dodge 10%"
+
+[node name="Health" type="ProgressBar" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("PlayerHealthFill")
+
+[node name="ManaLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Mana  100/100"
+
+[node name="Mana" type="ProgressBar" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("ManaFill")
+
+[node name="PrayerLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Prayer  100/100"
+
+[node name="Prayer" type="ProgressBar" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("PrayerFill")
+
+[node name="TargetHUD" type="PanelContainer" parent="UI"]
+visible = false
+mouse_filter = 2
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -210.0
+offset_top = 20.0
+offset_right = 210.0
+offset_bottom = 102.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/TargetHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="UI/TargetHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Header" type="HBoxContainer" parent="UI/TargetHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="HealthLabel" type="Label" parent="UI/TargetHUD/Margin/VBox/Header"]
+layout_mode = 2
+text = "Target  100/100"
+
+[node name="Spacer" type="Control" parent="UI/TargetHUD/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AggroLabel" type="Label" parent="UI/TargetHUD/Margin/VBox/Header"]
+layout_mode = 2
+text = "No aggro"
+
+[node name="Health" type="ProgressBar" parent="UI/TargetHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("TargetHealthFill")
+
 [node name="CombatHUD" type="PanelContainer" parent="UI"]
+visible = false
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -530.0
-offset_top = -320.0
+offset_top = -230.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -324,44 +458,6 @@ custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Styles"
-
-[node name="TargetRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
-layout_mode = 2
-
-[node name="TargetHealthLabel" type="Label" parent="UI/CombatHUD/Margin/VBox/TargetRow"]
-layout_mode = 2
-text = "Target Dummy  100/100"
-
-[node name="Spacer" type="Control" parent="UI/CombatHUD/Margin/VBox/TargetRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="AggroLabel" type="Label" parent="UI/CombatHUD/Margin/VBox/TargetRow"]
-layout_mode = 2
-text = "No aggro"
-
-[node name="TargetHealth" type="ProgressBar" parent="UI/CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 18)
-layout_mode = 2
-value = 100.0
-show_percentage = false
-theme_override_styles/background = SubResource("HUDBarBackground")
-theme_override_styles/fill = SubResource("TargetHealthFill")
-
-[node name="PlayerRow" type="HBoxContainer" parent="UI/CombatHUD/Margin/VBox"]
-layout_mode = 2
-
-[node name="PlayerHealthLabel" type="Label" parent="UI/CombatHUD/Margin/VBox/PlayerRow"]
-layout_mode = 2
-text = "You  100/100  •  Dodge 10%"
-
-[node name="PlayerHealth" type="ProgressBar" parent="UI/CombatHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 18)
-layout_mode = 2
-value = 100.0
-show_percentage = false
-theme_override_styles/background = SubResource("HUDBarBackground")
-theme_override_styles/fill = SubResource("PlayerHealthFill")
 
 [node name="CombatState" type="Label" parent="UI/CombatHUD/Margin/VBox"]
 layout_mode = 2
@@ -475,6 +571,12 @@ layout_mode = 2
 toggle_mode = true
 text = "Magic"
 
+[node name="Prayer" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Prayer"
+
 [node name="Styles" type="Button" parent="UI/InventoryHUD/Margin/VBox/TabRow"]
 custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
@@ -552,6 +654,12 @@ custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Magic"
+
+[node name="Prayer" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Prayer"
 
 [node name="Styles" type="Button" parent="UI/SkillsHUD/Margin/VBox/TabRow"]
 custom_minimum_size = Vector2(72, 30)
@@ -631,6 +739,12 @@ layout_mode = 2
 toggle_mode = true
 text = "Magic"
 
+[node name="Prayer" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Prayer"
+
 [node name="Styles" type="Button" parent="UI/EquipmentHUD/Margin/VBox/TabRow"]
 custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
@@ -709,6 +823,12 @@ toggle_mode = true
 button_pressed = true
 text = "Magic"
 
+[node name="Prayer" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Prayer"
+
 [node name="Styles" type="Button" parent="UI/MagicHUD/Margin/VBox/TabRow"]
 custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
@@ -726,8 +846,92 @@ theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 4
 
-[node name="StylesHUD" type="PanelContainer" parent="UI"]
+[node name="PrayerHUD" type="PanelContainer" parent="UI"]
 visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -530.0
+offset_top = -320.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/PrayerHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/PrayerHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TabRow" type="HBoxContainer" parent="UI/PrayerHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+visible = false
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Magic"
+
+[node name="Prayer" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Prayer"
+
+[node name="Styles" type="Button" parent="UI/PrayerHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Styles"
+
+[node name="Summary" type="Label" parent="UI/PrayerHUD/Margin/VBox"]
+layout_mode = 2
+text = "Prayer book  •  placeholder prayers"
+
+[node name="Grid" type="GridContainer" parent="UI/PrayerHUD/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 4
+
+[node name="StylesHUD" type="PanelContainer" parent="UI"]
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
@@ -785,6 +989,12 @@ custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Magic"
+
+[node name="Prayer" type="Button" parent="UI/StylesHUD/Margin/VBox/TabRow"]
+custom_minimum_size = Vector2(72, 30)
+layout_mode = 2
+toggle_mode = true
+text = "Prayer"
 
 [node name="Styles" type="Button" parent="UI/StylesHUD/Margin/VBox/TabRow"]
 custom_minimum_size = Vector2(72, 30)

@@ -244,7 +244,15 @@ damage, and produces an authoritative `dodged` event shown as blue `DODGE`
 feedback. Dodge is deliberately independent from future percentage defence and
 flat armour calculations.
 
-The bottom-right combat HUD shows player and target health, dodge, enemy aggro,
-attack readiness, current combat state, and respawn countdowns. Its sword,
-dagger, bow, and disengage buttons send the same authoritative intentions as
-the `1`, `2`, `3`, and `Escape` shortcuts.
+The persistent bottom-left player HUD shows authoritative health, Mana, Prayer,
+and dodge. Players begin with 100/100 Mana and 100/100 Prayer; spending and
+regeneration are not implemented yet. Enemy health is deliberately separate: a
+top-centre Target HUD appears only for the selected enemy or an enemy that
+currently has aggro. Styles is the default bottom-right tab, and the Prayer tab
+contains disabled placeholder prayers ready for a later activation slice.
+
+Press `F10` to edit the HUD. Drag a highlighted `MOVE` header to reposition a
+panel and its corner handle to scale it between 75% and 150%. The layout is
+saved locally in `user://hud_layout.cfg`; `Shift+F10` restores the defaults.
+The former combat panel and its attack-pulse bar are hidden from players. Press
+`F9` to show or hide that panel while debugging combat timing.

@@ -101,6 +101,10 @@ type PlayerSnapshot struct {
 	AutoApproaching         bool               `json:"auto_approaching"`
 	Health                  int                `json:"health"`
 	MaximumHealth           int                `json:"maximum_health"`
+	Mana                    int                `json:"mana"`
+	MaximumMana             int                `json:"maximum_mana"`
+	Prayer                  int                `json:"prayer"`
+	MaximumPrayer           int                `json:"maximum_prayer"`
 	Defeated                bool               `json:"defeated"`
 	RespawnAtPulse          uint64             `json:"respawn_at_pulse"`
 	EquippedWeapon          string             `json:"equipped_weapon"`

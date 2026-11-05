@@ -91,6 +91,8 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	w.pendingJoins[id] = &playerState{
 		id: id, position: state.Position, spawnPosition: Position{}, speed: speed,
 		navigationLocation: location, health: state.Health, maximumHealth: playerMaximumHealth,
+		mana: playerMaximumMana, maximumMana: playerMaximumMana,
+		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		equippedWeapon: state.EquippedWeapon, dodgeRate: playerDodgeRate, inventory: inventory,
 		combatStyle: state.CombatStyle,
 		skills:      skills,

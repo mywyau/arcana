@@ -34,6 +34,8 @@ const (
 	staffDamage                   = 6
 	staffAttackIntervalPulses     = 5
 	playerMaximumHealth           = 100
+	playerMaximumMana             = 100
+	playerMaximumPrayer           = 100
 	playerDodgeRate               = 0.10
 	dummyMaximumHealth            = 100
 	dummyDodgeRate                = 0.10

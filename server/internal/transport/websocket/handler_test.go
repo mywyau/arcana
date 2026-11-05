@@ -255,6 +255,10 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			ID:                      "player-one",
 			Health:                  40,
 			MaximumHealth:           100,
+			Mana:                    80,
+			MaximumMana:             100,
+			Prayer:                  70,
+			MaximumPrayer:           100,
 			Defeated:                true,
 			RespawnAtPulse:          20,
 			EquippedWeapon:          simulation.WeaponDagger,
@@ -302,7 +306,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		t.Fatalf("drop snapshot = %+v", message.Drops)
 	}
 	player := message.Players[0]
-	if player.Health != 40 || player.MaximumHealth != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||
+	if player.Health != 40 || player.MaximumHealth != 100 || player.Mana != 80 || player.MaximumMana != 100 ||
+		player.Prayer != 70 || player.MaximumPrayer != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||
 		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
 		player.CombatStyle != "stab" || player.LastCombatStyleSequence != 4 || player.DodgeRate != 0.15 {
 		t.Fatalf("player vital state = %+v", player)

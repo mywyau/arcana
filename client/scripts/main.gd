@@ -10,6 +10,11 @@ const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const LOOT_COLLISION_MASK: int = 16
 const ALL_WORLD_COLLISION_MASK: int = 7
+const HUD_LAYOUT_PATH: String = "user://hud_layout.cfg"
+const HUD_MINIMUM_SCALE: float = 0.75
+const HUD_MAXIMUM_SCALE: float = 1.5
+const HUD_HANDLE_HEIGHT: float = 28.0
+const HUD_RESIZE_HANDLE_SIZE: float = 30.0
 
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Attack", "level": 1},
@@ -62,6 +67,12 @@ const PLACEHOLDER_SPELLS: Array = [
 	{"name": "Frost Bind", "icon": preload("res://assets/icons/spell_frost.svg")},
 	{"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_ward.svg")},
 	{"name": "Blink", "icon": preload("res://assets/icons/spell_blink.svg")},
+]
+const PLACEHOLDER_PRAYERS: Array[String] = [
+	"Steadfast",
+	"Clarity",
+	"Ward",
+	"Haste",
 ]
 const COMBAT_STYLES: Dictionary = {
 	"sword": [
@@ -128,11 +139,14 @@ const ITEM_ICONS: Dictionary = {
 @onready var drops: Node3D = $Drops
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
+@onready var hud_edit_hint: Label = $UI/HudEditHint
+@onready var player_vitals_hud: PanelContainer = $UI/PlayerVitalsHUD
 @onready var combat_hud: PanelContainer = $UI/CombatHUD
 @onready var inventory_hud: PanelContainer = $UI/InventoryHUD
 @onready var skills_hud: PanelContainer = $UI/SkillsHUD
 @onready var equipment_hud: PanelContainer = $UI/EquipmentHUD
 @onready var magic_hud: PanelContainer = $UI/MagicHUD
+@onready var prayer_hud: PanelContainer = $UI/PrayerHUD
 @onready var styles_hud: PanelContainer = $UI/StylesHUD
 @onready var combat_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Combat
 @onready var inventory_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Inventory
@@ -145,6 +159,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var inventory_skills_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Skills
 @onready var inventory_equipment_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Equipment
 @onready var inventory_magic_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Magic
+@onready var inventory_prayer_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Prayer
 @onready var inventory_styles_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Styles
 @onready var inventory_summary: Label = $UI/InventoryHUD/Margin/VBox/Summary
 @onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/Grid
@@ -153,6 +168,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var skills_active_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Skills
 @onready var skills_equipment_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Equipment
 @onready var skills_magic_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Magic
+@onready var skills_prayer_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Prayer
 @onready var skills_styles_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Styles
 @onready var skills_summary: Label = $UI/SkillsHUD/Margin/VBox/Summary
 @onready var skills_grid: GridContainer = $UI/SkillsHUD/Margin/VBox/Grid
@@ -161,6 +177,7 @@ const ITEM_ICONS: Dictionary = {
 @onready var equipment_skills_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Skills
 @onready var equipment_active_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Equipment
 @onready var equipment_magic_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Magic
+@onready var equipment_prayer_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Prayer
 @onready var equipment_styles_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Styles
 @onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/Grid
 @onready var magic_combat_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Combat
@@ -168,21 +185,35 @@ const ITEM_ICONS: Dictionary = {
 @onready var magic_skills_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Skills
 @onready var magic_equipment_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Equipment
 @onready var magic_active_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Magic
+@onready var magic_prayer_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Prayer
 @onready var magic_styles_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Styles
 @onready var magic_grid: GridContainer = $UI/MagicHUD/Margin/VBox/Grid
+@onready var prayer_inventory_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Inventory
+@onready var prayer_skills_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Skills
+@onready var prayer_equipment_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Equipment
+@onready var prayer_magic_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Magic
+@onready var prayer_active_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Prayer
+@onready var prayer_styles_tab_button: Button = $UI/PrayerHUD/Margin/VBox/TabRow/Styles
+@onready var prayer_grid: GridContainer = $UI/PrayerHUD/Margin/VBox/Grid
 @onready var styles_combat_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Combat
 @onready var styles_inventory_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Inventory
 @onready var styles_skills_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Skills
 @onready var styles_equipment_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Equipment
 @onready var styles_magic_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Magic
+@onready var styles_prayer_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Prayer
 @onready var styles_active_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Styles
 @onready var styles_summary: Label = $UI/StylesHUD/Margin/VBox/Summary
 @onready var styles_grid: GridContainer = $UI/StylesHUD/Margin/VBox/Grid
-@onready var player_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/PlayerHealth
-@onready var player_health_label: Label = $UI/CombatHUD/Margin/VBox/PlayerRow/PlayerHealthLabel
-@onready var target_health_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/TargetHealth
-@onready var target_health_label: Label = $UI/CombatHUD/Margin/VBox/TargetRow/TargetHealthLabel
-@onready var aggro_label: Label = $UI/CombatHUD/Margin/VBox/TargetRow/AggroLabel
+@onready var target_hud: PanelContainer = $UI/TargetHUD
+@onready var player_health_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Health
+@onready var player_health_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/HealthLabel
+@onready var player_mana_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Mana
+@onready var player_mana_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/ManaLabel
+@onready var player_prayer_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Prayer
+@onready var player_prayer_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/PrayerLabel
+@onready var target_health_bar: ProgressBar = $UI/TargetHUD/Margin/VBox/Health
+@onready var target_health_label: Label = $UI/TargetHUD/Margin/VBox/Header/HealthLabel
+@onready var aggro_label: Label = $UI/TargetHUD/Margin/VBox/Header/AggroLabel
 @onready var combat_state_label: Label = $UI/CombatHUD/Margin/VBox/CombatState
 @onready var cooldown_label: Label = $UI/CombatHUD/Margin/VBox/CooldownLabel
 @onready var cooldown_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/Cooldown
@@ -212,6 +243,10 @@ var _target_states: Dictionary = {}
 var _drop_views: Dictionary = {}
 var _player_health: int = 100
 var _player_maximum_health: int = 100
+var _player_mana: int = 100
+var _player_maximum_mana: int = 100
+var _player_prayer: int = 100
+var _player_maximum_prayer: int = 100
 var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
@@ -239,6 +274,16 @@ var _combat_events_initialized: bool = false
 var _pending_click: Vector2
 var _has_pending_click: bool = false
 var _target_click_tween: Tween
+var _hud_groups: Dictionary = {}
+var _hud_handles: Dictionary = {}
+var _hud_edit_mode: bool = false
+var _target_hud_active: bool = false
+var _combat_debug_hud_visible: bool = false
+var _hud_drag_group: String = ""
+var _hud_scale_group: String = ""
+var _hud_pointer_start: Vector2 = Vector2.ZERO
+var _hud_position_start: Vector2 = Vector2.ZERO
+var _hud_scale_start: float = 1.0
 
 
 func _ready() -> void:
@@ -261,43 +306,68 @@ func _ready() -> void:
 	inventory_skills_tab_button.pressed.connect(_show_skills_tab)
 	inventory_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	inventory_magic_tab_button.pressed.connect(_show_magic_tab)
+	inventory_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	inventory_styles_tab_button.pressed.connect(_show_styles_tab)
 	skills_combat_tab_button.pressed.connect(_show_combat_tab)
 	skills_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	skills_active_tab_button.pressed.connect(_show_skills_tab)
 	skills_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	skills_magic_tab_button.pressed.connect(_show_magic_tab)
+	skills_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	skills_styles_tab_button.pressed.connect(_show_styles_tab)
 	equipment_combat_tab_button.pressed.connect(_show_combat_tab)
 	equipment_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	equipment_skills_tab_button.pressed.connect(_show_skills_tab)
 	equipment_active_tab_button.pressed.connect(_show_equipment_tab)
 	equipment_magic_tab_button.pressed.connect(_show_magic_tab)
+	equipment_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	equipment_styles_tab_button.pressed.connect(_show_styles_tab)
 	magic_combat_tab_button.pressed.connect(_show_combat_tab)
 	magic_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	magic_skills_tab_button.pressed.connect(_show_skills_tab)
 	magic_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	magic_active_tab_button.pressed.connect(_show_magic_tab)
+	magic_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	magic_styles_tab_button.pressed.connect(_show_styles_tab)
+	prayer_inventory_tab_button.pressed.connect(_show_inventory_tab)
+	prayer_skills_tab_button.pressed.connect(_show_skills_tab)
+	prayer_equipment_tab_button.pressed.connect(_show_equipment_tab)
+	prayer_magic_tab_button.pressed.connect(_show_magic_tab)
+	prayer_active_tab_button.pressed.connect(_show_prayer_tab)
+	prayer_styles_tab_button.pressed.connect(_show_styles_tab)
 	styles_combat_tab_button.pressed.connect(_show_combat_tab)
 	styles_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	styles_skills_tab_button.pressed.connect(_show_skills_tab)
 	styles_equipment_tab_button.pressed.connect(_show_equipment_tab)
 	styles_magic_tab_button.pressed.connect(_show_magic_tab)
+	styles_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	styles_active_tab_button.pressed.connect(_show_styles_tab)
+	_configure_player_menu()
 	_update_combat_hud()
 	_update_inventory_hud()
 	_populate_placeholder_skills()
 	_populate_placeholder_spells()
+	_populate_placeholder_prayers()
 	_update_combat_styles_hud()
 	_update_equipment_hud()
+	_setup_hud_layout.call_deferred()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.pressed and not key_event.echo:
+			if key_event.keycode == KEY_F10:
+				if key_event.shift_pressed:
+					_reset_hud_layout()
+				else:
+					_set_hud_edit_mode(not _hud_edit_mode)
+				get_viewport().set_input_as_handled()
+				return
+			if key_event.keycode == KEY_F9:
+				_toggle_combat_debug_hud()
+				get_viewport().set_input_as_handled()
+				return
 			match key_event.keycode:
 				KEY_ESCAPE:
 					_request_disengage()
@@ -320,6 +390,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_6:
 					_request_equip("staff")
 					get_viewport().set_input_as_handled()
+		return
+	if _hud_edit_mode:
+		get_viewport().set_input_as_handled()
 		return
 	if not event is InputEventMouseButton:
 		return
@@ -558,6 +631,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_auto_approaching = bool(player_data.get("auto_approaching", false))
 			_player_health = int(player_data.get("health", _player_health))
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
+			_player_mana = int(player_data.get("mana", _player_mana))
+			_player_maximum_mana = int(player_data.get("maximum_mana", _player_maximum_mana))
+			_player_prayer = int(player_data.get("prayer", _player_prayer))
+			_player_maximum_prayer = int(player_data.get("maximum_prayer", _player_maximum_prayer))
 			_player_defeated = bool(player_data.get("defeated", false))
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
@@ -781,12 +858,264 @@ func _on_server_error(code: String, message: String) -> void:
 			local_view.cancel_prediction()
 
 
+func _configure_player_menu() -> void:
+	var tab_rows: Array[HBoxContainer] = [
+		inventory_active_tab_button.get_parent() as HBoxContainer,
+		skills_active_tab_button.get_parent() as HBoxContainer,
+		equipment_active_tab_button.get_parent() as HBoxContainer,
+		magic_active_tab_button.get_parent() as HBoxContainer,
+		prayer_active_tab_button.get_parent() as HBoxContainer,
+		styles_active_tab_button.get_parent() as HBoxContainer,
+	]
+	for tab_row: HBoxContainer in tab_rows:
+		var combat_button := tab_row.get_node("Combat") as Button
+		var styles_button := tab_row.get_node("Styles") as Button
+		combat_button.visible = false
+		tab_row.move_child(styles_button, 0)
+	(combat_tab_button.get_parent() as HBoxContainer).visible = false
+	_show_styles_tab()
+
+
+func _toggle_combat_debug_hud() -> void:
+	if _combat_debug_hud_visible:
+		_show_styles_tab()
+	else:
+		_show_combat_tab()
+
+
+func _setup_hud_layout() -> void:
+	_register_hud_group("player", [player_vitals_hud], player_vitals_hud)
+	_register_hud_group("target", [target_hud], target_hud)
+	_register_hud_group(
+		"menu",
+		[combat_hud, inventory_hud, skills_hud, equipment_hud, magic_hud, prayer_hud, styles_hud],
+		inventory_hud,
+	)
+	_load_hud_layout()
+	_create_hud_edit_handles()
+	get_viewport().size_changed.connect(_on_hud_viewport_resized)
+	_clamp_all_hud_groups()
+	_refresh_hud_edit_handles()
+
+
+func _register_hud_group(group_id: String, panels: Array, reference_panel: Control) -> void:
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var position_ratio := Vector2(
+		reference_panel.global_position.x / maxf(1.0, viewport_size.x),
+		reference_panel.global_position.y / maxf(1.0, viewport_size.y),
+	)
+	_hud_groups[group_id] = {
+		"panels": panels,
+		"position": reference_panel.global_position,
+		"scale": 1.0,
+		"default_position_ratio": position_ratio,
+		"default_scale": 1.0,
+	}
+
+
+func _create_hud_edit_handles() -> void:
+	for group_id_value: Variant in _hud_groups.keys():
+		var group_id: String = str(group_id_value)
+		var move_handle := Button.new()
+		move_handle.name = "HudMove_%s" % group_id
+		move_handle.text = "MOVE  %s" % group_id.capitalize()
+		move_handle.focus_mode = Control.FOCUS_NONE
+		move_handle.mouse_default_cursor_shape = Control.CURSOR_MOVE
+		move_handle.z_index = 100
+		move_handle.visible = false
+		move_handle.gui_input.connect(_on_hud_move_handle_input.bind(group_id))
+		$UI.add_child(move_handle)
+
+		var resize_handle := Button.new()
+		resize_handle.name = "HudResize_%s" % group_id
+		resize_handle.text = "↘"
+		resize_handle.focus_mode = Control.FOCUS_NONE
+		resize_handle.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
+		resize_handle.z_index = 101
+		resize_handle.visible = false
+		resize_handle.gui_input.connect(_on_hud_resize_handle_input.bind(group_id))
+		$UI.add_child(resize_handle)
+		_hud_handles[group_id] = {"move": move_handle, "resize": resize_handle}
+
+
+func _set_hud_edit_mode(enabled: bool) -> void:
+	_hud_edit_mode = enabled
+	hud_edit_hint.visible = enabled
+	target_hud.visible = _target_hud_active or enabled
+	if not enabled:
+		_hud_drag_group = ""
+		_hud_scale_group = ""
+		_save_hud_layout()
+	_refresh_hud_edit_handles()
+
+
+func _refresh_hud_edit_handles() -> void:
+	if _hud_handles.is_empty():
+		return
+	for group_id_value: Variant in _hud_handles.keys():
+		var group_id: String = str(group_id_value)
+		var handles: Dictionary = _hud_handles[group_id]
+		var move_handle := handles["move"] as Button
+		var resize_handle := handles["resize"] as Button
+		var panel: Control = _get_visible_hud_panel(group_id)
+		var show_handles: bool = _hud_edit_mode and panel != null
+		move_handle.visible = show_handles
+		resize_handle.visible = show_handles
+		if not show_handles:
+			continue
+		var scaled_size: Vector2 = panel.size * panel.scale
+		move_handle.global_position = panel.global_position
+		move_handle.size = Vector2(scaled_size.x, HUD_HANDLE_HEIGHT)
+		resize_handle.global_position = panel.global_position + scaled_size - Vector2.ONE * HUD_RESIZE_HANDLE_SIZE
+		resize_handle.size = Vector2.ONE * HUD_RESIZE_HANDLE_SIZE
+
+
+func _get_visible_hud_panel(group_id: String) -> Control:
+	var group: Dictionary = _hud_groups.get(group_id, {})
+	var panels: Array = group.get("panels", [])
+	for panel_value: Variant in panels:
+		var panel := panel_value as Control
+		if panel != null and panel.visible:
+			return panel
+	return null
+
+
+func _on_hud_move_handle_input(event: InputEvent, group_id: String) -> void:
+	if event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
+			_hud_drag_group = group_id
+			_hud_scale_group = ""
+			_hud_pointer_start = get_viewport().get_mouse_position()
+			var group: Dictionary = _hud_groups[group_id]
+			_hud_position_start = group["position"] as Vector2
+		else:
+			_hud_drag_group = ""
+			_save_hud_layout()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _hud_drag_group == group_id:
+		var pointer_delta: Vector2 = get_viewport().get_mouse_position() - _hud_pointer_start
+		_set_hud_group_layout(group_id, _hud_position_start + pointer_delta, -1.0)
+		get_viewport().set_input_as_handled()
+
+
+func _on_hud_resize_handle_input(event: InputEvent, group_id: String) -> void:
+	if event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
+			_hud_scale_group = group_id
+			_hud_drag_group = ""
+			_hud_pointer_start = get_viewport().get_mouse_position()
+			var group: Dictionary = _hud_groups[group_id]
+			_hud_position_start = group["position"] as Vector2
+			_hud_scale_start = float(group["scale"])
+		else:
+			_hud_scale_group = ""
+			_save_hud_layout()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _hud_scale_group == group_id:
+		var pointer_delta: Vector2 = get_viewport().get_mouse_position() - _hud_pointer_start
+		var scale_delta: float = (pointer_delta.x + pointer_delta.y) / 600.0
+		_set_hud_group_layout(group_id, _hud_position_start, _hud_scale_start + scale_delta)
+		get_viewport().set_input_as_handled()
+
+
+func _set_hud_group_layout(group_id: String, requested_position: Vector2, requested_scale: float) -> void:
+	var group: Dictionary = _hud_groups[group_id]
+	var layout_scale: float = float(group["scale"])
+	if requested_scale >= 0.0:
+		layout_scale = clampf(requested_scale, HUD_MINIMUM_SCALE, HUD_MAXIMUM_SCALE)
+	var maximum_size := Vector2.ZERO
+	var panels: Array = group["panels"]
+	for panel_value: Variant in panels:
+		var panel := panel_value as Control
+		maximum_size.x = maxf(maximum_size.x, panel.size.x * layout_scale)
+		maximum_size.y = maxf(maximum_size.y, panel.size.y * layout_scale)
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var clamped_position := Vector2(
+		clampf(requested_position.x, 0.0, maxf(0.0, viewport_size.x - maximum_size.x)),
+		clampf(requested_position.y, 0.0, maxf(0.0, viewport_size.y - maximum_size.y)),
+	)
+	group["position"] = clamped_position
+	group["scale"] = layout_scale
+	_hud_groups[group_id] = group
+	for panel_value: Variant in panels:
+		var panel := panel_value as Control
+		panel.scale = Vector2.ONE * layout_scale
+		panel.global_position = clamped_position
+	_refresh_hud_edit_handles()
+
+
+func _load_hud_layout() -> void:
+	var config := ConfigFile.new()
+	if config.load(HUD_LAYOUT_PATH) != OK:
+		return
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	for group_id_value: Variant in _hud_groups.keys():
+		var group_id: String = str(group_id_value)
+		var group: Dictionary = _hud_groups[group_id]
+		var default_ratio: Vector2 = group["default_position_ratio"] as Vector2
+		var ratio_value: Variant = config.get_value(group_id, "position_ratio", default_ratio)
+		var position_ratio: Vector2 = ratio_value if ratio_value is Vector2 else default_ratio
+		var layout_scale: float = float(config.get_value(group_id, "scale", group["default_scale"]))
+		_set_hud_group_layout(group_id, position_ratio * viewport_size, layout_scale)
+
+
+func _save_hud_layout() -> void:
+	if _hud_groups.is_empty():
+		return
+	var config := ConfigFile.new()
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	for group_id_value: Variant in _hud_groups.keys():
+		var group_id: String = str(group_id_value)
+		var group: Dictionary = _hud_groups[group_id]
+		var position: Vector2 = group["position"] as Vector2
+		var position_ratio := Vector2(
+			position.x / maxf(1.0, viewport_size.x),
+			position.y / maxf(1.0, viewport_size.y),
+		)
+		config.set_value(group_id, "position_ratio", position_ratio)
+		config.set_value(group_id, "scale", float(group["scale"]))
+	var save_error: Error = config.save(HUD_LAYOUT_PATH)
+	if save_error != OK:
+		push_warning("Could not save HUD layout: %s" % error_string(save_error))
+
+
+func _reset_hud_layout() -> void:
+	if _hud_groups.is_empty():
+		return
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	for group_id_value: Variant in _hud_groups.keys():
+		var group_id: String = str(group_id_value)
+		var group: Dictionary = _hud_groups[group_id]
+		var default_ratio: Vector2 = group["default_position_ratio"] as Vector2
+		_set_hud_group_layout(group_id, default_ratio * viewport_size, float(group["default_scale"]))
+	_save_hud_layout()
+
+
+func _clamp_all_hud_groups() -> void:
+	for group_id_value: Variant in _hud_groups.keys():
+		var group_id: String = str(group_id_value)
+		var group: Dictionary = _hud_groups[group_id]
+		_set_hud_group_layout(group_id, group["position"] as Vector2, float(group["scale"]))
+
+
+func _on_hud_viewport_resized() -> void:
+	_clamp_all_hud_groups()
+
+
 func _show_combat_tab() -> void:
+	_combat_debug_hud_visible = true
 	combat_hud.visible = true
 	inventory_hud.visible = false
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	prayer_hud.visible = false
 	styles_hud.visible = false
 	combat_tab_button.set_pressed_no_signal(true)
 	inventory_tab_button.set_pressed_no_signal(false)
@@ -794,81 +1123,120 @@ func _show_combat_tab() -> void:
 	combat_equipment_tab_button.set_pressed_no_signal(false)
 	combat_magic_tab_button.set_pressed_no_signal(false)
 	combat_styles_tab_button.set_pressed_no_signal(false)
+	_refresh_hud_edit_handles()
 
 
 func _show_inventory_tab() -> void:
+	_combat_debug_hud_visible = false
 	combat_hud.visible = false
 	inventory_hud.visible = true
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	prayer_hud.visible = false
 	styles_hud.visible = false
 	inventory_combat_tab_button.set_pressed_no_signal(false)
 	inventory_active_tab_button.set_pressed_no_signal(true)
 	inventory_skills_tab_button.set_pressed_no_signal(false)
 	inventory_equipment_tab_button.set_pressed_no_signal(false)
 	inventory_magic_tab_button.set_pressed_no_signal(false)
+	inventory_prayer_tab_button.set_pressed_no_signal(false)
 	inventory_styles_tab_button.set_pressed_no_signal(false)
+	_refresh_hud_edit_handles()
 
 
 func _show_skills_tab() -> void:
+	_combat_debug_hud_visible = false
 	combat_hud.visible = false
 	inventory_hud.visible = false
 	skills_hud.visible = true
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	prayer_hud.visible = false
 	styles_hud.visible = false
 	skills_combat_tab_button.set_pressed_no_signal(false)
 	skills_inventory_tab_button.set_pressed_no_signal(false)
 	skills_active_tab_button.set_pressed_no_signal(true)
 	skills_equipment_tab_button.set_pressed_no_signal(false)
 	skills_magic_tab_button.set_pressed_no_signal(false)
+	skills_prayer_tab_button.set_pressed_no_signal(false)
 	skills_styles_tab_button.set_pressed_no_signal(false)
+	_refresh_hud_edit_handles()
 
 
 func _show_equipment_tab() -> void:
+	_combat_debug_hud_visible = false
 	combat_hud.visible = false
 	inventory_hud.visible = false
 	skills_hud.visible = false
 	equipment_hud.visible = true
 	magic_hud.visible = false
+	prayer_hud.visible = false
 	styles_hud.visible = false
 	equipment_combat_tab_button.set_pressed_no_signal(false)
 	equipment_inventory_tab_button.set_pressed_no_signal(false)
 	equipment_skills_tab_button.set_pressed_no_signal(false)
 	equipment_active_tab_button.set_pressed_no_signal(true)
 	equipment_magic_tab_button.set_pressed_no_signal(false)
+	equipment_prayer_tab_button.set_pressed_no_signal(false)
 	equipment_styles_tab_button.set_pressed_no_signal(false)
+	_refresh_hud_edit_handles()
 
 
 func _show_magic_tab() -> void:
+	_combat_debug_hud_visible = false
 	combat_hud.visible = false
 	inventory_hud.visible = false
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = true
+	prayer_hud.visible = false
 	styles_hud.visible = false
 	magic_combat_tab_button.set_pressed_no_signal(false)
 	magic_inventory_tab_button.set_pressed_no_signal(false)
 	magic_skills_tab_button.set_pressed_no_signal(false)
 	magic_equipment_tab_button.set_pressed_no_signal(false)
 	magic_active_tab_button.set_pressed_no_signal(true)
+	magic_prayer_tab_button.set_pressed_no_signal(false)
 	magic_styles_tab_button.set_pressed_no_signal(false)
+	_refresh_hud_edit_handles()
 
 
-func _show_styles_tab() -> void:
+func _show_prayer_tab() -> void:
+	_combat_debug_hud_visible = false
 	combat_hud.visible = false
 	inventory_hud.visible = false
 	skills_hud.visible = false
 	equipment_hud.visible = false
 	magic_hud.visible = false
+	prayer_hud.visible = true
+	styles_hud.visible = false
+	prayer_inventory_tab_button.set_pressed_no_signal(false)
+	prayer_skills_tab_button.set_pressed_no_signal(false)
+	prayer_equipment_tab_button.set_pressed_no_signal(false)
+	prayer_magic_tab_button.set_pressed_no_signal(false)
+	prayer_active_tab_button.set_pressed_no_signal(true)
+	prayer_styles_tab_button.set_pressed_no_signal(false)
+	_refresh_hud_edit_handles()
+
+
+func _show_styles_tab() -> void:
+	_combat_debug_hud_visible = false
+	combat_hud.visible = false
+	inventory_hud.visible = false
+	skills_hud.visible = false
+	equipment_hud.visible = false
+	magic_hud.visible = false
+	prayer_hud.visible = false
 	styles_hud.visible = true
 	styles_combat_tab_button.set_pressed_no_signal(false)
 	styles_inventory_tab_button.set_pressed_no_signal(false)
 	styles_skills_tab_button.set_pressed_no_signal(false)
 	styles_equipment_tab_button.set_pressed_no_signal(false)
 	styles_magic_tab_button.set_pressed_no_signal(false)
+	styles_prayer_tab_button.set_pressed_no_signal(false)
 	styles_active_tab_button.set_pressed_no_signal(true)
+	_refresh_hud_edit_handles()
 
 
 func _populate_placeholder_skills() -> void:
@@ -991,6 +1359,17 @@ func _populate_placeholder_spells() -> void:
 		spell_button.expand_icon = true
 		spell_button.tooltip_text = "%s — placeholder spell" % spell.get("name", "Spell")
 		magic_grid.add_child(spell_button)
+
+
+func _populate_placeholder_prayers() -> void:
+	for prayer_name: String in PLACEHOLDER_PRAYERS:
+		var prayer_button := Button.new()
+		prayer_button.custom_minimum_size = Vector2(104, 88)
+		prayer_button.focus_mode = Control.FOCUS_NONE
+		prayer_button.disabled = true
+		prayer_button.text = "◇\n%s" % prayer_name
+		prayer_button.tooltip_text = "%s — placeholder prayer" % prayer_name
+		prayer_grid.add_child(prayer_button)
 
 
 func _update_combat_styles_hud() -> void:
@@ -1154,11 +1533,17 @@ func _update_combat_hud() -> void:
 		state = "respawn in %d" % maxi(0, _player_respawn_at_pulse - _action_pulse)
 	player_health_bar.max_value = maxi(1, _player_maximum_health)
 	player_health_bar.value = _player_health
-	player_health_label.text = "You  %d/%d  •  Dodge %d%%" % [
+	player_health_label.text = "Health  %d/%d  •  Dodge %d%%" % [
 		_player_health,
 		_player_maximum_health,
 		roundi(_player_dodge_rate * 100.0),
 	]
+	player_mana_bar.max_value = maxi(1, _player_maximum_mana)
+	player_mana_bar.value = _player_mana
+	player_mana_label.text = "Mana  %d/%d" % [_player_mana, _player_maximum_mana]
+	player_prayer_bar.max_value = maxi(1, _player_maximum_prayer)
+	player_prayer_bar.value = _player_prayer
+	player_prayer_label.text = "Prayer  %d/%d" % [_player_prayer, _player_maximum_prayer]
 	var target_ids: Array = _target_states.keys()
 	target_ids.sort()
 	var displayed_target_key: String = _combat_target
@@ -1169,9 +1554,9 @@ func _update_combat_hud() -> void:
 			if str(candidate.get("target_id", "")) == _local_player_id:
 				displayed_target_key = target_id
 				break
-		if displayed_target_key.is_empty() and not target_ids.is_empty():
-			displayed_target_key = str(target_ids[0])
 	var displayed_target: Dictionary = _target_states.get(displayed_target_key, {})
+	_target_hud_active = not displayed_target_key.is_empty() and not displayed_target.is_empty()
+	target_hud.visible = _target_hud_active or _hud_edit_mode
 	var displayed_health: int = int(displayed_target.get("health", 0))
 	var displayed_maximum_health: int = int(displayed_target.get("maximum_health", 100))
 	var displayed_defeated: bool = bool(displayed_target.get("defeated", false))

@@ -83,6 +83,10 @@ type PlayerSnapshot struct {
 	AutoApproaching         bool
 	Health                  int
 	MaximumHealth           int
+	Mana                    int
+	MaximumMana             int
+	Prayer                  int
+	MaximumPrayer           int
 	Defeated                bool
 	RespawnAtPulse          uint64
 	EquippedWeapon          WeaponID
@@ -124,6 +128,10 @@ type playerState struct {
 	spawnPosition           Position
 	health                  int
 	maximumHealth           int
+	mana                    int
+	maximumMana             int
+	prayer                  int
+	maximumPrayer           int
 	defeated                bool
 	respawnAtPulse          uint64
 	equippedWeapon          WeaponID
@@ -206,6 +214,8 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	w.players[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
+		mana: playerMaximumMana, maximumMana: playerMaximumMana,
+		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
 		combatStyle: defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
 	}
@@ -236,6 +246,8 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	w.pendingJoins[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
+		mana: playerMaximumMana, maximumMana: playerMaximumMana,
+		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
 		combatStyle: defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
 	}
@@ -502,6 +514,10 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		AutoApproaching:         player.autoApproaching,
 		Health:                  player.health,
 		MaximumHealth:           player.maximumHealth,
+		Mana:                    player.mana,
+		MaximumMana:             player.maximumMana,
+		Prayer:                  player.prayer,
+		MaximumPrayer:           player.maximumPrayer,
 		Defeated:                player.defeated,
 		RespawnAtPulse:          player.respawnAtPulse,
 		EquippedWeapon:          player.equippedWeapon,
