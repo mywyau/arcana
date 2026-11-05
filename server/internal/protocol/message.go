@@ -61,6 +61,7 @@ type CombatEvent struct {
 type TargetSnapshot struct {
 	ID              string   `json:"id"`
 	Name            string   `json:"name"`
+	Kind            string   `json:"kind"`
 	Position        Position `json:"position"`
 	Health          int      `json:"health"`
 	MaximumHealth   int      `json:"maximum_health"`

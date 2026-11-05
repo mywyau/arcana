@@ -109,6 +109,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		Targets: []simulation.TargetSnapshot{
 			{
 				ID:              "dummy",
+				Kind:            "creature",
 				TargetID:        "player-one",
 				NextAttackPulse: 16,
 				Defeated:        true,
@@ -165,7 +166,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		t.Fatalf("combat event = %+v", event)
 	}
 	dummy, found := findTarget(message, "dummy")
-	if !found || dummy.TargetID != "player-one" || dummy.NextAttackPulse != 16 ||
+	if !found || dummy.Kind != "creature" || dummy.TargetID != "player-one" || dummy.NextAttackPulse != 16 ||
 		!dummy.Defeated || dummy.RespawnAtPulse != 20 || dummy.DodgeRate != 0.2 {
 		t.Fatalf("dummy combat state = %+v, found %t", dummy, found)
 	}

@@ -457,13 +457,14 @@ func _sync_targets(target_payloads: Variant) -> void:
 			view.name = "Target_%s" % target_id
 			targets.add_child(view)
 			view.set_target_id(target_id)
+			view.set_target_kind(str(target_data.get("kind", "dummy")))
 			_target_views[target_id] = view
 		var coordinates: Dictionary = position_data
-		view.position = Vector3(
+		view.set_authoritative_position(Vector3(
 			float(coordinates.get("x", 0.0)),
 			float(coordinates.get("y", 0.0)),
 			float(coordinates.get("z", 0.0)),
-		)
+		))
 		view.set_defeated(bool(target_data.get("defeated", false)))
 		_target_states[target_id] = target_data.duplicate(true)
 		active_ids[target_id] = true

@@ -2,6 +2,7 @@ class_name TargetDummy
 extends Node3D
 
 const REST_COLOR := Color(0.75, 0.16, 0.12, 1.0)
+const CREATURE_COLOR := Color(0.34, 0.52, 0.2, 1.0)
 
 @onready var visual: Node3D = $Visual
 @onready var attack_pivot: Node3D = $Visual/AttackPivot
@@ -14,6 +15,10 @@ var _material: StandardMaterial3D
 var _hit_tween: Tween
 var _attack_tween: Tween
 var _defeated: bool = false
+var _mobile: bool = false
+var _has_position: bool = false
+var _authoritative_position: Vector3
+var _rest_color: Color = REST_COLOR
 
 
 func _ready() -> void:
@@ -23,8 +28,30 @@ func _ready() -> void:
 		mesh.material_override = _material
 
 
+func _process(delta: float) -> void:
+	if not _mobile or not _has_position:
+		return
+	var weight: float = 1.0 - exp(-14.0 * delta)
+	global_position = global_position.lerp(_authoritative_position, weight)
+
+
 func set_target_id(target_id: String) -> void:
 	target_body.set_meta(&"combat_target_id", target_id)
+
+
+func set_target_kind(kind: String) -> void:
+	_mobile = kind == "creature"
+	_rest_color = CREATURE_COLOR if _mobile else REST_COLOR
+	attack_pivot.scale = Vector3(1.15, 0.75, 1.25) if _mobile else Vector3.ONE
+	if _material != null and not _defeated:
+		_material.albedo_color = _rest_color
+
+
+func set_authoritative_position(authoritative_position: Vector3) -> void:
+	_authoritative_position = authoritative_position
+	if not _has_position or not _mobile:
+		global_position = authoritative_position
+	_has_position = true
 
 
 func play_hit(damage: int, attacker_position: Vector3) -> void:
@@ -55,7 +82,7 @@ func play_hit(damage: int, attacker_position: Vector3) -> void:
 	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
 	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
 	if _material != null:
-		_hit_tween.tween_property(_material, "albedo_color", REST_COLOR, 0.18)
+		_hit_tween.tween_property(_material, "albedo_color", _rest_color, 0.18)
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
@@ -97,4 +124,4 @@ func set_defeated(defeated: bool) -> void:
 	target_body.collision_layer = 0 if defeated else 8
 	collision_shape.set_deferred("disabled", defeated)
 	if not defeated and _material != null:
-		_material.albedo_color = REST_COLOR
+		_material.albedo_color = _rest_color

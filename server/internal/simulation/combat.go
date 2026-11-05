@@ -29,11 +29,21 @@ const (
 	dummyAttackIntervalPulses  = 4
 	dummyAttackRange           = 1.55
 	dummyLeashRange            = 6.0
+	roamingEnemySpeed          = 3.0
+	roamingDetectionRange      = 5.0
+	roamingLeashRange          = 8.0
+	roamingRepathPulses        = 1
 	respawnDelayPulses         = 5
 	dummyTargetID              = "dummy"
 	upperDummyTargetID         = "upper_dummy"
 	overlookDummyTargetID      = "overlook_dummy"
+	hillWardenTargetID         = "hill_warden"
 	combatEventHistoryLimit    = 32
+)
+
+const (
+	targetKindDummy    = "dummy"
+	targetKindCreature = "creature"
 )
 
 type WeaponID string
@@ -97,6 +107,7 @@ type EquipCommand struct {
 type TargetSnapshot struct {
 	ID              string
 	Name            string
+	Kind            string
 	Position        Position
 	Health          int
 	MaximumHealth   int
@@ -115,6 +126,15 @@ type combatState struct {
 	pendingEquipment map[PlayerID]EquipCommand
 	nextEventID      uint64
 	events           []CombatEvent
+	roamingEnemies   map[string]*roamingEnemyState
+}
+
+type roamingEnemyState struct {
+	target          *TargetSnapshot
+	home            Position
+	path            []Position
+	speed           float64
+	nextRepathPulse uint64
 }
 
 type dummyTarget struct {
@@ -141,11 +161,22 @@ func (combat *combatState) dummyByID(id string) (*TargetSnapshot, bool) {
 }
 
 func newCombatState() *combatState {
+	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
+	hillWarden := &TargetSnapshot{
+		ID:            hillWardenTargetID,
+		Name:          "Hill Warden",
+		Kind:          targetKindCreature,
+		Position:      hillWardenHome,
+		Health:        dummyMaximumHealth,
+		MaximumHealth: dummyMaximumHealth,
+		DodgeRate:     dummyDodgeRate,
+	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
 			dummyTargetID: {
 				ID:            dummyTargetID,
 				Name:          "Ground Dummy",
+				Kind:          targetKindDummy,
 				Position:      Position{X: -4, Z: -2},
 				Health:        dummyMaximumHealth,
 				MaximumHealth: dummyMaximumHealth,
@@ -154,6 +185,7 @@ func newCombatState() *combatState {
 			upperDummyTargetID: {
 				ID:            upperDummyTargetID,
 				Name:          "Upper Dummy",
+				Kind:          targetKindDummy,
 				Position:      Position{X: -4, Y: 3, Z: 2},
 				Health:        dummyMaximumHealth,
 				MaximumHealth: dummyMaximumHealth,
@@ -162,14 +194,23 @@ func newCombatState() *combatState {
 			overlookDummyTargetID: {
 				ID:            overlookDummyTargetID,
 				Name:          "Overlook Dummy",
+				Kind:          targetKindDummy,
 				Position:      Position{X: 2.75, Y: 0, Z: 3.5},
 				Health:        dummyMaximumHealth,
 				MaximumHealth: dummyMaximumHealth,
 				DodgeRate:     dummyDodgeRate,
 			},
+			hillWardenTargetID: hillWarden,
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
+		roamingEnemies: map[string]*roamingEnemyState{
+			hillWardenTargetID: {
+				target: hillWarden,
+				home:   hillWardenHome,
+				speed:  roamingEnemySpeed,
+			},
+		},
 	}
 }
 
@@ -259,6 +300,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.applyEquipmentCommands()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
+		w.updateRoamingEnemies()
 		w.resolveDummyAttack()
 	}
 }
@@ -286,6 +328,11 @@ func (w *World) respawnDefeatedEntities() {
 			target.dummy.Health = target.dummy.MaximumHealth
 			target.dummy.Defeated = false
 			target.dummy.RespawnAtPulse = 0
+			if enemy, roaming := w.combat.roamingEnemies[target.id]; roaming {
+				target.dummy.Position = enemy.home
+				enemy.path = nil
+				enemy.nextRepathPulse = 0
+			}
 		}
 	}
 	for _, player := range w.players {
@@ -412,6 +459,98 @@ func (w *World) resolveDummyAttack() {
 	}
 }
 
+func (w *World) updateRoamingEnemies() {
+	ids := make([]string, 0, len(w.combat.roamingEnemies))
+	for id := range w.combat.roamingEnemies {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		enemy := w.combat.roamingEnemies[id]
+		if enemy.target.Defeated {
+			continue
+		}
+
+		hadTarget := enemy.target.TargetID != ""
+		player, hasTarget := w.players[enemy.target.TargetID]
+		if hadTarget && (!hasTarget || player.defeated || distance(player.position, enemy.home) > roamingLeashRange) {
+			clearDummyTarget(enemy.target)
+			enemy.path = nil
+			hasTarget = false
+		}
+		if !hasTarget {
+			player = w.nearestDetectablePlayer(enemy)
+			if player != nil {
+				enemy.target.TargetID = player.id
+				enemy.target.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+				hasTarget = true
+			}
+		}
+
+		if hasTarget {
+			if distance(enemy.target.Position, player.position) <= dummyAttackRange {
+				enemy.path = nil
+				continue
+			}
+			if w.combat.pulse >= enemy.nextRepathPulse {
+				if err := w.setRoamingPath(enemy, player.position); err != nil {
+					clearDummyTarget(enemy.target)
+					enemy.path = nil
+					w.setRoamingReturnPath(enemy)
+					continue
+				}
+				enemy.nextRepathPulse = w.combat.pulse + roamingRepathPulses
+			}
+			continue
+		}
+
+		w.setRoamingReturnPath(enemy)
+	}
+}
+
+func (w *World) nearestDetectablePlayer(enemy *roamingEnemyState) *playerState {
+	var nearest *playerState
+	nearestDistance := math.Inf(1)
+	for _, player := range w.players {
+		if player.defeated || distance(player.position, enemy.home) > roamingLeashRange {
+			continue
+		}
+		candidateDistance := distance(enemy.target.Position, player.position)
+		if candidateDistance > roamingDetectionRange {
+			continue
+		}
+		if candidateDistance < nearestDistance ||
+			(candidateDistance == nearestDistance && (nearest == nil || player.id < nearest.id)) {
+			nearest = player
+			nearestDistance = candidateDistance
+		}
+	}
+	return nearest
+}
+
+func (w *World) setRoamingPath(enemy *roamingEnemyState, destination Position) error {
+	path := []Position{destination}
+	if w.pathfinder != nil {
+		var err error
+		path, err = w.pathfinder.FindPath(enemy.target.Position, destination)
+		if err != nil {
+			return err
+		}
+	}
+	if len(path) == 0 {
+		return fmt.Errorf("empty roaming path")
+	}
+	enemy.path = clonePositions(path)
+	return nil
+}
+
+func (w *World) setRoamingReturnPath(enemy *roamingEnemyState) {
+	if len(enemy.path) > 0 || distance(enemy.target.Position, enemy.home) <= 0.01 {
+		return
+	}
+	_ = w.setRoamingPath(enemy, enemy.home)
+}
+
 func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	if dummy.Defeated || dummy.TargetID == "" {
 		return
@@ -422,7 +561,9 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 	distanceToPlayer := distance(dummy.Position, player.position)
-	if distanceToPlayer > dummyLeashRange {
+	_, roaming := w.combat.roamingEnemies[dummyID]
+	if (!roaming && distanceToPlayer > dummyLeashRange) ||
+		(roaming && distance(player.position, w.combat.roamingEnemies[dummyID].home) > roamingLeashRange) {
 		clearDummyTarget(dummy)
 		return
 	}
@@ -477,6 +618,10 @@ func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
 	dummy.Defeated = true
 	dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
 	clearDummyTarget(dummy)
+	if enemy, roaming := w.combat.roamingEnemies[dummyID]; roaming {
+		enemy.path = nil
+		enemy.nextRepathPulse = 0
+	}
 	w.spawnDrop(dummy.Position, trainingShardItem, 1)
 	for _, player := range w.players {
 		if player.combatTarget == dummyID {

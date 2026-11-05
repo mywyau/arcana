@@ -39,10 +39,10 @@ func newCombatTestWorld() *World {
 func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	world := newCombatTestWorld()
 	snapshot := world.Snapshot()
-	if got, want := len(snapshot.Targets), 3; got != want {
+	if got, want := len(snapshot.Targets), 4; got != want {
 		t.Fatalf("len(Targets) = %d, want %d", got, want)
 	}
-	wantIDs := []string{dummyTargetID, overlookDummyTargetID, upperDummyTargetID}
+	wantIDs := []string{dummyTargetID, hillWardenTargetID, overlookDummyTargetID, upperDummyTargetID}
 	for index, want := range wantIDs {
 		if got := snapshot.Targets[index].ID; got != want {
 			t.Fatalf("Targets[%d].ID = %q, want %q", index, got, want)
@@ -52,6 +52,60 @@ func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	snapshot.Targets[0].Health = 0
 	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth; got != want {
 		t.Fatalf("authoritative target health after snapshot mutation = %d, want %d", got, want)
+	}
+}
+
+func TestRoamingEnemyDetectsAndChasesNearbyPlayer(t *testing.T) {
+	world := newCombatTestWorld()
+	home := world.combat.roamingEnemies[hillWardenTargetID].home
+	mustAddPlayer(t, world, "player-one", Position{X: home.X + 4, Y: home.Y, Z: home.Z}, 4)
+
+	world.Step(actionPulseInterval)
+	enemy := mustTarget(t, world.Snapshot(), hillWardenTargetID)
+	if enemy.TargetID != "player-one" {
+		t.Fatalf("roaming enemy target = %q, want player-one", enemy.TargetID)
+	}
+	world.Step(100 * time.Millisecond)
+	moved := mustTarget(t, world.Snapshot(), hillWardenTargetID)
+	if moved.Position.X <= home.X {
+		t.Fatalf("roaming enemy position = %+v, want movement toward player", moved.Position)
+	}
+}
+
+func TestRoamingEnemyAttacksAfterDetectionCadence(t *testing.T) {
+	world := newCombatTestWorld()
+	home := world.combat.roamingEnemies[hillWardenTargetID].home
+	mustAddPlayer(t, world, "player-one", Position{X: home.X + 1, Y: home.Y, Z: home.Z}, 4)
+
+	world.Step(actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").Health; got != playerMaximumHealth {
+		t.Fatalf("player health on detection pulse = %d, want %d", got, playerMaximumHealth)
+	}
+	world.Step(dummyAttackIntervalPulses * actionPulseInterval)
+	if got, want := mustPlayer(t, world, "player-one").Health, playerMaximumHealth-dummyAttackDamage; got != want {
+		t.Fatalf("player health after roaming attack = %d, want %d", got, want)
+	}
+}
+
+func TestRoamingEnemyLeashesAndReturnsHome(t *testing.T) {
+	world := newCombatTestWorld()
+	enemyState := world.combat.roamingEnemies[hillWardenTargetID]
+	home := enemyState.home
+	mustAddPlayer(t, world, "player-one", Position{X: home.X + 4, Y: home.Y, Z: home.Z}, 4)
+
+	world.Step(actionPulseInterval)
+	world.Step(500 * time.Millisecond)
+	if got := mustTarget(t, world.Snapshot(), hillWardenTargetID).Position; got == home {
+		t.Fatal("roaming enemy did not leave home before leash test")
+	}
+	world.players["player-one"].position = Position{X: home.X + roamingLeashRange + 1, Y: home.Y, Z: home.Z}
+	world.Step(actionPulseInterval)
+	if got := mustTarget(t, world.Snapshot(), hillWardenTargetID).TargetID; got != "" {
+		t.Fatalf("roaming enemy retained target outside leash: %q", got)
+	}
+	world.Step(2 * time.Second)
+	if got := mustTarget(t, world.Snapshot(), hillWardenTargetID).Position; got != home {
+		t.Fatalf("roaming enemy returned to %+v, want home %+v", got, home)
 	}
 }
 

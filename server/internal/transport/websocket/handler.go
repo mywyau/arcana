@@ -274,6 +274,7 @@ func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnap
 	return protocol.TargetSnapshot{
 		ID:   target.ID,
 		Name: target.Name,
+		Kind: target.Kind,
 		Position: protocol.Position{
 			X: target.Position.X,
 			Y: target.Position.Y,

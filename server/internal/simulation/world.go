@@ -352,12 +352,43 @@ func (w *World) Step(elapsed time.Duration) {
 			player.navigationLocation = location
 		}
 	}
+	w.moveRoamingEnemies(seconds)
 	w.applyPendingPickups()
 	w.advanceCombat(elapsed)
 
 	for id := range w.pendingLeaves {
 		delete(w.players, id)
 		delete(w.pendingLeaves, id)
+	}
+}
+
+func (w *World) moveRoamingEnemies(seconds float64) {
+	for _, enemy := range w.combat.roamingEnemies {
+		if enemy.target.Defeated || len(enemy.path) == 0 {
+			continue
+		}
+		if player, exists := w.players[enemy.target.TargetID]; exists &&
+			distance(enemy.target.Position, player.position) <= dummyAttackRange {
+			enemy.path = nil
+			continue
+		}
+
+		remainingMovement := enemy.speed * seconds
+		for remainingMovement > 0 && len(enemy.path) > 0 {
+			waypoint := enemy.path[0]
+			distanceToWaypoint := distance(enemy.target.Position, waypoint)
+			if distanceToWaypoint <= remainingMovement {
+				enemy.target.Position = waypoint
+				enemy.path = enemy.path[1:]
+				remainingMovement -= distanceToWaypoint
+				continue
+			}
+			weight := remainingMovement / distanceToWaypoint
+			enemy.target.Position.X += (waypoint.X - enemy.target.Position.X) * weight
+			enemy.target.Position.Y += (waypoint.Y - enemy.target.Position.Y) * weight
+			enemy.target.Position.Z += (waypoint.Z - enemy.target.Position.Z) * weight
+			remainingMovement = 0
+		}
 	}
 }
 
