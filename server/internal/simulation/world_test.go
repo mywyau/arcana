@@ -211,6 +211,36 @@ func mustAddPlayer(t *testing.T, world *World, id PlayerID, position Position, s
 	if err := world.AddPlayer(id, position, speed); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
+	// Most simulation tests exercise combat rather than character creation.
+	// Seed their required testing loadout explicitly now that production
+	// characters start unarmed with an empty inventory.
+	player := world.players[id]
+	player.inventory = inventoryState{
+		capacity: BaseInventoryCapacity,
+		items: []InventoryItem{
+			{Slot: 0, ItemID: string(WeaponSword), Quantity: 1},
+			{Slot: 1, ItemID: string(WeaponDagger), Quantity: 1},
+			{Slot: 2, ItemID: string(WeaponBow), Quantity: 1},
+			{Slot: 3, ItemID: string(WeaponMace), Quantity: 1},
+			{Slot: 4, ItemID: string(WeaponBattleAxe), Quantity: 1},
+			{Slot: 5, ItemID: string(WeaponStaff), Quantity: 1},
+			{Slot: 6, ItemID: ItemAirRune, Quantity: 50},
+		},
+	}
+	player.equippedWeapon = WeaponSword
+	player.combatStyle = defaultCombatStyle(WeaponSword)
+}
+
+func mustEquipStandardSpellbook(t *testing.T, world *World, id PlayerID) {
+	t.Helper()
+	player, exists := world.players[id]
+	if !exists {
+		t.Fatalf("player %q does not exist", id)
+	}
+	if !player.inventory.add(ItemStandardSpellbook, 1) {
+		t.Fatalf("could not add %q to player %q", ItemStandardSpellbook, id)
+	}
+	player.equippedSpellbook = ItemStandardSpellbook
 }
 
 func mustQueueMove(t *testing.T, world *World, id PlayerID, sequence uint64, destination Position) {

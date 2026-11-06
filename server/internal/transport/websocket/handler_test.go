@@ -266,6 +266,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			Defeated:                true,
 			RespawnAtPulse:          20,
 			EquippedWeapon:          simulation.WeaponDagger,
+			EquippedSpellbook:       simulation.ItemStandardSpellbook,
+			ActiveSpellbook:         simulation.SpellbookStandard,
 			LastEquipmentSequence:   3,
 			LastEquipmentPulse:      11,
 			CombatStyle:             simulation.CombatStyleStab,
@@ -327,7 +329,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	player := message.Players[0]
 	if player.Health != 40 || player.MaximumHealth != 100 || player.Prayer != 70 || player.MaximumPrayer != 100 ||
 		!player.Defeated || player.RespawnAtPulse != 20 ||
-		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
+		player.EquippedWeapon != "dagger" || player.EquippedSpellbook != "standard_spellbook" ||
+		player.ActiveSpellbook != "standard" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
 		player.CombatStyle != "stab" || player.LastCombatStyleSequence != 4 ||
 		len(player.ActivePrayers) != 1 || player.ActivePrayers[0] != "evasion" ||
 		player.LastPrayerSequence != 5 || player.DodgeRate != 0.15 {

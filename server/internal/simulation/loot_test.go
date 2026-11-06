@@ -174,6 +174,49 @@ func TestDropUnequippedEquipmentCreatesPickup(t *testing.T) {
 	}
 }
 
+func TestResourceDropAndPickupMovesEntireStack(t *testing.T) {
+	tests := []struct {
+		itemID   string
+		quantity int
+	}{
+		{itemID: ItemAirRune, quantity: 50},
+		{itemID: trainingShardItem, quantity: 7},
+	}
+	for _, test := range tests {
+		t.Run(test.itemID, func(t *testing.T) {
+			world := NewWorld()
+			if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+				t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+			}
+			world.players["player-one"].inventory.add(test.itemID, test.quantity)
+
+			if err := world.QueueDropItem(DropItemCommand{
+				PlayerID: "player-one", Sequence: 1, ItemID: test.itemID,
+			}); err != nil {
+				t.Fatalf("QueueDropItem() returned an unexpected error: %v", err)
+			}
+			world.Step(50 * time.Millisecond)
+			if got := mustPlayer(t, world, "player-one").Inventory.itemsQuantity(test.itemID); got != 0 {
+				t.Fatalf("inventory quantity after drop = %d, want 0", got)
+			}
+			drops := world.Snapshot().Drops
+			if len(drops) != 1 || drops[0].ItemID != test.itemID || drops[0].Quantity != test.quantity {
+				t.Fatalf("resource drop = %+v", drops)
+			}
+
+			if err := world.QueuePickup(PickupCommand{
+				PlayerID: "player-one", Sequence: 1, DropID: drops[0].ID,
+			}); err != nil {
+				t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+			}
+			world.Step(50 * time.Millisecond)
+			if got := mustPlayer(t, world, "player-one").Inventory.itemsQuantity(test.itemID); got != test.quantity {
+				t.Fatalf("inventory quantity after pickup = %d, want %d", got, test.quantity)
+			}
+		})
+	}
+}
+
 func TestDropRejectsEquippedItem(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
@@ -181,6 +224,22 @@ func TestDropRejectsEquippedItem(t *testing.T) {
 		PlayerID: "player-one", Sequence: 1, ItemID: string(WeaponSword),
 	}); err == nil {
 		t.Fatal("QueueDropItem() error = nil for equipped sword")
+	}
+}
+
+func TestDropRejectsEquippedSpellbook(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemStandardSpellbook, 1)
+	player.equippedSpellbook = ItemStandardSpellbook
+
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemStandardSpellbook,
+	}); err == nil {
+		t.Fatal("QueueDropItem() error = nil for equipped spellbook")
 	}
 }
 

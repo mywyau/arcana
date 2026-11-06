@@ -5,15 +5,104 @@ import "testing"
 func TestWindBoltDefinition(t *testing.T) {
 	spell, exists := spellDefinition(SpellWindBolt)
 	if !exists || spell.Name != "Wind Bolt" || spell.RequiredMagicLevel != 1 ||
+		spell.BookID != SpellbookStandard || spell.IconID != "wind_bolt" ||
+		spell.CastMode != SpellCastAutocast || spell.TargetType != SpellTargetEnemy ||
+		spell.EffectType != SpellEffectDirectDamage ||
 		len(spell.Costs) != 1 || spell.Costs[0] != (ItemCost{ItemID: ItemAirRune, Quantity: 1}) ||
 		spell.BasePower != 4 || spell.Range != 10 || spell.DamageVariance != 0.20 {
 		t.Fatalf("Wind Bolt definition = %+v, exists %t", spell, exists)
 	}
 }
 
+func TestStandardSpellbookContainsWindBolt(t *testing.T) {
+	book, exists := spellbookDefinition(SpellbookStandard)
+	if !exists || book.Name != "Standard" || book.EquipmentItemID != ItemStandardSpellbook {
+		t.Fatalf("Standard spellbook = %+v, exists %t", book, exists)
+	}
+	spells := spellDefinitionsForBook(SpellbookStandard)
+	if len(spells) != 1 || spells[0].ID != SpellWindBolt {
+		t.Fatalf("Standard spells = %+v", spells)
+	}
+
+	spells[0].Costs[0].Quantity = 99
+	windBolt, _ := spellDefinition(SpellWindBolt)
+	if windBolt.Costs[0].Quantity != 1 {
+		t.Fatalf("catalogue costs were mutated through a lookup: %+v", windBolt.Costs)
+	}
+}
+
+func TestSpellCatalogRejectsInvalidRelationships(t *testing.T) {
+	validBook := SpellbookDefinition{ID: "test", Name: "Test", EquipmentItemID: "test_book"}
+	validSpell := SpellDefinition{
+		ID: "test_spell", BookID: validBook.ID, Name: "Test Spell", IconID: "test_spell",
+		CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
+		RequiredMagicLevel: 1,
+		Costs:              []ItemCost{{ItemID: ItemAirRune, Quantity: 1}},
+		BasePower:          1,
+		Range:              1,
+		AttackInterval:     1,
+	}
+	unknownBookSpell := validSpell
+	unknownBookSpell.BookID = "missing"
+	duplicateCostSpell := validSpell
+	duplicateCostSpell.Costs = append(duplicateCostSpell.Costs, duplicateCostSpell.Costs[0])
+
+	tests := []struct {
+		name   string
+		books  []SpellbookDefinition
+		spells []SpellDefinition
+	}{
+		{
+			name: "one item grants two books",
+			books: []SpellbookDefinition{
+				validBook,
+				{ID: "other", Name: "Other", EquipmentItemID: validBook.EquipmentItemID},
+			},
+		},
+		{
+			name:   "spell references an unknown book",
+			books:  []SpellbookDefinition{validBook},
+			spells: []SpellDefinition{unknownBookSpell},
+		},
+		{
+			name:   "spell repeats a rune cost",
+			books:  []SpellbookDefinition{validBook},
+			spells: []SpellDefinition{duplicateCostSpell},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := buildSpellCatalog(test.books, test.spells); err == nil {
+				t.Fatal("buildSpellCatalog() error = nil")
+			}
+		})
+	}
+}
+
+func TestSpellCatalogAllowsInstantAndNextAttackTiming(t *testing.T) {
+	book := SpellbookDefinition{ID: "test", Name: "Test"}
+	spells := []SpellDefinition{
+		{
+			ID: "instant_heal", BookID: book.ID, Name: "Instant Heal", IconID: "instant_heal",
+			CastMode: SpellCastInstant, TargetType: SpellTargetSelf, EffectType: SpellEffectHeal,
+			RequiredMagicLevel: 1, Costs: []ItemCost{{ItemID: ItemAirRune, Quantity: 1}}, BasePower: 1,
+		},
+		{
+			ID: "charged_strike", BookID: book.ID, Name: "Charged Strike", IconID: "charged_strike",
+			CastMode: SpellCastNextAttack, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
+			RequiredMagicLevel: 1, Costs: []ItemCost{{ItemID: ItemAirRune, Quantity: 1}}, BasePower: 1, Range: 1,
+		},
+	}
+	if _, err := buildSpellCatalog([]SpellbookDefinition{book}, spells); err != nil {
+		t.Fatalf("buildSpellCatalog() rejected future cast modes: %v", err)
+	}
+}
+
 func TestSpellSelectionDoesNotRequireStaff(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	mustEquipStandardSpellbook(t, world, "player-one")
 	if got := mustPlayer(t, world, "player-one").EquippedWeapon; got != WeaponSword {
 		t.Fatalf("starting weapon = %q, want %q", got, WeaponSword)
 	}
@@ -43,9 +132,72 @@ func TestSpellSelectionDoesNotRequireStaff(t *testing.T) {
 	}
 }
 
+func TestWindBoltRequiresEquippedStandardSpellbook(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemAirRune, 10)
+
+	err := world.QueueSpell(SpellCommand{PlayerID: "player-one", Sequence: 1, SpellID: SpellWindBolt})
+	if err == nil {
+		t.Fatal("QueueSpell() error = nil without an equipped spellbook")
+	}
+}
+
+func TestStandardSpellbookCanEquipDuringCombatAndControlsAutocast(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemStandardSpellbook, 1)
+	player.inventory.add(ItemAirRune, 10)
+
+	if err := world.QueueTarget(TargetCommand{
+		PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID,
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if err := world.QueueEquip(EquipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemStandardSpellbook),
+	}); err != nil {
+		t.Fatalf("QueueEquip(spellbook) during combat returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.CombatTarget != dummyTargetID || snapshot.EquippedSpellbook != ItemStandardSpellbook ||
+		snapshot.ActiveSpellbook != SpellbookStandard {
+		t.Fatalf("spellbook combat state = %+v", snapshot)
+	}
+	if err := world.QueueSpell(SpellCommand{
+		PlayerID: "player-one", Sequence: 1, SpellID: SpellWindBolt,
+	}); err != nil {
+		t.Fatalf("QueueSpell() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if selected := mustPlayer(t, world, "player-one").SelectedSpell; selected != SpellWindBolt {
+		t.Fatalf("selected spell = %q, want %q", selected, SpellWindBolt)
+	}
+
+	if err := world.QueueUnequip(UnequipCommand{
+		PlayerID: "player-one", Sequence: 2, ItemID: ItemStandardSpellbook,
+	}); err != nil {
+		t.Fatalf("QueueUnequip(spellbook) returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	snapshot = mustPlayer(t, world, "player-one")
+	if snapshot.EquippedSpellbook != "" || snapshot.ActiveSpellbook != "" || snapshot.SelectedSpell != "" {
+		t.Fatalf("state after unequipping spellbook = %+v", snapshot)
+	}
+}
+
 func TestSpellSelectionRejectsUnknownAndStaleCommands(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	mustEquipStandardSpellbook(t, world, "player-one")
 	if err := world.QueueSpell(SpellCommand{
 		PlayerID: "player-one", Sequence: 1, SpellID: "unknown",
 	}); err == nil {
@@ -67,6 +219,7 @@ func TestSpellSelectionRejectsUnknownAndStaleCommands(t *testing.T) {
 func TestWindBoltConsumesRuneAndReplacesWeaponAttack(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	mustEquipStandardSpellbook(t, world, "player-one")
 	if err := world.QueueSpell(SpellCommand{PlayerID: "player-one", Sequence: 1, SpellID: SpellWindBolt}); err != nil {
 		t.Fatalf("QueueSpell() returned an unexpected error: %v", err)
 	}
@@ -101,6 +254,7 @@ func TestWindBoltConsumesRuneAndReplacesWeaponAttack(t *testing.T) {
 func TestWindBoltConsumesRuneWhenTargetDodges(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0))
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	mustEquipStandardSpellbook(t, world, "player-one")
 	if err := world.QueueSpell(SpellCommand{PlayerID: "player-one", Sequence: 1, SpellID: SpellWindBolt}); err != nil {
 		t.Fatalf("QueueSpell() returned an unexpected error: %v", err)
 	}
@@ -122,6 +276,7 @@ func TestWindBoltConsumesRuneWhenTargetDodges(t *testing.T) {
 func TestWindBoltPausesWithoutRunes(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	mustEquipStandardSpellbook(t, world, "player-one")
 	world.players["player-one"].inventory.remove(ItemAirRune, 50)
 	if err := world.QueueSpell(SpellCommand{PlayerID: "player-one", Sequence: 1, SpellID: SpellWindBolt}); err != nil {
 		t.Fatalf("QueueSpell() returned an unexpected error without runes: %v", err)

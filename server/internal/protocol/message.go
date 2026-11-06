@@ -121,6 +121,8 @@ type PlayerSnapshot struct {
 	RespawnAtPulse          uint64              `json:"respawn_at_pulse"`
 	EquippedWeapon          string              `json:"equipped_weapon"`
 	EquippedArmour          map[string]string   `json:"equipped_armour"`
+	EquippedSpellbook       string              `json:"equipped_spellbook"`
+	ActiveSpellbook         string              `json:"active_spellbook"`
 	LastEquipmentSequence   uint64              `json:"last_equipment_sequence"`
 	LastEquipmentPulse      uint64              `json:"last_equipment_pulse"`
 	CombatStyle             string              `json:"combat_style"`

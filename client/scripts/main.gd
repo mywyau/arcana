@@ -140,6 +140,9 @@ const ARMOUR_SLOTS: Dictionary = {
 	"swift_body": "body",
 	"swift_boots": "feet",
 }
+const SPELLBOOK_ITEMS: Dictionary = {
+	"standard_spellbook": "standard",
+}
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
 const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
@@ -198,6 +201,9 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var combat_stats_hud: PanelContainer = $UI/CombatStatsHUD
 @onready var combat_stats_label: Label = $UI/CombatStatsHUD/Margin/VBox/Stats
 @onready var combat_stats_close_button: Button = $UI/CombatStatsHUD/Margin/VBox/Header/Close
+@onready var combat_stats_offence_button: Button = $UI/CombatStatsHUD/Margin/VBox/PageRow/Offence
+@onready var combat_stats_defence_button: Button = $UI/CombatStatsHUD/Margin/VBox/PageRow/Defence
+@onready var combat_stats_effects_button: Button = $UI/CombatStatsHUD/Margin/VBox/PageRow/Effects
 @onready var magic_combat_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Combat
 @onready var magic_inventory_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Inventory
 @onready var magic_skills_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Skills
@@ -276,12 +282,14 @@ var _spell_selection_pending: bool = false
 var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
-var _equipped_weapon: String = "sword"
+var _equipped_weapon: String = "unarmed"
 var _last_equipment_sequence: int = 0
 var _queued_item: String = ""
 var _queued_unequip: bool = false
 var _equipped_armour: Dictionary = {}
-var _combat_style: String = "slash"
+var _equipped_spellbook: String = ""
+var _active_spellbook: String = ""
+var _combat_style: String = "crush"
 var _last_combat_style_sequence: int = 0
 var _next_combat_style_sequence: int = 1
 var _queued_combat_style: String = ""
@@ -298,6 +306,7 @@ var _skill_progress: Dictionary = {
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
+var _combat_stats_page: String = "offence"
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
@@ -360,6 +369,9 @@ func _ready() -> void:
 	equipment_styles_tab_button.pressed.connect(_show_styles_tab)
 	detailed_stats_button.pressed.connect(_show_detailed_combat_stats)
 	combat_stats_close_button.pressed.connect(_hide_detailed_combat_stats)
+	combat_stats_offence_button.pressed.connect(_show_combat_stats_page.bind("offence"))
+	combat_stats_defence_button.pressed.connect(_show_combat_stats_page.bind("defence"))
+	combat_stats_effects_button.pressed.connect(_show_combat_stats_page.bind("effects"))
 	magic_combat_tab_button.pressed.connect(_show_combat_tab)
 	magic_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	magic_skills_tab_button.pressed.connect(_show_skills_tab)
@@ -728,12 +740,14 @@ func _request_unequip(item_id: String) -> void:
 func _is_item_equipped(item_id: String) -> bool:
 	if item_id == _equipped_weapon:
 		return true
+	if item_id == _equipped_spellbook:
+		return true
 	var armour_slot: String = str(ARMOUR_SLOTS.get(item_id, ""))
 	return not armour_slot.is_empty() and str(_equipped_armour.get(armour_slot, "")) == item_id
 
 
-func _on_inventory_item_input(event: InputEvent, item_id: String, is_equipable: bool) -> void:
-	if not is_equipable or _is_item_equipped(item_id) or _player_defeated:
+func _on_inventory_item_input(event: InputEvent, item_id: String) -> void:
+	if _is_item_equipped(item_id) or _player_defeated:
 		return
 	if event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
@@ -946,7 +960,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var inventory_data: Variant = player_data.get("inventory", {})
 			if typeof(inventory_data) == TYPE_DICTIONARY:
 				_apply_inventory_snapshot(inventory_data as Dictionary)
-			var equipped_weapon: String = str(player_data.get("equipped_weapon", "sword"))
+			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			if equipped_weapon != _equipped_weapon:
 				_equipped_weapon = equipped_weapon
 				_update_equipment_hud()
@@ -957,6 +971,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_equipped_armour = (equipped_armour_data as Dictionary).duplicate(true)
 				_update_equipment_hud()
 				inventory_selection_changed = true
+			var equipped_spellbook: String = str(player_data.get("equipped_spellbook", ""))
+			var active_spellbook: String = str(player_data.get("active_spellbook", ""))
+			if equipped_spellbook != _equipped_spellbook or active_spellbook != _active_spellbook:
+				_equipped_spellbook = equipped_spellbook
+				_active_spellbook = active_spellbook
+				_update_equipment_hud()
+				_update_magic_hud()
+				inventory_selection_changed = true
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			_next_equipment_sequence = maxi(
 				_next_equipment_sequence,
@@ -966,7 +988,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_queued_item = ""
 				_queued_unequip = false
 				inventory_selection_changed = true
-			var combat_style: String = str(player_data.get("combat_style", "slash"))
+			var combat_style: String = str(player_data.get("combat_style", "crush"))
 			if combat_style != _combat_style:
 				_combat_style = combat_style
 				combat_style_changed = true
@@ -1742,12 +1764,15 @@ func _update_magic_hud() -> void:
 		var spell: Dictionary = spell_data
 		var spell_id: String = str(spell.get("id", ""))
 		var required_level: int = int(spell.get("required_magic_level", 1))
+		var required_book: String = str(spell.get("book_id", ""))
 		var spell_button := Button.new()
 		spell_button.custom_minimum_size = Vector2(104, 88)
 		spell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		spell_button.focus_mode = Control.FOCUS_NONE
 		spell_button.toggle_mode = not spell_id.is_empty()
-		spell_button.disabled = spell_id.is_empty() or _player_defeated or magic_level < required_level
+		spell_button.disabled = spell_id.is_empty() or _player_defeated or magic_level < required_level or (
+			not required_book.is_empty() and required_book != _active_spellbook
+		)
 		spell_button.icon = spell.get("icon") as Texture2D
 		spell_button.expand_icon = true
 		if spell_id.is_empty():
@@ -1762,6 +1787,8 @@ func _update_magic_hud() -> void:
 				spell.get("name", "Spell"), required_level, cost_quantity,
 				cost_item_id.capitalize(), _inventory_quantity(cost_item_id),
 			]
+			if not required_book.is_empty() and required_book != _active_spellbook:
+				spell_button.tooltip_text += " • requires the %s spellbook" % required_book.capitalize()
 			spell_button.pressed.connect(_request_spell.bind(spell_id))
 		magic_grid.add_child(spell_button)
 
@@ -1884,7 +1911,7 @@ func _update_equipment_hud() -> void:
 		{"slot": "ring", "name": "Ring", "item": ""},
 		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon},
 		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", ""))},
-		{"slot": "hands", "name": "Hands", "item": ""},
+		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
 		{"spacer": true},
 		{"slot": "legs", "name": "Legs", "item": ""},
 		{"spacer": true},
@@ -1956,16 +1983,32 @@ func _hide_detailed_combat_stats() -> void:
 	detailed_stats_button.grab_focus()
 
 
+func _show_combat_stats_page(page: String) -> void:
+	_combat_stats_page = page
+	combat_stats_offence_button.set_pressed_no_signal(page == "offence")
+	combat_stats_defence_button.set_pressed_no_signal(page == "defence")
+	combat_stats_effects_button.set_pressed_no_signal(page == "effects")
+	_update_detailed_combat_stats()
+
+
 func _update_detailed_combat_stats() -> void:
 	if _combat_stats.is_empty():
 		combat_stats_label.text = "Waiting for the server to send combat stats…"
 		return
-	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
-	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
+	match _combat_stats_page:
+		"defence":
+			combat_stats_label.text = _detailed_defence_text()
+		"effects":
+			combat_stats_label.text = _detailed_effects_text()
+		_:
+			combat_stats_label.text = _detailed_offence_text()
+
+
+func _detailed_offence_text() -> String:
 	var spell_id: String = str(_combat_stats.get("spell", ""))
 	var loadout_text: String = "%s  •  %s style" % [
-		str(_combat_stats.get("weapon", "unknown")).capitalize(),
-		str(_combat_stats.get("style", "unknown")).capitalize(),
+		str(_combat_stats.get("weapon", "unarmed")).capitalize(),
+		str(_combat_stats.get("style", "crush")).capitalize(),
 	]
 	var accuracy_breakdown: String = "Weapon accuracy: %s\nStyle modifier: %s" % [
 		_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
@@ -1979,7 +2022,7 @@ func _update_detailed_combat_stats() -> void:
 	)
 	if not spell_id.is_empty():
 		loadout_text = "%s  •  %s equipped" % [
-			spell_id.capitalize(), str(_combat_stats.get("weapon", "unknown")).capitalize(),
+			spell_id.capitalize(), str(_combat_stats.get("weapon", "unarmed")).capitalize(),
 		]
 		accuracy_breakdown = "Spell accuracy: %s\nEquipment magic accuracy: %s" % [
 			_signed_stat(int(_combat_stats.get("spell_accuracy_bonus", 0))),
@@ -1998,46 +2041,77 @@ func _update_detailed_combat_stats() -> void:
 		attack_interval, attack_interval * 0.6,
 	]
 	if attack_interval < base_attack_interval:
-		attack_speed_text += "  •  Swift set bonus"
-	combat_stats_label.text = (
-		"CURRENT LOADOUT\n"
-		+"%s\n\n" % loadout_text
-		+"ACCURACY\n"
-		+"Total accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
-		+"%s level: %d\n" % [
+		attack_speed_text += "  •  equipment modifier active"
+	return (
+		"CURRENT LOADOUT\n%s\n\n" % loadout_text
+		+"ACCURACY\nTotal accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
+		+"%s level: %d\n%s\n\n" % [
 			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
-			int(_combat_stats.get("accuracy_level", 1)),
+			int(_combat_stats.get("accuracy_level", 1)), accuracy_breakdown,
 		]
-		+"%s\n\n" % accuracy_breakdown
-		+"DAMAGE\n"
-		+"Current damage range: %d–%d\n" % [
+		+"DAMAGE\nCurrent damage range: %d–%d\n" % [
 			int(_combat_stats.get("minimum_damage", 0)),
 			int(_combat_stats.get("maximum_damage", 0)),
 		]
-		+"%s level: %d\n" % [
+		+"%s level: %d\n%s\nSkill damage: +%.1f\n\n" % [
 			str(_combat_stats.get("damage_skill", "strength")).capitalize(),
-			int(_combat_stats.get("damage_level", 1)),
+			int(_combat_stats.get("damage_level", 1)), damage_breakdown,
+			float(_combat_stats.get("skill_damage_bonus", 0.0)),
 		]
-		+"%s\n" % damage_breakdown
-		+"Skill damage: +%.1f\n\n" % float(_combat_stats.get("skill_damage_bonus", 0.0))
-		+"ATTACK SPEED\n%s\n\n" % attack_speed_text
-		+"DEFENCE\n"
+		+"ATTACK SPEED\n%s" % attack_speed_text
+	)
+
+
+func _detailed_defence_text() -> String:
+	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
+	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
+	return (
+		"DEFENCE OVERVIEW\n"
 		+"Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
 		+"Prayer damage reduction: %.0f%%\n" % (
 			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
 		)
-		+"Stab %s    Slash %s    Crush %s\n" % [
+		+"\nEQUIPMENT DEFENCE BONUSES\n"
+		+"Stab: %s\nSlash: %s\nCrush: %s\n" % [
 			_signed_stat(int(defence.get("stab", 0))),
 			_signed_stat(int(defence.get("slash", 0))),
 			_signed_stat(int(defence.get("crush", 0))),
 		]
-		+"Ranged %s    Magic %s\n\n" % [
+		+"Ranged: %s\nMagic: %s\n\n" % [
 			_signed_stat(int(defence.get("ranged", 0))),
 			_signed_stat(int(defence.get("magic", 0))),
 		]
-		+"Equipment defence bonuses are informational;\n"
+		+"Equipment defence bonuses are currently informational;\n"
 		+"damage mitigation is not active yet."
 	)
+
+
+func _detailed_effects_text() -> String:
+	var swift_pieces: int = 0
+	for item_id: String in _equipped_armour.values():
+		if item_id in ["swift_helm", "swift_body", "swift_boots"]:
+			swift_pieces += 1
+	var interval_modifier: int = int(_combat_stats.get("attack_interval_modifier", 0))
+	var swift_status: String = "Active" if swift_pieces >= 3 else "Inactive"
+	var spellbook_text: String = _equipped_spellbook.capitalize() if not _equipped_spellbook.is_empty() else "None"
+	return (
+		"EQUIPPED ITEMS\n"
+		+"Main hand: %s\n" % _equipped_weapon.capitalize()
+		+"Spellbook: %s\n" % spellbook_text
+		+"Head: %s\n" % _equipment_item_name("head")
+		+"Body: %s\n" % _equipment_item_name("body")
+		+"Feet: %s\n\n" % _equipment_item_name("feet")
+		+"SET EFFECTS\n"
+		+"Swift set: %s (%d/3 pieces)\n" % [swift_status, swift_pieces]
+		+"Three pieces reduce the attack interval by 1 pulse.\n"
+		+"Current equipment interval modifier: %s pulses\n\n" % _signed_stat(interval_modifier)
+		+"Future equipment sets will be listed on this page."
+	)
+
+
+func _equipment_item_name(slot: String) -> String:
+	var item_id: String = str(_equipped_armour.get(slot, ""))
+	return item_id.capitalize() if not item_id.is_empty() else "None"
 
 
 func _signed_stat(value: int) -> String:
@@ -2106,7 +2180,7 @@ func _update_inventory_hud() -> void:
 			var item: Dictionary = items_by_slot[slot]
 			var item_id: String = str(item.get("item_id", ""))
 			var quantity: int = int(item.get("quantity", 1))
-			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id)
+			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 			var is_queued: bool = equipment_pending and _queued_item == item_id
 			var is_equipped: bool = _is_item_equipped(item_id)
@@ -2122,11 +2196,14 @@ func _update_inventory_hud() -> void:
 				item_status = "Equipped"
 			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
 			var status_text: String = " • %s" % item_status if not item_status.is_empty() else ""
-			var equip_action: String = "left-click to unequip" if is_equipped and ARMOUR_SLOTS.has(item_id) else "left-click to equip"
+			var equip_action: String = "left-click to unequip" if is_equipped else "left-click to equip"
+			var interaction_text: String = "right-click to drop all"
+			if is_equipable:
+				interaction_text = "%s • %s" % [equip_action, interaction_text]
 			slot_button.tooltip_text = "%s%s%s • slot %d%s" % [
 				item_id.capitalize(), quantity_text, status_text,
 				slot + 1,
-				" — %s • right-click to drop when unequipped" % equip_action if is_equipable else "",
+				" — %s" % interaction_text,
 			]
 			slot_button.disabled = _player_defeated and is_equipable
 			if is_equipped or is_queued:
@@ -2145,7 +2222,7 @@ func _update_inventory_hud() -> void:
 				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
 			if is_equipable:
 				slot_button.pressed.connect(_request_equip.bind(item_id))
-				slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id, is_equipable))
+			slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id))
 		else:
 			slot_button.configure(slot, false, true)
 			slot_button.icon = EMPTY_SLOT_ICON

@@ -5,23 +5,24 @@ import "fmt"
 // PersistentPlayerState is the durable subset of an active player's state.
 // Transient movement, targeting, cooldown, and sequence state starts fresh on join.
 type PersistentPlayerState struct {
-	Position       Position
-	Health         int
-	EquippedWeapon WeaponID
-	EquippedArmour map[ArmourSlot]string
-	CombatStyle    CombatStyleID
-	Inventory      InventorySnapshot
-	Skills         []PersistentSkillState
+	Position          Position
+	Health            int
+	EquippedWeapon    WeaponID
+	EquippedArmour    map[ArmourSlot]string
+	EquippedSpellbook string
+	CombatStyle       CombatStyleID
+	Inventory         InventorySnapshot
+	Skills            []PersistentSkillState
 }
 
 // DefaultPersistentPlayerState is used for a newly created character.
 func DefaultPersistentPlayerState() PersistentPlayerState {
 	return PersistentPlayerState{
 		Health:         playerMaximumHealth,
-		EquippedWeapon: WeaponSword,
+		EquippedWeapon: WeaponUnarmed,
 		EquippedArmour: make(map[ArmourSlot]string),
-		CombatStyle:    defaultCombatStyle(WeaponSword),
-		Inventory:      snapshotInventory(newStarterInventory()),
+		CombatStyle:    defaultCombatStyle(WeaponUnarmed),
+		Inventory:      snapshotInventory(newEmptyInventory()),
 		Skills:         persistentSkills(newDefaultSkills()),
 	}
 }
@@ -29,11 +30,12 @@ func DefaultPersistentPlayerState() PersistentPlayerState {
 // PersistentStateFromSnapshot extracts the state that survives a disconnect.
 func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState {
 	state := PersistentPlayerState{
-		Position:       snapshot.Position,
-		Health:         snapshot.Health,
-		EquippedWeapon: snapshot.EquippedWeapon,
-		EquippedArmour: cloneEquippedArmour(snapshot.EquippedArmour),
-		CombatStyle:    snapshot.CombatStyle,
+		Position:          snapshot.Position,
+		Health:            snapshot.Health,
+		EquippedWeapon:    snapshot.EquippedWeapon,
+		EquippedArmour:    cloneEquippedArmour(snapshot.EquippedArmour),
+		EquippedSpellbook: snapshot.EquippedSpellbook,
+		CombatStyle:       snapshot.CombatStyle,
 		Inventory: InventorySnapshot{
 			Capacity: snapshot.Inventory.Capacity,
 			Items:    append([]InventoryItem(nil), snapshot.Inventory.Items...),
@@ -77,6 +79,12 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if err := validateEquippedArmour(state.EquippedArmour, inventory); err != nil {
 		return fmt.Errorf("restore equipment: %w", err)
 	}
+	if state.EquippedSpellbook != "" {
+		item, exists := itemDefinition(state.EquippedSpellbook)
+		if !exists || item.Kind != ItemKindSpellbook || !inventory.contains(state.EquippedSpellbook) {
+			return fmt.Errorf("restore spellbook: item %q is not an owned spellbook", state.EquippedSpellbook)
+		}
+	}
 	skills, err := skillsFromPersistent(state.Skills)
 	if err != nil {
 		return fmt.Errorf("restore skills: %w", err)
@@ -99,7 +107,8 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		navigationLocation: location, health: state.Health, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
-		equippedWeapon: state.EquippedWeapon, dodgeRate: playerDodgeRate, inventory: inventory,
+		equippedWeapon: state.EquippedWeapon, equippedSpellbook: state.EquippedSpellbook,
+		dodgeRate: playerDodgeRate, inventory: inventory,
 		equippedArmour: cloneEquippedArmour(state.EquippedArmour),
 		combatStyle:    state.CombatStyle,
 		skills:         skills,

@@ -5,21 +5,25 @@ import "fmt"
 type ItemKind string
 
 const (
-	ItemKindWeapon   ItemKind = "weapon"
-	ItemKindArmour   ItemKind = "armour"
-	ItemKindResource ItemKind = "resource"
+	ItemKindWeapon    ItemKind = "weapon"
+	ItemKindArmour    ItemKind = "armour"
+	ItemKindSpellbook ItemKind = "spellbook"
+	ItemKindResource  ItemKind = "resource"
+
+	ItemStandardSpellbook = "standard_spellbook"
 )
 
 // ItemDefinition is the authoritative gameplay definition for one stable item
 // ID. Definitions are currently declared in Go; the registry boundary allows
 // them to move to validated data files without changing combat or inventory.
 type ItemDefinition struct {
-	ID      string
-	Name    string
-	Kind    ItemKind
-	Virtual bool
-	Weapon  WeaponDefinition
-	Armour  ArmourDefinition
+	ID        string
+	Name      string
+	Kind      ItemKind
+	Virtual   bool
+	Weapon    WeaponDefinition
+	Armour    ArmourDefinition
+	Spellbook SpellbookID
 }
 
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
@@ -79,6 +83,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		ID: ItemSwiftBoots, Name: "Swift Boots", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetSwift, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2}},
 	},
+	{
+		ID: ItemStandardSpellbook, Name: "Standard Spellbook", Kind: ItemKindSpellbook,
+		Spellbook: SpellbookStandard,
+	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
 	{ID: trainingShardItem, Name: "Training Shard", Kind: ItemKindResource},
 })
@@ -115,6 +123,10 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 				if _, exists := armourSetDefinitions[definition.Armour.Set]; !exists {
 					return nil, fmt.Errorf("armour %q references unknown set %q", definition.ID, definition.Armour.Set)
 				}
+			}
+		case ItemKindSpellbook:
+			if definition.Spellbook == "" {
+				return nil, fmt.Errorf("spellbook item %q requires a spellbook ID", definition.ID)
 			}
 		case ItemKindResource:
 		default:
@@ -172,9 +184,4 @@ func mustBuildItemCatalog(definitions []ItemDefinition) map[string]ItemDefinitio
 func itemDefinition(itemID string) (ItemDefinition, bool) {
 	definition, exists := itemCatalog[itemID]
 	return definition, exists
-}
-
-func itemIsEquipment(itemID string) bool {
-	definition, exists := itemDefinition(itemID)
-	return exists && !definition.Virtual && (definition.Kind == ItemKindWeapon || definition.Kind == ItemKindArmour)
 }

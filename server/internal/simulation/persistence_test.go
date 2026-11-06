@@ -12,6 +12,7 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	state.Health = 64
 	state.EquippedWeapon = WeaponBow
 	state.CombatStyle = CombatStyleLongRange
+	state.Inventory.Items = []InventoryItem{{Slot: 0, ItemID: string(WeaponBow), Quantity: 1}}
 	state.Skills = []PersistentSkillState{{ID: SkillAttack, Experience: 125}}
 
 	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
@@ -39,7 +40,6 @@ func TestQueueJoinWithPersistentStateRejectsInvalidEquipment(t *testing.T) {
 	state := DefaultPersistentPlayerState()
 	state.EquippedWeapon = WeaponBow
 	state.CombatStyle = CombatStyleLongRange
-	state.Inventory.Items = state.Inventory.Items[:1]
 
 	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err == nil {
 		t.Fatal("QueueJoinWithPersistentState() succeeded without equipped weapon in inventory")
@@ -51,10 +51,25 @@ func TestQueueJoinWithPersistentStateAllowsInnateUnarmedProfile(t *testing.T) {
 	state := DefaultPersistentPlayerState()
 	state.EquippedWeapon = WeaponUnarmed
 	state.CombatStyle = CombatStyleCrush
-	state.Inventory.Items = state.Inventory.Items[1:]
 
 	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
 		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+	}
+}
+
+func TestQueueJoinWithPersistentStateRestoresEquippedSpellbook(t *testing.T) {
+	world := NewWorld()
+	state := DefaultPersistentPlayerState()
+	state.Inventory.Items = []InventoryItem{{Slot: 0, ItemID: ItemStandardSpellbook, Quantity: 1}}
+	state.EquippedSpellbook = ItemStandardSpellbook
+
+	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
+		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+	}
+	world.Step(time.Millisecond)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedSpellbook != ItemStandardSpellbook || player.ActiveSpellbook != SpellbookStandard {
+		t.Fatalf("restored spellbook state = %+v", player)
 	}
 }
 

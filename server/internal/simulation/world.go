@@ -95,6 +95,8 @@ type PlayerSnapshot struct {
 	RespawnAtPulse          uint64
 	EquippedWeapon          WeaponID
 	EquippedArmour          map[ArmourSlot]string
+	EquippedSpellbook       string
+	ActiveSpellbook         SpellbookID
 	LastEquipmentSequence   uint64
 	LastEquipmentPulse      uint64
 	CombatStyle             CombatStyleID
@@ -146,6 +148,7 @@ type playerState struct {
 	respawnAtPulse            uint64
 	equippedWeapon            WeaponID
 	equippedArmour            map[ArmourSlot]string
+	equippedSpellbook         string
 	lastEquipmentSequence     uint64
 	lastEquipmentPulse        uint64
 	combatStyle               CombatStyleID
@@ -239,9 +242,10 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
-		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
+		equippedWeapon: WeaponUnarmed,
+		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(),
 		equippedArmour: make(map[ArmourSlot]string),
-		combatStyle:    defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
+		combatStyle:    defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
 	}
 	return nil
 }
@@ -272,9 +276,10 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
-		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
+		equippedWeapon: WeaponUnarmed,
+		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(),
 		equippedArmour: make(map[ArmourSlot]string),
-		combatStyle:    defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
+		combatStyle:    defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
 	}
 	return nil
 }
@@ -558,6 +563,8 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		RespawnAtPulse:          player.respawnAtPulse,
 		EquippedWeapon:          player.equippedWeapon,
 		EquippedArmour:          cloneEquippedArmour(player.equippedArmour),
+		EquippedSpellbook:       player.equippedSpellbook,
+		ActiveSpellbook:         activeSpellbook(player),
 		LastEquipmentSequence:   player.lastEquipmentSequence,
 		LastEquipmentPulse:      player.lastEquipmentPulse,
 		CombatStyle:             player.combatStyle,

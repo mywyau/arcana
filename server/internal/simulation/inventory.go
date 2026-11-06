@@ -40,19 +40,8 @@ type MoveInventoryItemCommand struct {
 	ToSlot   int
 }
 
-func newStarterInventory() inventoryState {
-	return inventoryState{
-		capacity: BaseInventoryCapacity,
-		items: []InventoryItem{
-			{Slot: 0, ItemID: string(WeaponSword), Quantity: 1},
-			{Slot: 1, ItemID: string(WeaponDagger), Quantity: 1},
-			{Slot: 2, ItemID: string(WeaponBow), Quantity: 1},
-			{Slot: 3, ItemID: string(WeaponMace), Quantity: 1},
-			{Slot: 4, ItemID: string(WeaponBattleAxe), Quantity: 1},
-			{Slot: 5, ItemID: string(WeaponStaff), Quantity: 1},
-			{Slot: 6, ItemID: ItemAirRune, Quantity: 50},
-		},
-	}
+func newEmptyInventory() inventoryState {
+	return inventoryState{capacity: BaseInventoryCapacity}
 }
 
 func (inventory inventoryState) contains(itemID string) bool {

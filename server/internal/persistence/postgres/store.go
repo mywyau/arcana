@@ -202,12 +202,16 @@ func (store *Store) Load(
 	defer equipmentRows.Close()
 	state.EquippedArmour = make(map[simulation.ArmourSlot]string)
 	for equipmentRows.Next() {
-		var slot simulation.ArmourSlot
+		var slot string
 		var itemID string
 		if err := equipmentRows.Scan(&slot, &itemID); err != nil {
 			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan equipment: %w", err)
 		}
-		state.EquippedArmour[slot] = itemID
+		if slot == "spellbook" {
+			state.EquippedSpellbook = itemID
+		} else {
+			state.EquippedArmour[simulation.ArmourSlot(slot)] = itemID
+		}
 	}
 	if err := equipmentRows.Err(); err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read equipment: %w", err)
@@ -282,6 +286,13 @@ func (store *Store) Save(
 			INSERT INTO character_equipment (player_id, slot, item_id)
 			VALUES ($1, $2, $3)`, playerID, slot, itemID); err != nil {
 			return fmt.Errorf("insert equipment: %w", err)
+		}
+	}
+	if state.EquippedSpellbook != "" {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO character_equipment (player_id, slot, item_id)
+			VALUES ($1, 'spellbook', $2)`, playerID, state.EquippedSpellbook); err != nil {
+			return fmt.Errorf("insert equipped spellbook: %w", err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM character_skills WHERE player_id = $1", playerID); err != nil {

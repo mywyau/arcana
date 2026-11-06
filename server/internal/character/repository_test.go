@@ -10,6 +10,7 @@ import (
 func TestMemoryRepositoryCopiesInventoryState(t *testing.T) {
 	repository := NewMemoryRepository()
 	state := simulation.DefaultPersistentPlayerState()
+	state.Inventory.Items = []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 1}}
 	if err := repository.Save(context.Background(), "player-one", state); err != nil {
 		t.Fatalf("Save() returned an unexpected error: %v", err)
 	}

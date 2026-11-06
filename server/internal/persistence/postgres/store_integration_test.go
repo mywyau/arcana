@@ -73,9 +73,11 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	want.EquippedWeapon = simulation.WeaponBow
 	want.CombatStyle = simulation.CombatStyleLongRange
 	want.Skills = []simulation.PersistentSkillState{{ID: simulation.SkillAttack, Experience: 125}}
-	want.Inventory.Items = append(want.Inventory.Items, simulation.InventoryItem{
-		Slot: 6, ItemID: "training_shard", Quantity: 3,
-	})
+	want.Inventory.Items = []simulation.InventoryItem{
+		{Slot: 0, ItemID: simulation.ItemStandardSpellbook, Quantity: 1},
+		{Slot: 1, ItemID: "training_shard", Quantity: 3},
+	}
+	want.EquippedSpellbook = simulation.ItemStandardSpellbook
 	if err := store.Save(ctx, guest.PlayerID, want); err != nil {
 		t.Fatalf("Save() returned an unexpected error: %v", err)
 	}

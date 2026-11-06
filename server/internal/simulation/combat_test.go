@@ -725,6 +725,7 @@ func TestBowRapidSchedulesFasterNextAttack(t *testing.T) {
 func TestStaffHitTrainsMagic(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	world.players["player-one"].inventory.add(string(WeaponStaff), 1)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponStaff}); err != nil {
 		t.Fatalf("QueueEquip(staff) returned an unexpected error: %v", err)
 	}

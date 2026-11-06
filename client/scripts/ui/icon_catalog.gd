@@ -15,6 +15,7 @@ const SWIFT_BODY: Texture2D = preload("res://assets/icons/equipment/armour/swift
 const SWIFT_BOOTS: Texture2D = preload("res://assets/icons/equipment/armour/swift_boots.svg")
 const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
+const STANDARD_SPELLBOOK: Texture2D = preload("res://assets/icons/navigation/tab_magic.svg")
 
 const EQUIPMENT_SLOTS: Dictionary = {
 	"head": preload("res://assets/icons/equipment/slots/head.svg"),
@@ -26,6 +27,7 @@ const EQUIPMENT_SLOTS: Dictionary = {
 	"hands": preload("res://assets/icons/equipment/slots/hands.svg"),
 	"legs": preload("res://assets/icons/equipment/slots/legs.svg"),
 	"feet": preload("res://assets/icons/equipment/slots/feet.svg"),
+	"spellbook": STANDARD_SPELLBOOK,
 }
 
 # Main HUD navigation icons.
@@ -37,7 +39,7 @@ const TAB_MAGIC: Texture2D = preload("res://assets/icons/navigation/tab_magic.sv
 const TAB_PRAYER: Texture2D = preload("res://assets/icons/navigation/tab_prayer.svg")
 
 const SPELLS: Array = [
-	{"id": "wind_bolt", "name": "Wind Bolt", "required_magic_level": 1, "cost_item_id": "air_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/wind_blade.svg")},
+	{"id": "wind_bolt", "book_id": "standard", "name": "Wind Bolt", "required_magic_level": 1, "cost_item_id": "air_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/wind_blade.svg")},
 	{"name": "Gale", "icon": preload("res://assets/icons/spells/gale.svg")},
 	{"name": "Tempest", "icon": preload("res://assets/icons/spells/tempest.svg")},
 	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spells/ember.svg")},
@@ -112,6 +114,7 @@ const ITEMS: Dictionary = {
 	"swift_helm": SWIFT_HELM,
 	"swift_body": SWIFT_BODY,
 	"swift_boots": SWIFT_BOOTS,
+	"standard_spellbook": STANDARD_SPELLBOOK,
 }
 
 const SKILLS: Dictionary = {

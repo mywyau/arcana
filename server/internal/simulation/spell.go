@@ -12,39 +12,10 @@ const (
 	windBoltAttackIntervalPulses         = 5
 )
 
-type SpellDefinition struct {
-	ID                 SpellID
-	Name               string
-	RequiredMagicLevel int
-	Costs              []ItemCost
-	BasePower          int
-	AccuracyBonus      int
-	Range              float64
-	DamageVariance     float64
-	AttackInterval     uint64
-}
-
 type SpellCommand struct {
 	PlayerID PlayerID
 	Sequence uint64
 	SpellID  SpellID
-}
-
-func spellDefinition(id SpellID) (SpellDefinition, bool) {
-	switch id {
-	case SpellWindBolt:
-		return SpellDefinition{
-			ID: id, Name: "Wind Bolt", RequiredMagicLevel: 1,
-			Costs:          []ItemCost{{ItemID: ItemAirRune, Quantity: 1}},
-			BasePower:      4,
-			AccuracyBonus:  10,
-			Range:          10,
-			DamageVariance: 0.20,
-			AttackInterval: windBoltAttackIntervalPulses,
-		}, true
-	default:
-		return SpellDefinition{}, false
-	}
 }
 
 func spellAccuracyScore(player *playerState, spell SpellDefinition) int {
@@ -105,6 +76,17 @@ func payItemCosts(inventory *inventoryState, costs []ItemCost) bool {
 	return true
 }
 
+func activeSpellbook(player *playerState) SpellbookID {
+	if player == nil || player.equippedSpellbook == "" {
+		return ""
+	}
+	item, exists := itemDefinition(player.equippedSpellbook)
+	if !exists || item.Kind != ItemKindSpellbook {
+		return ""
+	}
+	return item.Spellbook
+}
+
 // QueueSpell records a spell selection for the next action pulse. Spell
 // selection deliberately does not require a particular weapon.
 func (w *World) QueueSpell(command SpellCommand) error {
@@ -117,6 +99,12 @@ func (w *World) QueueSpell(command SpellCommand) error {
 		definition, exists = spellDefinition(command.SpellID)
 		if !exists {
 			return fmt.Errorf("spell %q does not exist", command.SpellID)
+		}
+		if definition.CastMode != SpellCastAutocast {
+			return fmt.Errorf("spell %q cannot be selected for autocast", command.SpellID)
+		}
+		if definition.EffectType != SpellEffectDirectDamage {
+			return fmt.Errorf("spell %q does not have an autocast effect handler", command.SpellID)
 		}
 	}
 
@@ -136,6 +124,9 @@ func (w *World) QueueSpell(command SpellCommand) error {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
 	magicLevel := SkillLevelForExperience(player.skills[SkillMagic])
+	if command.SpellID != "" && definition.BookID != activeSpellbook(player) {
+		return fmt.Errorf("spell %q is not in the equipped spellbook", command.SpellID)
+	}
 	if command.SpellID != "" && magicLevel < definition.RequiredMagicLevel {
 		return fmt.Errorf("spell %q requires Magic level %d", command.SpellID, definition.RequiredMagicLevel)
 	}
@@ -162,6 +153,9 @@ func (w *World) applySpellCommands() {
 				player.selectedSpell = ""
 				player.lastSpellSequence = command.Sequence
 			} else if definition, found := spellDefinition(command.SpellID); found &&
+				definition.CastMode == SpellCastAutocast &&
+				definition.EffectType == SpellEffectDirectDamage &&
+				definition.BookID == activeSpellbook(player) &&
 				SkillLevelForExperience(player.skills[SkillMagic]) >= definition.RequiredMagicLevel {
 				player.selectedSpell = command.SpellID
 				player.lastSpellSequence = command.Sequence

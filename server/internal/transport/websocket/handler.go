@@ -423,6 +423,8 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			RespawnAtPulse:          player.RespawnAtPulse,
 			EquippedWeapon:          string(player.EquippedWeapon),
 			EquippedArmour:          make(map[string]string, len(player.EquippedArmour)),
+			EquippedSpellbook:       player.EquippedSpellbook,
+			ActiveSpellbook:         string(player.ActiveSpellbook),
 			LastEquipmentSequence:   player.LastEquipmentSequence,
 			LastEquipmentPulse:      player.LastEquipmentPulse,
 			CombatStyle:             string(player.CombatStyle),

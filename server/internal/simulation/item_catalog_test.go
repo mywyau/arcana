@@ -24,6 +24,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemSwiftHelm, ItemKindArmour},
 		{ItemSwiftBody, ItemKindArmour},
 		{ItemSwiftBoots, ItemKindArmour},
+		{ItemStandardSpellbook, ItemKindSpellbook},
 		{ItemAirRune, ItemKindResource},
 		{trainingShardItem, ItemKindResource},
 	}
@@ -66,6 +67,10 @@ func TestBuildItemCatalogRejectsMalformedEquipment(t *testing.T) {
 		{
 			name:       "armour without slot",
 			definition: ItemDefinition{ID: "broken_armour", Name: "Broken Armour", Kind: ItemKindArmour},
+		},
+		{
+			name:       "spellbook item without book",
+			definition: ItemDefinition{ID: "broken_book", Name: "Broken Book", Kind: ItemKindSpellbook},
 		},
 		{
 			name: "armour with unknown set",

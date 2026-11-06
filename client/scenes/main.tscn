@@ -763,7 +763,7 @@ columns = 3
 [node name="DetailedStats" type="Button" parent="UI/EquipmentHUD/Margin/VBox"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-text = "View detailed combat stats"
+text = "View equipment details"
 
 [node name="CombatStatsHUD" type="PanelContainer" parent="UI"]
 visible = false
@@ -773,9 +773,9 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -250.0
+offset_left = -400.0
 offset_top = -285.0
-offset_right = 250.0
+offset_right = 400.0
 offset_bottom = 285.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -799,7 +799,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 26
-text = "Detailed Combat Stats"
+text = "Equipment Details"
 
 [node name="Close" type="Button" parent="UI/CombatStatsHUD/Margin/VBox/Header"]
 custom_minimum_size = Vector2(42, 42)
@@ -809,13 +809,39 @@ text = "×"
 [node name="Divider" type="HSeparator" parent="UI/CombatStatsHUD/Margin/VBox"]
 layout_mode = 2
 
+[node name="PageRow" type="HBoxContainer" parent="UI/CombatStatsHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Offence" type="Button" parent="UI/CombatStatsHUD/Margin/VBox/PageRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+text = "Offence"
+
+[node name="Defence" type="Button" parent="UI/CombatStatsHUD/Margin/VBox/PageRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Defence"
+
+[node name="Effects" type="Button" parent="UI/CombatStatsHUD/Margin/VBox/PageRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Equipment & Set Effects"
+
 [node name="Stats" type="Label" parent="UI/CombatStatsHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.92, 0.94, 0.98, 1)
 theme_override_font_sizes/font_size = 18
 text = "Waiting for combat stats…"
-vertical_alignment = 1
+vertical_alignment = 0
 
 [node name="MagicHUD" type="PanelContainer" parent="UI"]
 visible = false

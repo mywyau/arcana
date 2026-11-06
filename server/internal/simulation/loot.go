@@ -53,8 +53,8 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 	if command.ItemID == "" {
 		return fmt.Errorf("item ID is required")
 	}
-	if !itemIsEquipment(command.ItemID) {
-		return fmt.Errorf("item %q is not droppable equipment", command.ItemID)
+	if item, exists := itemDefinition(command.ItemID); !exists || item.Virtual {
+		return fmt.Errorf("item %q is not droppable", command.ItemID)
 	}
 
 	w.mu.Lock()
@@ -82,6 +82,9 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 		if command.ItemID == equippedItemID {
 			return fmt.Errorf("item %q is currently equipped", command.ItemID)
 		}
+	}
+	if command.ItemID == player.equippedSpellbook {
+		return fmt.Errorf("item %q is currently equipped", command.ItemID)
 	}
 	w.pendingItemDrops[command.PlayerID] = command
 	return nil
@@ -218,8 +221,12 @@ func (w *World) applyPendingItemDrops() {
 				break
 			}
 		}
-		if !equipped && player.inventory.remove(command.ItemID, 1) {
-			w.spawnDrop(player.position, command.ItemID, 1)
+		if command.ItemID == player.equippedSpellbook {
+			equipped = true
+		}
+		quantity := player.inventory.quantity(command.ItemID)
+		if !equipped && quantity > 0 && player.inventory.remove(command.ItemID, quantity) {
+			w.spawnDrop(player.position, command.ItemID, quantity)
 		}
 	}
 }

@@ -362,14 +362,14 @@ func (w *World) QueueCombatStyle(command CombatStyleCommand) error {
 	return nil
 }
 
-// QueueEquip records an owned weapon or armour item to equip on the next action pulse.
+// QueueEquip records owned equipment to equip on the next action pulse.
 func (w *World) QueueEquip(command EquipCommand) error {
 	command.Unequip = false
 	return w.queueEquipment(command)
 }
 
 // QueueUnequip records an equipped item to remove on the next action pulse.
-// Weapons transition to the innate Unarmed profile; armour clears its slot.
+// Weapons transition to the innate Unarmed profile; other equipment clears its slot.
 func (w *World) QueueUnequip(command UnequipCommand) error {
 	return w.queueEquipment(EquipCommand{
 		PlayerID: command.PlayerID,
@@ -384,7 +384,8 @@ func (w *World) queueEquipment(command EquipCommand) error {
 		return fmt.Errorf("equipment sequence must be positive")
 	}
 	item, itemExists := itemDefinition(string(command.ItemID))
-	if !itemExists || item.Virtual || (item.Kind != ItemKindWeapon && item.Kind != ItemKindArmour) {
+	if !itemExists || item.Virtual ||
+		(item.Kind != ItemKindWeapon && item.Kind != ItemKindArmour && item.Kind != ItemKindSpellbook) {
 		return fmt.Errorf("item %q does not exist", command.ItemID)
 	}
 
@@ -413,6 +414,9 @@ func (w *World) queueEquipment(command EquipCommand) error {
 		}
 		if item.Kind == ItemKindArmour && player.equippedArmour[item.Armour.Slot] != string(command.ItemID) {
 			return fmt.Errorf("armour %q is not equipped", command.ItemID)
+		}
+		if item.Kind == ItemKindSpellbook && player.equippedSpellbook != string(command.ItemID) {
+			return fmt.Errorf("spellbook %q is not equipped", command.ItemID)
 		}
 	}
 	if command.Sequence <= player.lastEquipmentSequence {
@@ -495,12 +499,25 @@ func (w *World) applyEquipmentCommands() {
 	for _, id := range playerIDs {
 		command := w.combat.pendingEquipment[id]
 		if player, exists := w.players[id]; exists && !player.defeated {
+			item, itemExists := itemDefinition(string(command.ItemID))
+			if !itemExists {
+				delete(w.combat.pendingEquipment, id)
+				continue
+			}
 			if command.Unequip {
-				if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
+				if item.Kind == ItemKindSpellbook {
+					player.equippedSpellbook = ""
+					player.selectedSpell = ""
+				} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
 					delete(player.equippedArmour, slot)
 				} else {
 					player.equippedWeapon = WeaponUnarmed
 					player.combatStyle = defaultCombatStyle(WeaponUnarmed)
+				}
+			} else if item.Kind == ItemKindSpellbook {
+				player.equippedSpellbook = string(command.ItemID)
+				if selected, exists := spellDefinition(player.selectedSpell); exists && selected.BookID != item.Spellbook {
+					player.selectedSpell = ""
 				}
 			} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
 				player.equippedArmour[slot] = string(command.ItemID)

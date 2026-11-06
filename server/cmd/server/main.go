@@ -44,6 +44,7 @@ func main() {
 		{position: simulation.Position{X: 1, Z: -5}, itemID: simulation.ItemSwiftHelm, quantity: 1},
 		{position: simulation.Position{X: 3, Z: -5}, itemID: simulation.ItemSwiftBody, quantity: 1},
 		{position: simulation.Position{X: 5, Z: -5}, itemID: simulation.ItemSwiftBoots, quantity: 1},
+		{position: simulation.Position{X: 7, Z: -5}, itemID: simulation.ItemStandardSpellbook, quantity: 1},
 	}
 	for _, drop := range initialDrops {
 		if err := world.AddWorldDrop(drop.position, drop.itemID, drop.quantity); err != nil {
