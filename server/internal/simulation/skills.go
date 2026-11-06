@@ -7,6 +7,7 @@ import (
 
 const (
 	SkillAttack   SkillID = "attack"
+	SkillAgility  SkillID = "agility"
 	SkillDefence  SkillID = "defence"
 	SkillMagic    SkillID = "magic"
 	SkillRange    SkillID = "range"
@@ -37,7 +38,7 @@ type skillState map[SkillID]int64
 
 func newDefaultSkills() skillState {
 	return skillState{
-		SkillAttack: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
+		SkillAttack: 0, SkillAgility: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
 	}
 }
 
@@ -128,7 +129,7 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 }
 
 func skillIDValid(skill SkillID) bool {
-	return skill == SkillAttack || skill == SkillStrength || skill == SkillDefence ||
+	return skill == SkillAttack || skill == SkillAgility || skill == SkillStrength || skill == SkillDefence ||
 		skill == SkillRange || skill == SkillMagic
 }
 
@@ -141,7 +142,7 @@ func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
 		return SkillRange, true
 	case WeaponStaff:
 		return SkillMagic, true
-	case WeaponSword, WeaponDagger:
+	case WeaponSword, WeaponSteelSword, WeaponDagger:
 		switch style {
 		case CombatStyleStab:
 			return SkillAttack, true

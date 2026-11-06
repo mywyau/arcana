@@ -48,6 +48,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Defence": "defence",
 	"Range": "range",
 	"Magic": "magic",
+	"Agility": "agility",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -55,6 +56,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"defence": "Defence",
 	"range": "Range",
 	"magic": "Magic",
+	"agility": "Agility",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -76,6 +78,12 @@ const PLACEHOLDER_PRAYERS: Array = IconCatalog.PRAYERS
 
 const COMBAT_STYLES: Dictionary = {
 	"sword": [
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
+	],
+	"steel_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
@@ -170,6 +178,10 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var equipment_prayer_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Prayer
 @onready var equipment_styles_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Styles
 @onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/ContentScroll/Grid
+@onready var detailed_stats_button: Button = $UI/EquipmentHUD/Margin/VBox/DetailedStats
+@onready var combat_stats_hud: PanelContainer = $UI/CombatStatsHUD
+@onready var combat_stats_label: Label = $UI/CombatStatsHUD/Margin/VBox/Stats
+@onready var combat_stats_close_button: Button = $UI/CombatStatsHUD/Margin/VBox/Header/Close
 @onready var magic_combat_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Combat
 @onready var magic_inventory_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Inventory
 @onready var magic_skills_tab_button: Button = $UI/MagicHUD/Margin/VBox/TabRow/Skills
@@ -263,8 +275,10 @@ var _skill_progress: Dictionary = {
 	"defence": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"range": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"magic": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"agility": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
+var _combat_stats: Dictionary = {}
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
@@ -319,6 +333,8 @@ func _ready() -> void:
 	equipment_magic_tab_button.pressed.connect(_show_magic_tab)
 	equipment_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	equipment_styles_tab_button.pressed.connect(_show_styles_tab)
+	detailed_stats_button.pressed.connect(_show_detailed_combat_stats)
+	combat_stats_close_button.pressed.connect(_hide_detailed_combat_stats)
 	magic_combat_tab_button.pressed.connect(_show_combat_tab)
 	magic_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	magic_skills_tab_button.pressed.connect(_show_skills_tab)
@@ -367,6 +383,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if combat_stats_hud.visible:
+						_hide_detailed_combat_stats()
+						get_viewport().set_input_as_handled()
+						return
 					_request_disengage()
 					get_viewport().set_input_as_handled()
 				KEY_1:
@@ -733,6 +753,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				prayer_changed = true
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
+			var combat_stats_data: Variant = player_data.get("combat_stats", {})
+			if typeof(combat_stats_data) == TYPE_DICTIONARY and combat_stats_data != _combat_stats:
+				_combat_stats = (combat_stats_data as Dictionary).duplicate(true)
+				_update_detailed_combat_stats()
 			var skills_data: Variant = player_data.get("skills", [])
 			if typeof(skills_data) == TYPE_ARRAY:
 				_apply_skills_snapshot(skills_data as Array)
@@ -856,6 +880,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 			drops.add_child(view)
 			view.set_drop_id(drop_id)
 			_drop_views[drop_id] = view
+		view.set_item_id(str(drop_data.get("item_id", "")))
 		var coordinates: Dictionary = position_data
 		view.position = Vector3(
 			float(coordinates.get("x", 0.0)),
@@ -1465,6 +1490,8 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successful bow hits grant Range XP"
 		"magic":
 			training_description = "successful staff hits grant Magic XP"
+		"agility":
+			training_description = "Agility affects dodge chance • training is not active yet"
 	if next_level_experience <= 0:
 		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
 			skill_name, level, level, experience, training_description,
@@ -1551,6 +1578,18 @@ func _update_combat_styles_hud() -> void:
 			"No XP" if training.is_empty() else "%s XP" % training,
 		]
 		style_button.tooltip_text = "Combat XP is locked" if training.is_empty() else "Successful hits train %s" % training
+		var accuracy_note: String = ""
+		match style_id:
+			"accurate":
+				accuracy_note = "Improves accuracy"
+			"stab", "crush":
+				accuracy_note = "Small accuracy bonus"
+			"rapid", "heavy_crush":
+				accuracy_note = "Slightly lowers accuracy"
+			"defensive":
+				accuracy_note = "Slightly lowers accuracy while training Defence"
+		if not accuracy_note.is_empty():
+			style_button.tooltip_text += "\n%s" % accuracy_note
 		style_button.set_pressed_no_signal(style_id == selected_style)
 		style_button.pressed.connect(_request_combat_style.bind(style_id))
 		styles_grid.add_child(style_button)
@@ -1609,6 +1648,68 @@ func _update_equipment_hud() -> void:
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tile.add_child(label)
 		equipment_grid.add_child(tile)
+
+
+func _show_detailed_combat_stats() -> void:
+	_update_detailed_combat_stats()
+	combat_stats_hud.visible = true
+	combat_stats_close_button.grab_focus()
+
+
+func _hide_detailed_combat_stats() -> void:
+	combat_stats_hud.visible = false
+	detailed_stats_button.grab_focus()
+
+
+func _update_detailed_combat_stats() -> void:
+	if _combat_stats.is_empty():
+		combat_stats_label.text = "Waiting for the server to send combat stats…"
+		return
+	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
+	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
+	combat_stats_label.text = (
+		"CURRENT LOADOUT\n"
+		+ "%s  •  %s style\n\n" % [
+			str(_combat_stats.get("weapon", "unknown")).capitalize(),
+			str(_combat_stats.get("style", "unknown")).capitalize(),
+		]
+		+ "ACCURACY\n"
+		+ "Total accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
+		+ "%s level: %d\n" % [
+			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
+			int(_combat_stats.get("accuracy_level", 1)),
+		]
+		+ "Weapon accuracy: %s\n" % _signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0)))
+		+ "Style modifier: %s\n\n" % _signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0)))
+		+ "DAMAGE\n"
+		+ "Current damage range: %d–%d\n" % [
+			int(_combat_stats.get("minimum_damage", 0)),
+			int(_combat_stats.get("maximum_damage", 0)),
+		]
+		+ "%s level: %d\n" % [
+			str(_combat_stats.get("damage_skill", "strength")).capitalize(),
+			int(_combat_stats.get("damage_level", 1)),
+		]
+		+ "Weapon strength: %s\n" % _signed_stat(int(_combat_stats.get("strength_bonus", 0)))
+		+ "Skill damage: +%.1f\n\n" % float(_combat_stats.get("skill_damage_bonus", 0.0))
+		+ "DEFENCE\n"
+		+ "Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
+		+ "Stab %s    Slash %s    Crush %s\n" % [
+			_signed_stat(int(defence.get("stab", 0))),
+			_signed_stat(int(defence.get("slash", 0))),
+			_signed_stat(int(defence.get("crush", 0))),
+		]
+		+ "Ranged %s    Magic %s\n\n" % [
+			_signed_stat(int(defence.get("ranged", 0))),
+			_signed_stat(int(defence.get("magic", 0))),
+		]
+		+ "Equipment defence bonuses are informational;\n"
+		+ "damage mitigation is not active yet."
+	)
+
+
+func _signed_stat(value: int) -> String:
+	return "+%d" % value if value >= 0 else str(value)
 
 
 func _apply_inventory_snapshot(inventory: Dictionary) -> void:

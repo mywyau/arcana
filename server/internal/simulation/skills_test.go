@@ -34,6 +34,8 @@ func TestWeaponsTrainExpectedSkills(t *testing.T) {
 		{WeaponSword, CombatStyleStab, SkillAttack, true},
 		{WeaponSword, CombatStyleSlash, SkillStrength, true},
 		{WeaponSword, CombatStyleDefensive, SkillDefence, true},
+		{WeaponSteelSword, CombatStyleStab, SkillAttack, true},
+		{WeaponSteelSword, CombatStyleSlash, SkillStrength, true},
 		{WeaponMace, CombatStyleCrush, SkillAttack, true},
 		{WeaponMace, CombatStyleHeavyCrush, SkillStrength, true},
 		{WeaponBattleAxe, CombatStyleSlash, SkillAttack, true},

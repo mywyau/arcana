@@ -12,14 +12,49 @@ const (
 	ItemTrainingPlate = "training_plate"
 )
 
-var armourSlots = map[string]ArmourSlot{
-	ItemTrainingHelm:  ArmourSlotHead,
-	ItemTrainingPlate: ArmourSlotBody,
+type DefenceBonuses struct {
+	Stab   int
+	Slash  int
+	Crush  int
+	Ranged int
+	Magic  int
+}
+
+type ArmourDefinition struct {
+	Slot    ArmourSlot
+	Defence DefenceBonuses
+}
+
+var armourDefinitions = map[string]ArmourDefinition{
+	ItemTrainingHelm: {
+		Slot:    ArmourSlotHead,
+		Defence: DefenceBonuses{Stab: 2, Slash: 3, Crush: 2, Ranged: 1},
+	},
+	ItemTrainingPlate: {
+		Slot:    ArmourSlotBody,
+		Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2},
+	},
 }
 
 func armourSlot(itemID string) (ArmourSlot, bool) {
-	slot, exists := armourSlots[itemID]
-	return slot, exists
+	definition, exists := armourDefinitions[itemID]
+	return definition.Slot, exists
+}
+
+func equippedDefenceBonuses(equipped map[ArmourSlot]string) DefenceBonuses {
+	var total DefenceBonuses
+	for _, itemID := range equipped {
+		definition, exists := armourDefinitions[itemID]
+		if !exists {
+			continue
+		}
+		total.Stab += definition.Defence.Stab
+		total.Slash += definition.Defence.Slash
+		total.Crush += definition.Defence.Crush
+		total.Ranged += definition.Defence.Ranged
+		total.Magic += definition.Defence.Magic
+	}
+	return total
 }
 
 func cloneEquippedArmour(equipped map[ArmourSlot]string) map[ArmourSlot]string {

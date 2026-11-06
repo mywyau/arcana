@@ -231,6 +231,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 				Defeated:        true,
 				RespawnAtPulse:  20,
 				DodgeRate:       0.2,
+				Accuracy:        17,
+				Evasion:         9,
 			},
 			{
 				ID:            "upper_dummy",
@@ -272,6 +274,14 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			ActivePrayers:           []simulation.PrayerID{simulation.PrayerEvasion},
 			LastPrayerSequence:      5,
 			DodgeRate:               0.15,
+			CombatStats: simulation.CombatStatsSnapshot{
+				Weapon: simulation.WeaponDagger, Style: simulation.CombatStyleStab,
+				AccuracySkill: simulation.SkillAttack, AccuracyLevel: 2,
+				WeaponAccuracyBonus: 14, StyleAccuracyBonus: 2, TotalAccuracy: 18,
+				DamageSkill: simulation.SkillStrength, DamageLevel: 3, StrengthBonus: 7, SkillDamageBonus: 1,
+				MinimumDamage: 5, MaximumDamage: 9, DefenceLevel: 4,
+				DefenceBonuses: simulation.DefenceBonuses{Stab: 2, Slash: 3, Crush: 4, Ranged: 5, Magic: -1},
+			},
 			Inventory: simulation.InventorySnapshot{
 				Capacity: 8,
 				Items: []simulation.InventoryItem{{
@@ -295,7 +305,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	}
 	dummy, found := findTarget(message, "dummy")
 	if !found || dummy.Kind != "creature" || dummy.TargetID != "player-one" || dummy.NextAttackPulse != 16 ||
-		!dummy.Defeated || dummy.RespawnAtPulse != 20 || dummy.DodgeRate != 0.2 {
+		!dummy.Defeated || dummy.RespawnAtPulse != 20 || dummy.DodgeRate != 0.2 ||
+		dummy.Accuracy != 17 || dummy.Evasion != 9 {
 		t.Fatalf("dummy combat state = %+v, found %t", dummy, found)
 	}
 	upperDummy, found := findTarget(message, "upper_dummy")
@@ -323,6 +334,15 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		player.Inventory.Items[0].Slot != 0 || player.Inventory.Items[0].ItemID != "sword" ||
 		player.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("player inventory = %+v", player.Inventory)
+	}
+	if player.CombatStats.Weapon != "dagger" || player.CombatStats.Style != "stab" ||
+		player.CombatStats.AccuracySkill != "attack" || player.CombatStats.AccuracyLevel != 2 ||
+		player.CombatStats.WeaponAccuracyBonus != 14 || player.CombatStats.StyleAccuracyBonus != 2 ||
+		player.CombatStats.TotalAccuracy != 18 || player.CombatStats.DamageSkill != "strength" ||
+		player.CombatStats.DamageLevel != 3 || player.CombatStats.StrengthBonus != 7 || player.CombatStats.SkillDamageBonus != 1 ||
+		player.CombatStats.MinimumDamage != 5 || player.CombatStats.MaximumDamage != 9 ||
+		player.CombatStats.DefenceLevel != 4 || player.CombatStats.DefenceBonuses.Magic != -1 {
+		t.Fatalf("player combat stats = %+v", player.CombatStats)
 	}
 	if len(player.Skills) != 1 || player.Skills[0].ID != "attack" ||
 		player.Skills[0].Experience != 125 || player.Skills[0].Level != 2 ||

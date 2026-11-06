@@ -8,6 +8,16 @@ import (
 
 type fixedRollSource float64
 
+// Level-one midpoint damage remains equal to each weapon's strength bonus.
+const (
+	swordDamage     = swordMeleeStrength
+	daggerDamage    = daggerMeleeStrength
+	bowDamage       = bowRangedStrength
+	maceDamage      = maceMeleeStrength
+	battleAxeDamage = battleAxeMeleeStrength
+	staffDamage     = staffMagicStrength
+)
+
 func (source fixedRollSource) Float64() float64 { return float64(source) }
 
 type sequenceRollSource struct {
@@ -693,17 +703,19 @@ func TestSwordStylesRouteOrSuppressCombatXP(t *testing.T) {
 func TestAdditionalWeaponDefinitions(t *testing.T) {
 	tests := []struct {
 		id       WeaponID
-		damage   int
+		strength int
 		interval uint64
 		range_   float64
 	}{
-		{id: WeaponMace, damage: maceDamage, interval: maceAttackIntervalPulses, range_: maceRange},
-		{id: WeaponBattleAxe, damage: battleAxeDamage, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
-		{id: WeaponStaff, damage: staffDamage, interval: staffAttackIntervalPulses, range_: staffRange},
+		{id: WeaponMace, strength: maceMeleeStrength, interval: maceAttackIntervalPulses, range_: maceRange},
+		{id: WeaponSteelSword, strength: steelSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
+		{id: WeaponBattleAxe, strength: battleAxeMeleeStrength, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
+		{id: WeaponStaff, strength: staffMagicStrength, interval: staffAttackIntervalPulses, range_: staffRange},
 	}
 	for _, test := range tests {
 		weapon, exists := weaponDefinition(test.id)
-		if !exists || weapon.Damage != test.damage || weapon.AttackInterval != test.interval || weapon.Range != test.range_ {
+		strength := weapon.MeleeStrength + weapon.RangedStrength + weapon.MagicStrength
+		if !exists || strength != test.strength || weapon.AttackInterval != test.interval || weapon.Range != test.range_ {
 			t.Fatalf("weaponDefinition(%q) = %+v, exists %t", test.id, weapon, exists)
 		}
 	}
@@ -711,6 +723,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		!combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponBattleAxe) ||
 		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
+		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSteelSword) ||
 		!combatStyleValidForWeapon(CombatStyleUnfocused, WeaponBow) {
 		t.Fatal("additional weapon combat styles are not valid")
 	}
@@ -722,14 +735,15 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 		minimum  int
 		average  int
 		maximum  int
-		variance int
+		variance float64
 	}{
-		{id: WeaponSword, minimum: 8, average: 10, maximum: 12, variance: 2},
-		{id: WeaponDagger, minimum: 5, average: 7, maximum: 9, variance: 2},
-		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: 1},
-		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: 3},
-		{id: WeaponBattleAxe, minimum: 11, average: 15, maximum: 19, variance: 4},
-		{id: WeaponStaff, minimum: 4, average: 6, maximum: 8, variance: 2},
+		{id: WeaponSword, minimum: 8, average: 10, maximum: 12, variance: swordDamageVariance},
+		{id: WeaponSteelSword, minimum: 11, average: 14, maximum: 17, variance: swordDamageVariance},
+		{id: WeaponDagger, minimum: 5, average: 7, maximum: 9, variance: daggerDamageVariance},
+		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: bowDamageVariance},
+		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: maceDamageVariance},
+		{id: WeaponBattleAxe, minimum: 11, average: 15, maximum: 19, variance: battleAxeDamageVariance},
+		{id: WeaponStaff, minimum: 4, average: 6, maximum: 8, variance: staffDamageVariance},
 	}
 	for _, test := range tests {
 		t.Run(string(test.id), func(t *testing.T) {
@@ -737,19 +751,55 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 			if !exists {
 				t.Fatalf("weaponDefinition(%q) does not exist", test.id)
 			}
-			if weapon.DamageVariance != test.variance {
-				t.Fatalf("damage variance = %d, want %d", weapon.DamageVariance, test.variance)
+			if math.Abs(weapon.DamageVariance-test.variance) > 0.000_001 {
+				t.Fatalf("damage variance = %.3f, want %.3f", weapon.DamageVariance, test.variance)
 			}
-			if got := rollWeaponDamage(weapon, 0); got != test.minimum {
+			poweredDamage := weaponPoweredDamage(&playerState{skills: newDefaultSkills()}, weapon)
+			if got := rollDamageWithVariance(poweredDamage, weapon.DamageVariance, 0); got != test.minimum {
 				t.Fatalf("minimum damage = %d, want %d", got, test.minimum)
 			}
-			if got := rollWeaponDamage(weapon, 0.5); got != test.average {
+			if got := rollDamageWithVariance(poweredDamage, weapon.DamageVariance, 0.5); got != test.average {
 				t.Fatalf("midpoint damage = %d, want %d", got, test.average)
 			}
-			if got := rollWeaponDamage(weapon, 1); got != test.maximum {
+			if got := rollDamageWithVariance(poweredDamage, weapon.DamageVariance, 1); got != test.maximum {
 				t.Fatalf("maximum damage = %d, want %d", got, test.maximum)
 			}
 		})
+	}
+}
+
+func TestWeaponStrengthUsesRelevantPowerSkill(t *testing.T) {
+	tests := []struct {
+		name   string
+		weapon WeaponID
+		skill  SkillID
+		want   float64
+	}{
+		{name: "melee uses Strength", weapon: WeaponSword, skill: SkillStrength, want: 34.5},
+		{name: "ranged uses Range", weapon: WeaponBow, skill: SkillRange, want: 28.5},
+		{name: "magic uses Magic", weapon: WeaponStaff, skill: SkillMagic, want: 30.5},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			weapon, exists := weaponDefinition(test.weapon)
+			if !exists {
+				t.Fatalf("weaponDefinition(%q) does not exist", test.weapon)
+			}
+			player := &playerState{skills: newDefaultSkills()}
+			player.skills[test.skill] = SkillExperienceForLevel(50)
+			if got := weaponPoweredDamage(player, weapon); math.Abs(got-test.want) > 0.000_001 {
+				t.Fatalf("powered damage = %.3f, want %.3f", got, test.want)
+			}
+		})
+	}
+}
+
+func TestAttackLevelDoesNotIncreaseMeleeDamage(t *testing.T) {
+	weapon, _ := weaponDefinition(WeaponSword)
+	player := &playerState{skills: newDefaultSkills()}
+	player.skills[SkillAttack] = SkillExperienceForLevel(50)
+	if got := weaponPoweredDamage(player, weapon); got != swordMeleeStrength {
+		t.Fatalf("powered damage with Attack level 50 = %.3f, want %d", got, swordMeleeStrength)
 	}
 }
 

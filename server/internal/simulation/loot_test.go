@@ -5,6 +5,37 @@ import (
 	"time"
 )
 
+func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddWorldDrop(Position{X: -2, Z: -5}, string(WeaponSteelSword), 1); err != nil {
+		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
+	}
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != string(WeaponSteelSword) || drops[0].Position != (Position{X: -2, Z: -5}) {
+		t.Fatalf("initial steel sword drop = %+v", drops)
+	}
+
+	mustAddPlayer(t, world, "player-one", Position{X: -2, Z: -5}, 4)
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: drops[0].ID}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	if !snapshotInventoryContains(mustPlayer(t, world, "player-one").Inventory, string(WeaponSteelSword)) {
+		t.Fatal("picked-up steel sword is missing from inventory")
+	}
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponSteelSword}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponSteelSword || player.CombatStyle != CombatStyleStab {
+		t.Fatalf("equipped steel sword state = %+v", player)
+	}
+	if player.CombatStats.StrengthBonus != steelSwordMeleeStrength {
+		t.Fatalf("steel sword strength = %d, want %d", player.CombatStats.StrengthBonus, steelSwordMeleeStrength)
+	}
+}
+
 func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)

@@ -29,6 +29,25 @@ type DropItemCommand struct {
 	ItemID   string
 }
 
+// AddWorldDrop places initial world loot before the simulation starts.
+func (w *World) AddWorldDrop(position Position, itemID string, quantity int) error {
+	if !position.valid() {
+		return fmt.Errorf("drop position must be finite")
+	}
+	if quantity <= 0 {
+		return fmt.Errorf("drop quantity must be positive")
+	}
+	_, weaponExists := weaponDefinition(WeaponID(itemID))
+	_, armourExists := armourSlot(itemID)
+	if itemID != trainingShardItem && !weaponExists && !armourExists {
+		return fmt.Errorf("unknown drop item %q", itemID)
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.spawnDrop(position, itemID, quantity)
+	return nil
+}
+
 func (w *World) QueueDropItem(command DropItemCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("drop sequence must be positive")

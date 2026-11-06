@@ -9,42 +9,44 @@ import (
 
 const (
 	actionPulseInterval           = 600 * time.Millisecond
+	skillDamagePointsPerLevel     = 0.5
 	swordAttackIntervalPulses     = 4
 	swordRange                    = 1.55
 	swordApproachRange            = 1.25
-	swordDamage                   = 10
-	swordDamageVariance           = 2
+	swordMeleeStrength            = 10
+	swordDamageVariance           = 0.20
+	steelSwordMeleeStrength       = 14
 	daggerRange                   = 1.3
 	daggerApproachRange           = 1.05
-	daggerDamage                  = 7
-	daggerDamageVariance          = 2
+	daggerMeleeStrength           = 7
+	daggerDamageVariance          = 2.0 / 7.0
 	daggerAttackIntervalPulses    = 3
 	bowRange                      = 12.0
 	bowApproachRange              = 11.25
-	bowDamage                     = 4
-	bowDamageVariance             = 1
+	bowRangedStrength             = 4
+	bowDamageVariance             = 0.25
 	bowAttackIntervalPulses       = 5
 	maceRange                     = 1.45
 	maceApproachRange             = 1.15
-	maceDamage                    = 12
-	maceDamageVariance            = 3
+	maceMeleeStrength             = 12
+	maceDamageVariance            = 0.25
 	maceAttackIntervalPulses      = 5
 	battleAxeRange                = 1.55
 	battleAxeApproachRange        = 1.25
-	battleAxeDamage               = 15
-	battleAxeDamageVariance       = 4
+	battleAxeMeleeStrength        = 15
+	battleAxeDamageVariance       = 4.0 / 15.0
 	battleAxeAttackIntervalPulses = 6
 	staffRange                    = 10.0
 	staffApproachRange            = 9.25
-	staffDamage                   = 6
-	staffDamageVariance           = 2
+	staffMagicStrength            = 6
+	staffDamageVariance           = 1.0 / 3.0
 	staffAttackIntervalPulses     = 5
 	playerMaximumHealth           = 100
 	playerMaximumMana             = 100
 	playerMaximumPrayer           = 100
-	playerDodgeRate               = 0.10
+	playerDodgeRate               = defaultBaseDodgeBonus
 	dummyMaximumHealth            = 100
-	dummyDodgeRate                = 0.10
+	dummyDodgeRate                = defaultBaseDodgeBonus
 	dummyAttackDamage             = 15
 	dummyAttackIntervalPulses     = 4
 	dummyAttackRange              = 1.55
@@ -69,12 +71,13 @@ const (
 type WeaponID string
 
 const (
-	WeaponSword     WeaponID = "sword"
-	WeaponDagger    WeaponID = "dagger"
-	WeaponBow       WeaponID = "bow"
-	WeaponMace      WeaponID = "mace"
-	WeaponBattleAxe WeaponID = "battle_axe"
-	WeaponStaff     WeaponID = "staff"
+	WeaponSword      WeaponID = "sword"
+	WeaponSteelSword WeaponID = "steel_sword"
+	WeaponDagger     WeaponID = "dagger"
+	WeaponBow        WeaponID = "bow"
+	WeaponMace       WeaponID = "mace"
+	WeaponBattleAxe  WeaponID = "battle_axe"
+	WeaponStaff      WeaponID = "staff"
 )
 
 type CombatStyleID string
@@ -101,7 +104,7 @@ func defaultCombatStyle(weapon WeaponID) CombatStyleID {
 	if weapon == WeaponDagger {
 		return CombatStyleStab
 	}
-	if weapon == WeaponSword {
+	if weapon == WeaponSword || weapon == WeaponSteelSword {
 		return CombatStyleStab
 	}
 	return CombatStyleSlash
@@ -119,7 +122,7 @@ func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
 		return style == CombatStyleCrush || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
 	case WeaponBattleAxe:
 		return style == CombatStyleSlash || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
-	case WeaponSword, WeaponDagger:
+	case WeaponSword, WeaponSteelSword, WeaponDagger:
 		return style == CombatStyleStab || style == CombatStyleSlash || style == CombatStyleDefensive
 	default:
 		return false
@@ -128,8 +131,11 @@ func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
 
 type WeaponDefinition struct {
 	ID             WeaponID
-	Damage         int
-	DamageVariance int
+	AccuracyBonus  int
+	MeleeStrength  int
+	RangedStrength int
+	MagicStrength  int
+	DamageVariance float64
 	AttackInterval uint64
 	Range          float64
 	ApproachRange  float64
@@ -138,17 +144,19 @@ type WeaponDefinition struct {
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 	switch id {
 	case WeaponSword:
-		return WeaponDefinition{ID: id, Damage: swordDamage, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
+		return WeaponDefinition{ID: id, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
+	case WeaponSteelSword:
+		return WeaponDefinition{ID: id, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
 	case WeaponDagger:
-		return WeaponDefinition{ID: id, Damage: daggerDamage, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
+		return WeaponDefinition{ID: id, AccuracyBonus: 14, MeleeStrength: daggerMeleeStrength, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
 	case WeaponBow:
-		return WeaponDefinition{ID: id, Damage: bowDamage, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
+		return WeaponDefinition{ID: id, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
 	case WeaponMace:
-		return WeaponDefinition{ID: id, Damage: maceDamage, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, true
+		return WeaponDefinition{ID: id, AccuracyBonus: 8, MeleeStrength: maceMeleeStrength, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, true
 	case WeaponBattleAxe:
-		return WeaponDefinition{ID: id, Damage: battleAxeDamage, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, true
+		return WeaponDefinition{ID: id, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, true
 	case WeaponStaff:
-		return WeaponDefinition{ID: id, Damage: staffDamage, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, true
+		return WeaponDefinition{ID: id, AccuracyBonus: 11, MagicStrength: staffMagicStrength, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, true
 	default:
 		return WeaponDefinition{}, false
 	}
@@ -218,6 +226,8 @@ type TargetSnapshot struct {
 	Defeated        bool
 	RespawnAtPulse  uint64
 	DodgeRate       float64
+	Accuracy        int
+	Evasion         int
 }
 
 type combatState struct {
@@ -274,6 +284,8 @@ func newCombatState() *combatState {
 		Health:        dummyMaximumHealth,
 		MaximumHealth: dummyMaximumHealth,
 		DodgeRate:     dummyDodgeRate,
+		Accuracy:      dummyAccuracyScore,
+		Evasion:       dummyEvasionScore,
 	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
@@ -285,6 +297,8 @@ func newCombatState() *combatState {
 				Health:        dummyMaximumHealth,
 				MaximumHealth: dummyMaximumHealth,
 				DodgeRate:     dummyDodgeRate,
+				Accuracy:      dummyAccuracyScore,
+				Evasion:       dummyEvasionScore,
 			},
 			upperDummyTargetID: {
 				ID:            upperDummyTargetID,
@@ -294,6 +308,8 @@ func newCombatState() *combatState {
 				Health:        dummyMaximumHealth,
 				MaximumHealth: dummyMaximumHealth,
 				DodgeRate:     dummyDodgeRate,
+				Accuracy:      dummyAccuracyScore,
+				Evasion:       dummyEvasionScore,
 			},
 			overlookDummyTargetID: {
 				ID:            overlookDummyTargetID,
@@ -303,6 +319,8 @@ func newCombatState() *combatState {
 				Health:        dummyMaximumHealth,
 				MaximumHealth: dummyMaximumHealth,
 				DodgeRate:     dummyDodgeRate,
+				Accuracy:      dummyAccuracyScore,
+				Evasion:       dummyEvasionScore,
 			},
 			hillWardenTargetID: hillWarden,
 		},
@@ -600,7 +618,7 @@ func (w *World) resolveAutoAttacks() {
 
 		player.lastActionPulse = w.combat.pulse
 		player.nextAttackPulse = w.combat.pulse + weapon.AttackInterval
-		if w.rollSource.Float64() < target.DodgeRate {
+		if w.rollSource.Float64() < targetDodgeChance(player, target, weapon) {
 			player.lastActionResult = "dodged"
 			w.combat.recordEvent(CombatEvent{
 				Pulse:    w.combat.pulse,
@@ -611,7 +629,10 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		rolledDamage := rollWeaponDamage(weapon, w.rollSource.Float64())
+		poweredDamage := weaponPoweredDamage(player, weapon)
+		// Defence and armour mitigation will reduce poweredDamage here. Variance
+		// deliberately remains the final damage stage before overkill clamping.
+		rolledDamage := rollDamageWithVariance(poweredDamage, weapon.DamageVariance, w.rollSource.Float64())
 		damageDealt := min(rolledDamage, target.Health)
 		target.Health -= damageDealt
 		if skill, trains := skillForCombatStyle(player.equippedWeapon, player.combatStyle); trains {
@@ -635,14 +656,37 @@ func (w *World) resolveAutoAttacks() {
 	}
 }
 
-func rollWeaponDamage(weapon WeaponDefinition, roll float64) int {
-	if weapon.DamageVariance <= 0 {
-		return weapon.Damage
+func weaponPoweredDamage(player *playerState, weapon WeaponDefinition) float64 {
+	strength := weapon.MeleeStrength
+	skill := SkillStrength
+	if weapon.RangedStrength > 0 {
+		strength = weapon.RangedStrength
+		skill = SkillRange
+	} else if weapon.MagicStrength > 0 {
+		strength = weapon.MagicStrength
+		skill = SkillMagic
+	}
+	level := 1
+	if player != nil {
+		level = SkillLevelForExperience(player.skills[skill])
+	}
+	return float64(strength) + float64(level-1)*skillDamagePointsPerLevel
+}
+
+func rollDamageWithVariance(poweredDamage, variance, roll float64) int {
+	minimum, maximum := damageRange(poweredDamage, variance)
+	if minimum == maximum {
+		return minimum
 	}
 	roll = max(0, min(roll, math.Nextafter(1, 0)))
-	span := 2*weapon.DamageVariance + 1
-	offset := int(math.Floor(roll*float64(span))) - weapon.DamageVariance
-	return max(0, weapon.Damage+offset)
+	return minimum + int(math.Floor(roll*float64(maximum-minimum+1)))
+}
+
+func damageRange(poweredDamage, variance float64) (int, int) {
+	variance = max(0, variance)
+	minimum := max(0, int(math.Round(poweredDamage*(1-variance))))
+	maximum := max(minimum, int(math.Round(poweredDamage*(1+variance))))
+	return minimum, maximum
 }
 
 func (w *World) resolveDummyAttack() {
@@ -764,7 +808,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	}
 
 	dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
-	if w.rollSource.Float64() < effectivePlayerDodgeRate(player) {
+	if w.rollSource.Float64() < playerDodgeChance(dummy.Accuracy, player) {
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDodged,

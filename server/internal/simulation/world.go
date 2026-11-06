@@ -100,6 +100,7 @@ type PlayerSnapshot struct {
 	CombatStyle             CombatStyleID
 	LastCombatStyleSequence uint64
 	DodgeRate               float64
+	CombatStats             CombatStatsSnapshot
 	Inventory               InventorySnapshot
 	LastPickupSequence      uint64
 	Skills                  []SkillSnapshot
@@ -563,7 +564,8 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastEquipmentPulse:      player.lastEquipmentPulse,
 		CombatStyle:             player.combatStyle,
 		LastCombatStyleSequence: player.lastCombatStyleSequence,
-		DodgeRate:               effectivePlayerDodgeRate(player),
+		DodgeRate:               playerDodgeChance(dummyAccuracyScore, player),
+		CombatStats:             derivedCombatStats(player),
 		Inventory:               snapshotInventory(player.inventory),
 		LastPickupSequence:      player.lastPickupSequence,
 		Skills:                  snapshotSkills(player.skills),

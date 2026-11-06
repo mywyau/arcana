@@ -29,6 +29,9 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 125 || attack.Level != 2 {
 		t.Fatalf("restored Attack = %+v", attack)
 	}
+	if agility := mustSkill(t, player, SkillAgility); agility.Experience != 0 || agility.Level != 1 {
+		t.Fatalf("defaulted Agility = %+v", agility)
+	}
 }
 
 func TestQueueJoinWithPersistentStateRejectsInvalidEquipment(t *testing.T) {

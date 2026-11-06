@@ -25,8 +25,9 @@ func TestEvasionPrayerActivatesAndDrainsOnCadence(t *testing.T) {
 	if player.LastPrayerSequence != 1 || player.Prayer != playerMaximumPrayer {
 		t.Fatalf("prayer state after activation = sequence %d, points %d", player.LastPrayerSequence, player.Prayer)
 	}
-	if math.Abs(player.DodgeRate-(playerDodgeRate+evasionDodgeBonus)) > 0.000_001 {
-		t.Fatalf("effective dodge rate = %.3f, want %.3f", player.DodgeRate, playerDodgeRate+evasionDodgeBonus)
+	wantDodge := calculatedDodgeChance(dummyAccuracyScore, 1, playerDodgeRate+evasionDodgeBonus)
+	if math.Abs(player.DodgeRate-wantDodge) > 0.000_001 {
+		t.Fatalf("effective dodge rate = %.3f, want %.3f", player.DodgeRate, wantDodge)
 	}
 
 	for range evasionDrainIntervalPulses - 1 {
@@ -58,8 +59,9 @@ func TestEvasionPrayerDeactivatesAtZeroPoints(t *testing.T) {
 	if player.Prayer != 0 || len(player.ActivePrayers) != 0 {
 		t.Fatalf("prayer state at depletion = points %d, active %v", player.Prayer, player.ActivePrayers)
 	}
-	if player.DodgeRate != playerDodgeRate {
-		t.Fatalf("dodge rate after depletion = %.3f, want %.3f", player.DodgeRate, playerDodgeRate)
+	wantDodge := calculatedDodgeChance(dummyAccuracyScore, 1, playerDodgeRate)
+	if player.DodgeRate != wantDodge {
+		t.Fatalf("dodge rate after depletion = %.3f, want %.3f", player.DodgeRate, wantDodge)
 	}
 }
 

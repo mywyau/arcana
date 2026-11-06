@@ -32,6 +32,14 @@ mesh = SubResource("ShardMesh")
 [node name="Body" type="StaticBody3D" parent="."]
 collision_layer = 16
 
+[node name="ItemLabel" type="Label3D" parent="."]
+position = Vector3(0, 1.05, 0)
+text = "Loot"
+font_size = 38
+outline_size = 8
+billboard = 1
+no_depth_test = true
+
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Body"]
 position = Vector3(0, 0.35, 0)
 shape = SubResource("PickupShape")

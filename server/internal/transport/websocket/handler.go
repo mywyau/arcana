@@ -417,6 +417,27 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			ActivePrayers:           make([]string, 0, len(player.ActivePrayers)),
 			LastPrayerSequence:      player.LastPrayerSequence,
 			DodgeRate:               player.DodgeRate,
+			CombatStats: protocol.CombatStatsSnapshot{
+				Weapon:              string(player.CombatStats.Weapon),
+				Style:               string(player.CombatStats.Style),
+				AccuracySkill:       string(player.CombatStats.AccuracySkill),
+				AccuracyLevel:       player.CombatStats.AccuracyLevel,
+				WeaponAccuracyBonus: player.CombatStats.WeaponAccuracyBonus,
+				StyleAccuracyBonus:  player.CombatStats.StyleAccuracyBonus,
+				TotalAccuracy:       player.CombatStats.TotalAccuracy,
+				DamageSkill:         string(player.CombatStats.DamageSkill),
+				DamageLevel:         player.CombatStats.DamageLevel,
+				StrengthBonus:       player.CombatStats.StrengthBonus,
+				SkillDamageBonus:    player.CombatStats.SkillDamageBonus,
+				MinimumDamage:       player.CombatStats.MinimumDamage,
+				MaximumDamage:       player.CombatStats.MaximumDamage,
+				DefenceLevel:        player.CombatStats.DefenceLevel,
+				DefenceBonuses: protocol.DefenceBonuses{
+					Stab: player.CombatStats.DefenceBonuses.Stab, Slash: player.CombatStats.DefenceBonuses.Slash,
+					Crush: player.CombatStats.DefenceBonuses.Crush, Ranged: player.CombatStats.DefenceBonuses.Ranged,
+					Magic: player.CombatStats.DefenceBonuses.Magic,
+				},
+			},
 			Inventory: protocol.InventorySnapshot{
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
@@ -481,5 +502,7 @@ func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnap
 		Defeated:        target.Defeated,
 		RespawnAtPulse:  target.RespawnAtPulse,
 		DodgeRate:       target.DodgeRate,
+		Accuracy:        target.Accuracy,
+		Evasion:         target.Evasion,
 	}
 }

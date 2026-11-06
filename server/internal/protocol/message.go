@@ -82,6 +82,8 @@ type TargetSnapshot struct {
 	Defeated        bool     `json:"defeated"`
 	RespawnAtPulse  uint64   `json:"respawn_at_pulse"`
 	DodgeRate       float64  `json:"dodge_rate"`
+	Accuracy        int      `json:"accuracy"`
+	Evasion         int      `json:"evasion"`
 }
 
 type DropSnapshot struct {
@@ -92,41 +94,68 @@ type DropSnapshot struct {
 }
 
 type PlayerSnapshot struct {
-	ID                      string             `json:"id"`
-	Position                Position           `json:"position"`
-	Destination             *Position          `json:"destination,omitempty"`
-	Path                    []Position         `json:"path"`
-	Speed                   float64            `json:"speed"`
-	LastCommandSequence     uint64             `json:"last_command_sequence"`
-	LastCommandTick         uint64             `json:"last_command_tick"`
-	NavigationLocation      NavigationLocation `json:"navigation_location"`
-	LastActionSequence      uint64             `json:"last_action_sequence"`
-	LastActionPulse         uint64             `json:"last_action_pulse"`
-	LastActionResult        string             `json:"last_action_result"`
-	CombatTarget            string             `json:"combat_target"`
-	NextAttackPulse         uint64             `json:"next_attack_pulse"`
-	AutoApproaching         bool               `json:"auto_approaching"`
-	AutoPickingUp           bool               `json:"auto_picking_up"`
-	Health                  int                `json:"health"`
-	MaximumHealth           int                `json:"maximum_health"`
-	Mana                    int                `json:"mana"`
-	MaximumMana             int                `json:"maximum_mana"`
-	Prayer                  int                `json:"prayer"`
-	MaximumPrayer           int                `json:"maximum_prayer"`
-	Defeated                bool               `json:"defeated"`
-	RespawnAtPulse          uint64             `json:"respawn_at_pulse"`
-	EquippedWeapon          string             `json:"equipped_weapon"`
-	EquippedArmour          map[string]string  `json:"equipped_armour"`
-	LastEquipmentSequence   uint64             `json:"last_equipment_sequence"`
-	LastEquipmentPulse      uint64             `json:"last_equipment_pulse"`
-	CombatStyle             string             `json:"combat_style"`
-	LastCombatStyleSequence uint64             `json:"last_combat_style_sequence"`
-	ActivePrayers           []string           `json:"active_prayers"`
-	LastPrayerSequence      uint64             `json:"last_prayer_sequence"`
-	DodgeRate               float64            `json:"dodge_rate"`
-	Inventory               InventorySnapshot  `json:"inventory"`
-	LastPickupSequence      uint64             `json:"last_pickup_sequence"`
-	Skills                  []SkillSnapshot    `json:"skills"`
+	ID                      string              `json:"id"`
+	Position                Position            `json:"position"`
+	Destination             *Position           `json:"destination,omitempty"`
+	Path                    []Position          `json:"path"`
+	Speed                   float64             `json:"speed"`
+	LastCommandSequence     uint64              `json:"last_command_sequence"`
+	LastCommandTick         uint64              `json:"last_command_tick"`
+	NavigationLocation      NavigationLocation  `json:"navigation_location"`
+	LastActionSequence      uint64              `json:"last_action_sequence"`
+	LastActionPulse         uint64              `json:"last_action_pulse"`
+	LastActionResult        string              `json:"last_action_result"`
+	CombatTarget            string              `json:"combat_target"`
+	NextAttackPulse         uint64              `json:"next_attack_pulse"`
+	AutoApproaching         bool                `json:"auto_approaching"`
+	AutoPickingUp           bool                `json:"auto_picking_up"`
+	Health                  int                 `json:"health"`
+	MaximumHealth           int                 `json:"maximum_health"`
+	Mana                    int                 `json:"mana"`
+	MaximumMana             int                 `json:"maximum_mana"`
+	Prayer                  int                 `json:"prayer"`
+	MaximumPrayer           int                 `json:"maximum_prayer"`
+	Defeated                bool                `json:"defeated"`
+	RespawnAtPulse          uint64              `json:"respawn_at_pulse"`
+	EquippedWeapon          string              `json:"equipped_weapon"`
+	EquippedArmour          map[string]string   `json:"equipped_armour"`
+	LastEquipmentSequence   uint64              `json:"last_equipment_sequence"`
+	LastEquipmentPulse      uint64              `json:"last_equipment_pulse"`
+	CombatStyle             string              `json:"combat_style"`
+	LastCombatStyleSequence uint64              `json:"last_combat_style_sequence"`
+	ActivePrayers           []string            `json:"active_prayers"`
+	LastPrayerSequence      uint64              `json:"last_prayer_sequence"`
+	DodgeRate               float64             `json:"dodge_rate"`
+	CombatStats             CombatStatsSnapshot `json:"combat_stats"`
+	Inventory               InventorySnapshot   `json:"inventory"`
+	LastPickupSequence      uint64              `json:"last_pickup_sequence"`
+	Skills                  []SkillSnapshot     `json:"skills"`
+}
+
+type CombatStatsSnapshot struct {
+	Weapon              string         `json:"weapon"`
+	Style               string         `json:"style"`
+	AccuracySkill       string         `json:"accuracy_skill"`
+	AccuracyLevel       int            `json:"accuracy_level"`
+	WeaponAccuracyBonus int            `json:"weapon_accuracy_bonus"`
+	StyleAccuracyBonus  int            `json:"style_accuracy_bonus"`
+	TotalAccuracy       int            `json:"total_accuracy"`
+	DamageSkill         string         `json:"damage_skill"`
+	DamageLevel         int            `json:"damage_level"`
+	StrengthBonus       int            `json:"strength_bonus"`
+	SkillDamageBonus    float64        `json:"skill_damage_bonus"`
+	MinimumDamage       int            `json:"minimum_damage"`
+	MaximumDamage       int            `json:"maximum_damage"`
+	DefenceLevel        int            `json:"defence_level"`
+	DefenceBonuses      DefenceBonuses `json:"defence_bonuses"`
+}
+
+type DefenceBonuses struct {
+	Stab   int `json:"stab"`
+	Slash  int `json:"slash"`
+	Crush  int `json:"crush"`
+	Ranged int `json:"ranged"`
+	Magic  int `json:"magic"`
 }
 
 type SkillSnapshot struct {

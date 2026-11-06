@@ -28,6 +28,13 @@ func main() {
 	defer stop()
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
+	if err := world.AddWorldDrop(
+		simulation.Position{X: -2, Y: 0, Z: -5},
+		string(simulation.WeaponSteelSword),
+		1,
+	); err != nil {
+		log.Fatal(err)
+	}
 	runner, err := simulation.NewRunner(world, tickInterval)
 	if err != nil {
 		log.Fatal(err)

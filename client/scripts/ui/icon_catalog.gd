@@ -73,6 +73,7 @@ const PRAYERS: Array = [
 
 const WEAPONS: Dictionary = {
 	"sword": SWORD,
+	"steel_sword": SWORD,
 	"dagger": DAGGER,
 	"bow": BOW,
 	"mace": MACE,
@@ -82,6 +83,7 @@ const WEAPONS: Dictionary = {
 
 const ITEMS: Dictionary = {
 	"sword": SWORD,
+	"steel_sword": SWORD,
 	"dagger": DAGGER,
 	"bow": BOW,
 	"mace": MACE,
