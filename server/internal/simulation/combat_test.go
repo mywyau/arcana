@@ -354,6 +354,40 @@ func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
 	}
 }
 
+func TestSwiftArmourCanBeUnequippedWhileRemainingInInventory(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	player := world.players["player-one"]
+	player.inventory.capacity = 12
+	for _, itemID := range []string{ItemSwiftHelm, ItemSwiftBody, ItemSwiftBoots} {
+		player.inventory.add(itemID, 1)
+	}
+	player.equippedArmour = map[ArmourSlot]string{
+		ArmourSlotHead: ItemSwiftHelm,
+		ArmourSlotBody: ItemSwiftBody,
+		ArmourSlotFeet: ItemSwiftBoots,
+	}
+
+	if err := world.QueueUnequip(UnequipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemSwiftBody,
+	}); err != nil {
+		t.Fatalf("QueueUnequip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+
+	snapshot := mustPlayer(t, world, "player-one")
+	if _, equipped := snapshot.EquippedArmour[ArmourSlotBody]; equipped {
+		t.Fatalf("swift body remains equipped: %+v", snapshot.EquippedArmour)
+	}
+	if !snapshotInventoryContains(snapshot.Inventory, ItemSwiftBody) {
+		t.Fatal("unequipped swift body was removed from inventory")
+	}
+	if snapshot.EquippedArmour[ArmourSlotHead] != ItemSwiftHelm ||
+		snapshot.EquippedArmour[ArmourSlotFeet] != ItemSwiftBoots {
+		t.Fatalf("unequipping swift body changed other slots: %+v", snapshot.EquippedArmour)
+	}
+}
+
 func TestUnequippingWeaponUsesUnarmedAndAllowsDrop(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", world.combat.targets[dummyTargetID].Position, 4)

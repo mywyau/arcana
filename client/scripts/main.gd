@@ -958,6 +958,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_update_equipment_hud()
 				inventory_selection_changed = true
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
+			_next_equipment_sequence = maxi(
+				_next_equipment_sequence,
+				_last_equipment_sequence + 1,
+			)
 			if _last_equipment_sequence >= _next_equipment_sequence - 1 and not _queued_item.is_empty():
 				_queued_item = ""
 				_queued_unequip = false
@@ -1184,6 +1188,7 @@ func _on_server_error(code: String, message: String) -> void:
 		_queued_spell = ""
 		_update_magic_hud()
 	if code == "equipment_rejected":
+		_next_equipment_sequence = _last_equipment_sequence + 1
 		_queued_item = ""
 		_queued_unequip = false
 		_update_inventory_hud()
