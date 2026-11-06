@@ -5,14 +5,17 @@ package simulation
 type CombatStatsSnapshot struct {
 	Weapon              WeaponID
 	Style               CombatStyleID
+	Spell               SpellID
 	AccuracySkill       SkillID
 	AccuracyLevel       int
 	WeaponAccuracyBonus int
 	StyleAccuracyBonus  int
+	SpellAccuracyBonus  int
 	TotalAccuracy       int
 	DamageSkill         SkillID
 	DamageLevel         int
 	StrengthBonus       int
+	SpellPower          int
 	SkillDamageBonus    float64
 	MinimumDamage       int
 	MaximumDamage       int
@@ -27,6 +30,37 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 	weapon, exists := weaponDefinitionForStyle(player.equippedWeapon, player.combatStyle)
 	if !exists {
 		return CombatStatsSnapshot{}
+	}
+	if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell {
+		focusAccuracy := 0
+		focusStrength := 0
+		if weapon.MagicStrength > 0 {
+			focusAccuracy = weapon.AccuracyBonus
+			focusStrength = weapon.MagicStrength
+		}
+		minimumDamage, maximumDamage := damageRange(
+			spellPoweredDamage(player, spell), spell.DamageVariance,
+		)
+		magicLevel := SkillLevelForExperience(player.skills[SkillMagic])
+		return CombatStatsSnapshot{
+			Weapon:              weapon.ID,
+			Style:               player.combatStyle,
+			Spell:               spell.ID,
+			AccuracySkill:       SkillMagic,
+			AccuracyLevel:       magicLevel,
+			WeaponAccuracyBonus: focusAccuracy,
+			SpellAccuracyBonus:  spell.AccuracyBonus,
+			TotalAccuracy:       spellAccuracyScore(player, spell),
+			DamageSkill:         SkillMagic,
+			DamageLevel:         magicLevel,
+			StrengthBonus:       focusStrength,
+			SpellPower:          spell.BasePower,
+			SkillDamageBonus:    float64(magicLevel-1) * skillDamagePointsPerLevel,
+			MinimumDamage:       minimumDamage,
+			MaximumDamage:       maximumDamage,
+			DefenceLevel:        SkillLevelForExperience(player.skills[SkillDefence]),
+			DefenceBonuses:      equippedDefenceBonuses(player.equippedArmour),
+		}
 	}
 
 	accuracySkill := weaponAccuracySkill(weapon)

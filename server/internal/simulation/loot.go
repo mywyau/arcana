@@ -39,7 +39,7 @@ func (w *World) AddWorldDrop(position Position, itemID string, quantity int) err
 	}
 	_, weaponExists := weaponDefinition(WeaponID(itemID))
 	_, armourExists := armourSlot(itemID)
-	if itemID != trainingShardItem && !weaponExists && !armourExists {
+	if itemID != trainingShardItem && itemID != ItemAirRune && !weaponExists && !armourExists {
 		return fmt.Errorf("unknown drop item %q", itemID)
 	}
 	w.mu.Lock()

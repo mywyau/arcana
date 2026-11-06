@@ -255,13 +255,12 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			SourceID: "player-one",
 			TargetID: "dummy",
 			Amount:   10,
+			SpellID:  simulation.SpellWindBolt,
 		}},
 		Players: []simulation.PlayerSnapshot{{
 			ID:                      "player-one",
 			Health:                  40,
 			MaximumHealth:           100,
-			Mana:                    80,
-			MaximumMana:             100,
 			Prayer:                  70,
 			MaximumPrayer:           100,
 			Defeated:                true,
@@ -273,12 +272,14 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			LastCombatStyleSequence: 4,
 			ActivePrayers:           []simulation.PrayerID{simulation.PrayerEvasion},
 			LastPrayerSequence:      5,
+			SelectedSpell:           simulation.SpellWindBolt,
+			LastSpellSequence:       6,
 			DodgeRate:               0.15,
 			CombatStats: simulation.CombatStatsSnapshot{
-				Weapon: simulation.WeaponDagger, Style: simulation.CombatStyleStab,
+				Weapon: simulation.WeaponDagger, Style: simulation.CombatStyleStab, Spell: simulation.SpellWindBolt,
 				AccuracySkill: simulation.SkillAttack, AccuracyLevel: 2,
-				WeaponAccuracyBonus: 14, StyleAccuracyBonus: 2, TotalAccuracy: 18,
-				DamageSkill: simulation.SkillStrength, DamageLevel: 3, StrengthBonus: 7, SkillDamageBonus: 1,
+				WeaponAccuracyBonus: 14, StyleAccuracyBonus: 2, SpellAccuracyBonus: 10, TotalAccuracy: 18,
+				DamageSkill: simulation.SkillStrength, DamageLevel: 3, StrengthBonus: 7, SpellPower: 4, SkillDamageBonus: 1,
 				MinimumDamage: 5, MaximumDamage: 9, DefenceLevel: 4,
 				DefenceBonuses: simulation.DefenceBonuses{Stab: 2, Slash: 3, Crush: 4, Ranged: 5, Magic: -1},
 			},
@@ -300,7 +301,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	}
 	event := message.CombatEvents[0]
 	if event.ID != 7 || event.Pulse != 12 || event.Type != "damage" ||
-		event.SourceID != "player-one" || event.TargetID != "dummy" || event.Amount != 10 {
+		event.SourceID != "player-one" || event.TargetID != "dummy" || event.Amount != 10 || event.SpellID != "wind_bolt" {
 		t.Fatalf("combat event = %+v", event)
 	}
 	dummy, found := findTarget(message, "dummy")
@@ -322,24 +323,27 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		t.Fatalf("drop snapshot = %+v", message.Drops)
 	}
 	player := message.Players[0]
-	if player.Health != 40 || player.MaximumHealth != 100 || player.Mana != 80 || player.MaximumMana != 100 ||
-		player.Prayer != 70 || player.MaximumPrayer != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||
+	if player.Health != 40 || player.MaximumHealth != 100 || player.Prayer != 70 || player.MaximumPrayer != 100 ||
+		!player.Defeated || player.RespawnAtPulse != 20 ||
 		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
 		player.CombatStyle != "stab" || player.LastCombatStyleSequence != 4 ||
 		len(player.ActivePrayers) != 1 || player.ActivePrayers[0] != "evasion" ||
 		player.LastPrayerSequence != 5 || player.DodgeRate != 0.15 {
 		t.Fatalf("player vital state = %+v", player)
 	}
+	if player.SelectedSpell != "wind_bolt" || player.LastSpellSequence != 6 {
+		t.Fatalf("player spell state = %+v", player)
+	}
 	if player.Inventory.Capacity != 8 || len(player.Inventory.Items) != 1 ||
 		player.Inventory.Items[0].Slot != 0 || player.Inventory.Items[0].ItemID != "sword" ||
 		player.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("player inventory = %+v", player.Inventory)
 	}
-	if player.CombatStats.Weapon != "dagger" || player.CombatStats.Style != "stab" ||
+	if player.CombatStats.Weapon != "dagger" || player.CombatStats.Style != "stab" || player.CombatStats.Spell != "wind_bolt" ||
 		player.CombatStats.AccuracySkill != "attack" || player.CombatStats.AccuracyLevel != 2 ||
-		player.CombatStats.WeaponAccuracyBonus != 14 || player.CombatStats.StyleAccuracyBonus != 2 ||
+		player.CombatStats.WeaponAccuracyBonus != 14 || player.CombatStats.StyleAccuracyBonus != 2 || player.CombatStats.SpellAccuracyBonus != 10 ||
 		player.CombatStats.TotalAccuracy != 18 || player.CombatStats.DamageSkill != "strength" ||
-		player.CombatStats.DamageLevel != 3 || player.CombatStats.StrengthBonus != 7 || player.CombatStats.SkillDamageBonus != 1 ||
+		player.CombatStats.DamageLevel != 3 || player.CombatStats.StrengthBonus != 7 || player.CombatStats.SpellPower != 4 || player.CombatStats.SkillDamageBonus != 1 ||
 		player.CombatStats.MinimumDamage != 5 || player.CombatStats.MaximumDamage != 9 ||
 		player.CombatStats.DefenceLevel != 4 || player.CombatStats.DefenceBonuses.Magic != -1 {
 		t.Fatalf("player combat stats = %+v", player.CombatStats)

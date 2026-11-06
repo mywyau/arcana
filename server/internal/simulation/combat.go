@@ -42,7 +42,6 @@ const (
 	staffDamageVariance           = 1.0 / 3.0
 	staffAttackIntervalPulses     = 5
 	playerMaximumHealth           = 100
-	playerMaximumMana             = 100
 	playerMaximumPrayer           = 100
 	playerDodgeRate               = defaultBaseDodgeBonus
 	dummyMaximumHealth            = 100
@@ -194,6 +193,7 @@ type CombatEvent struct {
 	SourceID string
 	TargetID string
 	Amount   int
+	SpellID  SpellID
 }
 
 type TargetCommand struct {
@@ -238,6 +238,7 @@ type combatState struct {
 	pendingEquipment map[PlayerID]EquipCommand
 	pendingStyles    map[PlayerID]CombatStyleCommand
 	pendingPrayers   map[PlayerID]PrayerCommand
+	pendingSpells    map[PlayerID]SpellCommand
 	nextEventID      uint64
 	events           []CombatEvent
 	roamingEnemies   map[string]*roamingEnemyState
@@ -328,6 +329,7 @@ func newCombatState() *combatState {
 		pendingEquipment: make(map[PlayerID]EquipCommand),
 		pendingStyles:    make(map[PlayerID]CombatStyleCommand),
 		pendingPrayers:   make(map[PlayerID]PrayerCommand),
+		pendingSpells:    make(map[PlayerID]SpellCommand),
 		roamingEnemies: map[string]*roamingEnemyState{
 			hillWardenTargetID: {
 				target: hillWarden,
@@ -465,6 +467,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.applyEquipmentCommands()
 		w.applyCombatStyleCommands()
 		w.applyPrayerCommands()
+		w.applySpellCommands()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
 		w.updateRoamingEnemies()
@@ -599,8 +602,17 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 		weapon, _ := weaponDefinitionForStyle(player.equippedWeapon, player.combatStyle)
-		if distance(player.position, target.Position) > weapon.Range {
-			if err := w.approachDummy(player, target.Position, weapon.ApproachRange); err != nil {
+		spell, castingSpell := spellDefinition(player.selectedSpell)
+		attackRange := weapon.Range
+		approachRange := weapon.ApproachRange
+		attackInterval := weapon.AttackInterval
+		if castingSpell {
+			attackRange = spell.Range
+			approachRange = max(0.1, spell.Range-0.75)
+			attackInterval = spell.AttackInterval
+		}
+		if distance(player.position, target.Position) > attackRange {
+			if err := w.approachDummy(player, target.Position, approachRange); err != nil {
 				player.lastActionResult = "target_unreachable"
 				player.autoApproaching = false
 			} else {
@@ -616,26 +628,42 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
+		if castingSpell && !payItemCosts(&player.inventory, spell.Costs) {
+			player.lastActionResult = "missing_reagents"
+			continue
+		}
 		player.lastActionPulse = w.combat.pulse
-		player.nextAttackPulse = w.combat.pulse + weapon.AttackInterval
-		if w.rollSource.Float64() < targetDodgeChance(player, target, weapon) {
+		player.nextAttackPulse = w.combat.pulse + attackInterval
+		dodgeChance := targetDodgeChance(player, target, weapon)
+		if castingSpell {
+			dodgeChance = targetSpellDodgeChance(player, target, spell)
+		}
+		if w.rollSource.Float64() < dodgeChance {
 			player.lastActionResult = "dodged"
 			w.combat.recordEvent(CombatEvent{
 				Pulse:    w.combat.pulse,
 				Type:     CombatEventDodged,
 				SourceID: string(player.id),
 				TargetID: player.combatTarget,
+				SpellID:  player.selectedSpell,
 			})
 			continue
 		}
 
 		poweredDamage := weaponPoweredDamage(player, weapon)
+		damageVariance := weapon.DamageVariance
+		if castingSpell {
+			poweredDamage = spellPoweredDamage(player, spell)
+			damageVariance = spell.DamageVariance
+		}
 		// Defence and armour mitigation will reduce poweredDamage here. Variance
 		// deliberately remains the final damage stage before overkill clamping.
-		rolledDamage := rollDamageWithVariance(poweredDamage, weapon.DamageVariance, w.rollSource.Float64())
+		rolledDamage := rollDamageWithVariance(poweredDamage, damageVariance, w.rollSource.Float64())
 		damageDealt := min(rolledDamage, target.Health)
 		target.Health -= damageDealt
-		if skill, trains := skillForCombatStyle(player.equippedWeapon, player.combatStyle); trains {
+		if castingSpell {
+			grantSkillExperience(player, SkillMagic, int64(damageDealt))
+		} else if skill, trains := skillForCombatStyle(player.equippedWeapon, player.combatStyle); trains {
 			grantSkillExperience(player, skill, int64(damageDealt))
 		}
 		player.lastActionResult = "hit"
@@ -645,6 +673,7 @@ func (w *World) resolveAutoAttacks() {
 			SourceID: string(player.id),
 			TargetID: player.combatTarget,
 			Amount:   damageDealt,
+			SpellID:  player.selectedSpell,
 		})
 		if target.TargetID == "" {
 			target.TargetID = player.id

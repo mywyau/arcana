@@ -27,7 +27,6 @@ const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Strength", "level": 1},
 	{"name": "Prayer", "level": 1},
 	{"name": "Vitality", "level": 1},
-	{"name": "Mana", "level": 1},
 	{"name": "Agility", "level": 1},
 	{"name": "Mining", "level": 1},
 	{"name": "Smithing", "level": 1},
@@ -208,8 +207,6 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var target_hud: PanelContainer = $UI/TargetHUD
 @onready var player_health_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Health
 @onready var player_health_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/HealthLabel
-@onready var player_mana_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Mana
-@onready var player_mana_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/ManaLabel
 @onready var player_prayer_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Prayer
 @onready var player_prayer_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/PrayerLabel
 @onready var target_health_bar: ProgressBar = $UI/TargetHUD/Margin/VBox/Health
@@ -246,8 +243,6 @@ var _target_states: Dictionary = {}
 var _drop_views: Dictionary = {}
 var _player_health: int = 100
 var _player_maximum_health: int = 100
-var _player_mana: int = 100
-var _player_maximum_mana: int = 100
 var _player_prayer: int = 100
 var _player_maximum_prayer: int = 100
 var _active_prayers: Array[String] = []
@@ -255,6 +250,11 @@ var _last_prayer_sequence: int = 0
 var _next_prayer_sequence: int = 1
 var _queued_prayer_id: String = ""
 var _queued_prayer_active: bool = false
+var _selected_spell: String = ""
+var _last_spell_sequence: int = 0
+var _next_spell_sequence: int = 1
+var _queued_spell: String = ""
+var _spell_selection_pending: bool = false
 var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
@@ -621,6 +621,20 @@ func _request_prayer(prayer_id: String) -> void:
 		_update_prayer_hud()
 
 
+func _request_spell(spell_id: String) -> void:
+	if _player_defeated:
+		return
+	if _spell_selection_pending:
+		_update_magic_hud()
+		return
+	var desired_spell: String = "" if spell_id == _selected_spell else spell_id
+	if network.send_spell(_next_spell_sequence, desired_spell):
+		_queued_spell = desired_spell
+		_spell_selection_pending = true
+		_next_spell_sequence += 1
+		_update_magic_hud()
+
+
 func _request_disengage() -> void:
 	if _player_defeated:
 		return
@@ -728,8 +742,6 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_auto_approaching = bool(player_data.get("auto_approaching", false))
 			_player_health = int(player_data.get("health", _player_health))
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
-			_player_mana = int(player_data.get("mana", _player_mana))
-			_player_maximum_mana = int(player_data.get("maximum_mana", _player_maximum_mana))
 			var prayer_points: int = int(player_data.get("prayer", _player_prayer))
 			if prayer_points != _player_prayer:
 				_player_prayer = prayer_points
@@ -747,10 +759,20 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if _last_prayer_sequence >= _next_prayer_sequence - 1 and not _queued_prayer_id.is_empty():
 				_queued_prayer_id = ""
 				prayer_changed = true
+			var selected_spell: String = str(player_data.get("selected_spell", ""))
+			if selected_spell != _selected_spell:
+				_selected_spell = selected_spell
+				_update_magic_hud()
+			_last_spell_sequence = int(player_data.get("last_spell_sequence", 0))
+			if _spell_selection_pending and _last_spell_sequence >= _next_spell_sequence - 1:
+				_spell_selection_pending = false
+				_queued_spell = ""
+				_update_magic_hud()
 			var player_defeated: bool = bool(player_data.get("defeated", false))
 			if player_defeated != _player_defeated:
 				_player_defeated = player_defeated
 				prayer_changed = true
+				_update_magic_hud()
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
 			var combat_stats_data: Variant = player_data.get("combat_stats", {})
@@ -927,13 +949,18 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		var source_id: String = str(event.get("source_id", ""))
 		var target_id: String = str(event.get("target_id", ""))
 		var amount: int = int(event.get("amount", 0))
+		var spell_id: String = str(event.get("spell_id", ""))
 		var source: PlayerView = _player_views.get(source_id)
 		var target: PlayerView = _player_views.get(target_id)
 		var dummy_view: TargetDummy = _dummy_view_for_id(target_id)
 		if dummy_view != null:
 			if source == null:
 				continue
-			var impact_delay: float = source.play_weapon_attack(dummy_view.global_position)
+			var impact_delay: float = (
+				source.play_spell_attack(dummy_view.global_position, spell_id)
+				if not spell_id.is_empty()
+				else source.play_weapon_attack(dummy_view.global_position)
+			)
 			_play_dummy_impact_after_delay(
 				dummy_view,
 				event_type,
@@ -943,7 +970,10 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 			)
 		elif target != null:
 			if source != null:
-				source.play_weapon_attack(target.global_position)
+				if not spell_id.is_empty():
+					source.play_spell_attack(target.global_position, spell_id)
+				else:
+					source.play_weapon_attack(target.global_position)
 			elif _dummy_view_for_id(source_id) != null:
 				var attacking_dummy: TargetDummy = _dummy_view_for_id(source_id)
 				attacking_dummy.play_attack(target.global_position)
@@ -982,6 +1012,10 @@ func _on_server_error(code: String, message: String) -> void:
 	if code == "prayer_rejected":
 		_queued_prayer_id = ""
 		_update_prayer_hud()
+	if code == "spell_rejected":
+		_spell_selection_pending = false
+		_queued_spell = ""
+		_update_magic_hud()
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -1458,6 +1492,7 @@ func _apply_skills_snapshot(skills: Array) -> void:
 		changed = true
 	if changed:
 		_update_active_skills_hud()
+		_update_magic_hud()
 
 
 func _update_active_skills_hud() -> void:
@@ -1514,15 +1549,39 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 
 
 func _populate_placeholder_spells() -> void:
+	_update_magic_hud()
+
+
+func _update_magic_hud() -> void:
+	for child: Node in magic_grid.get_children():
+		magic_grid.remove_child(child)
+		child.queue_free()
+	var magic_progress: Dictionary = _skill_progress.get("magic", {}) as Dictionary
+	var magic_level: int = int(magic_progress.get("level", 1))
 	for spell_data: Variant in PLACEHOLDER_SPELLS:
 		var spell: Dictionary = spell_data
+		var spell_id: String = str(spell.get("id", ""))
+		var required_level: int = int(spell.get("required_magic_level", 1))
 		var spell_button := Button.new()
 		spell_button.custom_minimum_size = Vector2(104, 88)
 		spell_button.focus_mode = Control.FOCUS_NONE
-		spell_button.disabled = true
+		spell_button.toggle_mode = not spell_id.is_empty()
+		spell_button.disabled = spell_id.is_empty() or _player_defeated or magic_level < required_level
 		spell_button.icon = spell.get("icon") as Texture2D
 		spell_button.expand_icon = true
-		spell_button.tooltip_text = "%s" % spell.get("name", "Spell")
+		if spell_id.is_empty():
+			spell_button.tooltip_text = "%s (coming later)" % spell.get("name", "Spell")
+		else:
+			var displayed_spell: String = _queued_spell if _spell_selection_pending else _selected_spell
+			var displayed_selected: bool = spell_id == displayed_spell
+			spell_button.set_pressed_no_signal(displayed_selected)
+			var cost_item_id: String = str(spell.get("cost_item_id", ""))
+			var cost_quantity: int = int(spell.get("cost_quantity", 0))
+			spell_button.tooltip_text = "%s • Magic level %d • costs %d %s per cast • you have %d • click again to stop autocasting" % [
+				spell.get("name", "Spell"), required_level, cost_quantity,
+				cost_item_id.capitalize(), _inventory_quantity(cost_item_id),
+			]
+			spell_button.pressed.connect(_request_spell.bind(spell_id))
 		magic_grid.add_child(spell_button)
 
 
@@ -1667,20 +1726,40 @@ func _update_detailed_combat_stats() -> void:
 		return
 	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
 	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
+	var spell_id: String = str(_combat_stats.get("spell", ""))
+	var loadout_text: String = "%s  •  %s style" % [
+		str(_combat_stats.get("weapon", "unknown")).capitalize(),
+		str(_combat_stats.get("style", "unknown")).capitalize(),
+	]
+	var accuracy_breakdown: String = "Weapon accuracy: %s\nStyle modifier: %s" % [
+		_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
+		_signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0))),
+	]
+	var damage_breakdown: String = "Weapon strength: %s" % _signed_stat(
+		int(_combat_stats.get("strength_bonus", 0)),
+	)
+	if not spell_id.is_empty():
+		loadout_text = "%s  •  %s equipped" % [
+			spell_id.capitalize(), str(_combat_stats.get("weapon", "unknown")).capitalize(),
+		]
+		accuracy_breakdown = "Spell accuracy: %s\nEquipment magic accuracy: %s" % [
+			_signed_stat(int(_combat_stats.get("spell_accuracy_bonus", 0))),
+			_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
+		]
+		damage_breakdown = "Spell power: %s\nEquipment magic strength: %s" % [
+			_signed_stat(int(_combat_stats.get("spell_power", 0))),
+			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
+		]
 	combat_stats_label.text = (
 		"CURRENT LOADOUT\n"
-		+ "%s  •  %s style\n\n" % [
-			str(_combat_stats.get("weapon", "unknown")).capitalize(),
-			str(_combat_stats.get("style", "unknown")).capitalize(),
-		]
+		+ "%s\n\n" % loadout_text
 		+ "ACCURACY\n"
 		+ "Total accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
 		+ "%s level: %d\n" % [
 			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
 			int(_combat_stats.get("accuracy_level", 1)),
 		]
-		+ "Weapon accuracy: %s\n" % _signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0)))
-		+ "Style modifier: %s\n\n" % _signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0)))
+		+ "%s\n\n" % accuracy_breakdown
 		+ "DAMAGE\n"
 		+ "Current damage range: %d–%d\n" % [
 			int(_combat_stats.get("minimum_damage", 0)),
@@ -1690,7 +1769,7 @@ func _update_detailed_combat_stats() -> void:
 			str(_combat_stats.get("damage_skill", "strength")).capitalize(),
 			int(_combat_stats.get("damage_level", 1)),
 		]
-		+ "Weapon strength: %s\n" % _signed_stat(int(_combat_stats.get("strength_bonus", 0)))
+		+ "%s\n" % damage_breakdown
 		+ "Skill damage: +%.1f\n\n" % float(_combat_stats.get("skill_damage_bonus", 0.0))
 		+ "DEFENCE\n"
 		+ "Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
@@ -1724,6 +1803,17 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
 	_update_inventory_hud()
+	_update_magic_hud()
+
+
+func _inventory_quantity(item_id: String) -> int:
+	for payload: Variant in _inventory_items:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var item: Dictionary = payload
+		if str(item.get("item_id", "")) == item_id:
+			return int(item.get("quantity", 0))
+	return 0
 
 
 func _update_inventory_hud() -> void:
@@ -1821,9 +1911,6 @@ func _update_combat_hud() -> void:
 		_player_maximum_health,
 		roundi(_player_dodge_rate * 100.0),
 	]
-	player_mana_bar.max_value = maxi(1, _player_maximum_mana)
-	player_mana_bar.value = _player_mana
-	player_mana_label.text = "Mana  %d/%d" % [_player_mana, _player_maximum_mana]
 	player_prayer_bar.max_value = maxi(1, _player_maximum_prayer)
 	player_prayer_bar.value = _player_prayer
 	player_prayer_label.text = "Prayer  %d/%d" % [_player_prayer, _player_maximum_prayer]
@@ -1859,6 +1946,8 @@ func _update_combat_hud() -> void:
 		combat_state_label.text = "Target respawns in %d pulses" % maxi(0, displayed_respawn_pulse - _action_pulse)
 	elif _auto_approaching:
 		combat_state_label.text = "Closing distance to target"
+	elif _last_action_result == "missing_reagents" and not _selected_spell.is_empty():
+		combat_state_label.text = "Cannot cast %s — missing Air Runes" % _selected_spell.capitalize()
 	elif not _combat_target.is_empty():
 		combat_state_label.text = "Auto-attacking %s  •  Last: %s" % [_combat_target, state]
 	elif has_aggro:
@@ -1877,6 +1966,8 @@ func _update_combat_hud() -> void:
 		weapon_interval = 5
 	elif _equipped_weapon == "battle_axe":
 		weapon_interval = 6
+	if not _selected_spell.is_empty():
+		weapon_interval = 5
 	var remaining: int = maxi(0, _next_attack_pulse - _action_pulse)
 	cooldown_bar.max_value = weapon_interval
 	cooldown_bar.value = weapon_interval - mini(weapon_interval, remaining)

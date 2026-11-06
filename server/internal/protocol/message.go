@@ -15,6 +15,7 @@ const (
 	MessageEquipItem         = "equip_item"
 	MessageCombatStyle       = "set_combat_style"
 	MessageSetPrayer         = "set_prayer"
+	MessageSetSpell          = "set_spell"
 	MessagePickupItem        = "pickup_item"
 	MessageDropItem          = "drop_item"
 	MessageMoveInventoryItem = "move_inventory_item"
@@ -40,6 +41,7 @@ type ClientMessage struct {
 	ToSlot      int       `json:"to_slot,omitempty"`
 	CombatStyle string    `json:"combat_style,omitempty"`
 	PrayerID    string    `json:"prayer_id,omitempty"`
+	SpellID     string    `json:"spell_id,omitempty"`
 	Active      bool      `json:"active,omitempty"`
 	GuestToken  string    `json:"guest_token,omitempty"`
 }
@@ -68,6 +70,7 @@ type CombatEvent struct {
 	SourceID string `json:"source_id"`
 	TargetID string `json:"target_id"`
 	Amount   int    `json:"amount"`
+	SpellID  string `json:"spell_id,omitempty"`
 }
 
 type TargetSnapshot struct {
@@ -111,8 +114,6 @@ type PlayerSnapshot struct {
 	AutoPickingUp           bool                `json:"auto_picking_up"`
 	Health                  int                 `json:"health"`
 	MaximumHealth           int                 `json:"maximum_health"`
-	Mana                    int                 `json:"mana"`
-	MaximumMana             int                 `json:"maximum_mana"`
 	Prayer                  int                 `json:"prayer"`
 	MaximumPrayer           int                 `json:"maximum_prayer"`
 	Defeated                bool                `json:"defeated"`
@@ -125,6 +126,8 @@ type PlayerSnapshot struct {
 	LastCombatStyleSequence uint64              `json:"last_combat_style_sequence"`
 	ActivePrayers           []string            `json:"active_prayers"`
 	LastPrayerSequence      uint64              `json:"last_prayer_sequence"`
+	SelectedSpell           string              `json:"selected_spell"`
+	LastSpellSequence       uint64              `json:"last_spell_sequence"`
 	DodgeRate               float64             `json:"dodge_rate"`
 	CombatStats             CombatStatsSnapshot `json:"combat_stats"`
 	Inventory               InventorySnapshot   `json:"inventory"`
@@ -135,14 +138,17 @@ type PlayerSnapshot struct {
 type CombatStatsSnapshot struct {
 	Weapon              string         `json:"weapon"`
 	Style               string         `json:"style"`
+	Spell               string         `json:"spell"`
 	AccuracySkill       string         `json:"accuracy_skill"`
 	AccuracyLevel       int            `json:"accuracy_level"`
 	WeaponAccuracyBonus int            `json:"weapon_accuracy_bonus"`
 	StyleAccuracyBonus  int            `json:"style_accuracy_bonus"`
+	SpellAccuracyBonus  int            `json:"spell_accuracy_bonus"`
 	TotalAccuracy       int            `json:"total_accuracy"`
 	DamageSkill         string         `json:"damage_skill"`
 	DamageLevel         int            `json:"damage_level"`
 	StrengthBonus       int            `json:"strength_bonus"`
+	SpellPower          int            `json:"spell_power"`
 	SkillDamageBonus    float64        `json:"skill_damage_bonus"`
 	MinimumDamage       int            `json:"minimum_damage"`
 	MaximumDamage       int            `json:"maximum_damage"`
@@ -203,7 +209,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
-		message.Type != MessageSetPrayer {
+		message.Type != MessageSetPrayer && message.Type != MessageSetSpell {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -233,6 +239,5 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type == MessageSetPrayer && message.PrayerID == "" {
 		return ClientMessage{}, fmt.Errorf("prayer ID is required")
 	}
-
 	return message, nil
 }

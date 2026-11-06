@@ -13,7 +13,7 @@ func TestPlayerStartsWithEightSlotInventory(t *testing.T) {
 	if got, want := player.Inventory.Capacity, 8; got != want {
 		t.Fatalf("Inventory.Capacity = %d, want %d", got, want)
 	}
-	if got, want := len(player.Inventory.Items), 6; got != want {
+	if got, want := len(player.Inventory.Items), 7; got != want {
 		t.Fatalf("len(Inventory.Items) = %d, want %d", got, want)
 	}
 	if player.Inventory.Items[0].ItemID != "sword" || player.Inventory.Items[0].Slot != 0 {
@@ -31,6 +31,9 @@ func TestPlayerStartsWithEightSlotInventory(t *testing.T) {
 		if item.ItemID != itemID || item.Slot != index+3 {
 			t.Fatalf("inventory item %d = %+v, want %s in slot %d", index+3, item, itemID, index+3)
 		}
+	}
+	if runeStack := player.Inventory.Items[6]; runeStack.ItemID != ItemAirRune || runeStack.Slot != 6 || runeStack.Quantity != 50 {
+		t.Fatalf("starter rune stack = %+v, want 50 air runes in slot 6", runeStack)
 	}
 
 	player.Inventory.Items[0].ItemID = "changed"

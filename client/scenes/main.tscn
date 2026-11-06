@@ -124,13 +124,6 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[sub_resource type="StyleBoxFlat" id="ManaFill"]
-bg_color = Color(0.2, 0.45, 0.88, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
 [sub_resource type="StyleBoxFlat" id="PrayerFill"]
 bg_color = Color(0.72, 0.56, 0.22, 1)
 corner_radius_top_left = 4
@@ -321,18 +314,6 @@ value = 100.0
 show_percentage = false
 theme_override_styles/background = SubResource("HUDBarBackground")
 theme_override_styles/fill = SubResource("PlayerHealthFill")
-
-[node name="ManaLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox"]
-layout_mode = 2
-text = "Mana  100/100"
-
-[node name="Mana" type="ProgressBar" parent="UI/PlayerVitalsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 12)
-layout_mode = 2
-value = 100.0
-show_percentage = false
-theme_override_styles/background = SubResource("HUDBarBackground")
-theme_override_styles/fill = SubResource("ManaFill")
 
 [node name="PrayerLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox"]
 layout_mode = 2

@@ -22,8 +22,7 @@ const TAB_MAGIC: Texture2D = preload("res://assets/icons/navigation/tab_magic.sv
 const TAB_PRAYER: Texture2D = preload("res://assets/icons/navigation/tab_prayer.svg")
 
 const SPELLS: Array = [
-	{"name": "Breeze", "icon": preload("res://assets/icons/spells/breeze.svg")},
-	{"name": "Wind Blade", "icon": preload("res://assets/icons/spells/wind_blade.svg")},
+	{"id": "wind_bolt", "name": "Wind Bolt", "required_magic_level": 1, "cost_item_id": "air_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/wind_blade.svg")},
 	{"name": "Gale", "icon": preload("res://assets/icons/spells/gale.svg")},
 	{"name": "Tempest", "icon": preload("res://assets/icons/spells/tempest.svg")},
 	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spells/ember.svg")},
@@ -89,6 +88,7 @@ const ITEMS: Dictionary = {
 	"mace": MACE,
 	"battle_axe": BATTLE_AXE,
 	"staff": STAFF,
+	"air_rune": preload("res://assets/icons/spells/breeze.svg"),
 	"training_shard": TRAINING_SHARD,
 	"training_helm": TRAINING_HELM,
 	"training_plate": TRAINING_PLATE,
@@ -102,7 +102,6 @@ const SKILLS: Dictionary = {
 	"Magic": preload("res://assets/icons/skills/magic.png"),
 	"Prayer": TAB_PRAYER,
 	"Vitality": preload("res://assets/icons/skills/health.png"),
-	"Mana": TAB_MAGIC,
 	"Agility": preload("res://assets/icons/skills/agility.png"),
 	"Mining": preload("res://assets/icons/skills/mining.png"),
 	"Smithing": preload("res://assets/icons/skills/smithing.png"),

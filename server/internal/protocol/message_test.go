@@ -75,6 +75,26 @@ func TestDecodePrayerMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeSpellMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"set_spell","sequence":8,"spell_id":"wind_bolt"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageSetSpell || message.Sequence != 8 || message.SpellID != "wind_bolt" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
+func TestDecodeClearSpellMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"set_spell","sequence":9,"spell_id":""}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageSetSpell || message.Sequence != 9 || message.SpellID != "" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodePickupItemMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"pickup_item","sequence":5,"drop_id":"drop-1"}`))
 	if err != nil {

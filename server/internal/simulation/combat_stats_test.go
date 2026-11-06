@@ -48,3 +48,19 @@ func TestDerivedCombatStatsFollowRangedSkillAndStyle(t *testing.T) {
 		t.Fatalf("ranged derived stats = %+v", stats)
 	}
 }
+
+func TestDerivedCombatStatsDescribeSelectedSpell(t *testing.T) {
+	player := &playerState{
+		equippedWeapon: WeaponSword,
+		combatStyle:    CombatStyleStab,
+		selectedSpell:  SpellWindBolt,
+		equippedArmour: make(map[ArmourSlot]string),
+		skills:         newDefaultSkills(),
+	}
+	stats := derivedCombatStats(player)
+	if stats.Spell != SpellWindBolt || stats.AccuracySkill != SkillMagic || stats.DamageSkill != SkillMagic ||
+		stats.SpellAccuracyBonus != 10 || stats.TotalAccuracy != 11 || stats.SpellPower != 4 ||
+		stats.StrengthBonus != 0 || stats.MinimumDamage != 3 || stats.MaximumDamage != 5 {
+		t.Fatalf("Wind Bolt combat stats = %+v", stats)
+	}
+}

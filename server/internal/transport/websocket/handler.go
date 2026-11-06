@@ -296,6 +296,13 @@ func (h *Handler) readCommands(
 				PrayerID: simulation.PrayerID(message.PrayerID),
 				Active:   message.Active,
 			})
+		case protocol.MessageSetSpell:
+			rejectionCode = "spell_rejected"
+			err = h.world.QueueSpell(simulation.SpellCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				SpellID:  simulation.SpellID(message.SpellID),
+			})
 		case protocol.MessagePickupItem:
 			rejectionCode = "pickup_rejected"
 			err = h.world.QueuePickup(simulation.PickupCommand{
@@ -376,6 +383,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			SourceID: event.SourceID,
 			TargetID: event.TargetID,
 			Amount:   event.Amount,
+			SpellID:  string(event.SpellID),
 		})
 	}
 	for _, player := range snapshot.Players {
@@ -402,8 +410,6 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			AutoPickingUp:           player.AutoPickingUp,
 			Health:                  player.Health,
 			MaximumHealth:           player.MaximumHealth,
-			Mana:                    player.Mana,
-			MaximumMana:             player.MaximumMana,
 			Prayer:                  player.Prayer,
 			MaximumPrayer:           player.MaximumPrayer,
 			Defeated:                player.Defeated,
@@ -416,18 +422,23 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			LastCombatStyleSequence: player.LastCombatStyleSequence,
 			ActivePrayers:           make([]string, 0, len(player.ActivePrayers)),
 			LastPrayerSequence:      player.LastPrayerSequence,
+			SelectedSpell:           string(player.SelectedSpell),
+			LastSpellSequence:       player.LastSpellSequence,
 			DodgeRate:               player.DodgeRate,
 			CombatStats: protocol.CombatStatsSnapshot{
 				Weapon:              string(player.CombatStats.Weapon),
 				Style:               string(player.CombatStats.Style),
+				Spell:               string(player.CombatStats.Spell),
 				AccuracySkill:       string(player.CombatStats.AccuracySkill),
 				AccuracyLevel:       player.CombatStats.AccuracyLevel,
 				WeaponAccuracyBonus: player.CombatStats.WeaponAccuracyBonus,
 				StyleAccuracyBonus:  player.CombatStats.StyleAccuracyBonus,
+				SpellAccuracyBonus:  player.CombatStats.SpellAccuracyBonus,
 				TotalAccuracy:       player.CombatStats.TotalAccuracy,
 				DamageSkill:         string(player.CombatStats.DamageSkill),
 				DamageLevel:         player.CombatStats.DamageLevel,
 				StrengthBonus:       player.CombatStats.StrengthBonus,
+				SpellPower:          player.CombatStats.SpellPower,
 				SkillDamageBonus:    player.CombatStats.SkillDamageBonus,
 				MinimumDamage:       player.CombatStats.MinimumDamage,
 				MaximumDamage:       player.CombatStats.MaximumDamage,

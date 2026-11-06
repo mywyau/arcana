@@ -5,7 +5,15 @@ import (
 	"sort"
 )
 
-const BaseInventoryCapacity = 8
+const (
+	BaseInventoryCapacity = 8
+	ItemAirRune           = "air_rune"
+)
+
+type ItemCost struct {
+	ItemID   string
+	Quantity int
+}
 
 // InventoryItem is one occupied slot in a player's authoritative inventory.
 type InventoryItem struct {
@@ -42,17 +50,22 @@ func newStarterInventory() inventoryState {
 			{Slot: 3, ItemID: string(WeaponMace), Quantity: 1},
 			{Slot: 4, ItemID: string(WeaponBattleAxe), Quantity: 1},
 			{Slot: 5, ItemID: string(WeaponStaff), Quantity: 1},
+			{Slot: 6, ItemID: ItemAirRune, Quantity: 50},
 		},
 	}
 }
 
 func (inventory inventoryState) contains(itemID string) bool {
+	return inventory.quantity(itemID) > 0
+}
+
+func (inventory inventoryState) quantity(itemID string) int {
 	for _, item := range inventory.items {
 		if item.ItemID == itemID && item.Quantity > 0 {
-			return true
+			return item.Quantity
 		}
 	}
-	return false
+	return 0
 }
 
 func (inventory inventoryState) canAdd(itemID string) bool {

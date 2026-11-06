@@ -35,6 +35,13 @@ func main() {
 	); err != nil {
 		log.Fatal(err)
 	}
+	if err := world.AddWorldDrop(
+		simulation.Position{X: -1, Y: 0, Z: -5},
+		simulation.ItemAirRune,
+		50,
+	); err != nil {
+		log.Fatal(err)
+	}
 	runner, err := simulation.NewRunner(world, tickInterval)
 	if err != nil {
 		log.Fatal(err)

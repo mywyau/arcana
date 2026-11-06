@@ -143,6 +143,15 @@ func play_weapon_attack(target_position: Vector3) -> float:
 	return 0.0
 
 
+func play_spell_attack(target_position: Vector3, _spell_id: String) -> float:
+	if _defeated:
+		return 0.0
+	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
+	if global_position.distance_squared_to(flat_target) > 0.001:
+		visual_root.look_at(flat_target, Vector3.UP, true)
+	return _play_staff_attack(target_position)
+
+
 func _play_melee_attack(
 	pivot: Node3D,
 	rest_angle: float,

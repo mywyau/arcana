@@ -85,12 +85,12 @@ type PlayerSnapshot struct {
 	AutoPickingUp           bool
 	Health                  int
 	MaximumHealth           int
-	Mana                    int
-	MaximumMana             int
 	Prayer                  int
 	MaximumPrayer           int
 	ActivePrayers           []PrayerID
 	LastPrayerSequence      uint64
+	SelectedSpell           SpellID
+	LastSpellSequence       uint64
 	Defeated                bool
 	RespawnAtPulse          uint64
 	EquippedWeapon          WeaponID
@@ -135,13 +135,13 @@ type playerState struct {
 	spawnPosition             Position
 	health                    int
 	maximumHealth             int
-	mana                      int
-	maximumMana               int
 	prayer                    int
 	maximumPrayer             int
 	activePrayers             map[PrayerID]bool
 	prayerDrainProgress       map[PrayerID]uint64
 	lastPrayerSequence        uint64
+	selectedSpell             SpellID
+	lastSpellSequence         uint64
 	defeated                  bool
 	respawnAtPulse            uint64
 	equippedWeapon            WeaponID
@@ -237,7 +237,6 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	w.players[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
-		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
@@ -271,7 +270,6 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	w.pendingJoins[id] = &playerState{
 		id: id, position: position, spawnPosition: position, speed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
-		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
@@ -550,12 +548,12 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		AutoPickingUp:           player.autoPickingUp,
 		Health:                  player.health,
 		MaximumHealth:           player.maximumHealth,
-		Mana:                    player.mana,
-		MaximumMana:             player.maximumMana,
 		Prayer:                  player.prayer,
 		MaximumPrayer:           player.maximumPrayer,
 		ActivePrayers:           activePrayerIDs(player),
 		LastPrayerSequence:      player.lastPrayerSequence,
+		SelectedSpell:           player.selectedSpell,
+		LastSpellSequence:       player.lastSpellSequence,
 		Defeated:                player.defeated,
 		RespawnAtPulse:          player.respawnAtPulse,
 		EquippedWeapon:          player.equippedWeapon,

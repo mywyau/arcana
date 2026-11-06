@@ -155,10 +155,8 @@ func TestWorldSnapshotIsOrderedAndDetached(t *testing.T) {
 		t.Fatalf("LastCommandTick = %d, want %d", got, want)
 	}
 	player := snapshot.Players[0]
-	if player.Mana != 100 || player.MaximumMana != 100 ||
-		player.Prayer != 100 || player.MaximumPrayer != 100 {
-		t.Fatalf("starting resources = mana %d/%d, prayer %d/%d; want 100/100 for both",
-			player.Mana, player.MaximumMana, player.Prayer, player.MaximumPrayer)
+	if player.Prayer != 100 || player.MaximumPrayer != 100 {
+		t.Fatalf("starting prayer = %d/%d, want 100/100", player.Prayer, player.MaximumPrayer)
 	}
 
 	snapshot.Players[0].Position = Position{X: 999}
