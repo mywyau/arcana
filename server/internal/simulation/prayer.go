@@ -11,7 +11,12 @@ const (
 	PrayerEvasion PrayerID = "evasion"
 
 	evasionDodgeBonus          = 0.05
-	evasionDrainIntervalPulses = 5 // Five 600 ms action pulses is three seconds.
+	evasionDrainIntervalPulses = 10 // Five 600 ms action pulses is three seconds.
+
+	PrayerStrength PrayerID = "strength"
+
+	strengthBonus          = 0.10
+	strengthDrainIntervalPulses = 10 // Five 600 ms action pulses is three seconds.
 )
 
 type PrayerCommand struct {
@@ -22,6 +27,7 @@ type PrayerCommand struct {
 }
 
 type prayerDefinition struct {
+	StrenghtBonus       float64
 	DodgeBonus          float64
 	DrainIntervalPulses uint64
 }
@@ -30,9 +36,16 @@ func prayerDefinitionFor(id PrayerID) (prayerDefinition, bool) {
 	switch id {
 	case PrayerEvasion:
 		return prayerDefinition{
+			StrenghtBonus:       0,
 			DodgeBonus:          evasionDodgeBonus,
 			DrainIntervalPulses: evasionDrainIntervalPulses,
 		}, true
+	case PrayerStrength:
+		return prayerDefinition{
+				StrenghtBonus:       strengthBonus,
+				DodgeBonus:          0,
+				DrainIntervalPulses: strengthDrainIntervalPulses,
+		}, true	
 	default:
 		return prayerDefinition{}, false
 	}
