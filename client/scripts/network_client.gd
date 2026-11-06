@@ -168,6 +168,24 @@ func send_combat_style(sequence: int, combat_style: String) -> bool:
 	return true
 
 
+func send_prayer(sequence: int, prayer_id: String, active: bool) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot change prayer while disconnected")
+		return false
+
+	var message: Dictionary = {
+		"type": "set_prayer",
+		"sequence": sequence,
+		"prayer_id": prayer_id,
+		"active": active,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not change prayer: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_pickup_item(sequence: int, drop_id: String) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot pick up loot while disconnected")

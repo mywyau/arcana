@@ -65,6 +65,16 @@ func TestDecodeCombatStyleMessage(t *testing.T) {
 	}
 }
 
+func TestDecodePrayerMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"set_prayer","sequence":7,"prayer_id":"evasion","active":true}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageSetPrayer || message.Sequence != 7 || message.PrayerID != "evasion" || !message.Active {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodePickupItemMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"pickup_item","sequence":5,"drop_id":"drop-1"}`))
 	if err != nil {
@@ -86,6 +96,7 @@ func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 		"missing item ID":   `{"type":"equip_item","sequence":1}`,
 		"missing drop ID":   `{"type":"pickup_item","sequence":1}`,
 		"missing style":     `{"type":"set_combat_style","sequence":1}`,
+		"missing prayer ID": `{"type":"set_prayer","sequence":1,"active":true}`,
 		"multiple values":   `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
 	}
 

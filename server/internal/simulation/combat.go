@@ -13,25 +13,31 @@ const (
 	swordRange                    = 1.55
 	swordApproachRange            = 1.25
 	swordDamage                   = 10
+	swordDamageVariance           = 2
 	daggerRange                   = 1.3
 	daggerApproachRange           = 1.05
 	daggerDamage                  = 7
+	daggerDamageVariance          = 2
 	daggerAttackIntervalPulses    = 3
 	bowRange                      = 12.0
 	bowApproachRange              = 11.25
 	bowDamage                     = 4
+	bowDamageVariance             = 1
 	bowAttackIntervalPulses       = 5
 	maceRange                     = 1.45
 	maceApproachRange             = 1.15
 	maceDamage                    = 12
+	maceDamageVariance            = 3
 	maceAttackIntervalPulses      = 5
 	battleAxeRange                = 1.55
 	battleAxeApproachRange        = 1.25
 	battleAxeDamage               = 15
+	battleAxeDamageVariance       = 4
 	battleAxeAttackIntervalPulses = 6
 	staffRange                    = 10.0
 	staffApproachRange            = 9.25
 	staffDamage                   = 6
+	staffDamageVariance           = 2
 	staffAttackIntervalPulses     = 5
 	playerMaximumHealth           = 100
 	playerMaximumMana             = 100
@@ -123,6 +129,7 @@ func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
 type WeaponDefinition struct {
 	ID             WeaponID
 	Damage         int
+	DamageVariance int
 	AttackInterval uint64
 	Range          float64
 	ApproachRange  float64
@@ -131,17 +138,17 @@ type WeaponDefinition struct {
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 	switch id {
 	case WeaponSword:
-		return WeaponDefinition{ID: id, Damage: swordDamage, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
+		return WeaponDefinition{ID: id, Damage: swordDamage, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
 	case WeaponDagger:
-		return WeaponDefinition{ID: id, Damage: daggerDamage, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
+		return WeaponDefinition{ID: id, Damage: daggerDamage, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
 	case WeaponBow:
-		return WeaponDefinition{ID: id, Damage: bowDamage, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
+		return WeaponDefinition{ID: id, Damage: bowDamage, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
 	case WeaponMace:
-		return WeaponDefinition{ID: id, Damage: maceDamage, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, true
+		return WeaponDefinition{ID: id, Damage: maceDamage, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, true
 	case WeaponBattleAxe:
-		return WeaponDefinition{ID: id, Damage: battleAxeDamage, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, true
+		return WeaponDefinition{ID: id, Damage: battleAxeDamage, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, true
 	case WeaponStaff:
-		return WeaponDefinition{ID: id, Damage: staffDamage, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, true
+		return WeaponDefinition{ID: id, Damage: staffDamage, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, true
 	default:
 		return WeaponDefinition{}, false
 	}
@@ -220,6 +227,7 @@ type combatState struct {
 	pendingTargets   map[PlayerID]TargetCommand
 	pendingEquipment map[PlayerID]EquipCommand
 	pendingStyles    map[PlayerID]CombatStyleCommand
+	pendingPrayers   map[PlayerID]PrayerCommand
 	nextEventID      uint64
 	events           []CombatEvent
 	roamingEnemies   map[string]*roamingEnemyState
@@ -301,6 +309,7 @@ func newCombatState() *combatState {
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
 		pendingStyles:    make(map[PlayerID]CombatStyleCommand),
+		pendingPrayers:   make(map[PlayerID]PrayerCommand),
 		roamingEnemies: map[string]*roamingEnemyState{
 			hillWardenTargetID: {
 				target: hillWarden,
@@ -420,6 +429,10 @@ func (w *World) QueueTarget(command TargetCommand) error {
 	if pending, exists := w.combat.pendingTargets[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
 		return fmt.Errorf("action sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
 	}
+	if command.TargetID != "" {
+		delete(w.pendingPickups, command.PlayerID)
+		player.autoPickingUp = false
+	}
 
 	w.combat.pendingTargets[command.PlayerID] = command
 	return nil
@@ -433,10 +446,12 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.respawnDefeatedEntities()
 		w.applyEquipmentCommands()
 		w.applyCombatStyleCommands()
+		w.applyPrayerCommands()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
 		w.updateRoamingEnemies()
 		w.resolveDummyAttack()
+		w.drainActivePrayers()
 	}
 }
 
@@ -596,7 +611,8 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		damageDealt := min(weapon.Damage, target.Health)
+		rolledDamage := rollWeaponDamage(weapon, w.rollSource.Float64())
+		damageDealt := min(rolledDamage, target.Health)
 		target.Health -= damageDealt
 		if skill, trains := skillForCombatStyle(player.equippedWeapon, player.combatStyle); trains {
 			grantSkillExperience(player, skill, int64(damageDealt))
@@ -617,6 +633,16 @@ func (w *World) resolveAutoAttacks() {
 			w.defeatDummy(player.combatTarget, target)
 		}
 	}
+}
+
+func rollWeaponDamage(weapon WeaponDefinition, roll float64) int {
+	if weapon.DamageVariance <= 0 {
+		return weapon.Damage
+	}
+	roll = max(0, min(roll, math.Nextafter(1, 0)))
+	span := 2*weapon.DamageVariance + 1
+	offset := int(math.Floor(roll*float64(span))) - weapon.DamageVariance
+	return max(0, weapon.Damage+offset)
 }
 
 func (w *World) resolveDummyAttack() {
@@ -738,7 +764,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	}
 
 	dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
-	if w.rollSource.Float64() < player.dodgeRate {
+	if w.rollSource.Float64() < effectivePlayerDodgeRate(player) {
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDodged,
@@ -774,6 +800,8 @@ func (w *World) defeatPlayer(player *playerState) {
 	delete(w.combat.pendingTargets, player.id)
 	delete(w.combat.pendingEquipment, player.id)
 	delete(w.combat.pendingStyles, player.id)
+	delete(w.combat.pendingPrayers, player.id)
+	clearActivePrayers(player)
 	for _, target := range w.combat.dummyTargets() {
 		if target.dummy.TargetID == player.id {
 			clearDummyTarget(target.dummy)
@@ -828,28 +856,32 @@ func (combat *combatState) recordEvent(event CombatEvent) {
 }
 
 func (w *World) approachDummy(player *playerState, target Position, approachRange float64) error {
-	dx := player.position.X - target.X
-	dz := player.position.Z - target.Z
-	length := math.Hypot(dx, dz)
-	if length == 0 {
-		dx = 1
-		length = 1
-	}
-	destination := Position{
-		X: target.X + dx/length*approachRange,
-		Y: target.Y,
-		Z: target.Z + dz/length*approachRange,
-	}
-	path := []Position{destination}
+	var destination Position
+	var path []Position
 	if w.pathfinder != nil {
 		var err error
-		path, err = w.pathfinder.FindPath(player.position, destination)
+		path, err = w.pathfinder.FindPathWithinRange(player.position, target, approachRange)
 		if err != nil {
 			return fmt.Errorf("find combat path: %w", err)
 		}
-	}
-	if len(path) == 0 {
-		return fmt.Errorf("find combat path: empty path")
+		if len(path) == 0 {
+			return fmt.Errorf("find combat path: empty path")
+		}
+		destination = path[len(path)-1]
+	} else {
+		dx := player.position.X - target.X
+		dz := player.position.Z - target.Z
+		length := math.Hypot(dx, dz)
+		if length == 0 {
+			dx = 1
+			length = 1
+		}
+		destination = Position{
+			X: target.X + dx/length*approachRange,
+			Y: target.Y,
+			Z: target.Z + dz/length*approachRange,
+		}
+		path = []Position{destination}
 	}
 
 	player.destination = positionPointer(destination)

@@ -250,6 +250,10 @@ func (f fixedPathfinder) FindPath(_, _ Position) ([]Position, error) {
 	return f.path, nil
 }
 
+func (f fixedPathfinder) FindPathWithinRange(_, _ Position, _ float64) ([]Position, error) {
+	return f.path, nil
+}
+
 func (f fixedPathfinder) Locate(_ Position) (NavigationLocation, error) {
 	return NavigationLocation{Kind: NavigationLocationUnknown}, nil
 }
@@ -258,6 +262,10 @@ type transitionPathfinder struct{}
 
 func (transitionPathfinder) FindPath(_, destination Position) ([]Position, error) {
 	return []Position{destination}, nil
+}
+
+func (transitionPathfinder) FindPathWithinRange(_, target Position, _ float64) ([]Position, error) {
+	return []Position{target}, nil
 }
 
 func (transitionPathfinder) Locate(position Position) (NavigationLocation, error) {

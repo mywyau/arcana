@@ -185,6 +185,31 @@ func TestOverkillAwardsOnlyActualDamageAsXP(t *testing.T) {
 	}
 }
 
+func TestConsecutiveSwordHitsCanRollDifferentDamage(t *testing.T) {
+	rolls := &sequenceRollSource{values: []float64{
+		0.5, 0.0, // First attack passes dodge and rolls minimum damage.
+		0.5, 1.0, // Second attack passes dodge and rolls maximum damage.
+		0.5, // Dummy attack roll on the second attack pulse.
+	}}
+	world := NewWorldWithRollSource(rolls)
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueTarget(TargetCommand{
+		PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID,
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	world.Step(4 * actionPulseInterval)
+	events := world.Snapshot().CombatEvents
+	if len(events) < 2 || events[0].Amount != 8 || events[1].Amount != 12 {
+		t.Fatalf("sword damage events = %+v, want consecutive amounts 8 and 12", events)
+	}
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, 80; got != want {
+		t.Fatalf("dummy health after varied hits = %d, want %d", got, want)
+	}
+}
+
 func TestCombatEventHistoryIsBounded(t *testing.T) {
 	combat := newCombatState()
 	for i := 0; i < combatEventHistoryLimit+3; i++ {
@@ -231,7 +256,7 @@ func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
 }
 
 func TestPlayerDodgeAvoidsDummyDamageAndConsumesCadence(t *testing.T) {
-	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.05}}
+	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.5, 0.5, 0.05}}
 	world := NewWorldWithRollSource(rolls)
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
@@ -688,6 +713,43 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
 		!combatStyleValidForWeapon(CombatStyleUnfocused, WeaponBow) {
 		t.Fatal("additional weapon combat styles are not valid")
+	}
+}
+
+func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
+	tests := []struct {
+		id       WeaponID
+		minimum  int
+		average  int
+		maximum  int
+		variance int
+	}{
+		{id: WeaponSword, minimum: 8, average: 10, maximum: 12, variance: 2},
+		{id: WeaponDagger, minimum: 5, average: 7, maximum: 9, variance: 2},
+		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: 1},
+		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: 3},
+		{id: WeaponBattleAxe, minimum: 11, average: 15, maximum: 19, variance: 4},
+		{id: WeaponStaff, minimum: 4, average: 6, maximum: 8, variance: 2},
+	}
+	for _, test := range tests {
+		t.Run(string(test.id), func(t *testing.T) {
+			weapon, exists := weaponDefinition(test.id)
+			if !exists {
+				t.Fatalf("weaponDefinition(%q) does not exist", test.id)
+			}
+			if weapon.DamageVariance != test.variance {
+				t.Fatalf("damage variance = %d, want %d", weapon.DamageVariance, test.variance)
+			}
+			if got := rollWeaponDamage(weapon, 0); got != test.minimum {
+				t.Fatalf("minimum damage = %d, want %d", got, test.minimum)
+			}
+			if got := rollWeaponDamage(weapon, 0.5); got != test.average {
+				t.Fatalf("midpoint damage = %d, want %d", got, test.average)
+			}
+			if got := rollWeaponDamage(weapon, 1); got != test.maximum {
+				t.Fatalf("maximum damage = %d, want %d", got, test.maximum)
+			}
+		})
 	}
 }
 

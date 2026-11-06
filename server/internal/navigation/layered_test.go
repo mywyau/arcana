@@ -1,10 +1,86 @@
 package navigation
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/mywyau/arcana/server/internal/simulation"
 )
+
+func TestHillWardenMeleeEngagementStartsApproach(t *testing.T) {
+	world := simulation.NewWorldWithPathfinder(NewPrototypeMap())
+	start := simulation.Position{X: hillCenterX - 6, Z: hillCenterZ}
+	if err := world.AddPlayer("player-one", start, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueTarget(simulation.TargetCommand{
+		PlayerID: "player-one",
+		Sequence: 1,
+		TargetID: "hill_warden",
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(600 * time.Millisecond)
+	player, exists := world.Player("player-one")
+	if !exists {
+		t.Fatal("Player() did not return the engaged player")
+	}
+	if player.LastActionResult != "approaching" || !player.AutoApproaching || player.Destination == nil {
+		t.Fatalf("Hill Warden melee engagement did not start an approach: %+v", player)
+	}
+}
+
+func TestPrototypeMapFindsMeleeRangePathOnHill(t *testing.T) {
+	world := NewPrototypeMap()
+	start := simulation.Position{X: hillCenterX - 6, Z: hillCenterZ}
+	target := simulation.Position{X: hillCenterX, Y: hillHeight, Z: hillCenterZ}
+	const meleeApproachRange = 1.25
+
+	path, err := world.FindPathWithinRange(start, target, meleeApproachRange)
+	if err != nil {
+		t.Fatalf("FindPathWithinRange() returned an unexpected error: %v", err)
+	}
+	if len(path) == 0 {
+		t.Fatal("FindPathWithinRange() returned an empty path")
+	}
+	destination := path[len(path)-1]
+	if got := positionDistance(destination, target); got > meleeApproachRange {
+		t.Fatalf("destination distance = %.3f, want at most %.3f", got, meleeApproachRange)
+	}
+	if math.Abs(destination.Y-target.Y) <= heightTolerance {
+		t.Fatalf("destination height = %.3f, want projected hill surface below target height %.3f", destination.Y, target.Y)
+	}
+	if _, err := world.Locate(destination); err != nil {
+		t.Fatalf("combat destination is not on navigation surface: %v", err)
+	}
+}
+
+func TestFindPathWithinRangeRoutesAroundBlockedApproach(t *testing.T) {
+	world := NewLayeredMapWithObstacles(
+		[]Layer{{ID: "ground", MinimumX: -4, MaximumX: 4, MinimumZ: -4, MaximumZ: 4}},
+		nil,
+		[]Obstacle{{LayerID: "ground", MinimumX: 0.25, MaximumX: 1.5, MinimumZ: -0.4, MaximumZ: 0.4}},
+	)
+	start := simulation.Position{X: -2}
+	target := simulation.Position{X: 2}
+	const approachRange = 1.25
+
+	path, err := world.FindPathWithinRange(start, target, approachRange)
+	if err != nil {
+		t.Fatalf("FindPathWithinRange() returned an unexpected error: %v", err)
+	}
+	if len(path) == 0 {
+		t.Fatal("FindPathWithinRange() returned an empty path")
+	}
+	if got := positionDistance(path[len(path)-1], target); got > approachRange {
+		t.Fatalf("destination distance = %.3f, want at most %.3f", got, approachRange)
+	}
+	if len(path) < 2 {
+		t.Fatalf("FindPathWithinRange() = %+v, want route around obstacle", path)
+	}
+}
 
 func TestPrototypeMapRoutesBetweenOverlappingLayers(t *testing.T) {
 	path, err := NewPrototypeMap().FindPath(

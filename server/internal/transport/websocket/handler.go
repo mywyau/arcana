@@ -288,6 +288,14 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				Style:    simulation.CombatStyleID(message.CombatStyle),
 			})
+		case protocol.MessageSetPrayer:
+			rejectionCode = "prayer_rejected"
+			err = h.world.QueuePrayer(simulation.PrayerCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				PrayerID: simulation.PrayerID(message.PrayerID),
+				Active:   message.Active,
+			})
 		case protocol.MessagePickupItem:
 			rejectionCode = "pickup_rejected"
 			err = h.world.QueuePickup(simulation.PickupCommand{
@@ -391,6 +399,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			CombatTarget:            player.CombatTarget,
 			NextAttackPulse:         player.NextAttackPulse,
 			AutoApproaching:         player.AutoApproaching,
+			AutoPickingUp:           player.AutoPickingUp,
 			Health:                  player.Health,
 			MaximumHealth:           player.MaximumHealth,
 			Mana:                    player.Mana,
@@ -405,6 +414,8 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			LastEquipmentPulse:      player.LastEquipmentPulse,
 			CombatStyle:             string(player.CombatStyle),
 			LastCombatStyleSequence: player.LastCombatStyleSequence,
+			ActivePrayers:           make([]string, 0, len(player.ActivePrayers)),
+			LastPrayerSequence:      player.LastPrayerSequence,
 			DodgeRate:               player.DodgeRate,
 			Inventory: protocol.InventorySnapshot{
 				Capacity: player.Inventory.Capacity,
@@ -413,6 +424,9 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			LastPickupSequence: player.LastPickupSequence,
 			Skills:             make([]protocol.SkillSnapshot, 0, len(player.Skills)),
 			Path:               make([]protocol.Position, 0, len(player.Path)),
+		}
+		for _, prayerID := range player.ActivePrayers {
+			playerMessage.ActivePrayers = append(playerMessage.ActivePrayers, string(prayerID))
 		}
 		for slot, itemID := range player.EquippedArmour {
 			playerMessage.EquippedArmour[string(slot)] = itemID

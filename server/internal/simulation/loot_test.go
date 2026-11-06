@@ -28,17 +28,47 @@ func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 	}
 }
 
-func TestPickupRejectsDropOutsideForgivingRange(t *testing.T) {
+func TestPickupOutsideRangeApproachesThenCollects(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	world.spawnDrop(Position{X: pickupRange + 0.01}, trainingShardItem, 1)
+	world.spawnDrop(Position{X: pickupRange + 1}, trainingShardItem, 1)
 
-	err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"})
-	if err == nil {
-		t.Fatal("QueuePickup() error = nil for drop outside pickup range")
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}
-	if got := len(world.Snapshot().Drops); got != 1 {
-		t.Fatalf("drop count after rejected pickup = %d, want 1", got)
+	world.Step(50 * time.Millisecond)
+	if player := mustPlayer(t, world, "player-one"); !player.AutoPickingUp || player.Destination == nil {
+		t.Fatalf("player did not begin pickup approach: %+v", player)
+	}
+
+	for range 10 {
+		world.Step(50 * time.Millisecond)
+	}
+	if got := len(world.Snapshot().Drops); got != 0 {
+		t.Fatalf("drop count after pickup approach = %d, want 0", got)
+	}
+	if player := mustPlayer(t, world, "player-one"); player.AutoPickingUp || player.Destination != nil {
+		t.Fatalf("player continued moving after pickup: %+v", player)
+	}
+}
+
+func TestMoveCancelsPickupApproach(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.spawnDrop(Position{X: 8}, trainingShardItem, 1)
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	mustQueueMove(t, world, "player-one", 1, Position{Z: 2})
+	world.Step(50 * time.Millisecond)
+
+	player := mustPlayer(t, world, "player-one")
+	if player.AutoPickingUp {
+		t.Fatal("player remains in pickup approach after a movement command")
+	}
+	if player.Destination == nil || *player.Destination != (Position{Z: 2}) {
+		t.Fatalf("movement destination after cancel = %+v, want z=2", player.Destination)
 	}
 }
 

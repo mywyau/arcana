@@ -49,6 +49,7 @@ type MoveCommand struct {
 
 type Pathfinder interface {
 	FindPath(start, destination Position) ([]Position, error)
+	FindPathWithinRange(start, target Position, maximumDistance float64) ([]Position, error)
 	Locate(position Position) (NavigationLocation, error)
 }
 
@@ -81,12 +82,15 @@ type PlayerSnapshot struct {
 	CombatTarget            string
 	NextAttackPulse         uint64
 	AutoApproaching         bool
+	AutoPickingUp           bool
 	Health                  int
 	MaximumHealth           int
 	Mana                    int
 	MaximumMana             int
 	Prayer                  int
 	MaximumPrayer           int
+	ActivePrayers           []PrayerID
+	LastPrayerSequence      uint64
 	Defeated                bool
 	RespawnAtPulse          uint64
 	EquippedWeapon          WeaponID
@@ -126,6 +130,7 @@ type playerState struct {
 	combatTarget              string
 	nextAttackPulse           uint64
 	autoApproaching           bool
+	autoPickingUp             bool
 	spawnPosition             Position
 	health                    int
 	maximumHealth             int
@@ -133,6 +138,9 @@ type playerState struct {
 	maximumMana               int
 	prayer                    int
 	maximumPrayer             int
+	activePrayers             map[PrayerID]bool
+	prayerDrainProgress       map[PrayerID]uint64
+	lastPrayerSequence        uint64
 	defeated                  bool
 	respawnAtPulse            uint64
 	equippedWeapon            WeaponID
@@ -157,7 +165,7 @@ type World struct {
 	pendingJoins          map[PlayerID]*playerState
 	pendingLeaves         map[PlayerID]struct{}
 	pendingMoves          map[PlayerID]pendingMove
-	pendingPickups        map[PlayerID]PickupCommand
+	pendingPickups        map[PlayerID]pendingPickup
 	pendingItemDrops      map[PlayerID]DropItemCommand
 	pendingInventoryMoves map[PlayerID]MoveInventoryItemCommand
 	drops                 map[string]DropSnapshot
@@ -170,6 +178,12 @@ type World struct {
 type pendingMove struct {
 	command MoveCommand
 	path    []Position
+}
+
+type pendingPickup struct {
+	command PickupCommand
+	path    []Position
+	started bool
 }
 
 func NewWorld() *World {
@@ -186,7 +200,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingJoins:          make(map[PlayerID]*playerState),
 		pendingLeaves:         make(map[PlayerID]struct{}),
 		pendingMoves:          make(map[PlayerID]pendingMove),
-		pendingPickups:        make(map[PlayerID]PickupCommand),
+		pendingPickups:        make(map[PlayerID]pendingPickup),
 		pendingItemDrops:      make(map[PlayerID]DropItemCommand),
 		pendingInventoryMoves: make(map[PlayerID]MoveInventoryItemCommand),
 		drops:                 make(map[string]DropSnapshot),
@@ -224,6 +238,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
+		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
 		equippedArmour: make(map[ArmourSlot]string),
 		combatStyle:    defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
@@ -257,6 +272,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		mana: playerMaximumMana, maximumMana: playerMaximumMana,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
+		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponSword, dodgeRate: playerDodgeRate, inventory: newStarterInventory(),
 		equippedArmour: make(map[ArmourSlot]string),
 		combatStyle:    defaultCombatStyle(WeaponSword), skills: newDefaultSkills(),
@@ -283,6 +299,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
+	delete(w.combat.pendingPrayers, id)
 	for _, target := range w.combat.dummyTargets() {
 		if target.dummy.TargetID == id {
 			clearDummyTarget(target.dummy)
@@ -338,6 +355,8 @@ func (w *World) QueueMove(command MoveCommand) error {
 	}
 
 	w.pendingMoves[command.PlayerID] = pendingMove{command: command, path: clonePositions(path)}
+	delete(w.pendingPickups, command.PlayerID)
+	player.autoPickingUp = false
 	return nil
 }
 
@@ -365,6 +384,7 @@ func (w *World) Step(elapsed time.Duration) {
 		player.autoApproaching = false
 		delete(w.pendingMoves, id)
 	}
+	w.startPendingPickupApproaches()
 
 	// A target click supersedes an existing movement route immediately on the
 	// next simulation step. Combat still begins on an action pulse, but the
@@ -526,12 +546,15 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		CombatTarget:            player.combatTarget,
 		NextAttackPulse:         player.nextAttackPulse,
 		AutoApproaching:         player.autoApproaching,
+		AutoPickingUp:           player.autoPickingUp,
 		Health:                  player.health,
 		MaximumHealth:           player.maximumHealth,
 		Mana:                    player.mana,
 		MaximumMana:             player.maximumMana,
 		Prayer:                  player.prayer,
 		MaximumPrayer:           player.maximumPrayer,
+		ActivePrayers:           activePrayerIDs(player),
+		LastPrayerSequence:      player.lastPrayerSequence,
 		Defeated:                player.defeated,
 		RespawnAtPulse:          player.respawnAtPulse,
 		EquippedWeapon:          player.equippedWeapon,
@@ -540,7 +563,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastEquipmentPulse:      player.lastEquipmentPulse,
 		CombatStyle:             player.combatStyle,
 		LastCombatStyleSequence: player.lastCombatStyleSequence,
-		DodgeRate:               player.dodgeRate,
+		DodgeRate:               effectivePlayerDodgeRate(player),
 		Inventory:               snapshotInventory(player.inventory),
 		LastPickupSequence:      player.lastPickupSequence,
 		Skills:                  snapshotSkills(player.skills),

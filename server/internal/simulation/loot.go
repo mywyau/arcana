@@ -92,21 +92,54 @@ func (w *World) QueuePickup(command PickupCommand) error {
 	if command.Sequence <= player.lastPickupSequence {
 		return fmt.Errorf("pickup sequence %d is not newer than %d", command.Sequence, player.lastPickupSequence)
 	}
-	if pending, exists := w.pendingPickups[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
-		return fmt.Errorf("pickup sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	if pending, exists := w.pendingPickups[command.PlayerID]; exists && command.Sequence <= pending.command.Sequence {
+		return fmt.Errorf("pickup sequence %d is not newer than pending sequence %d", command.Sequence, pending.command.Sequence)
 	}
 	drop, exists := w.drops[command.DropID]
 	if !exists {
 		return fmt.Errorf("drop %q does not exist", command.DropID)
 	}
-	if distance(player.position, drop.Position) > pickupRange {
-		return fmt.Errorf("drop %q is outside the %.1f unit pickup range", command.DropID, pickupRange)
-	}
 	if !player.inventory.canAdd(drop.ItemID) {
 		return fmt.Errorf("inventory is full")
 	}
-	w.pendingPickups[command.PlayerID] = command
+	path := []Position{drop.Position}
+	if distance(player.position, drop.Position) > pickupRange && w.pathfinder != nil {
+		var err error
+		path, err = w.pathfinder.FindPath(player.position, drop.Position)
+		if err != nil {
+			return fmt.Errorf("find pickup path: %w", err)
+		}
+	}
+	if len(path) == 0 {
+		return fmt.Errorf("find pickup path: empty path")
+	}
+	delete(w.pendingMoves, command.PlayerID)
+	w.pendingPickups[command.PlayerID] = pendingPickup{command: command, path: clonePositions(path)}
 	return nil
+}
+
+func (w *World) startPendingPickupApproaches() {
+	for id, pickup := range w.pendingPickups {
+		if pickup.started {
+			continue
+		}
+		player, exists := w.players[id]
+		if !exists || player.defeated {
+			delete(w.pendingPickups, id)
+			continue
+		}
+		player.lastPickupSequence = pickup.command.Sequence
+		player.autoApproaching = false
+		player.autoPickingUp = true
+		if drop, exists := w.drops[pickup.command.DropID]; exists && distance(player.position, drop.Position) > pickupRange {
+			player.destination = positionPointer(drop.Position)
+			player.path = clonePositions(pickup.path)
+		} else {
+			stopPlayer(player)
+		}
+		pickup.started = true
+		w.pendingPickups[id] = pickup
+	}
 }
 
 func (w *World) applyPendingPickups() {
@@ -116,20 +149,33 @@ func (w *World) applyPendingPickups() {
 	}
 	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
 	for _, id := range playerIDs {
-		command := w.pendingPickups[id]
-		delete(w.pendingPickups, id)
+		pickup := w.pendingPickups[id]
+		command := pickup.command
 		player, exists := w.players[id]
 		if !exists || player.defeated {
+			delete(w.pendingPickups, id)
 			continue
 		}
-		player.lastPickupSequence = command.Sequence
 		drop, exists := w.drops[command.DropID]
-		if !exists || distance(player.position, drop.Position) > pickupRange {
+		if !exists || !player.inventory.canAdd(drop.ItemID) {
+			delete(w.pendingPickups, id)
+			if player.autoPickingUp {
+				stopPlayer(player)
+			}
+			player.autoPickingUp = false
+			continue
+		}
+		if distance(player.position, drop.Position) > pickupRange {
 			continue
 		}
 		if player.inventory.add(drop.ItemID, drop.Quantity) {
 			delete(w.drops, command.DropID)
 		}
+		delete(w.pendingPickups, id)
+		if player.autoPickingUp {
+			stopPlayer(player)
+		}
+		player.autoPickingUp = false
 	}
 }
 

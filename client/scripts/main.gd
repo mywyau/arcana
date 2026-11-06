@@ -57,80 +57,21 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"magic": "Magic",
 }
 
-const SWORD_ICON: Texture2D = preload("res://assets/icons/sword.svg")
-const DAGGER_ICON: Texture2D = preload("res://assets/icons/dagger.svg")
-const BOW_ICON: Texture2D = preload("res://assets/icons/bow.svg")
-const MACE_ICON: Texture2D = preload("res://assets/icons/mace.svg")
-const BATTLE_AXE_ICON: Texture2D = preload("res://assets/icons/battle_axe.svg")
-const STAFF_ICON: Texture2D = preload("res://assets/icons/staff.svg")
-const EMPTY_SLOT_ICON: Texture2D = preload("res://assets/icons/empty_slot.svg")
-const TRAINING_SHARD_ICON: Texture2D = preload("res://assets/icons/training_shard.svg")
-const TRAINING_HELM_ICON: Texture2D = preload("res://assets/icons/training_helm.svg")
-const TRAINING_PLATE_ICON: Texture2D = preload("res://assets/icons/training_plate.svg")
-const TAB_STYLES_ICON: Texture2D = preload("res://assets/icons/tab_styles.svg")
-const TAB_INVENTORY_ICON: Texture2D = preload("res://assets/icons/tab_inventory.svg")
-const TAB_SKILLS_ICON: Texture2D = preload("res://assets/icons/tab_skills.svg")
-const TAB_EQUIPMENT_ICON: Texture2D = preload("res://assets/icons/tab_equipment.svg")
-const TAB_MAGIC_ICON: Texture2D = preload("res://assets/icons/tab_magic.svg")
-const TAB_PRAYER_ICON: Texture2D = preload("res://assets/icons/tab_prayer.svg")
-
-const PLACEHOLDER_SPELLS: Array = [
-	{"name": "Breeze", "icon": preload("res://assets/icons/spell_icons/breeze.svg")},
-	{"name": "Wind Blade", "icon": preload("res://assets/icons/spell_icons/wind_blade.svg")},
-	{"name": "Gale", "icon": preload("res://assets/icons/spell_icons/gale.svg")},
-	{"name": "Tempest", "icon": preload("res://assets/icons/spell_icons/tempest.svg")},
-
-	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spell_icons/ember.svg")},
-	{"name": "Inferno", "icon": preload("res://assets/icons/spell_icons/inferno.svg")},
-
-	{"name": "Frost Shard", "icon": preload("res://assets/icons/spell_icons/frost_shard.svg")},
-	{"name": "Ice Lance", "icon": preload("res://assets/icons/spell_icons/ice_lance.svg")},
-	{"name": "Frost Nova", "icon": preload("res://assets/icons/spell_icons/frost_nova.svg")},
-	{"name": "Glacier", "icon": preload("res://assets/icons/spell_icons/glacier.svg")},
-	{"name": "Absolute Zero", "icon": preload("res://assets/icons/spell_icons/absolute_zero.svg")},
-
-	{"name": "Pebble", "icon": preload("res://assets/icons/spell_icons/pebble.svg")},
-	{"name": "Stone Spike", "icon": preload("res://assets/icons/spell_icons/stone_spike.svg")},
-	{"name": "Rock Fall", "icon": preload("res://assets/icons/spell_icons/rockfall.svg")},
-	{"name": "Earthquake", "icon": preload("res://assets/icons/spell_icons/earthquake.svg")},
-	{"name": "Mountain Wrath", "icon": preload("res://assets/icons/spell_icons/mountain_wrath.svg")},
-	# {"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_icons/spell_ward.svg")},
-	# {"name": "Blink", "icon": preload("res://assets/icons/spell_icons/spell_blink.svg")},
-
-	{"name": "Light", "icon": preload("res://assets/icons/spell_icons/light.png")},
-	{"name": "Shine", "icon": preload("res://assets/icons/spell_icons/shine.png")},
-	{"name": "Divine", "icon": preload("res://assets/icons/spell_icons/divine.png")},
-	{"name": "Luce", "icon": preload("res://assets/icons/spell_icons/luce.png")},
-	{"name": "Aura", "icon": preload("res://assets/icons/spell_icons/aura.png")},
-
-	{"name": "Bio", "icon": preload("res://assets/icons/spell_icons/bio.png")},
-	{"name": "Acid", "icon": preload("res://assets/icons/spell_icons/acid.png")},
-	{"name": "Miasma", "icon": preload("res://assets/icons/spell_icons/miasma.png")},
-	# {"name": "Toxic", "icon": preload("res://assets/icons/spell_icons/toxic.png")},
-	{"name": "Plague Bloom", "icon": preload("res://assets/icons/spell_icons/plague_bloom.png")},
-]
-
-const PLACEHOLDER_PRAYERS: Array = [
-	{"name": "Prayer", "icon": preload("res://assets/icons/prayer_icons/01_prayer.png")},
-	{"name": "Protection", "icon": preload("res://assets/icons/prayer_icons/02_protection.png")},
-	{"name": "Strength", "icon": preload("res://assets/icons/prayer_icons/03_strength.png")},
-	{"name": "Agility", "icon": preload("res://assets/icons/prayer_icons/04_agility.png")},
-	{"name": "Vision", "icon": preload("res://assets/icons/prayer_icons/05_vision.png")},
-	{"name": "Wisdom", "icon": preload("res://assets/icons/prayer_icons/06_wisdom.png")},
-	{"name": "Melee", "icon": preload("res://assets/icons/prayer_icons/07_melee.png")},
-	{"name": "Ranged", "icon": preload("res://assets/icons/prayer_icons/08_ranged.png")},
-	{"name": "Magic", "icon": preload("res://assets/icons/prayer_icons/09_magic.png")},
-	{"name": "Energy", "icon": preload("res://assets/icons/prayer_icons/10_energy.png")},
-	{"name": "Vitality", "icon": preload("res://assets/icons/prayer_icons/11_vitality.png")},
-	{"name": "Holy Light", "icon": preload("res://assets/icons/prayer_icons/12_holy_light.png")},
-	{"name": "Melee Boost", "icon": preload("res://assets/icons/prayer_icons/13_melee_boost.png")},
-	{"name": "Defence Boost", "icon": preload("res://assets/icons/prayer_icons/14_defence_boost.png")},
-	{"name": "Strength Boost", "icon": preload("res://assets/icons/prayer_icons/15_strength_boost.png")},
-	{"name": "Ranged Boost", "icon": preload("res://assets/icons/prayer_icons/16_ranged_boost.png")},
-	{"name": "Magic Boost", "icon": preload("res://assets/icons/prayer_icons/17_magic_boost.png")},
-	{"name": "Accuracy", "icon": preload("res://assets/icons/prayer_icons/18_accuracy.png")},
-	{"name": "Wrath", "icon": preload("res://assets/icons/prayer_icons/19_wrath.png")},
-]
+const SWORD_ICON: Texture2D = IconCatalog.SWORD
+const DAGGER_ICON: Texture2D = IconCatalog.DAGGER
+const BOW_ICON: Texture2D = IconCatalog.BOW
+const MACE_ICON: Texture2D = IconCatalog.MACE
+const BATTLE_AXE_ICON: Texture2D = IconCatalog.BATTLE_AXE
+const STAFF_ICON: Texture2D = IconCatalog.STAFF
+const EMPTY_SLOT_ICON: Texture2D = IconCatalog.EMPTY_SLOT
+const TAB_STYLES_ICON: Texture2D = IconCatalog.TAB_STYLES
+const TAB_INVENTORY_ICON: Texture2D = IconCatalog.TAB_INVENTORY
+const TAB_SKILLS_ICON: Texture2D = IconCatalog.TAB_SKILLS
+const TAB_EQUIPMENT_ICON: Texture2D = IconCatalog.TAB_EQUIPMENT
+const TAB_MAGIC_ICON: Texture2D = IconCatalog.TAB_MAGIC
+const TAB_PRAYER_ICON: Texture2D = IconCatalog.TAB_PRAYER
+const PLACEHOLDER_SPELLS: Array = IconCatalog.SPELLS
+const PLACEHOLDER_PRAYERS: Array = IconCatalog.PRAYERS
 
 
 const COMBAT_STYLES: Dictionary = {
@@ -171,52 +112,13 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 }
-const EQUIPMENT_ICONS: Dictionary = {
-	"sword": SWORD_ICON,
-	"dagger": DAGGER_ICON,
-	"bow": BOW_ICON,
-	"mace": MACE_ICON,
-	"battle_axe": BATTLE_AXE_ICON,
-	"staff": STAFF_ICON,
-}
+const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
 	"training_helm": "head",
 	"training_plate": "body",
 }
-const ITEM_ICONS: Dictionary = {
-	"sword": SWORD_ICON,
-	"dagger": DAGGER_ICON,
-	"bow": BOW_ICON,
-	"mace": MACE_ICON,
-	"battle_axe": BATTLE_AXE_ICON,
-	"staff": STAFF_ICON,
-	"training_shard": TRAINING_SHARD_ICON,
-	"training_helm": TRAINING_HELM_ICON,
-	"training_plate": TRAINING_PLATE_ICON,
-}
-const SKILL_ICONS: Dictionary = {
-	"Attack": SWORD_ICON,
-	"Magic": preload("res://assets/icons/spell_ember.svg"),
-	"Range": BOW_ICON,
-	"Defence": TAB_EQUIPMENT_ICON,
-	"Strength": BATTLE_AXE_ICON,
-	"Prayer": TAB_PRAYER_ICON,
-	"Vitality": preload("res://assets/icons/spell_ward.svg"),
-	"Mana": TAB_MAGIC_ICON,
-	"Agility": preload("res://assets/icons/spell_blink.svg"),
-	"Mining": MACE_ICON,
-	"Smithing": MACE_ICON,
-	"Crafting": TRAINING_SHARD_ICON,
-	"Woodcutting": BATTLE_AXE_ICON,
-	"Runecrafting": preload("res://assets/icons/spell_frost.svg"),
-	"Herblore": preload("res://assets/icons/spell_ward.svg"),
-	"Fletching": BOW_ICON,
-	"Fishing": preload("res://assets/icons/spell_frost.svg"),
-	"Cooking": preload("res://assets/icons/spell_ember.svg"),
-	"Farming": TAB_INVENTORY_ICON,
-	"Thieving": DAGGER_ICON,
-	"Construction": TAB_EQUIPMENT_ICON,
-}
+const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
+const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 
 @onready var camera_rig: GuidedCamera = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
@@ -290,7 +192,6 @@ const SKILL_ICONS: Dictionary = {
 @onready var styles_magic_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Magic
 @onready var styles_prayer_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Prayer
 @onready var styles_active_tab_button: Button = $UI/StylesHUD/Margin/VBox/TabRow/Styles
-@onready var styles_summary: Label = $UI/StylesHUD/Margin/VBox/Summary
 @onready var styles_grid: GridContainer = $UI/StylesHUD/Margin/VBox/ContentScroll/Grid
 @onready var target_hud: PanelContainer = $UI/TargetHUD
 @onready var player_health_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Health
@@ -337,6 +238,11 @@ var _player_mana: int = 100
 var _player_maximum_mana: int = 100
 var _player_prayer: int = 100
 var _player_maximum_prayer: int = 100
+var _active_prayers: Array[String] = []
+var _last_prayer_sequence: int = 0
+var _next_prayer_sequence: int = 1
+var _queued_prayer_id: String = ""
+var _queued_prayer_active: bool = false
 var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
@@ -521,15 +427,19 @@ func _physics_process(_delta: float) -> void:
 				_update_combat_hud()
 			return
 
-	var loot_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
-	loot_query.collision_mask = LOOT_COLLISION_MASK
-	var loot_result: Dictionary = get_world_3d().direct_space_state.intersect_ray(loot_query)
+	var loot_result: Dictionary = _top_loot_hit(ray_origin, ray_end)
 	if not loot_result.is_empty():
 		var loot_body := loot_result.get("collider") as CollisionObject3D
 		if loot_body != null and loot_body.has_meta(&"drop_id"):
 			var drop_id: String = str(loot_body.get_meta(&"drop_id"))
 			if network.send_pickup_item(_next_pickup_sequence, drop_id):
 				_next_pickup_sequence += 1
+				var local_view: PlayerView = _player_views.get(_local_player_id)
+				if local_view != null:
+					local_view.stop_prediction()
+				if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
+					_request_disengage()
+				click_marker.visible = false
 				_play_target_click_feedback(loot_body.global_position)
 			return
 
@@ -554,6 +464,36 @@ func _physics_process(_delta: float) -> void:
 				local_view.predict_move(destination)
 		click_marker.position = destination + Vector3.UP * 0.03
 		click_marker.visible = true
+
+
+func _top_loot_hit(ray_origin: Vector3, ray_end: Vector3) -> Dictionary:
+	var excluded: Array[RID] = []
+	var best_hit: Dictionary = {}
+	var best_distance_squared: float = INF
+	var best_drop_id: String = ""
+	for _index: int in range(32):
+		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+		query.collision_mask = LOOT_COLLISION_MASK
+		query.exclude = excluded
+		var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			break
+		var body := hit.get("collider") as CollisionObject3D
+		if body == null:
+			break
+		excluded.append(body.get_rid())
+		if not body.has_meta(&"drop_id"):
+			continue
+		var hit_position: Vector3 = hit.get("position", body.global_position)
+		var distance_squared: float = ray_origin.distance_squared_to(hit_position)
+		var drop_id: String = str(body.get_meta(&"drop_id"))
+		if distance_squared < best_distance_squared or (
+			is_equal_approx(distance_squared, best_distance_squared) and drop_id < best_drop_id
+		):
+			best_hit = hit
+			best_distance_squared = distance_squared
+			best_drop_id = drop_id
+	return best_hit
 
 
 func _can_predict_directly(
@@ -645,6 +585,22 @@ func _request_combat_style(combat_style: String) -> void:
 		_update_combat_styles_hud()
 
 
+func _request_prayer(prayer_id: String) -> void:
+	if _player_defeated:
+		return
+	var active: bool = _active_prayers.has(prayer_id)
+	if _queued_prayer_id == prayer_id:
+		active = _queued_prayer_active
+	var desired_active: bool = not active
+	if desired_active and _player_prayer <= 0:
+		return
+	if network.send_prayer(_next_prayer_sequence, prayer_id, desired_active):
+		_queued_prayer_id = prayer_id
+		_queued_prayer_active = desired_active
+		_next_prayer_sequence += 1
+		_update_prayer_hud()
+
+
 func _request_disengage() -> void:
 	if _player_defeated:
 		return
@@ -727,7 +683,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				camera_rig.follow(view)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
-		var server_driven_path: bool = bool(player_data.get("auto_approaching", false))
+		var server_driven_path: bool = (
+			bool(player_data.get("auto_approaching", false))
+			or bool(player_data.get("auto_picking_up", false))
+		)
 		var correction: float = view.apply_authoritative_state(
 			position,
 			path,
@@ -741,6 +700,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		if id == _local_player_id:
 			var inventory_selection_changed: bool = false
 			var combat_style_changed: bool = false
+			var prayer_changed: bool = false
 			_last_action_sequence = int(player_data.get("last_action_sequence", 0))
 			_last_action_result = str(player_data.get("last_action_result", "none"))
 			_combat_target = str(player_data.get("combat_target", ""))
@@ -750,9 +710,27 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
 			_player_mana = int(player_data.get("mana", _player_mana))
 			_player_maximum_mana = int(player_data.get("maximum_mana", _player_maximum_mana))
-			_player_prayer = int(player_data.get("prayer", _player_prayer))
+			var prayer_points: int = int(player_data.get("prayer", _player_prayer))
+			if prayer_points != _player_prayer:
+				_player_prayer = prayer_points
+				prayer_changed = true
 			_player_maximum_prayer = int(player_data.get("maximum_prayer", _player_maximum_prayer))
-			_player_defeated = bool(player_data.get("defeated", false))
+			var active_prayers_data: Variant = player_data.get("active_prayers", [])
+			if typeof(active_prayers_data) == TYPE_ARRAY:
+				var active_prayers: Array[String] = []
+				for prayer_id_data: Variant in active_prayers_data as Array:
+					active_prayers.append(str(prayer_id_data))
+				if active_prayers != _active_prayers:
+					_active_prayers = active_prayers
+					prayer_changed = true
+			_last_prayer_sequence = int(player_data.get("last_prayer_sequence", 0))
+			if _last_prayer_sequence >= _next_prayer_sequence - 1 and not _queued_prayer_id.is_empty():
+				_queued_prayer_id = ""
+				prayer_changed = true
+			var player_defeated: bool = bool(player_data.get("defeated", false))
+			if player_defeated != _player_defeated:
+				_player_defeated = player_defeated
+				prayer_changed = true
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
 			var skills_data: Variant = player_data.get("skills", [])
@@ -788,6 +766,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_update_inventory_hud()
 			if combat_style_changed:
 				_update_combat_styles_hud()
+			if prayer_changed:
+				_update_prayer_hud()
 			if _last_action_result.is_empty():
 				_last_action_result = "none"
 			var navigation_data: Variant = player_data.get("navigation_location", {})
@@ -974,6 +954,9 @@ func _on_server_error(code: String, message: String) -> void:
 	if code == "combat_style_rejected":
 		_queued_combat_style = ""
 		_update_combat_styles_hud()
+	if code == "prayer_rejected":
+		_queued_prayer_id = ""
+		_update_prayer_hud()
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -1517,15 +1500,34 @@ func _populate_placeholder_spells() -> void:
 
 
 func _populate_placeholder_prayers() -> void:
+	_update_prayer_hud()
+
+
+func _update_prayer_hud() -> void:
+	for child: Node in prayer_grid.get_children():
+		prayer_grid.remove_child(child)
+		child.queue_free()
 	for prayer_data: Variant in PLACEHOLDER_PRAYERS:
 		var prayer: Dictionary = prayer_data
+		var prayer_id: String = str(prayer.get("id", ""))
 		var prayer_button := Button.new()
 		prayer_button.custom_minimum_size = Vector2(104, 88)
 		prayer_button.focus_mode = Control.FOCUS_NONE
-		prayer_button.disabled = true
+		prayer_button.toggle_mode = not prayer_id.is_empty()
+		prayer_button.disabled = prayer_id.is_empty() or _player_defeated or (
+			_player_prayer <= 0 and not _active_prayers.has(prayer_id)
+		)
 		prayer_button.icon = prayer.get("icon") as Texture2D
 		prayer_button.expand_icon = true
-		prayer_button.tooltip_text = "%s" % prayer.get("name", "Prayer")
+		if prayer_id == "evasion":
+			var displayed_active: bool = _active_prayers.has(prayer_id)
+			if _queued_prayer_id == prayer_id:
+				displayed_active = _queued_prayer_active
+			prayer_button.set_pressed_no_signal(displayed_active)
+			prayer_button.tooltip_text = "Evasion\n+5% dodge chance\nDrains 1 prayer point every 3 seconds"
+			prayer_button.pressed.connect(_request_prayer.bind(prayer_id))
+		else:
+			prayer_button.tooltip_text = "%s (coming later)" % prayer.get("name", "Prayer")
 		prayer_grid.add_child(prayer_button)
 
 
@@ -1536,21 +1538,6 @@ func _update_combat_styles_hud() -> void:
 
 	var style_options: Array = COMBAT_STYLES.get(_equipped_weapon, []) as Array
 	var selected_style: String = _queued_combat_style if not _queued_combat_style.is_empty() else _combat_style
-	var selected_training: String = ""
-	for style_data: Variant in style_options:
-		var candidate: Dictionary = style_data
-		if str(candidate.get("id", "")) == selected_style:
-			selected_training = str(candidate.get("training", ""))
-			break
-	if selected_style == "unfocused":
-		styles_summary.text = "%s  •  COMBAT XP LOCKED" % _equipped_weapon.capitalize()
-	elif _equipped_weapon == "bow":
-		styles_summary.text = "Bow  •  trains %s  •  Rapid: faster  •  Long Range: 14 units" % selected_training
-	else:
-		styles_summary.text = "%s  •  selected technique trains %s" % [
-			_equipped_weapon.capitalize(),
-			selected_training,
-		]
 	for style_data: Variant in style_options:
 		var style: Dictionary = style_data
 		var style_id: String = str(style.get("id", ""))

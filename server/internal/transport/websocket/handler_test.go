@@ -269,6 +269,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			LastEquipmentPulse:      11,
 			CombatStyle:             simulation.CombatStyleStab,
 			LastCombatStyleSequence: 4,
+			ActivePrayers:           []simulation.PrayerID{simulation.PrayerEvasion},
+			LastPrayerSequence:      5,
 			DodgeRate:               0.15,
 			Inventory: simulation.InventorySnapshot{
 				Capacity: 8,
@@ -312,7 +314,9 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	if player.Health != 40 || player.MaximumHealth != 100 || player.Mana != 80 || player.MaximumMana != 100 ||
 		player.Prayer != 70 || player.MaximumPrayer != 100 || !player.Defeated || player.RespawnAtPulse != 20 ||
 		player.EquippedWeapon != "dagger" || player.LastEquipmentSequence != 3 || player.LastEquipmentPulse != 11 ||
-		player.CombatStyle != "stab" || player.LastCombatStyleSequence != 4 || player.DodgeRate != 0.15 {
+		player.CombatStyle != "stab" || player.LastCombatStyleSequence != 4 ||
+		len(player.ActivePrayers) != 1 || player.ActivePrayers[0] != "evasion" ||
+		player.LastPrayerSequence != 5 || player.DodgeRate != 0.15 {
 		t.Fatalf("player vital state = %+v", player)
 	}
 	if player.Inventory.Capacity != 8 || len(player.Inventory.Items) != 1 ||

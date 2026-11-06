@@ -157,6 +157,64 @@ func (m *LayeredMap) FindPath(start, destination simulation.Position) ([]simulat
 	return nil, fmt.Errorf("no route from layer %q to %q", startLayer.ID, destinationLayer.ID)
 }
 
+// FindPathWithinRange routes to any walkable point inside a target-centered
+// radius. Unlike a caller-calculated offset, the destination follows the
+// navigation surface and can route around blocked approach directions.
+func (m *LayeredMap) FindPathWithinRange(
+	start simulation.Position,
+	target simulation.Position,
+	maximumDistance float64,
+) ([]simulation.Position, error) {
+	if math.IsNaN(maximumDistance) || math.IsInf(maximumDistance, 0) || maximumDistance <= 0 {
+		return nil, fmt.Errorf("maximum distance must be finite and positive")
+	}
+	targetLayer, err := m.layerAt(target)
+	if err != nil {
+		return nil, fmt.Errorf("target: %w", err)
+	}
+
+	if startLayer, startErr := m.layerAt(start); startErr == nil && startLayer.ID == targetLayer.ID {
+		return m.findLayerPathWithinRange(targetLayer, start, target, maximumDistance)
+	}
+
+	var bestPath []simulation.Position
+	bestLength := math.Inf(1)
+	for _, link := range m.links {
+		var targetEndpoint simulation.Position
+		switch targetLayer.ID {
+		case link.FromLayer:
+			targetEndpoint = link.From
+		case link.ToLayer:
+			targetEndpoint = link.To
+		default:
+			continue
+		}
+
+		prefix, prefixErr := m.FindPath(start, targetEndpoint)
+		if prefixErr != nil {
+			continue
+		}
+		suffix, suffixErr := m.findLayerPathWithinRange(
+			targetLayer,
+			targetEndpoint,
+			target,
+			maximumDistance,
+		)
+		if suffixErr != nil {
+			continue
+		}
+		path := appendWithoutDuplicate(prefix, suffix...)
+		if length := pathLength(start, path); length < bestLength {
+			bestPath = path
+			bestLength = length
+		}
+	}
+	if len(bestPath) == 0 {
+		return nil, fmt.Errorf("no route to within %.2f units of target", maximumDistance)
+	}
+	return bestPath, nil
+}
+
 func (m *LayeredMap) pathToLink(
 	start simulation.Position,
 	destination simulation.Position,
@@ -243,6 +301,81 @@ func (m *LayeredMap) findLayerPath(layer Layer, start, destination simulation.Po
 
 	smoothed := m.smoothPath(layer, raw)
 	return layer.expandSurfacePath(smoothed), nil
+}
+
+func (m *LayeredMap) findLayerPathWithinRange(
+	layer Layer,
+	start simulation.Position,
+	target simulation.Position,
+	maximumDistance float64,
+) ([]simulation.Position, error) {
+	startCell := layer.positionToCell(start)
+	if !m.cellWalkable(layer, startCell) {
+		return nil, fmt.Errorf("route start is blocked on layer %q", layer.ID)
+	}
+	cells, err := m.findCellPathWithinRange(layer, startCell, target, maximumDistance)
+	if err != nil {
+		return nil, err
+	}
+	raw := make([]simulation.Position, 0, len(cells))
+	raw = append(raw, start)
+	for _, cell := range cells[1:] {
+		raw = append(raw, layer.cellPosition(cell))
+	}
+	if len(raw) == 1 {
+		return []simulation.Position{start}, nil
+	}
+	return layer.expandSurfacePath(m.smoothPath(layer, raw)), nil
+}
+
+func (m *LayeredMap) findCellPathWithinRange(
+	layer Layer,
+	start gridCell,
+	target simulation.Position,
+	maximumDistance float64,
+) ([]gridCell, error) {
+	frontier := &cellQueue{}
+	heap.Init(frontier)
+	heap.Push(frontier, &queueItem{cell: start})
+	cameFrom := map[gridCell]gridCell{}
+	cost := map[gridCell]int{start: 0}
+
+	for frontier.Len() > 0 {
+		current := heap.Pop(frontier).(*queueItem).cell
+		if positionDistance(layer.cellPosition(current), target) <= maximumDistance {
+			return reconstructCells(cameFrom, start, current), nil
+		}
+
+		for _, offset := range neighborOffsets {
+			next := gridCell{X: current.X + offset.X, Z: current.Z + offset.Z}
+			if !m.cellTraversable(layer, current, next) {
+				continue
+			}
+			diagonal := offset.X != 0 && offset.Z != 0
+			if diagonal {
+				xSide := gridCell{X: current.X + offset.X, Z: current.Z}
+				zSide := gridCell{X: current.X, Z: current.Z + offset.Z}
+				if !m.cellTraversable(layer, current, xSide) || !m.cellTraversable(layer, current, zSide) ||
+					!m.cellTraversable(layer, xSide, next) || !m.cellTraversable(layer, zSide, next) {
+					continue
+				}
+			}
+
+			stepCost := 10
+			if diagonal {
+				stepCost = 14
+			}
+			newCost := cost[current] + stepCost
+			if oldCost, visited := cost[next]; visited && newCost >= oldCost {
+				continue
+			}
+			cost[next] = newCost
+			cameFrom[next] = current
+			heuristic := rangeHeuristic(layer.cellPosition(next), target, maximumDistance)
+			heap.Push(frontier, &queueItem{cell: next, priority: newCost + heuristic})
+		}
+	}
+	return nil, fmt.Errorf("target range is unreachable on layer %q", layer.ID)
 }
 
 func (m *LayeredMap) findCellPath(layer Layer, start, destination gridCell) ([]gridCell, error) {
@@ -516,6 +649,28 @@ func appendWithoutDuplicate(path []simulation.Position, positions ...simulation.
 		}
 	}
 	return path
+}
+
+func positionDistance(a, b simulation.Position) float64 {
+	dx := a.X - b.X
+	dy := a.Y - b.Y
+	dz := a.Z - b.Z
+	return math.Sqrt(dx*dx + dy*dy + dz*dz)
+}
+
+func pathLength(start simulation.Position, path []simulation.Position) float64 {
+	length := 0.0
+	previous := start
+	for _, waypoint := range path {
+		length += positionDistance(previous, waypoint)
+		previous = waypoint
+	}
+	return length
+}
+
+func rangeHeuristic(position, target simulation.Position, maximumDistance float64) int {
+	remaining := math.Max(0, math.Hypot(position.X-target.X, position.Z-target.Z)-maximumDistance)
+	return int(math.Floor(remaining / gridCellSize * 10))
 }
 
 func reconstructCells(cameFrom map[gridCell]gridCell, start, destination gridCell) []gridCell {

@@ -14,6 +14,7 @@ const (
 	MessageDisengage         = "disengage"
 	MessageEquipItem         = "equip_item"
 	MessageCombatStyle       = "set_combat_style"
+	MessageSetPrayer         = "set_prayer"
 	MessagePickupItem        = "pickup_item"
 	MessageDropItem          = "drop_item"
 	MessageMoveInventoryItem = "move_inventory_item"
@@ -38,6 +39,8 @@ type ClientMessage struct {
 	FromSlot    int       `json:"from_slot,omitempty"`
 	ToSlot      int       `json:"to_slot,omitempty"`
 	CombatStyle string    `json:"combat_style,omitempty"`
+	PrayerID    string    `json:"prayer_id,omitempty"`
+	Active      bool      `json:"active,omitempty"`
 	GuestToken  string    `json:"guest_token,omitempty"`
 }
 
@@ -103,6 +106,7 @@ type PlayerSnapshot struct {
 	CombatTarget            string             `json:"combat_target"`
 	NextAttackPulse         uint64             `json:"next_attack_pulse"`
 	AutoApproaching         bool               `json:"auto_approaching"`
+	AutoPickingUp           bool               `json:"auto_picking_up"`
 	Health                  int                `json:"health"`
 	MaximumHealth           int                `json:"maximum_health"`
 	Mana                    int                `json:"mana"`
@@ -117,6 +121,8 @@ type PlayerSnapshot struct {
 	LastEquipmentPulse      uint64             `json:"last_equipment_pulse"`
 	CombatStyle             string             `json:"combat_style"`
 	LastCombatStyleSequence uint64             `json:"last_combat_style_sequence"`
+	ActivePrayers           []string           `json:"active_prayers"`
+	LastPrayerSequence      uint64             `json:"last_prayer_sequence"`
 	DodgeRate               float64            `json:"dodge_rate"`
 	Inventory               InventorySnapshot  `json:"inventory"`
 	LastPickupSequence      uint64             `json:"last_pickup_sequence"`
@@ -167,7 +173,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type != MessageAuthenticate && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
-		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle {
+		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
+		message.Type != MessageSetPrayer {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -193,6 +200,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageCombatStyle && message.CombatStyle == "" {
 		return ClientMessage{}, fmt.Errorf("combat style is required")
+	}
+	if message.Type == MessageSetPrayer && message.PrayerID == "" {
+		return ClientMessage{}, fmt.Errorf("prayer ID is required")
 	}
 
 	return message, nil
