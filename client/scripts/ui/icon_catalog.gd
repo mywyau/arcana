@@ -10,6 +10,9 @@ const BATTLE_AXE: Texture2D = preload("res://assets/icons/equipment/weapons/batt
 const STAFF: Texture2D = preload("res://assets/icons/equipment/weapons/staff.svg")
 const TRAINING_HELM: Texture2D = preload("res://assets/icons/equipment/armour/training_helm.svg")
 const TRAINING_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/training_plate.svg")
+const SWIFT_HELM: Texture2D = preload("res://assets/icons/equipment/armour/swift_helm.svg")
+const SWIFT_BODY: Texture2D = preload("res://assets/icons/equipment/armour/swift_body.svg")
+const SWIFT_BOOTS: Texture2D = preload("res://assets/icons/equipment/armour/swift_boots.svg")
 const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
 
@@ -61,9 +64,9 @@ const SPELLS: Array = [
 ]
 
 const PRAYERS: Array = [
-	{"id": "evasion", "name": "Evasion", "icon": preload("res://assets/icons/prayers/01_prayer.png")},
+	{"id": "evasion", "name": "Evasion", "description": "+5% dodge chance\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/01_prayer.png")},
 	{"name": "Protection", "icon": preload("res://assets/icons/prayers/02_protection.png")},
-	{"id": "strength", "name": "Strength", "icon": preload("res://assets/icons/prayers/03_strength.png")},
+	{"id": "strength", "name": "Strength", "description": "+10% melee damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/03_strength.png")},
 	{"name": "Agility", "icon": preload("res://assets/icons/prayers/04_agility.png")},
 	{"name": "Vision", "icon": preload("res://assets/icons/prayers/05_vision.png")},
 	{"name": "Wisdom", "icon": preload("res://assets/icons/prayers/06_wisdom.png")},
@@ -74,11 +77,11 @@ const PRAYERS: Array = [
 	{"name": "Vitality", "icon": preload("res://assets/icons/prayers/11_vitality.png")},
 	{"name": "Holy Light", "icon": preload("res://assets/icons/prayers/12_holy_light.png")},
 	{"name": "Melee Boost", "icon": preload("res://assets/icons/prayers/13_melee_boost.png")},
-	{"name": "Defence Boost", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
+	{"id": "defence", "name": "Defence", "description": "10% incoming damage reduction\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
 	{"name": "Strength Boost", "icon": preload("res://assets/icons/prayers/15_strength_boost.png")},
 	{"name": "Ranged Boost", "icon": preload("res://assets/icons/prayers/16_ranged_boost.png")},
 	{"name": "Magic Boost", "icon": preload("res://assets/icons/prayers/17_magic_boost.png")},
-	{"name": "Accuracy", "icon": preload("res://assets/icons/prayers/18_accuracy.png")},
+	{"id": "accuracy", "name": "Accuracy", "description": "+5 melee accuracy score\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/18_accuracy.png")},
 	{"name": "Wrath", "icon": preload("res://assets/icons/prayers/19_wrath.png")},
 ]
 
@@ -106,6 +109,9 @@ const ITEMS: Dictionary = {
 	"training_shard": TRAINING_SHARD,
 	"training_helm": TRAINING_HELM,
 	"training_plate": TRAINING_PLATE,
+	"swift_helm": SWIFT_HELM,
+	"swift_body": SWIFT_BODY,
+	"swift_boots": SWIFT_BOOTS,
 }
 
 const SKILLS: Dictionary = {

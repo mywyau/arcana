@@ -129,6 +129,9 @@ const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
 	"training_helm": "head",
 	"training_plate": "body",
+	"swift_helm": "head",
+	"swift_body": "body",
+	"swift_boots": "feet",
 }
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
@@ -1623,19 +1626,14 @@ func _update_prayer_hud() -> void:
 		)
 		prayer_button.icon = prayer.get("icon") as Texture2D
 		prayer_button.expand_icon = true
-		if prayer_id == "evasion":
+		if not prayer_id.is_empty():
 			var displayed_active: bool = _active_prayers.has(prayer_id)
 			if _queued_prayer_id == prayer_id:
 				displayed_active = _queued_prayer_active
 			prayer_button.set_pressed_no_signal(displayed_active)
-			prayer_button.tooltip_text = "Evasion\n+5% dodge chance\nDrains 1 prayer point every 6 seconds"
-			prayer_button.pressed.connect(_request_prayer.bind(prayer_id))
-		elif prayer_id == "strength":
-			var displayed_active: bool = _active_prayers.has(prayer_id)
-			if _queued_prayer_id == prayer_id:
-				displayed_active = _queued_prayer_active
-			prayer_button.set_pressed_no_signal(displayed_active)
-			prayer_button.tooltip_text = "Strength Boost\n+10% dodge chance\nDrains 1 prayer point every 6 seconds"
+			prayer_button.tooltip_text = "%s\n%s" % [
+				prayer.get("name", "Prayer"), prayer.get("description", ""),
+			]
 			prayer_button.pressed.connect(_request_prayer.bind(prayer_id))
 		else:
 			prayer_button.tooltip_text = "%s (coming later)" % prayer.get("name", "Prayer")
@@ -1730,7 +1728,7 @@ func _update_equipment_hud() -> void:
 		{"slot": "legs", "name": "Legs", "item": ""},
 		{"spacer": true},
 		{"spacer": true},
-		{"slot": "feet", "name": "Feet", "item": ""},
+		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", ""))},
 		{"spacer": true},
 	]
 	for slot_data: Variant in equipment_slots:
@@ -1802,6 +1800,9 @@ func _update_detailed_combat_stats() -> void:
 		_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
 		_signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0))),
 	]
+	var prayer_accuracy_bonus: int = int(_combat_stats.get("prayer_accuracy_bonus", 0))
+	if prayer_accuracy_bonus != 0:
+		accuracy_breakdown += "\nPrayer accuracy: %s" % _signed_stat(prayer_accuracy_bonus)
 	var damage_breakdown: String = "Weapon strength: %s" % _signed_stat(
 		int(_combat_stats.get("strength_bonus", 0)),
 	)
@@ -1817,6 +1818,16 @@ func _update_detailed_combat_stats() -> void:
 			_signed_stat(int(_combat_stats.get("spell_power", 0))),
 			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
 		]
+	var prayer_damage_bonus: float = float(_combat_stats.get("prayer_damage_bonus", 0.0))
+	if prayer_damage_bonus > 0.0 and spell_id.is_empty():
+		damage_breakdown += "\nPrayer damage: +%.0f%%" % (prayer_damage_bonus * 100.0)
+	var attack_interval: int = int(_combat_stats.get("attack_interval", 0))
+	var base_attack_interval: int = int(_combat_stats.get("base_attack_interval", attack_interval))
+	var attack_speed_text: String = "%d pulses (%.1f seconds)" % [
+		attack_interval, attack_interval * 0.6,
+	]
+	if attack_interval < base_attack_interval:
+		attack_speed_text += "  •  Swift set bonus"
 	combat_stats_label.text = (
 		"CURRENT LOADOUT\n"
 		+"%s\n\n" % loadout_text
@@ -1838,8 +1849,12 @@ func _update_detailed_combat_stats() -> void:
 		]
 		+"%s\n" % damage_breakdown
 		+"Skill damage: +%.1f\n\n" % float(_combat_stats.get("skill_damage_bonus", 0.0))
+		+"ATTACK SPEED\n%s\n\n" % attack_speed_text
 		+"DEFENCE\n"
 		+"Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
+		+"Prayer damage reduction: %.0f%%\n" % (
+			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
+		)
 		+"Stab %s    Slash %s    Crush %s\n" % [
 			_signed_stat(int(defence.get("stab", 0))),
 			_signed_stat(int(defence.get("slash", 0))),
@@ -2025,17 +2040,17 @@ func _update_combat_hud() -> void:
 	if _combat_style == "unfocused":
 		combat_state_label.text += "  •  COMBAT XP LOCKED"
 
-	var weapon_interval: int = 4
+	var weapon_interval: int = int(_combat_stats.get("attack_interval", 4))
 	if _equipped_weapon == "dagger":
-		weapon_interval = 3
+		weapon_interval = int(_combat_stats.get("attack_interval", 3))
 	elif _equipped_weapon == "bow":
-		weapon_interval = 4 if _combat_style == "rapid" else 5
+		weapon_interval = int(_combat_stats.get("attack_interval", 4 if _combat_style == "rapid" else 5))
 	elif _equipped_weapon == "mace" or _equipped_weapon == "staff":
-		weapon_interval = 5
+		weapon_interval = int(_combat_stats.get("attack_interval", 5))
 	elif _equipped_weapon == "battle_axe":
-		weapon_interval = 6
+		weapon_interval = int(_combat_stats.get("attack_interval", 6))
 	if not _selected_spell.is_empty():
-		weapon_interval = 5
+		weapon_interval = int(_combat_stats.get("attack_interval", 5))
 	var remaining: int = maxi(0, _next_attack_pulse - _action_pulse)
 	cooldown_bar.max_value = weapon_interval
 	cooldown_bar.value = weapon_interval - mini(weapon_interval, remaining)

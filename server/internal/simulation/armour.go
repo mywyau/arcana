@@ -3,13 +3,22 @@ package simulation
 import "fmt"
 
 type ArmourSlot string
+type ArmourSetID string
 
 const (
 	ArmourSlotHead ArmourSlot = "head"
 	ArmourSlotBody ArmourSlot = "body"
+	ArmourSlotFeet ArmourSlot = "feet"
 
 	ItemTrainingHelm  = "training_helm"
 	ItemTrainingPlate = "training_plate"
+	ItemSwiftHelm     = "swift_helm"
+	ItemSwiftBody     = "swift_body"
+	ItemSwiftBoots    = "swift_boots"
+
+	armourSetSwift ArmourSetID = "swift"
+
+	minimumAttackIntervalPulses = 2
 )
 
 type DefenceBonuses struct {
@@ -22,7 +31,17 @@ type DefenceBonuses struct {
 
 type ArmourDefinition struct {
 	Slot    ArmourSlot
+	Set     ArmourSetID
 	Defence DefenceBonuses
+}
+
+type ArmourSetDefinition struct {
+	RequiredPieces         int
+	AttackIntervalModifier int
+}
+
+var armourSetDefinitions = map[ArmourSetID]ArmourSetDefinition{
+	armourSetSwift: {RequiredPieces: 3, AttackIntervalModifier: -1},
 }
 
 var armourDefinitions = map[string]ArmourDefinition{
@@ -33,6 +52,18 @@ var armourDefinitions = map[string]ArmourDefinition{
 	ItemTrainingPlate: {
 		Slot:    ArmourSlotBody,
 		Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2},
+	},
+	ItemSwiftHelm: {
+		Slot: ArmourSlotHead, Set: armourSetSwift,
+		Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2},
+	},
+	ItemSwiftBody: {
+		Slot: ArmourSlotBody, Set: armourSetSwift,
+		Defence: DefenceBonuses{Stab: 4, Slash: 4, Crush: 3, Ranged: 5, Magic: -1},
+	},
+	ItemSwiftBoots: {
+		Slot: ArmourSlotFeet, Set: armourSetSwift,
+		Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2},
 	},
 }
 
@@ -55,6 +86,32 @@ func equippedDefenceBonuses(equipped map[ArmourSlot]string) DefenceBonuses {
 		total.Magic += definition.Defence.Magic
 	}
 	return total
+}
+
+func equippedAttackIntervalModifier(equipped map[ArmourSlot]string) int {
+	setPieces := make(map[ArmourSetID]int)
+	for _, itemID := range equipped {
+		definition, exists := armourDefinitions[itemID]
+		if exists && definition.Set != "" {
+			setPieces[definition.Set]++
+		}
+	}
+	modifier := 0
+	for setID, pieces := range setPieces {
+		definition, exists := armourSetDefinitions[setID]
+		if exists && pieces >= definition.RequiredPieces {
+			modifier += definition.AttackIntervalModifier
+		}
+	}
+	return modifier
+}
+
+func effectiveWeaponAttackInterval(player *playerState, weapon WeaponDefinition) uint64 {
+	modifier := 0
+	if player != nil {
+		modifier = equippedAttackIntervalModifier(player.equippedArmour)
+	}
+	return uint64(max(minimumAttackIntervalPulses, int(weapon.AttackInterval)+modifier))
 }
 
 func cloneEquippedArmour(equipped map[ArmourSlot]string) map[ArmourSlot]string {

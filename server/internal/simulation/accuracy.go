@@ -26,7 +26,7 @@ func playerAccuracyScore(player *playerState, weapon WeaponDefinition) int {
 		level = SkillLevelForExperience(player.skills[weaponAccuracySkill(weapon)])
 		style = player.combatStyle
 	}
-	return level + weapon.AccuracyBonus + combatStyleAccuracyBonus(style)
+	return level + weapon.AccuracyBonus + combatStyleAccuracyBonus(style) + prayerAccuracyBonus(player, weapon)
 }
 
 func playerEvasionScore(player *playerState) int {
