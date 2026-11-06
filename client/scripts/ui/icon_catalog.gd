@@ -13,6 +13,18 @@ const TRAINING_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/t
 const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
 
+const EQUIPMENT_SLOTS: Dictionary = {
+	"head": preload("res://assets/icons/equipment/slots/head.svg"),
+	"cape": preload("res://assets/icons/equipment/slots/cape.svg"),
+	"neck": preload("res://assets/icons/equipment/slots/neck.svg"),
+	"ring": preload("res://assets/icons/equipment/slots/ring.svg"),
+	"main_hand": preload("res://assets/icons/equipment/slots/main_hand.svg"),
+	"body": preload("res://assets/icons/equipment/slots/body.svg"),
+	"hands": preload("res://assets/icons/equipment/slots/hands.svg"),
+	"legs": preload("res://assets/icons/equipment/slots/legs.svg"),
+	"feet": preload("res://assets/icons/equipment/slots/feet.svg"),
+}
+
 # Main HUD navigation icons.
 const TAB_STYLES: Texture2D = preload("res://assets/icons/navigation/tab_styles.svg")
 const TAB_INVENTORY: Texture2D = preload("res://assets/icons/navigation/tab_inventory.svg")

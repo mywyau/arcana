@@ -125,6 +125,7 @@ const ARMOUR_SLOTS: Dictionary = {
 	"training_plate": "body",
 }
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
+const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
 const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 
 @onready var camera_rig: GuidedCamera = $CameraRig
@@ -597,7 +598,11 @@ func _request_combat_style(combat_style: String) -> void:
 	if _player_defeated:
 		return
 	var style_pending: bool = _last_combat_style_sequence < _next_combat_style_sequence - 1
+	if combat_style == _queued_combat_style:
+		_update_combat_styles_hud()
+		return
 	if combat_style == _combat_style and not style_pending:
+		_update_combat_styles_hud()
 		return
 	if network.send_combat_style(_next_combat_style_sequence, combat_style):
 		_queued_combat_style = combat_style
@@ -1431,9 +1436,12 @@ func _populate_placeholder_skills() -> void:
 		var skill_name: String = str(skill.get("name", "Skill"))
 		var skill_tile := Button.new()
 		skill_tile.custom_minimum_size = Vector2(124, 108)
+		skill_tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		skill_tile.focus_mode = Control.FOCUS_NONE
 		skill_tile.icon = SKILL_ICONS.get(skill_name, TAB_SKILLS_ICON) as Texture2D
 		skill_tile.expand_icon = true
+		skill_tile.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		skill_tile.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		skill_tile.add_theme_constant_override("icon_max_width", 58)
 		var level_label := Label.new()
 		var starting_level: int = int(skill.get("level", 1))
@@ -1598,6 +1606,7 @@ func _update_prayer_hud() -> void:
 		var prayer_id: String = str(prayer.get("id", ""))
 		var prayer_button := Button.new()
 		prayer_button.custom_minimum_size = Vector2(104, 88)
+		prayer_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		prayer_button.focus_mode = Control.FOCUS_NONE
 		prayer_button.toggle_mode = not prayer_id.is_empty()
 		prayer_button.disabled = prayer_id.is_empty() or _player_defeated or (
@@ -1629,9 +1638,39 @@ func _update_combat_styles_hud() -> void:
 		var style_id: String = str(style.get("id", ""))
 		var training: String = str(style.get("training", ""))
 		var style_button := Button.new()
-		style_button.custom_minimum_size = Vector2(145, 64)
+		style_button.custom_minimum_size = Vector2(268, 160)
+		style_button.focus_mode = Control.FOCUS_NONE
 		style_button.toggle_mode = true
 		style_button.disabled = _player_defeated
+		style_button.add_theme_font_size_override("font_size", 22)
+		style_button.add_theme_color_override("font_color", Color(0.82, 0.86, 0.9))
+		style_button.add_theme_color_override("font_hover_color", Color(0.96, 0.98, 1.0))
+		style_button.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0))
+		var normal_style := StyleBoxFlat.new()
+		normal_style.bg_color = Color(0.055, 0.07, 0.085, 0.96)
+		normal_style.border_width_left = 2
+		normal_style.border_width_top = 2
+		normal_style.border_width_right = 2
+		normal_style.border_width_bottom = 2
+		normal_style.border_color = Color(0.25, 0.31, 0.37, 0.95)
+		normal_style.corner_radius_top_left = 8
+		normal_style.corner_radius_top_right = 8
+		normal_style.corner_radius_bottom_left = 8
+		normal_style.corner_radius_bottom_right = 8
+		var hover_style := normal_style.duplicate() as StyleBoxFlat
+		hover_style.bg_color = Color(0.09, 0.13, 0.17, 0.98)
+		hover_style.border_color = Color(0.42, 0.55, 0.66, 1.0)
+		var selected_style_box := normal_style.duplicate() as StyleBoxFlat
+		selected_style_box.bg_color = Color(0.08, 0.3, 0.46, 0.98)
+		selected_style_box.border_width_left = 3
+		selected_style_box.border_width_top = 3
+		selected_style_box.border_width_right = 3
+		selected_style_box.border_width_bottom = 3
+		selected_style_box.border_color = Color(0.28, 0.78, 1.0, 1.0)
+		style_button.add_theme_stylebox_override("normal", normal_style)
+		style_button.add_theme_stylebox_override("hover", hover_style)
+		style_button.add_theme_stylebox_override("pressed", selected_style_box)
+		style_button.add_theme_stylebox_override("hover_pressed", selected_style_box)
 		style_button.text = "%s\n%s" % [
 			style.get("name", style_id.capitalize()),
 			"No XP" if training.is_empty() else "%s XP" % training,
@@ -1663,50 +1702,62 @@ func _update_equipment_hud() -> void:
 	# head, legs, and feet aligned down the centre of the body.
 	var equipment_slots: Array = [
 		{"spacer": true},
-		{"name": "Head", "item": str(_equipped_armour.get("head", ""))},
+		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", ""))},
 		{"spacer": true},
-		{"name": "Cape", "item": ""},
-		{"name": "Neck", "item": ""},
-		{"name": "Ring", "item": ""},
-		{"name": "Main Hand", "item": _equipped_weapon},
-		{"name": "Body", "item": str(_equipped_armour.get("body", ""))},
-		{"name": "Hands", "item": ""},
+		{"slot": "cape", "name": "Cape", "item": ""},
+		{"slot": "neck", "name": "Neck", "item": ""},
+		{"slot": "ring", "name": "Ring", "item": ""},
+		{"slot": "main_hand", "name": "Main Hand", "item": _equipped_weapon},
+		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", ""))},
+		{"slot": "hands", "name": "Hands", "item": ""},
 		{"spacer": true},
-		{"name": "Legs", "item": ""},
+		{"slot": "legs", "name": "Legs", "item": ""},
 		{"spacer": true},
 		{"spacer": true},
-		{"name": "Feet", "item": ""},
+		{"slot": "feet", "name": "Feet", "item": ""},
 		{"spacer": true},
 	]
 	for slot_data: Variant in equipment_slots:
 		var slot: Dictionary = slot_data
 		if bool(slot.get("spacer", false)):
 			var spacer := Control.new()
-			spacer.custom_minimum_size = Vector2(145, 58)
+			spacer.custom_minimum_size = Vector2(168, 82)
 			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			equipment_grid.add_child(spacer)
 			continue
 		var item_id: String = str(slot.get("item", ""))
-		var tile := VBoxContainer.new()
-		tile.custom_minimum_size = Vector2(145, 58)
-		tile.alignment = BoxContainer.ALIGNMENT_CENTER
-		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var slot_id: String = str(slot.get("slot", ""))
+		var slot_panel := PanelContainer.new()
+		slot_panel.custom_minimum_size = Vector2(168, 82)
+		slot_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		slot_panel.tooltip_text = "%s: %s" % [
+			slot.get("name", "Equipment"),
+			item_id.capitalize() if not item_id.is_empty() else "No item equipped",
+		]
+		var slot_style := StyleBoxFlat.new()
+		slot_style.bg_color = Color(0.055, 0.07, 0.085, 0.94)
+		slot_style.border_width_left = 2
+		slot_style.border_width_top = 2
+		slot_style.border_width_right = 2
+		slot_style.border_width_bottom = 2
+		slot_style.border_color = Color(0.28, 0.34, 0.4, 0.95)
+		slot_style.corner_radius_top_left = 7
+		slot_style.corner_radius_top_right = 7
+		slot_style.corner_radius_bottom_left = 7
+		slot_style.corner_radius_bottom_right = 7
+		slot_panel.add_theme_stylebox_override("panel", slot_style)
 		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(28, 28)
+		icon.custom_minimum_size = Vector2(56, 56)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+		icon.texture = (
+			ITEM_ICONS.get(item_id) as Texture2D
+			if not item_id.is_empty()
+			else EQUIPMENT_SLOT_ICONS.get(slot_id, EMPTY_SLOT_ICON) as Texture2D
+		)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tile.add_child(icon)
-		var label := Label.new()
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.text = "%s\n%s" % [
-			slot.get("name", "Slot"),
-			item_id.capitalize() if not item_id.is_empty() else "Empty",
-		]
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tile.add_child(label)
-		equipment_grid.add_child(tile)
+		slot_panel.add_child(icon)
+		equipment_grid.add_child(slot_panel)
 
 
 func _show_detailed_combat_stats() -> void:
@@ -1837,6 +1888,7 @@ func _update_inventory_hud() -> void:
 	for slot: int in range(displayed_slots):
 		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
 		slot_button.custom_minimum_size = Vector2(124, 112)
+		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slot_button.focus_mode = Control.FOCUS_NONE
 		slot_button.mouse_filter = Control.MOUSE_FILTER_STOP
 		slot_button.text = ""
