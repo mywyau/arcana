@@ -74,16 +74,37 @@ const TAB_EQUIPMENT_ICON: Texture2D = preload("res://assets/icons/tab_equipment.
 const TAB_MAGIC_ICON: Texture2D = preload("res://assets/icons/tab_magic.svg")
 const TAB_PRAYER_ICON: Texture2D = preload("res://assets/icons/tab_prayer.svg")
 const PLACEHOLDER_SPELLS: Array = [
+	{"name": "Wind Blade", "icon": preload("res://assets/icons/spell_icons/wind_blade.svg")},
 	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spell_ember.svg")},
-	{"name": "Frost Bind", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Frost Bolt", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Pebble", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Stone Spike", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Rock Fall", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Earthquake", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Mountain Wrath", "icon": preload("res://assets/icons/spell_frost.svg")},
+	{"name": "Zero", "icon": preload("res://assets/icons/spell_frost.svg")},
 	{"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_ward.svg")},
 	{"name": "Blink", "icon": preload("res://assets/icons/spell_blink.svg")},
+	{"name": "Luce", "icon": preload("res://assets/icons/spell_blink.svg")},
+	{"name": "Aura", "icon": preload("res://assets/icons/spell_icons/aura.png")},
+	{"name": "Divine", "icon": preload("res://assets/icons/spell_icons/divine.png")},
+	{"name": "Bio", "icon": preload("res://assets/icons/spell_blink.svg")},
+	{"name": "Miasma", "icon": preload("res://assets/icons/spell_blink.svg")},
+	{"name": "Toxic", "icon": preload("res://assets/icons/spell_blink.svg")},
+	{"name": "Plague", "icon": preload("res://assets/icons/spell_blink.svg")},
 ]
 const PLACEHOLDER_PRAYERS: Array[String] = [
 	"Steadfast",
 	"Clarity",
 	"Ward",
 	"Haste",
+	"Holy",
+	"Deadeye",
+	"Retribution",
+	"Redemption",
+	"Smite",
+	"Wrath",
+	"Almighty",
 ]
 const COMBAT_STYLES: Dictionary = {
 	"sword": [
