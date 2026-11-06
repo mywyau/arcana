@@ -74,24 +74,39 @@ const TAB_EQUIPMENT_ICON: Texture2D = preload("res://assets/icons/tab_equipment.
 const TAB_MAGIC_ICON: Texture2D = preload("res://assets/icons/tab_magic.svg")
 const TAB_PRAYER_ICON: Texture2D = preload("res://assets/icons/tab_prayer.svg")
 const PLACEHOLDER_SPELLS: Array = [
+	{"name": "Breeze", "icon": preload("res://assets/icons/spell_icons/breeze.svg")},
 	{"name": "Wind Blade", "icon": preload("res://assets/icons/spell_icons/wind_blade.svg")},
-	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spell_ember.svg")},
-	{"name": "Frost Bolt", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Pebble", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Stone Spike", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Rock Fall", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Earthquake", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Mountain Wrath", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Zero", "icon": preload("res://assets/icons/spell_frost.svg")},
-	{"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_ward.svg")},
-	{"name": "Blink", "icon": preload("res://assets/icons/spell_blink.svg")},
-	{"name": "Luce", "icon": preload("res://assets/icons/spell_blink.svg")},
-	{"name": "Aura", "icon": preload("res://assets/icons/spell_icons/aura.png")},
+	{"name": "Gale", "icon": preload("res://assets/icons/spell_icons/gale.svg")},
+	{"name": "Tempest", "icon": preload("res://assets/icons/spell_icons/tempest.svg")},
+
+	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spell_icons/ember.svg")},
+	{"name": "Inferno", "icon": preload("res://assets/icons/spell_icons/inferno.svg")},
+
+	{"name": "Frost Shard", "icon": preload("res://assets/icons/spell_icons/frost_shard.svg")},
+	{"name": "Ice Lance", "icon": preload("res://assets/icons/spell_icons/ice_lance.svg")},
+	{"name": "Frost Nova", "icon": preload("res://assets/icons/spell_icons/frost_nova.svg")},
+	{"name": "Glacier", "icon": preload("res://assets/icons/spell_icons/glacier.svg")},
+	{"name": "Absolute Zero", "icon": preload("res://assets/icons/spell_icons/absolute_zero.svg")},
+
+	{"name": "Pebble", "icon": preload("res://assets/icons/spell_icons/pebble.svg")},
+	{"name": "Stone Spike", "icon": preload("res://assets/icons/spell_icons/stone_spike.svg")},
+	{"name": "Rock Fall", "icon": preload("res://assets/icons/spell_icons/rockfall.svg")},
+	{"name": "Earthquake", "icon": preload("res://assets/icons/spell_icons/earthquake.svg")},
+	{"name": "Mountain Wrath", "icon": preload("res://assets/icons/spell_icons/mountain_wrath.svg")},
+	# {"name": "Arcane Ward", "icon": preload("res://assets/icons/spell_icons/spell_ward.svg")},
+	# {"name": "Blink", "icon": preload("res://assets/icons/spell_icons/spell_blink.svg")},
+
+	{"name": "Light", "icon": preload("res://assets/icons/spell_icons/light.png")},
+	{"name": "Shine", "icon": preload("res://assets/icons/spell_icons/shine.png")},
 	{"name": "Divine", "icon": preload("res://assets/icons/spell_icons/divine.png")},
-	{"name": "Bio", "icon": preload("res://assets/icons/spell_blink.svg")},
-	{"name": "Miasma", "icon": preload("res://assets/icons/spell_blink.svg")},
-	{"name": "Toxic", "icon": preload("res://assets/icons/spell_blink.svg")},
-	{"name": "Plague", "icon": preload("res://assets/icons/spell_blink.svg")},
+	{"name": "Luce", "icon": preload("res://assets/icons/spell_icons/luce.png")},
+	{"name": "Aura", "icon": preload("res://assets/icons/spell_icons/aura.png")},
+
+	{"name": "Bio", "icon": preload("res://assets/icons/spell_icons/bio.png")},
+	{"name": "Acid", "icon": preload("res://assets/icons/spell_icons/acid.png")},
+	{"name": "Miasma", "icon": preload("res://assets/icons/spell_icons/miasma.png")},
+	# {"name": "Toxic", "icon": preload("res://assets/icons/spell_icons/toxic.png")},
+	{"name": "Plague Bloom", "icon": preload("res://assets/icons/spell_icons/plague_bloom.png")},
 ]
 const PLACEHOLDER_PRAYERS: Array[String] = [
 	"Steadfast",
@@ -1610,7 +1625,6 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 
 
 func _update_inventory_hud() -> void:
-
 	for child: Node in inventory_grid.get_children():
 		inventory_grid.remove_child(child)
 		child.queue_free()

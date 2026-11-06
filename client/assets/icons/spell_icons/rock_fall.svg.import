@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cq8yvwvow3671"
-path="res://.godot/imported/glacial_prison.svg-65641b5d3d238342294332bacd4e4f72.ctex"
+uid="uid://dcvhxiwyd5424"
+path="res://.godot/imported/rock_fall.svg-c457444c2d04e918776fd1afbc96a869.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/spell_icons/glacial_prison.svg"
-dest_files=["res://.godot/imported/glacial_prison.svg-65641b5d3d238342294332bacd4e4f72.ctex"]
+source_file="res://assets/icons/spell_icons/rock_fall.svg"
+dest_files=["res://.godot/imported/rock_fall.svg-c457444c2d04e918776fd1afbc96a869.ctex"]
 
 [params]
 
