@@ -63,7 +63,7 @@ const SPELLS: Array = [
 const PRAYERS: Array = [
 	{"id": "evasion", "name": "Evasion", "icon": preload("res://assets/icons/prayers/01_prayer.png")},
 	{"name": "Protection", "icon": preload("res://assets/icons/prayers/02_protection.png")},
-	{"name": "Strength", "icon": preload("res://assets/icons/prayers/03_strength.png")},
+	{"id": "strength", "name": "Strength", "icon": preload("res://assets/icons/prayers/03_strength.png")},
 	{"name": "Agility", "icon": preload("res://assets/icons/prayers/04_agility.png")},
 	{"name": "Vision", "icon": preload("res://assets/icons/prayers/05_vision.png")},
 	{"name": "Wisdom", "icon": preload("res://assets/icons/prayers/06_wisdom.png")},

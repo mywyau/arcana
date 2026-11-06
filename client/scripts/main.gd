@@ -1628,7 +1628,14 @@ func _update_prayer_hud() -> void:
 			if _queued_prayer_id == prayer_id:
 				displayed_active = _queued_prayer_active
 			prayer_button.set_pressed_no_signal(displayed_active)
-			prayer_button.tooltip_text = "Evasion\n+5% dodge chance\nDrains 1 prayer point every 3 seconds"
+			prayer_button.tooltip_text = "Evasion\n+5% dodge chance\nDrains 1 prayer point every 6 seconds"
+			prayer_button.pressed.connect(_request_prayer.bind(prayer_id))
+		elif prayer_id == "strength":
+			var displayed_active: bool = _active_prayers.has(prayer_id)
+			if _queued_prayer_id == prayer_id:
+				displayed_active = _queued_prayer_active
+			prayer_button.set_pressed_no_signal(displayed_active)
+			prayer_button.tooltip_text = "Strength Boost\n+10% dodge chance\nDrains 1 prayer point every 6 seconds"
 			prayer_button.pressed.connect(_request_prayer.bind(prayer_id))
 		else:
 			prayer_button.tooltip_text = "%s (coming later)" % prayer.get("name", "Prayer")
