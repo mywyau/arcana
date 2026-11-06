@@ -182,23 +182,50 @@ func TestDefeatedTargetSpawnsTrainingShard(t *testing.T) {
 	}
 }
 
-func TestArmourTargetsSpawnTrainingArmour(t *testing.T) {
-	tests := []struct {
-		targetID string
-		itemID   string
-	}{
-		{targetID: upperDummyTargetID, itemID: ItemTrainingHelm},
-		{targetID: hillWardenTargetID, itemID: ItemTrainingPlate},
+func TestUpperDummySpawnsTrainingHelm(t *testing.T) {
+	world := newCombatTestWorld()
+	target := world.combat.targets[upperDummyTargetID]
+	world.defeatDummy(upperDummyTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != ItemTrainingHelm || drops[0].Quantity != 1 {
+		t.Fatalf("upper dummy drops = %+v", drops)
 	}
-	for _, test := range tests {
-		t.Run(test.itemID, func(t *testing.T) {
-			world := newCombatTestWorld()
-			target := world.combat.targets[test.targetID]
-			world.defeatDummy(test.targetID, target)
-			drops := world.Snapshot().Drops
-			if len(drops) != 1 || drops[0].ItemID != test.itemID {
-				t.Fatalf("target drops = %+v, want %q", drops, test.itemID)
-			}
-		})
+}
+
+func TestHillWardenAlwaysDropsAirRunesInConfiguredRange(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	target := world.combat.targets[hillWardenTargetID]
+	world.defeatDummy(hillWardenTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != ItemAirRune || drops[0].Quantity != 8 || drops[0].Position != target.Position {
+		t.Fatalf("Hill Warden common drops = %+v, want 8 air runes", drops)
+	}
+}
+
+func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.1))
+	target := world.combat.targets[hillWardenTargetID]
+	world.defeatDummy(hillWardenTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 2 || drops[0].ItemID != ItemAirRune || drops[0].Quantity != 5 ||
+		drops[1].ItemID != ItemTrainingPlate || drops[1].Quantity != 1 {
+		t.Fatalf("Hill Warden rare drops = %+v", drops)
+	}
+}
+
+func TestPickedUpAirRunesStackInExistingInventorySlot(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.spawnDrop(Position{}, ItemAirRune, 8)
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	player := mustPlayer(t, world, "player-one")
+	if got := player.Inventory.itemsQuantity(ItemAirRune); got != 58 {
+		t.Fatalf("stacked air rune quantity = %d, want 58", got)
+	}
+	if got := len(player.Inventory.Items); got != 7 {
+		t.Fatalf("inventory slots after stacking runes = %d, want 7", got)
 	}
 }

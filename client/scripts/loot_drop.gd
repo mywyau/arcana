@@ -19,8 +19,8 @@ func set_drop_id(drop_id: String) -> void:
 	_phase = float(abs(drop_id.hash()) % 100) / 100.0 * TAU
 
 
-func set_item_id(item_id: String) -> void:
-	item_label.text = item_id.capitalize()
+func set_item_id(item_id: String, quantity: int = 1) -> void:
+	item_label.text = "%s ×%d" % [item_id.capitalize(), quantity] if quantity > 1 else item_id.capitalize()
 	if item_id != "steel_sword":
 		return
 	var blade_mesh := BoxMesh.new()

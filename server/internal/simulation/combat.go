@@ -890,13 +890,7 @@ func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
 		enemy.path = nil
 		enemy.nextRepathPulse = 0
 	}
-	itemID := trainingShardItem
-	if dummyID == upperDummyTargetID {
-		itemID = ItemTrainingHelm
-	} else if dummyID == hillWardenTargetID {
-		itemID = ItemTrainingPlate
-	}
-	w.spawnDrop(dummy.Position, itemID, 1)
+	w.spawnTargetLoot(dummyID, dummy.Position)
 	for _, player := range w.players {
 		if player.combatTarget == dummyID {
 			w.clearPlayerTarget(player, "target_defeated")

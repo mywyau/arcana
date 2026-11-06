@@ -907,7 +907,10 @@ func _sync_drops(drop_payloads: Variant) -> void:
 			drops.add_child(view)
 			view.set_drop_id(drop_id)
 			_drop_views[drop_id] = view
-		view.set_item_id(str(drop_data.get("item_id", "")))
+		view.set_item_id(
+			str(drop_data.get("item_id", "")),
+			int(drop_data.get("quantity", 1)),
+		)
 		var coordinates: Dictionary = position_data
 		view.position = Vector3(
 			float(coordinates.get("x", 0.0)),
