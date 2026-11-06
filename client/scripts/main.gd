@@ -73,6 +73,7 @@ const TAB_SKILLS_ICON: Texture2D = preload("res://assets/icons/tab_skills.svg")
 const TAB_EQUIPMENT_ICON: Texture2D = preload("res://assets/icons/tab_equipment.svg")
 const TAB_MAGIC_ICON: Texture2D = preload("res://assets/icons/tab_magic.svg")
 const TAB_PRAYER_ICON: Texture2D = preload("res://assets/icons/tab_prayer.svg")
+
 const PLACEHOLDER_SPELLS: Array = [
 	{"name": "Breeze", "icon": preload("res://assets/icons/spell_icons/breeze.svg")},
 	{"name": "Wind Blade", "icon": preload("res://assets/icons/spell_icons/wind_blade.svg")},
@@ -108,19 +109,30 @@ const PLACEHOLDER_SPELLS: Array = [
 	# {"name": "Toxic", "icon": preload("res://assets/icons/spell_icons/toxic.png")},
 	{"name": "Plague Bloom", "icon": preload("res://assets/icons/spell_icons/plague_bloom.png")},
 ]
-const PLACEHOLDER_PRAYERS: Array[String] = [
-	"Steadfast",
-	"Clarity",
-	"Ward",
-	"Haste",
-	"Holy",
-	"Deadeye",
-	"Retribution",
-	"Redemption",
-	"Smite",
-	"Wrath",
-	"Almighty",
+
+const PLACEHOLDER_PRAYERS: Array = [
+	{"name": "Prayer", "icon": preload("res://assets/icons/prayer_icons/01_prayer.png")},
+	{"name": "Protection", "icon": preload("res://assets/icons/prayer_icons/02_protection.png")},
+	{"name": "Strength", "icon": preload("res://assets/icons/prayer_icons/03_strength.png")},
+	{"name": "Agility", "icon": preload("res://assets/icons/prayer_icons/04_agility.png")},
+	{"name": "Vision", "icon": preload("res://assets/icons/prayer_icons/05_vision.png")},
+	{"name": "Wisdom", "icon": preload("res://assets/icons/prayer_icons/06_wisdom.png")},
+	{"name": "Melee", "icon": preload("res://assets/icons/prayer_icons/07_melee.png")},
+	{"name": "Ranged", "icon": preload("res://assets/icons/prayer_icons/08_ranged.png")},
+	{"name": "Magic", "icon": preload("res://assets/icons/prayer_icons/09_magic.png")},
+	{"name": "Energy", "icon": preload("res://assets/icons/prayer_icons/10_energy.png")},
+	{"name": "Vitality", "icon": preload("res://assets/icons/prayer_icons/11_vitality.png")},
+	{"name": "Holy Light", "icon": preload("res://assets/icons/prayer_icons/12_holy_light.png")},
+	{"name": "Melee Boost", "icon": preload("res://assets/icons/prayer_icons/13_melee_boost.png")},
+	{"name": "Defence Boost", "icon": preload("res://assets/icons/prayer_icons/14_defence_boost.png")},
+	{"name": "Strength Boost", "icon": preload("res://assets/icons/prayer_icons/15_strength_boost.png")},
+	{"name": "Ranged Boost", "icon": preload("res://assets/icons/prayer_icons/16_ranged_boost.png")},
+	{"name": "Magic Boost", "icon": preload("res://assets/icons/prayer_icons/17_magic_boost.png")},
+	{"name": "Accuracy", "icon": preload("res://assets/icons/prayer_icons/18_accuracy.png")},
+	{"name": "Wrath", "icon": preload("res://assets/icons/prayer_icons/19_wrath.png")},
 ]
+
+
 const COMBAT_STYLES: Dictionary = {
 	"sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
@@ -1500,18 +1512,20 @@ func _populate_placeholder_spells() -> void:
 		spell_button.disabled = true
 		spell_button.icon = spell.get("icon") as Texture2D
 		spell_button.expand_icon = true
-		spell_button.tooltip_text = "%s — placeholder spell" % spell.get("name", "Spell")
+		spell_button.tooltip_text = "%s" % spell.get("name", "Spell")
 		magic_grid.add_child(spell_button)
 
 
 func _populate_placeholder_prayers() -> void:
-	for prayer_name: String in PLACEHOLDER_PRAYERS:
+	for prayer_data: Variant in PLACEHOLDER_PRAYERS:
+		var prayer: Dictionary = prayer_data
 		var prayer_button := Button.new()
 		prayer_button.custom_minimum_size = Vector2(104, 88)
 		prayer_button.focus_mode = Control.FOCUS_NONE
 		prayer_button.disabled = true
-		prayer_button.text = "◇\n%s" % prayer_name
-		prayer_button.tooltip_text = "%s — placeholder prayer" % prayer_name
+		prayer_button.icon = prayer.get("icon") as Texture2D
+		prayer_button.expand_icon = true
+		prayer_button.tooltip_text = "%s" % prayer.get("name", "Prayer")
 		prayer_grid.add_child(prayer_button)
 
 

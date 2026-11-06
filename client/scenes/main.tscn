@@ -852,9 +852,9 @@ layout_mode = 2
 toggle_mode = true
 text = "Styles"
 
-[node name="Summary" type="Label" parent="UI/MagicHUD/Margin/VBox"]
-layout_mode = 2
-text = "Spellbook  •  placeholder spells"
+; [node name="Summary" type="Label" parent="UI/MagicHUD/Margin/VBox"]
+; layout_mode = 2
+; text = "Spellbook  •  placeholder spells"
 
 [node name="ContentScroll" type="ScrollContainer" parent="UI/MagicHUD/Margin/VBox"]
 layout_mode = 2
@@ -942,10 +942,6 @@ layout_mode = 2
 toggle_mode = true
 text = "Styles"
 
-[node name="Summary" type="Label" parent="UI/PrayerHUD/Margin/VBox"]
-layout_mode = 2
-text = "Prayer book  •  placeholder prayers"
-
 [node name="ContentScroll" type="ScrollContainer" parent="UI/PrayerHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -1030,9 +1026,9 @@ toggle_mode = true
 button_pressed = true
 text = "Styles"
 
-[node name="Summary" type="Label" parent="UI/StylesHUD/Margin/VBox"]
-layout_mode = 2
-text = "Sword styles  •  modifiers not active yet"
+; [node name="Summary" type="Label" parent="UI/StylesHUD/Margin/VBox"]
+; layout_mode = 2
+; text = "Sword styles  •  modifiers not active yet"
 
 [node name="ContentScroll" type="ScrollContainer" parent="UI/StylesHUD/Margin/VBox"]
 layout_mode = 2
