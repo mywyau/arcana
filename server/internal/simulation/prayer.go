@@ -8,10 +8,19 @@ import (
 type PrayerID string
 
 const (
-	PrayerEvasion PrayerID = "evasion"
+	PrayerEvasion  PrayerID = "evasion"
+	PrayerStrength PrayerID = "strength"
+	PrayerAccuracy PrayerID = "accuracy"
+	PrayerDefence  PrayerID = "defence"
 
-	evasionDodgeBonus          = 0.05
-	evasionDrainIntervalPulses = 5 // Five 600 ms action pulses is three seconds.
+	evasionDodgeBonus                 = 0.05
+	evasionDrainIntervalPulses        = 10 // Ten 600 ms action pulses is six seconds.
+	strengthPrayerMeleeDamageBonus    = 0.10
+	strengthPrayerDrainIntervalPulses = 10 // Ten 600 ms action pulses is six seconds.
+	accuracyPrayerMeleeScoreBonus     = 5
+	accuracyPrayerDrainIntervalPulses = 10 // Ten 600 ms action pulses is six seconds.
+	defencePrayerDamageReduction      = 0.10
+	defencePrayerDrainIntervalPulses  = 10 // Ten 600 ms action pulses is six seconds.
 )
 
 type PrayerCommand struct {
@@ -22,8 +31,18 @@ type PrayerCommand struct {
 }
 
 type prayerDefinition struct {
+	MeleeDamageBonus    float64
+	MeleeAccuracyBonus  int
+	DamageReduction     float64
 	DodgeBonus          float64
 	DrainIntervalPulses uint64
+}
+
+type prayerBonuses struct {
+	MeleeDamage     float64
+	MeleeAccuracy   int
+	DamageReduction float64
+	Dodge           float64
 }
 
 func prayerDefinitionFor(id PrayerID) (prayerDefinition, bool) {
@@ -32,6 +51,21 @@ func prayerDefinitionFor(id PrayerID) (prayerDefinition, bool) {
 		return prayerDefinition{
 			DodgeBonus:          evasionDodgeBonus,
 			DrainIntervalPulses: evasionDrainIntervalPulses,
+		}, true
+	case PrayerStrength:
+		return prayerDefinition{
+			MeleeDamageBonus:    strengthPrayerMeleeDamageBonus,
+			DrainIntervalPulses: strengthPrayerDrainIntervalPulses,
+		}, true
+	case PrayerAccuracy:
+		return prayerDefinition{
+			MeleeAccuracyBonus:  accuracyPrayerMeleeScoreBonus,
+			DrainIntervalPulses: accuracyPrayerDrainIntervalPulses,
+		}, true
+	case PrayerDefence:
+		return prayerDefinition{
+			DamageReduction:     defencePrayerDamageReduction,
+			DrainIntervalPulses: defencePrayerDrainIntervalPulses,
 		}, true
 	default:
 		return prayerDefinition{}, false
@@ -124,13 +158,44 @@ func (w *World) drainActivePrayers() {
 }
 
 func effectivePlayerDodgeRate(player *playerState) float64 {
-	rate := player.dodgeRate
-	for id := range player.activePrayers {
+	if player == nil {
+		return 0
+	}
+	return min(0.95, player.dodgeRate+activePrayerBonuses(player).Dodge)
+}
+
+func activePrayerBonuses(player *playerState) prayerBonuses {
+	bonuses := prayerBonuses{}
+	if player == nil {
+		return bonuses
+	}
+	for id, active := range player.activePrayers {
+		if !active {
+			continue
+		}
 		if definition, exists := prayerDefinitionFor(id); exists {
-			rate += definition.DodgeBonus
+			bonuses.MeleeDamage += definition.MeleeDamageBonus
+			bonuses.MeleeAccuracy += definition.MeleeAccuracyBonus
+			bonuses.DamageReduction += definition.DamageReduction
+			bonuses.Dodge += definition.DodgeBonus
 		}
 	}
-	return min(0.95, rate)
+	return bonuses
+}
+
+func prayerAccuracyBonus(player *playerState, weapon WeaponDefinition) int {
+	if weapon.MeleeStrength <= 0 {
+		return 0
+	}
+	return activePrayerBonuses(player).MeleeAccuracy
+}
+
+func reduceIncomingDamage(player *playerState, damage int) int {
+	if damage <= 0 {
+		return 0
+	}
+	reduction := min(0.90, activePrayerBonuses(player).DamageReduction)
+	return max(0, int(float64(damage)*(1-reduction)+0.5))
 }
 
 func activePrayerIDs(player *playerState) []PrayerID {

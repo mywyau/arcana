@@ -136,24 +136,30 @@ type PlayerSnapshot struct {
 }
 
 type CombatStatsSnapshot struct {
-	Weapon              string         `json:"weapon"`
-	Style               string         `json:"style"`
-	Spell               string         `json:"spell"`
-	AccuracySkill       string         `json:"accuracy_skill"`
-	AccuracyLevel       int            `json:"accuracy_level"`
-	WeaponAccuracyBonus int            `json:"weapon_accuracy_bonus"`
-	StyleAccuracyBonus  int            `json:"style_accuracy_bonus"`
-	SpellAccuracyBonus  int            `json:"spell_accuracy_bonus"`
-	TotalAccuracy       int            `json:"total_accuracy"`
-	DamageSkill         string         `json:"damage_skill"`
-	DamageLevel         int            `json:"damage_level"`
-	StrengthBonus       int            `json:"strength_bonus"`
-	SpellPower          int            `json:"spell_power"`
-	SkillDamageBonus    float64        `json:"skill_damage_bonus"`
-	MinimumDamage       int            `json:"minimum_damage"`
-	MaximumDamage       int            `json:"maximum_damage"`
-	DefenceLevel        int            `json:"defence_level"`
-	DefenceBonuses      DefenceBonuses `json:"defence_bonuses"`
+	Weapon                 string         `json:"weapon"`
+	Style                  string         `json:"style"`
+	Spell                  string         `json:"spell"`
+	AccuracySkill          string         `json:"accuracy_skill"`
+	AccuracyLevel          int            `json:"accuracy_level"`
+	WeaponAccuracyBonus    int            `json:"weapon_accuracy_bonus"`
+	StyleAccuracyBonus     int            `json:"style_accuracy_bonus"`
+	SpellAccuracyBonus     int            `json:"spell_accuracy_bonus"`
+	PrayerAccuracyBonus    int            `json:"prayer_accuracy_bonus"`
+	TotalAccuracy          int            `json:"total_accuracy"`
+	DamageSkill            string         `json:"damage_skill"`
+	DamageLevel            int            `json:"damage_level"`
+	StrengthBonus          int            `json:"strength_bonus"`
+	SpellPower             int            `json:"spell_power"`
+	SkillDamageBonus       float64        `json:"skill_damage_bonus"`
+	PrayerDamageBonus      float64        `json:"prayer_damage_bonus"`
+	PrayerDamageReduction  float64        `json:"prayer_damage_reduction"`
+	BaseAttackInterval     uint64         `json:"base_attack_interval"`
+	AttackInterval         uint64         `json:"attack_interval"`
+	AttackIntervalModifier int            `json:"attack_interval_modifier"`
+	MinimumDamage          int            `json:"minimum_damage"`
+	MaximumDamage          int            `json:"maximum_damage"`
+	DefenceLevel           int            `json:"defence_level"`
+	DefenceBonuses         DefenceBonuses `json:"defence_bonuses"`
 }
 
 type DefenceBonuses struct {

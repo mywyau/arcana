@@ -609,7 +609,7 @@ func (w *World) resolveAutoAttacks() {
 		spell, castingSpell := spellDefinition(player.selectedSpell)
 		attackRange := weapon.Range
 		approachRange := weapon.ApproachRange
-		attackInterval := weapon.AttackInterval
+		attackInterval := effectiveWeaponAttackInterval(player, weapon)
 		if castingSpell {
 			attackRange = spell.Range
 			approachRange = max(0.1, spell.Range-0.75)
@@ -703,7 +703,11 @@ func weaponPoweredDamage(player *playerState, weapon WeaponDefinition) float64 {
 	if player != nil {
 		level = SkillLevelForExperience(player.skills[skill])
 	}
-	return float64(strength) + float64(level-1)*skillDamagePointsPerLevel
+	damage := float64(strength) + float64(level-1)*skillDamagePointsPerLevel
+	if player != nil && weapon.MeleeStrength > 0 {
+		damage *= 1 + activePrayerBonuses(player).MeleeDamage
+	}
+	return damage
 }
 
 func rollDamageWithVariance(poweredDamage, variance, roll float64) int {
@@ -851,13 +855,14 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
-	player.health = max(0, player.health-dummyAttackDamage)
+	damageDealt := reduceIncomingDamage(player, dummyAttackDamage)
+	player.health = max(0, player.health-damageDealt)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,
 		Type:     CombatEventDamage,
 		SourceID: dummyID,
 		TargetID: string(player.id),
-		Amount:   dummyAttackDamage,
+		Amount:   damageDealt,
 	})
 	if player.health == 0 {
 		w.defeatPlayer(player)
