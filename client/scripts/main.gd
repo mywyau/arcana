@@ -18,6 +18,7 @@ const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
 const INVENTORY_DISPLAY_SLOTS: int = 16
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
+const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
 
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Attack", "level": 1},
@@ -257,6 +258,7 @@ var _action_pulse: int = 0
 var _target_views: Dictionary = {}
 var _target_states: Dictionary = {}
 var _drop_views: Dictionary = {}
+var _drop_states: Dictionary = {}
 var _player_health: int = 100
 var _player_maximum_health: int = 100
 var _player_prayer: int = 100
@@ -302,6 +304,8 @@ var _combat_events_initialized: bool = false
 var _pending_click: Vector2
 var _has_pending_click: bool = false
 var _target_click_tween: Tween
+var _world_context_menu: PopupMenu
+var _context_menu_actions: Dictionary = {}
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
@@ -315,6 +319,10 @@ var _hud_scale_start: float = 1.0
 
 
 func _ready() -> void:
+	_world_context_menu = PopupMenu.new()
+	_world_context_menu.name = "WorldContextMenu"
+	add_child(_world_context_menu)
+	_world_context_menu.id_pressed.connect(_on_world_context_action)
 	network.status_changed.connect(_on_status_changed)
 	network.welcome_received.connect(_on_welcome_received)
 	network.snapshot_received.connect(_on_snapshot_received)
@@ -431,9 +439,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton:
 		return
 	var mouse_event := event as InputEventMouseButton
-	if not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
+	if not mouse_event.pressed:
 		return
 	if _player_defeated:
+		return
+	if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
+		_open_world_context_menu(mouse_event.position)
+		get_viewport().set_input_as_handled()
+		return
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
 	_pending_click = mouse_event.position
@@ -454,14 +468,7 @@ func _physics_process(_delta: float) -> void:
 		var target_body := target_result.get("collider") as CollisionObject3D
 		if target_body != null and target_body.has_meta(&"combat_target_id"):
 			var target_id: String = str(target_body.get_meta(&"combat_target_id"))
-			if network.send_engage_target(_next_action_sequence, target_id):
-				_next_action_sequence += 1
-				var local_view: PlayerView = _player_views.get(_local_player_id)
-				if local_view != null:
-					local_view.stop_prediction()
-				click_marker.visible = false
-				_play_target_click_feedback(target_body.global_position)
-				_update_combat_hud()
+			_request_engage_target(target_id, target_body.global_position)
 			return
 
 	var loot_result: Dictionary = _top_loot_hit(ray_origin, ray_end)
@@ -469,15 +476,7 @@ func _physics_process(_delta: float) -> void:
 		var loot_body := loot_result.get("collider") as CollisionObject3D
 		if loot_body != null and loot_body.has_meta(&"drop_id"):
 			var drop_id: String = str(loot_body.get_meta(&"drop_id"))
-			if network.send_pickup_item(_next_pickup_sequence, drop_id):
-				_next_pickup_sequence += 1
-				var local_view: PlayerView = _player_views.get(_local_player_id)
-				if local_view != null:
-					local_view.stop_prediction()
-				if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
-					_request_disengage()
-				click_marker.visible = false
-				_play_target_click_feedback(loot_body.global_position)
+			_request_pickup_drop(drop_id, loot_body.global_position)
 			return
 
 	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
@@ -501,6 +500,129 @@ func _physics_process(_delta: float) -> void:
 				local_view.predict_move(destination)
 		click_marker.position = destination + Vector3.UP * 0.03
 		click_marker.visible = true
+
+
+func _request_engage_target(target_id: String, target_position: Vector3) -> void:
+	if target_id.is_empty() or _player_defeated:
+		return
+	if network.send_engage_target(_next_action_sequence, target_id):
+		_next_action_sequence += 1
+		var local_view: PlayerView = _player_views.get(_local_player_id)
+		if local_view != null:
+			local_view.stop_prediction()
+		click_marker.visible = false
+		_play_target_click_feedback(target_position)
+		_update_combat_hud()
+
+
+func _request_pickup_drop(drop_id: String, drop_position: Vector3) -> void:
+	if drop_id.is_empty() or _player_defeated:
+		return
+	if network.send_pickup_item(_next_pickup_sequence, drop_id):
+		_next_pickup_sequence += 1
+		var local_view: PlayerView = _player_views.get(_local_player_id)
+		if local_view != null:
+			local_view.stop_prediction()
+		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
+			_request_disengage()
+		click_marker.visible = false
+		_play_target_click_feedback(drop_position)
+
+
+func _open_world_context_menu(screen_position: Vector2) -> void:
+	_world_context_menu.clear()
+	_context_menu_actions.clear()
+	var next_menu_id: int = 0
+	var target_id: String = _target_id_at_screen_position(screen_position)
+	if not target_id.is_empty():
+		var target_state: Dictionary = _target_states.get(target_id, {})
+		var target_name: String = str(target_state.get("name", target_id.capitalize()))
+		_world_context_menu.add_item("Attack %s" % target_name, next_menu_id)
+		_context_menu_actions[next_menu_id] = {"type": "attack", "target_id": target_id}
+		next_menu_id += 1
+
+	var loot_candidates: Array[Dictionary] = _loot_near_screen_position(screen_position)
+	if not target_id.is_empty() and not loot_candidates.is_empty():
+		_world_context_menu.add_separator()
+	for candidate: Dictionary in loot_candidates:
+		var quantity: int = int(candidate.get("quantity", 1))
+		var item_name: String = str(candidate.get("item_id", "Item")).capitalize()
+		var label: String = "Take %s" % item_name
+		if quantity > 1:
+			label += " ×%d" % quantity
+		_world_context_menu.add_item(label, next_menu_id)
+		_context_menu_actions[next_menu_id] = {
+			"type": "take",
+			"drop_id": str(candidate.get("drop_id", "")),
+		}
+		next_menu_id += 1
+
+	if _context_menu_actions.is_empty():
+		return
+	_world_context_menu.position = Vector2i(screen_position)
+	_world_context_menu.popup()
+
+
+func _target_id_at_screen_position(screen_position: Vector2) -> String:
+	var ray_origin: Vector3 = camera.project_ray_origin(screen_position)
+	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	query.collision_mask = TARGET_COLLISION_MASK
+	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return ""
+	var body := result.get("collider") as CollisionObject3D
+	if body == null or not body.has_meta(&"combat_target_id"):
+		return ""
+	return str(body.get_meta(&"combat_target_id"))
+
+
+func _loot_near_screen_position(screen_position: Vector2) -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+	for drop_id: String in _drop_views.keys():
+		var view := _drop_views.get(drop_id) as LootDrop
+		if view == null or not is_instance_valid(view) or camera.is_position_behind(view.global_position):
+			continue
+		var projected_position: Vector2 = camera.unproject_position(view.global_position + Vector3.UP * 0.35)
+		var screen_distance: float = projected_position.distance_to(screen_position)
+		if screen_distance > CONTEXT_LOOT_RADIUS_PIXELS:
+			continue
+		var state: Dictionary = _drop_states.get(drop_id, {})
+		candidates.append({
+			"drop_id": drop_id,
+			"item_id": str(state.get("item_id", "item")),
+			"quantity": int(state.get("quantity", 1)),
+			"screen_distance": screen_distance,
+		})
+	candidates.sort_custom(_context_loot_candidate_before)
+	return candidates
+
+
+func _context_loot_candidate_before(left: Dictionary, right: Dictionary) -> bool:
+	var left_distance: float = float(left.get("screen_distance", INF))
+	var right_distance: float = float(right.get("screen_distance", INF))
+	if not is_equal_approx(left_distance, right_distance):
+		return left_distance < right_distance
+	var left_name: String = str(left.get("item_id", ""))
+	var right_name: String = str(right.get("item_id", ""))
+	if left_name != right_name:
+		return left_name < right_name
+	return str(left.get("drop_id", "")) < str(right.get("drop_id", ""))
+
+
+func _on_world_context_action(menu_id: int) -> void:
+	var action: Dictionary = _context_menu_actions.get(menu_id, {})
+	match str(action.get("type", "")):
+		"attack":
+			var target_id: String = str(action.get("target_id", ""))
+			var target_view := _target_views.get(target_id) as TargetDummy
+			if target_view != null and is_instance_valid(target_view):
+				_request_engage_target(target_id, target_view.global_position)
+		"take":
+			var drop_id: String = str(action.get("drop_id", ""))
+			var drop_view := _drop_views.get(drop_id) as LootDrop
+			if drop_view != null and is_instance_valid(drop_view):
+				_request_pickup_drop(drop_id, drop_view.global_position)
 
 
 func _top_loot_hit(ray_origin: Vector3, ray_end: Vector3) -> Dictionary:
@@ -946,6 +1068,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 			str(drop_data.get("item_id", "")),
 			int(drop_data.get("quantity", 1)),
 		)
+		_drop_states[drop_id] = drop_data.duplicate(true)
 		var coordinates: Dictionary = position_data
 		view.position = Vector3(
 			float(coordinates.get("x", 0.0)),
@@ -960,6 +1083,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 		var collected: LootDrop = _drop_views[drop_id]
 		collected.queue_free()
 		_drop_views.erase(drop_id)
+		_drop_states.erase(drop_id)
 
 
 func _process_combat_events(snapshot: Dictionary) -> void:
@@ -1615,6 +1739,7 @@ func _update_magic_hud() -> void:
 		var required_level: int = int(spell.get("required_magic_level", 1))
 		var spell_button := Button.new()
 		spell_button.custom_minimum_size = Vector2(104, 88)
+		spell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		spell_button.focus_mode = Control.FOCUS_NONE
 		spell_button.toggle_mode = not spell_id.is_empty()
 		spell_button.disabled = spell_id.is_empty() or _player_defeated or magic_level < required_level
