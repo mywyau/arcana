@@ -36,6 +36,35 @@ func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	}
 }
 
+func TestWorldRuneSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	playerPosition := Position{X: -4, Z: -1}
+	if err := world.AddWorldDrop(playerPosition, string(WeaponRuneSword), 1); err != nil {
+		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
+	}
+	mustAddPlayer(t, world, "player-one", playerPosition, 4)
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponRuneSword}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponRuneSword || player.CombatStyle != CombatStyleStab {
+		t.Fatalf("equipped rune sword state = %+v", player)
+	}
+
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-runeSwordMeleeStrength; got != want {
+		t.Fatalf("dummy health after rune sword hit = %d, want %d", got, want)
+	}
+}
+
 func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
