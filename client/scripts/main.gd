@@ -76,6 +76,12 @@ const PLACEHOLDER_PRAYERS: Array = IconCatalog.PRAYERS
 
 
 const COMBAT_STYLES: Dictionary = {
+	"unarmed": [
+		{"id": "crush", "name": "Punch", "training": "Attack"},
+		{"id": "heavy_crush", "name": "Heavy Punch", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
+	],
 	"sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
@@ -271,6 +277,7 @@ var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "sword"
 var _last_equipment_sequence: int = 0
 var _queued_item: String = ""
+var _queued_unequip: bool = false
 var _equipped_armour: Dictionary = {}
 var _combat_style: String = "slash"
 var _last_combat_style_sequence: int = 0
@@ -568,14 +575,32 @@ func _request_equip(item_id: String) -> void:
 	if _player_defeated:
 		return
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-	var is_armour: bool = ARMOUR_SLOTS.has(item_id)
-	if item_id == _equipped_weapon and not is_armour and not equipment_pending:
+	if equipment_pending:
+		return
+	if _is_item_equipped(item_id):
+		_request_unequip(item_id)
 		return
 	if network.send_equip_item(_next_equipment_sequence, item_id):
 		_queued_item = item_id
+		_queued_unequip = false
 		_next_equipment_sequence += 1
 		_update_combat_hud()
 		_update_inventory_hud()
+
+
+func _request_unequip(item_id: String) -> void:
+	if _player_defeated or not _is_item_equipped(item_id):
+		return
+	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
+	if equipment_pending:
+		return
+	if network.send_unequip_item(_next_equipment_sequence, item_id):
+		_queued_item = item_id
+		_queued_unequip = true
+		_next_equipment_sequence += 1
+		_update_combat_hud()
+		_update_inventory_hud()
+		_update_equipment_hud()
 
 
 func _is_item_equipped(item_id: String) -> bool:
@@ -813,6 +838,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			if _last_equipment_sequence >= _next_equipment_sequence - 1 and not _queued_item.is_empty():
 				_queued_item = ""
+				_queued_unequip = false
 				inventory_selection_changed = true
 			var combat_style: String = str(player_data.get("combat_style", "slash"))
 			if combat_style != _combat_style:
@@ -1033,6 +1059,11 @@ func _on_server_error(code: String, message: String) -> void:
 		_spell_selection_pending = false
 		_queued_spell = ""
 		_update_magic_hud()
+	if code == "equipment_rejected":
+		_queued_item = ""
+		_queued_unequip = false
+		_update_inventory_hud()
+		_update_equipment_hud()
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -1721,7 +1752,7 @@ func _update_equipment_hud() -> void:
 		{"slot": "cape", "name": "Cape", "item": ""},
 		{"slot": "neck", "name": "Neck", "item": ""},
 		{"slot": "ring", "name": "Ring", "item": ""},
-		{"slot": "main_hand", "name": "Main Hand", "item": _equipped_weapon},
+		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon},
 		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", ""))},
 		{"slot": "hands", "name": "Hands", "item": ""},
 		{"spacer": true},
@@ -1771,7 +1802,17 @@ func _update_equipment_hud() -> void:
 		)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot_panel.add_child(icon)
+		if not item_id.is_empty():
+			slot_panel.gui_input.connect(_on_equipment_slot_input.bind(item_id))
 		equipment_grid.add_child(slot_panel)
+
+
+func _on_equipment_slot_input(event: InputEvent, item_id: String) -> void:
+	if event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.pressed and mouse_button.button_index == MOUSE_BUTTON_LEFT:
+			_request_unequip(item_id)
+			get_viewport().set_input_as_handled()
 
 
 func _show_detailed_combat_stats() -> void:
@@ -1940,7 +1981,8 @@ func _update_inventory_hud() -> void:
 			var is_queued: bool = equipment_pending and _queued_item == item_id
 			var is_equipped: bool = _is_item_equipped(item_id)
 			slot_button.toggle_mode = is_equipable
-			slot_button.set_pressed_no_signal(is_queued or is_equipped)
+			var displayed_equipped: bool = not _queued_unequip if is_queued else is_equipped
+			slot_button.set_pressed_no_signal(displayed_equipped)
 			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
 			slot_button.expand_icon = true
 			var item_status: String = ""

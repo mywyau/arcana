@@ -126,6 +126,9 @@ func play_weapon_attack(target_position: Vector3) -> float:
 	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
 	if global_position.distance_squared_to(flat_target) > 0.001:
 		visual_root.look_at(flat_target, Vector3.UP, true)
+	if _equipped_weapon == "unarmed":
+		_play_unarmed_attack()
+		return 0.0
 	if _equipped_weapon == "bow":
 		return _play_bow_attack(target_position)
 	if _equipped_weapon == "staff":
@@ -141,6 +144,17 @@ func play_weapon_attack(target_position: Vector3) -> float:
 	var return_duration: float = 0.14 if _equipped_weapon == "dagger" else 0.22
 	_play_melee_attack(sword_pivot, -55.0, 70.0, forward_duration, return_duration)
 	return 0.0
+
+
+func _play_unarmed_attack() -> void:
+	if _attack_tween != null:
+		_attack_tween.kill()
+	mesh.rotation_degrees.z = 0.0
+	_attack_tween = create_tween()
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(mesh, "rotation_degrees:z", -12.0, 0.1)
+	_attack_tween.set_ease(Tween.EASE_IN_OUT)
+	_attack_tween.tween_property(mesh, "rotation_degrees:z", 0.0, 0.16)
 
 
 func play_spell_attack(target_position: Vector3, _spell_id: String) -> float:

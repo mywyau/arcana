@@ -72,6 +72,7 @@ type WeaponID string
 
 const (
 	WeaponSword      WeaponID = "sword"
+	WeaponUnarmed    WeaponID = "unarmed"
 	WeaponSteelSword WeaponID = "steel_sword"
 	WeaponRuneSword  WeaponID = "rune_sword"
 	WeaponDagger     WeaponID = "dagger"
@@ -185,6 +186,13 @@ type EquipCommand struct {
 	PlayerID PlayerID
 	Sequence uint64
 	ItemID   WeaponID
+	Unequip  bool
+}
+
+type UnequipCommand struct {
+	PlayerID PlayerID
+	Sequence uint64
+	ItemID   string
 }
 
 type CombatStyleCommand struct {
@@ -356,12 +364,27 @@ func (w *World) QueueCombatStyle(command CombatStyleCommand) error {
 
 // QueueEquip records an owned weapon or armour item to equip on the next action pulse.
 func (w *World) QueueEquip(command EquipCommand) error {
+	command.Unequip = false
+	return w.queueEquipment(command)
+}
+
+// QueueUnequip records an equipped item to remove on the next action pulse.
+// Weapons transition to the innate Unarmed profile; armour clears its slot.
+func (w *World) QueueUnequip(command UnequipCommand) error {
+	return w.queueEquipment(EquipCommand{
+		PlayerID: command.PlayerID,
+		Sequence: command.Sequence,
+		ItemID:   WeaponID(command.ItemID),
+		Unequip:  true,
+	})
+}
+
+func (w *World) queueEquipment(command EquipCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("equipment sequence must be positive")
 	}
-	_, weaponExists := weaponDefinition(command.ItemID)
-	_, armourExists := armourSlot(string(command.ItemID))
-	if !weaponExists && !armourExists {
+	item, itemExists := itemDefinition(string(command.ItemID))
+	if !itemExists || item.Virtual || (item.Kind != ItemKindWeapon && item.Kind != ItemKindArmour) {
 		return fmt.Errorf("item %q does not exist", command.ItemID)
 	}
 
@@ -383,6 +406,14 @@ func (w *World) QueueEquip(command EquipCommand) error {
 	}
 	if !player.inventory.contains(string(command.ItemID)) {
 		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
+	}
+	if command.Unequip {
+		if item.Kind == ItemKindWeapon && player.equippedWeapon != command.ItemID {
+			return fmt.Errorf("weapon %q is not equipped", command.ItemID)
+		}
+		if item.Kind == ItemKindArmour && player.equippedArmour[item.Armour.Slot] != string(command.ItemID) {
+			return fmt.Errorf("armour %q is not equipped", command.ItemID)
+		}
 	}
 	if command.Sequence <= player.lastEquipmentSequence {
 		return fmt.Errorf("equipment sequence %d is not newer than %d", command.Sequence, player.lastEquipmentSequence)
@@ -464,12 +495,15 @@ func (w *World) applyEquipmentCommands() {
 	for _, id := range playerIDs {
 		command := w.combat.pendingEquipment[id]
 		if player, exists := w.players[id]; exists && !player.defeated {
-			if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
-				if player.equippedArmour[slot] == string(command.ItemID) {
+			if command.Unequip {
+				if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
 					delete(player.equippedArmour, slot)
 				} else {
-					player.equippedArmour[slot] = string(command.ItemID)
+					player.equippedWeapon = WeaponUnarmed
+					player.combatStyle = defaultCombatStyle(WeaponUnarmed)
 				}
+			} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
+				player.equippedArmour[slot] = string(command.ItemID)
 			} else {
 				player.equippedWeapon = command.ItemID
 				player.combatStyle = defaultCombatStyle(command.ItemID)

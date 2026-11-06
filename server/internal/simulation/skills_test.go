@@ -44,6 +44,9 @@ func TestWeaponsTrainExpectedSkills(t *testing.T) {
 		{WeaponBattleAxe, CombatStyleSlash, SkillAttack, true},
 		{WeaponBow, CombatStyleRapid, SkillRange, true},
 		{WeaponStaff, CombatStyleAccurate, SkillMagic, true},
+		{WeaponUnarmed, CombatStyleCrush, SkillAttack, true},
+		{WeaponUnarmed, CombatStyleHeavyCrush, SkillStrength, true},
+		{WeaponUnarmed, CombatStyleDefensive, SkillDefence, true},
 		{WeaponSword, CombatStyleUnfocused, "", false},
 	}
 	for _, test := range tests {

@@ -46,6 +46,18 @@ func TestQueueJoinWithPersistentStateRejectsInvalidEquipment(t *testing.T) {
 	}
 }
 
+func TestQueueJoinWithPersistentStateAllowsInnateUnarmedProfile(t *testing.T) {
+	world := NewWorld()
+	state := DefaultPersistentPlayerState()
+	state.EquippedWeapon = WeaponUnarmed
+	state.CombatStyle = CombatStyleCrush
+	state.Inventory.Items = state.Inventory.Items[1:]
+
+	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
+		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+	}
+}
+
 func TestPersistentStateFromDefeatedSnapshotRespawnsCharacter(t *testing.T) {
 	state := PersistentStateFromSnapshot(PlayerSnapshot{
 		Position: Position{X: 10, Y: 3, Z: 4},

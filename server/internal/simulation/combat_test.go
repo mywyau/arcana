@@ -339,10 +339,10 @@ func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
 	if player.EquippedWeapon != WeaponSword {
 		t.Fatalf("equipping armour changed weapon to %q", player.EquippedWeapon)
 	}
-	if err := world.QueueEquip(EquipCommand{
-		PlayerID: "player-one", Sequence: 2, ItemID: WeaponID(ItemTrainingHelm),
+	if err := world.QueueUnequip(UnequipCommand{
+		PlayerID: "player-one", Sequence: 2, ItemID: ItemTrainingHelm,
 	}); err != nil {
-		t.Fatalf("QueueEquip() toggle returned an unexpected error: %v", err)
+		t.Fatalf("QueueUnequip() returned an unexpected error: %v", err)
 	}
 	world.Step(actionPulseInterval)
 	player = mustPlayer(t, world, "player-one")
@@ -351,6 +351,57 @@ func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
 	}
 	if !snapshotInventoryContains(player.Inventory, ItemTrainingHelm) {
 		t.Fatal("unequipped helm was removed from inventory")
+	}
+}
+
+func TestUnequippingWeaponUsesUnarmedAndAllowsDrop(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", world.combat.targets[dummyTargetID].Position, 4)
+	if err := world.QueueUnequip(UnequipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: string(WeaponSword),
+	}); err != nil {
+		t.Fatalf("QueueUnequip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponUnarmed || player.CombatStyle != CombatStyleCrush {
+		t.Fatalf("state after weapon unequip = %+v", player)
+	}
+	if !snapshotInventoryContains(player.Inventory, string(WeaponSword)) {
+		t.Fatal("unequipped sword is missing from inventory")
+	}
+	if err := world.QueueTarget(TargetCommand{
+		PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID,
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-1; got != want {
+		t.Fatalf("dummy health after Unarmed hit = %d, want %d", got, want)
+	}
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: string(WeaponSword),
+	}); err != nil {
+		t.Fatalf("QueueDropItem() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	player = mustPlayer(t, world, "player-one")
+	if snapshotInventoryContains(player.Inventory, string(WeaponSword)) {
+		t.Fatal("dropped sword remains in inventory")
+	}
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != string(WeaponSword) {
+		t.Fatalf("drops after unequipping sword = %+v", drops)
+	}
+}
+
+func TestUnequipRejectsItemThatIsNotEquipped(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	if err := world.QueueUnequip(UnequipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: string(WeaponDagger),
+	}); err == nil {
+		t.Fatal("QueueUnequip() error = nil for unequipped dagger")
 	}
 }
 

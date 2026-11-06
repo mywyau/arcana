@@ -13,6 +13,7 @@ const (
 	MessageEngageTarget      = "engage_target"
 	MessageDisengage         = "disengage"
 	MessageEquipItem         = "equip_item"
+	MessageUnequipItem       = "unequip_item"
 	MessageCombatStyle       = "set_combat_style"
 	MessageSetPrayer         = "set_prayer"
 	MessageSetSpell          = "set_spell"
@@ -212,7 +213,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 
 	if message.Type != MessageAuthenticate && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
-		message.Type != MessageDisengage && message.Type != MessageEquipItem &&
+		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell {
@@ -227,7 +228,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type == MessageEngageTarget && message.TargetID == "" {
 		return ClientMessage{}, fmt.Errorf("target ID is required")
 	}
-	if message.Type == MessageEquipItem && message.ItemID == "" {
+	if (message.Type == MessageEquipItem || message.Type == MessageUnequipItem) && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {

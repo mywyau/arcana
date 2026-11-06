@@ -37,7 +37,7 @@ func (w *World) AddWorldDrop(position Position, itemID string, quantity int) err
 	if quantity <= 0 {
 		return fmt.Errorf("drop quantity must be positive")
 	}
-	if _, exists := itemDefinition(itemID); !exists {
+	if definition, exists := itemDefinition(itemID); !exists || definition.Virtual {
 		return fmt.Errorf("unknown drop item %q", itemID)
 	}
 	w.mu.Lock()

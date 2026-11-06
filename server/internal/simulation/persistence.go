@@ -71,7 +71,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if err != nil {
 		return fmt.Errorf("restore inventory: %w", err)
 	}
-	if !inventory.contains(string(state.EquippedWeapon)) {
+	if state.EquippedWeapon != WeaponUnarmed && !inventory.contains(string(state.EquippedWeapon)) {
 		return fmt.Errorf("equipped weapon %q is not in inventory", state.EquippedWeapon)
 	}
 	if err := validateEquippedArmour(state.EquippedArmour, inventory); err != nil {

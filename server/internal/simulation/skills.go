@@ -160,6 +160,15 @@ func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
 		case CombatStyleDefensive:
 			return SkillDefence, true
 		}
+	case WeaponUnarmed:
+		switch style {
+		case CombatStyleCrush:
+			return SkillAttack, true
+		case CombatStyleHeavyCrush:
+			return SkillStrength, true
+		case CombatStyleDefensive:
+			return SkillDefence, true
+		}
 	case WeaponBattleAxe:
 		switch style {
 		case CombatStyleSlash:

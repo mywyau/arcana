@@ -14,14 +14,19 @@ const (
 // ID. Definitions are currently declared in Go; the registry boundary allows
 // them to move to validated data files without changing combat or inventory.
 type ItemDefinition struct {
-	ID     string
-	Name   string
-	Kind   ItemKind
-	Weapon WeaponDefinition
-	Armour ArmourDefinition
+	ID      string
+	Name    string
+	Kind    ItemKind
+	Virtual bool
+	Weapon  WeaponDefinition
+	Armour  ArmourDefinition
 }
 
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
+	{
+		ID: string(WeaponUnarmed), Name: "Unarmed", Kind: ItemKindWeapon, Virtual: true,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponUnarmed, AccuracyBonus: 0, MeleeStrength: 1, DamageVariance: 0, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleCrush, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleDefensive),
+	},
 	{
 		ID: string(WeaponSword), Name: "Sword", Kind: ItemKindWeapon,
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
@@ -171,5 +176,5 @@ func itemDefinition(itemID string) (ItemDefinition, bool) {
 
 func itemIsEquipment(itemID string) bool {
 	definition, exists := itemDefinition(itemID)
-	return exists && (definition.Kind == ItemKindWeapon || definition.Kind == ItemKindArmour)
+	return exists && !definition.Virtual && (definition.Kind == ItemKindWeapon || definition.Kind == ItemKindArmour)
 }

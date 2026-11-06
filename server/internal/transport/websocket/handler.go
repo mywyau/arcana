@@ -281,6 +281,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				ItemID:   simulation.WeaponID(message.ItemID),
 			})
+		case protocol.MessageUnequipItem:
+			rejectionCode = "equipment_rejected"
+			err = h.world.QueueUnequip(simulation.UnequipCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				ItemID:   message.ItemID,
+			})
 		case protocol.MessageCombatStyle:
 			rejectionCode = "combat_style_rejected"
 			err = h.world.QueueCombatStyle(simulation.CombatStyleCommand{

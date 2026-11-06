@@ -10,6 +10,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		itemID string
 		kind   ItemKind
 	}{
+		{string(WeaponUnarmed), ItemKindWeapon},
 		{string(WeaponSword), ItemKindWeapon},
 		{string(WeaponSteelSword), ItemKindWeapon},
 		{string(WeaponRuneSword), ItemKindWeapon},
@@ -34,6 +35,9 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		if !exists || definition.Kind != test.kind || definition.Name == "" {
 			t.Errorf("itemDefinition(%q) = %+v, %t; want kind %q", test.itemID, definition, exists, test.kind)
 		}
+	}
+	if unarmed, exists := itemDefinition(string(WeaponUnarmed)); !exists || !unarmed.Virtual {
+		t.Fatalf("Unarmed definition = %+v, %t; want virtual item", unarmed, exists)
 	}
 }
 
@@ -98,6 +102,7 @@ func TestCatalogWeaponStylesDriveDefaultsAndValidation(t *testing.T) {
 		rejected     CombatStyleID
 	}{
 		{WeaponSword, CombatStyleStab, CombatStyleSlash, CombatStyleRapid},
+		{WeaponUnarmed, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleStab},
 		{WeaponSteelSword, CombatStyleStab, CombatStyleDefensive, CombatStyleRapid},
 		{WeaponRuneSword, CombatStyleStab, CombatStyleSlash, CombatStyleAccurate},
 		{WeaponDagger, CombatStyleStab, CombatStyleDefensive, CombatStyleLongRange},
