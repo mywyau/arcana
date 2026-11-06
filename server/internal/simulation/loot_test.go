@@ -36,6 +36,35 @@ func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	}
 }
 
+func TestWorldRuneSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	playerPosition := Position{X: -4, Z: -1}
+	if err := world.AddWorldDrop(playerPosition, string(WeaponRuneSword), 1); err != nil {
+		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
+	}
+	mustAddPlayer(t, world, "player-one", playerPosition, 4)
+	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponRuneSword}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponRuneSword || player.CombatStyle != CombatStyleStab {
+		t.Fatalf("equipped rune sword state = %+v", player)
+	}
+
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-runeSwordMeleeStrength; got != want {
+		t.Fatalf("dummy health after rune sword hit = %d, want %d", got, want)
+	}
+}
+
 func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
@@ -189,6 +218,17 @@ func TestUpperDummySpawnsTrainingHelm(t *testing.T) {
 	drops := world.Snapshot().Drops
 	if len(drops) != 1 || drops[0].ItemID != ItemTrainingHelm || drops[0].Quantity != 1 {
 		t.Fatalf("upper dummy drops = %+v", drops)
+	}
+}
+
+func TestUpperDummyCanAlsoDropRuneSword(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.1))
+	target := world.combat.targets[upperDummyTargetID]
+	world.defeatDummy(upperDummyTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 2 || drops[0].ItemID != ItemTrainingHelm || drops[0].Quantity != 1 ||
+		drops[1].ItemID != string(WeaponRuneSword) || drops[1].Quantity != 1 {
+		t.Fatalf("upper dummy rare drops = %+v", drops)
 	}
 }
 

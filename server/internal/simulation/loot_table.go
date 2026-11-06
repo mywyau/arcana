@@ -12,9 +12,10 @@ type lootTableEntry struct {
 func lootTableForTarget(targetID string) []lootTableEntry {
 	switch targetID {
 	case upperDummyTargetID:
-		return []lootTableEntry{{
-			ItemID: ItemTrainingHelm, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1,
-		}}
+		return []lootTableEntry{
+			{ItemID: ItemTrainingHelm, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
+			{ItemID: string(WeaponRuneSword), MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 0.5},
+		}
 	case hillWardenTargetID:
 		return []lootTableEntry{
 			{ItemID: ItemAirRune, MinimumQuantity: 5, MaximumQuantity: 10, DropChance: 1},
