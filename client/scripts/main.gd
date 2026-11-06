@@ -88,6 +88,12 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
 		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
+	"rune_sword": [
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
+	],
 	"dagger": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
@@ -1806,38 +1812,38 @@ func _update_detailed_combat_stats() -> void:
 		]
 	combat_stats_label.text = (
 		"CURRENT LOADOUT\n"
-		+ "%s\n\n" % loadout_text
-		+ "ACCURACY\n"
-		+ "Total accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
-		+ "%s level: %d\n" % [
+		+"%s\n\n" % loadout_text
+		+"ACCURACY\n"
+		+"Total accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
+		+"%s level: %d\n" % [
 			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
 			int(_combat_stats.get("accuracy_level", 1)),
 		]
-		+ "%s\n\n" % accuracy_breakdown
-		+ "DAMAGE\n"
-		+ "Current damage range: %d–%d\n" % [
+		+"%s\n\n" % accuracy_breakdown
+		+"DAMAGE\n"
+		+"Current damage range: %d–%d\n" % [
 			int(_combat_stats.get("minimum_damage", 0)),
 			int(_combat_stats.get("maximum_damage", 0)),
 		]
-		+ "%s level: %d\n" % [
+		+"%s level: %d\n" % [
 			str(_combat_stats.get("damage_skill", "strength")).capitalize(),
 			int(_combat_stats.get("damage_level", 1)),
 		]
-		+ "%s\n" % damage_breakdown
-		+ "Skill damage: +%.1f\n\n" % float(_combat_stats.get("skill_damage_bonus", 0.0))
-		+ "DEFENCE\n"
-		+ "Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
-		+ "Stab %s    Slash %s    Crush %s\n" % [
+		+"%s\n" % damage_breakdown
+		+"Skill damage: +%.1f\n\n" % float(_combat_stats.get("skill_damage_bonus", 0.0))
+		+"DEFENCE\n"
+		+"Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
+		+"Stab %s    Slash %s    Crush %s\n" % [
 			_signed_stat(int(defence.get("stab", 0))),
 			_signed_stat(int(defence.get("slash", 0))),
 			_signed_stat(int(defence.get("crush", 0))),
 		]
-		+ "Ranged %s    Magic %s\n\n" % [
+		+"Ranged %s    Magic %s\n\n" % [
 			_signed_stat(int(defence.get("ranged", 0))),
 			_signed_stat(int(defence.get("magic", 0))),
 		]
-		+ "Equipment defence bonuses are informational;\n"
-		+ "damage mitigation is not active yet."
+		+"Equipment defence bonuses are informational;\n"
+		+"damage mitigation is not active yet."
 	)
 
 

@@ -16,6 +16,7 @@ const (
 	swordMeleeStrength            = 10
 	swordDamageVariance           = 0.20
 	steelSwordMeleeStrength       = 14
+	runeSwordMeleeStrength        = 40
 	daggerRange                   = 1.3
 	daggerApproachRange           = 1.05
 	daggerMeleeStrength           = 7
@@ -72,6 +73,7 @@ type WeaponID string
 const (
 	WeaponSword      WeaponID = "sword"
 	WeaponSteelSword WeaponID = "steel_sword"
+	WeaponRuneSword  WeaponID = "rune_sword"
 	WeaponDagger     WeaponID = "dagger"
 	WeaponBow        WeaponID = "bow"
 	WeaponMace       WeaponID = "mace"
@@ -103,7 +105,7 @@ func defaultCombatStyle(weapon WeaponID) CombatStyleID {
 	if weapon == WeaponDagger {
 		return CombatStyleStab
 	}
-	if weapon == WeaponSword || weapon == WeaponSteelSword {
+	if weapon == WeaponSword || weapon == WeaponSteelSword || weapon == WeaponRuneSword {
 		return CombatStyleStab
 	}
 	return CombatStyleSlash
@@ -121,7 +123,7 @@ func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
 		return style == CombatStyleCrush || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
 	case WeaponBattleAxe:
 		return style == CombatStyleSlash || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
-	case WeaponSword, WeaponSteelSword, WeaponDagger:
+	case WeaponSword, WeaponSteelSword, WeaponDagger, WeaponRuneSword:
 		return style == CombatStyleStab || style == CombatStyleSlash || style == CombatStyleDefensive
 	default:
 		return false
@@ -146,6 +148,8 @@ func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 		return WeaponDefinition{ID: id, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
 	case WeaponSteelSword:
 		return WeaponDefinition{ID: id, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
+	case WeaponRuneSword:
+		return WeaponDefinition{ID: id, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
 	case WeaponDagger:
 		return WeaponDefinition{ID: id, AccuracyBonus: 14, MeleeStrength: daggerMeleeStrength, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
 	case WeaponBow:

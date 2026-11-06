@@ -192,6 +192,17 @@ func TestUpperDummySpawnsTrainingHelm(t *testing.T) {
 	}
 }
 
+func TestUpperDummyCanAlsoDropRuneSword(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.1))
+	target := world.combat.targets[upperDummyTargetID]
+	world.defeatDummy(upperDummyTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 2 || drops[0].ItemID != ItemTrainingHelm || drops[0].Quantity != 1 ||
+		drops[1].ItemID != string(WeaponRuneSword) || drops[1].Quantity != 1 {
+		t.Fatalf("upper dummy rare drops = %+v", drops)
+	}
+}
+
 func TestHillWardenAlwaysDropsAirRunesInConfiguredRange(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	target := world.combat.targets[hillWardenTargetID]

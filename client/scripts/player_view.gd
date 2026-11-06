@@ -279,7 +279,7 @@ func set_weapon(weapon_id: String) -> void:
 
 func _update_weapon_visibility() -> void:
 	sword_pivot.visible = not _defeated and (
-		_equipped_weapon == "sword" or _equipped_weapon == "steel_sword" or _equipped_weapon == "dagger"
+		_equipped_weapon == "sword" or _equipped_weapon == "steel_sword" or _equipped_weapon == "rune_sword" or _equipped_weapon == "dagger"
 	)
 	bow_pivot.visible = not _defeated and _equipped_weapon == "bow"
 	mace_pivot.visible = not _defeated and _equipped_weapon == "mace"

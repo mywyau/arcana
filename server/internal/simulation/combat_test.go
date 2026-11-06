@@ -709,6 +709,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 	}{
 		{id: WeaponMace, strength: maceMeleeStrength, interval: maceAttackIntervalPulses, range_: maceRange},
 		{id: WeaponSteelSword, strength: steelSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
+		{id: WeaponRuneSword, strength: runeSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponBattleAxe, strength: battleAxeMeleeStrength, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
 		{id: WeaponStaff, strength: staffMagicStrength, interval: staffAttackIntervalPulses, range_: staffRange},
 	}
@@ -724,6 +725,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSteelSword) ||
+		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponRuneSword) ||
 		!combatStyleValidForWeapon(CombatStyleUnfocused, WeaponBow) {
 		t.Fatal("additional weapon combat styles are not valid")
 	}
@@ -739,6 +741,7 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 	}{
 		{id: WeaponSword, minimum: 8, average: 10, maximum: 12, variance: swordDamageVariance},
 		{id: WeaponSteelSword, minimum: 11, average: 14, maximum: 17, variance: swordDamageVariance},
+		{id: WeaponRuneSword, minimum: 32, average: 40, maximum: 48, variance: swordDamageVariance},
 		{id: WeaponDagger, minimum: 5, average: 7, maximum: 9, variance: daggerDamageVariance},
 		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: bowDamageVariance},
 		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: maceDamageVariance},
