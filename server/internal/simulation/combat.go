@@ -96,42 +96,30 @@ const (
 )
 
 func defaultCombatStyle(weapon WeaponID) CombatStyleID {
-	if weapon == WeaponBow || weapon == WeaponStaff {
-		return CombatStyleAccurate
+	definition, exists := weaponDefinition(weapon)
+	if !exists {
+		return CombatStyleSlash
 	}
-	if weapon == WeaponMace {
-		return CombatStyleCrush
-	}
-	if weapon == WeaponDagger {
-		return CombatStyleStab
-	}
-	if weapon == WeaponSword || weapon == WeaponSteelSword || weapon == WeaponRuneSword {
-		return CombatStyleStab
-	}
-	return CombatStyleSlash
+	return definition.DefaultStyle
 }
 
 func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
-	if style == CombatStyleUnfocused {
-		_, exists := weaponDefinition(weapon)
-		return exists
-	}
-	switch weapon {
-	case WeaponBow, WeaponStaff:
-		return style == CombatStyleRapid || style == CombatStyleAccurate || style == CombatStyleLongRange
-	case WeaponMace:
-		return style == CombatStyleCrush || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
-	case WeaponBattleAxe:
-		return style == CombatStyleSlash || style == CombatStyleHeavyCrush || style == CombatStyleDefensive
-	case WeaponSword, WeaponSteelSword, WeaponDagger, WeaponRuneSword:
-		return style == CombatStyleStab || style == CombatStyleSlash || style == CombatStyleDefensive
-	default:
+	definition, exists := weaponDefinition(weapon)
+	if !exists {
 		return false
 	}
+	for _, allowed := range definition.CombatStyles {
+		if style == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 type WeaponDefinition struct {
 	ID             WeaponID
+	DefaultStyle   CombatStyleID
+	CombatStyles   []CombatStyleID
 	AccuracyBonus  int
 	MeleeStrength  int
 	RangedStrength int
@@ -143,26 +131,13 @@ type WeaponDefinition struct {
 }
 
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
-	switch id {
-	case WeaponSword:
-		return WeaponDefinition{ID: id, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
-	case WeaponSteelSword:
-		return WeaponDefinition{ID: id, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
-	case WeaponRuneSword:
-		return WeaponDefinition{ID: id, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, true
-	case WeaponDagger:
-		return WeaponDefinition{ID: id, AccuracyBonus: 14, MeleeStrength: daggerMeleeStrength, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, true
-	case WeaponBow:
-		return WeaponDefinition{ID: id, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, true
-	case WeaponMace:
-		return WeaponDefinition{ID: id, AccuracyBonus: 8, MeleeStrength: maceMeleeStrength, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, true
-	case WeaponBattleAxe:
-		return WeaponDefinition{ID: id, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, true
-	case WeaponStaff:
-		return WeaponDefinition{ID: id, AccuracyBonus: 11, MagicStrength: staffMagicStrength, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, true
-	default:
+	item, exists := itemDefinition(string(id))
+	if !exists || item.Kind != ItemKindWeapon {
 		return WeaponDefinition{}, false
 	}
+	definition := item.Weapon
+	definition.CombatStyles = append([]CombatStyleID(nil), item.Weapon.CombatStyles...)
+	return definition, true
 }
 
 func weaponDefinitionForStyle(id WeaponID, style CombatStyleID) (WeaponDefinition, bool) {

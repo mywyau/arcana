@@ -220,6 +220,9 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 		if item.ItemID == "" || item.Quantity <= 0 {
 			return inventoryState{}, fmt.Errorf("inventory slot %d has an invalid item", item.Slot)
 		}
+		if _, exists := itemDefinition(item.ItemID); !exists {
+			return inventoryState{}, fmt.Errorf("inventory slot %d contains unknown item %q", item.Slot, item.ItemID)
+		}
 		if _, exists := occupiedSlots[item.Slot]; exists {
 			return inventoryState{}, fmt.Errorf("inventory slot %d is duplicated", item.Slot)
 		}

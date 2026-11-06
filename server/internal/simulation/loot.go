@@ -37,9 +37,7 @@ func (w *World) AddWorldDrop(position Position, itemID string, quantity int) err
 	if quantity <= 0 {
 		return fmt.Errorf("drop quantity must be positive")
 	}
-	_, weaponExists := weaponDefinition(WeaponID(itemID))
-	_, armourExists := armourSlot(itemID)
-	if itemID != trainingShardItem && itemID != ItemAirRune && !weaponExists && !armourExists {
+	if _, exists := itemDefinition(itemID); !exists {
 		return fmt.Errorf("unknown drop item %q", itemID)
 	}
 	w.mu.Lock()
@@ -55,9 +53,7 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 	if command.ItemID == "" {
 		return fmt.Errorf("item ID is required")
 	}
-	_, weaponExists := weaponDefinition(WeaponID(command.ItemID))
-	_, armourExists := armourSlot(command.ItemID)
-	if !weaponExists && !armourExists {
+	if !itemIsEquipment(command.ItemID) {
 		return fmt.Errorf("item %q is not droppable equipment", command.ItemID)
 	}
 

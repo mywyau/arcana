@@ -44,38 +44,23 @@ var armourSetDefinitions = map[ArmourSetID]ArmourSetDefinition{
 	armourSetSwift: {RequiredPieces: 3, AttackIntervalModifier: -1},
 }
 
-var armourDefinitions = map[string]ArmourDefinition{
-	ItemTrainingHelm: {
-		Slot:    ArmourSlotHead,
-		Defence: DefenceBonuses{Stab: 2, Slash: 3, Crush: 2, Ranged: 1},
-	},
-	ItemTrainingPlate: {
-		Slot:    ArmourSlotBody,
-		Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2},
-	},
-	ItemSwiftHelm: {
-		Slot: ArmourSlotHead, Set: armourSetSwift,
-		Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2},
-	},
-	ItemSwiftBody: {
-		Slot: ArmourSlotBody, Set: armourSetSwift,
-		Defence: DefenceBonuses{Stab: 4, Slash: 4, Crush: 3, Ranged: 5, Magic: -1},
-	},
-	ItemSwiftBoots: {
-		Slot: ArmourSlotFeet, Set: armourSetSwift,
-		Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2},
-	},
+func armourSlot(itemID string) (ArmourSlot, bool) {
+	definition, exists := armourDefinition(itemID)
+	return definition.Slot, exists
 }
 
-func armourSlot(itemID string) (ArmourSlot, bool) {
-	definition, exists := armourDefinitions[itemID]
-	return definition.Slot, exists
+func armourDefinition(itemID string) (ArmourDefinition, bool) {
+	item, exists := itemDefinition(itemID)
+	if !exists || item.Kind != ItemKindArmour {
+		return ArmourDefinition{}, false
+	}
+	return item.Armour, true
 }
 
 func equippedDefenceBonuses(equipped map[ArmourSlot]string) DefenceBonuses {
 	var total DefenceBonuses
 	for _, itemID := range equipped {
-		definition, exists := armourDefinitions[itemID]
+		definition, exists := armourDefinition(itemID)
 		if !exists {
 			continue
 		}
@@ -91,7 +76,7 @@ func equippedDefenceBonuses(equipped map[ArmourSlot]string) DefenceBonuses {
 func equippedAttackIntervalModifier(equipped map[ArmourSlot]string) int {
 	setPieces := make(map[ArmourSetID]int)
 	for _, itemID := range equipped {
-		definition, exists := armourDefinitions[itemID]
+		definition, exists := armourDefinition(itemID)
 		if exists && definition.Set != "" {
 			setPieces[definition.Set]++
 		}
