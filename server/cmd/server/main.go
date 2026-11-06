@@ -28,19 +28,24 @@ func main() {
 	defer stop()
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
-	if err := world.AddWorldDrop(
-		simulation.Position{X: -2, Y: 0, Z: -5},
-		string(simulation.WeaponSteelSword),
-		1,
-	); err != nil {
-		log.Fatal(err)
+	initialDrops := []struct {
+		position simulation.Position
+		itemID   string
+		quantity int
+	}{
+		{position: simulation.Position{X: -5, Z: -7}, itemID: string(simulation.WeaponSword), quantity: 1},
+		{position: simulation.Position{X: -3, Z: -7}, itemID: string(simulation.WeaponDagger), quantity: 1},
+		{position: simulation.Position{X: -1, Z: -7}, itemID: string(simulation.WeaponBow), quantity: 1},
+		{position: simulation.Position{X: 1, Z: -7}, itemID: string(simulation.WeaponMace), quantity: 1},
+		{position: simulation.Position{X: 3, Z: -7}, itemID: string(simulation.WeaponBattleAxe), quantity: 1},
+		{position: simulation.Position{X: 5, Z: -7}, itemID: string(simulation.WeaponStaff), quantity: 1},
+		{position: simulation.Position{X: -2, Z: -5}, itemID: string(simulation.WeaponSteelSword), quantity: 1},
+		{position: simulation.Position{X: -1, Z: -5}, itemID: simulation.ItemAirRune, quantity: 50},
 	}
-	if err := world.AddWorldDrop(
-		simulation.Position{X: -1, Y: 0, Z: -5},
-		simulation.ItemAirRune,
-		50,
-	); err != nil {
-		log.Fatal(err)
+	for _, drop := range initialDrops {
+		if err := world.AddWorldDrop(drop.position, drop.itemID, drop.quantity); err != nil {
+			log.Fatal(err)
+		}
 	}
 	runner, err := simulation.NewRunner(world, tickInterval)
 	if err != nil {
