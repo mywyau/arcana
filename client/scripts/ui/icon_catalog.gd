@@ -70,6 +70,9 @@ const SEWING_NEEDLE: Texture2D = preload("res://assets/icons/items/tools/sewing_
 const THREAD: Texture2D = preload("res://assets/icons/items/tools/thread.svg")
 const TINDERBOX: Texture2D = preload("res://assets/icons/items/tools/tinderbox.svg")
 const HAMMER: Texture2D = preload("res://assets/icons/items/tools/hammer.svg")
+const PRAYER_POTION: Texture2D = preload("res://assets/icons/items/consumables/prayer_potion.svg")
+const FISHING_ROD: Texture2D = preload("res://assets/icons/items/tools/fishing_rod.svg")
+const LOBSTER_CAGE: Texture2D = preload("res://assets/icons/items/tools/lobster_cage.svg")
 const NORMAL_LOGS: Texture2D = preload("res://assets/icons/logs/normal_logs_150.png")
 const OAK_LOGS: Texture2D = preload("res://assets/icons/logs/oak_logs_150.png")
 const COPPER_ORE: Texture2D = preload("res://assets/icons/ore/Pixel-Art Copper Ore Cluster-1.png")
@@ -104,6 +107,7 @@ const TAB_SKILLS: Texture2D = preload("res://assets/icons/navigation/tab_skills.
 const TAB_EQUIPMENT: Texture2D = preload("res://assets/icons/navigation/tab_equipment.svg")
 const TAB_MAGIC: Texture2D = preload("res://assets/icons/navigation/tab_magic.svg")
 const TAB_PRAYER: Texture2D = preload("res://assets/icons/navigation/tab_prayer.svg")
+const TAB_SETTINGS: Texture2D = preload("res://assets/icons/navigation/tab_settings.svg")
 
 const SPELLS: Array = [
 	{"id": "wind_bolt", "book_id": "standard", "name": "Wind Bolt", "required_magic_level": 1, "cost_item_id": "air_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/wind_blade.svg")},
@@ -200,6 +204,16 @@ const ITEMS: Dictionary = {
 	"thread": THREAD,
 	"tinderbox": TINDERBOX,
 	"hammer": HAMMER,
+	"prayer_potion": PRAYER_POTION,
+	"fishing_rod": FISHING_ROD,
+	"lobster_cage": LOBSTER_CAGE,
+	"vial_of_water": preload("res://assets/icons/items/consumables/vial_of_water.svg"),
+	"sunleaf": preload("res://assets/icons/items/ingredients/herb.svg"),
+	"moonleaf": preload("res://assets/icons/items/ingredients/herb.svg"),
+	"sacred_dust": preload("res://assets/icons/items/ingredients/sacred_dust.svg"),
+	"fish_oil": preload("res://assets/icons/items/ingredients/fish_oil.svg"),
+	"minor_healing_potion": preload("res://assets/icons/items/consumables/minor_healing_potion.svg"),
+	"murky_brew": preload("res://assets/icons/items/consumables/murky_brew.svg"),
 	"normal_logs": NORMAL_LOGS,
 	"oak_logs": OAK_LOGS,
 	"copper_ore": COPPER_ORE,

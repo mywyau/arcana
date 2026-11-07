@@ -55,6 +55,20 @@ func TestCookedMinnowsStackToTenPerSlot(t *testing.T) {
 	}
 }
 
+func TestPrayerPotionDosesStackToFivePerSlot(t *testing.T) {
+	inventory := inventoryState{capacity: 2}
+	if !inventory.add(ItemPrayerPotion, 6) {
+		t.Fatal("add() rejected prayer potion doses with enough slots")
+	}
+	want := []InventoryItem{
+		{Slot: 0, ItemID: ItemPrayerPotion, Quantity: 5},
+		{Slot: 1, ItemID: ItemPrayerPotion, Quantity: 1},
+	}
+	if !reflect.DeepEqual(inventory.items, want) {
+		t.Fatalf("prayer potion stacks = %+v, want %+v", inventory.items, want)
+	}
+}
+
 func TestCookedMinnowAdditionIsAtomicWhenSlotsAreFull(t *testing.T) {
 	inventory := inventoryState{capacity: 1}
 	if inventory.add(ItemCookedMinnow, 11) {

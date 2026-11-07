@@ -21,6 +21,7 @@ const (
 	MessageDropItem           = "drop_item"
 	MessageMoveInventoryItem  = "move_inventory_item"
 	MessageConsumeItem        = "consume_item"
+	MessageBrew               = "brew"
 	MessageGather             = "gather"
 	MessageBankDeposit        = "bank_deposit"
 	MessageBankWithdraw       = "bank_withdraw"
@@ -43,6 +44,7 @@ type ClientMessage struct {
 	Destination    *Position `json:"destination"`
 	TargetID       string    `json:"target_id,omitempty"`
 	ItemID         string    `json:"item_id,omitempty"`
+	ItemIDs        []string  `json:"item_ids,omitempty"`
 	InstanceID     string    `json:"instance_id,omitempty"`
 	DropID         string    `json:"drop_id,omitempty"`
 	FromSlot       int       `json:"from_slot,omitempty"`
@@ -282,7 +284,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem && message.Type != MessageGather &&
+		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageGather &&
 		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
@@ -317,6 +319,16 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageGather && message.SpotID == "" {
 		return ClientMessage{}, fmt.Errorf("gathering spot ID is required")
+	}
+	if message.Type == MessageBrew {
+		if len(message.ItemIDs) < 2 || len(message.ItemIDs) > 3 {
+			return ClientMessage{}, fmt.Errorf("brewing requires two or three items")
+		}
+		for _, itemID := range message.ItemIDs {
+			if itemID == "" {
+				return ClientMessage{}, fmt.Errorf("brewing item IDs cannot be empty")
+			}
+		}
 	}
 	if message.Type == MessageBankDeposit && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")

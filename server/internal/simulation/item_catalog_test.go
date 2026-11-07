@@ -48,6 +48,16 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemThread, ItemKindResource},
 		{ItemTinderbox, ItemKindResource},
 		{ItemHammer, ItemKindResource},
+		{ItemPrayerPotion, ItemKindConsumable},
+		{ItemFishingRod, ItemKindResource},
+		{ItemLobsterCage, ItemKindResource},
+		{ItemVialOfWater, ItemKindResource},
+		{ItemSunleaf, ItemKindResource},
+		{ItemMoonleaf, ItemKindResource},
+		{ItemSacredDust, ItemKindResource},
+		{ItemFishOil, ItemKindResource},
+		{ItemMinorHealingPotion, ItemKindConsumable},
+		{ItemMurkyBrew, ItemKindConsumable},
 		{ItemNormalLogs, ItemKindResource},
 		{ItemOakLogs, ItemKindResource},
 		{ItemCopperOre, ItemKindResource},
@@ -87,13 +97,16 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 			t.Errorf("%s stack limit = %d, want 10", itemID, definition.StackLimit)
 		}
 	}
-	for _, itemID := range []string{ItemKnife, ItemChisel, ItemSewingNeedle, ItemTinderbox, ItemHammer} {
+	for _, itemID := range []string{ItemKnife, ItemChisel, ItemSewingNeedle, ItemTinderbox, ItemHammer, ItemFishingRod, ItemLobsterCage} {
 		if definition, _ := itemDefinition(itemID); definition.StackLimit != 1 {
 			t.Errorf("%s stack limit = %d, want 1", itemID, definition.StackLimit)
 		}
 	}
 	if definition, _ := itemDefinition(ItemThread); definition.StackLimit != 100 {
 		t.Errorf("%s stack limit = %d, want 100", ItemThread, definition.StackLimit)
+	}
+	if definition, _ := itemDefinition(ItemPrayerPotion); definition.StackLimit != 5 || definition.Consumable.PrayerRestoration != 25 {
+		t.Errorf("prayer potion definition = %+v, want five-dose stacks restoring 25 prayer", definition)
 	}
 }
 

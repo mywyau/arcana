@@ -168,12 +168,18 @@ func fishingSpot(id, name string, position Position, recipeID string) gatheringS
 	if !exists {
 		panic(fmt.Sprintf("fishing spot %q uses unknown recipe %q", id, recipeID))
 	}
+	requiredTool := ItemFishingRod
+	missingResult := "missing_fishing_rod"
+	if recipeID == ItemRawLobster {
+		requiredTool = ItemLobsterCage
+		missingResult = "missing_lobster_cage"
+	}
 	return gatheringSpotDefinition{
 		GatheringSpotSnapshot: GatheringSpotSnapshot{
 			ID: id, Name: name, Skill: SkillFishing, Position: position, Range: gatheringRange,
 			RequiredLevel: recipe.RequiredLevel, Station: craftingStationFishing, RecipeID: recipeID,
 		},
-		ActiveResult: "fishing",
+		ActiveResult: "fishing", RequiredTool: requiredTool, MissingResult: missingResult,
 	}
 }
 

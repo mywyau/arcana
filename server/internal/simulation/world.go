@@ -185,6 +185,7 @@ type playerState struct {
 	lastInventoryMoveSequence    uint64
 	lastConsumeSequence          uint64
 	nextConsumePulse             uint64
+	lastBrewSequence             uint64
 	gatheringSpot                string
 	gatheringRecipe              string
 	gatheringInstanceID          string
@@ -206,6 +207,7 @@ type World struct {
 	pendingItemDrops           map[PlayerID]DropItemCommand
 	pendingInventoryMoves      map[PlayerID]MoveInventoryItemCommand
 	pendingConsumables         map[PlayerID]ConsumeItemCommand
+	pendingBrews               map[PlayerID]BrewCommand
 	pendingGathering           map[PlayerID]pendingGather
 	pendingBankTransfers       map[PlayerID]BankTransferCommand
 	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
@@ -247,6 +249,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingItemDrops:           make(map[PlayerID]DropItemCommand),
 		pendingInventoryMoves:      make(map[PlayerID]MoveInventoryItemCommand),
 		pendingConsumables:         make(map[PlayerID]ConsumeItemCommand),
+		pendingBrews:               make(map[PlayerID]BrewCommand),
 		pendingGathering:           make(map[PlayerID]pendingGather),
 		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
 		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
@@ -350,6 +353,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingItemDrops, id)
 	delete(w.pendingInventoryMoves, id)
 	delete(w.pendingConsumables, id)
+	delete(w.pendingBrews, id)
 	delete(w.pendingGathering, id)
 	delete(w.pendingBankTransfers, id)
 	delete(w.pendingAmmunitionTransfers, id)
@@ -472,6 +476,7 @@ func (w *World) Step(elapsed time.Duration) {
 	w.applyPendingBankTransfers()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
+	w.applyPendingBrews()
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
 

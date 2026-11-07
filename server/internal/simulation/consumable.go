@@ -38,8 +38,8 @@ func (w *World) QueueConsumeItem(command ConsumeItemCommand) error {
 	if !player.inventory.contains(command.ItemID) {
 		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
 	}
-	if player.health >= player.maximumHealth {
-		return fmt.Errorf("player %q is already at full health", command.PlayerID)
+	if !playerCanBenefitFromConsumable(player, item.Consumable) {
+		return fmt.Errorf("player %q is already full for item %q", command.PlayerID, command.ItemID)
 	}
 	if w.combat.pulse < player.nextConsumePulse {
 		return fmt.Errorf("consumable cooldown lasts until pulse %d", player.nextConsumePulse)
@@ -58,16 +58,27 @@ func (w *World) applyPendingConsumables() {
 		command := w.pendingConsumables[id]
 		delete(w.pendingConsumables, id)
 		player, exists := w.players[id]
-		if !exists || player.defeated || player.health >= player.maximumHealth ||
+		if !exists || player.defeated ||
 			w.combat.pulse < player.nextConsumePulse {
 			continue
 		}
 		item, exists := itemDefinition(command.ItemID)
-		if !exists || item.Kind != ItemKindConsumable || !player.inventory.remove(command.ItemID, 1) {
+		if !exists || item.Kind != ItemKindConsumable ||
+			!playerCanBenefitFromConsumable(player, item.Consumable) ||
+			!player.inventory.remove(command.ItemID, 1) {
 			continue
 		}
 		player.health = min(player.maximumHealth, player.health+item.Consumable.Healing)
+		player.prayer = min(player.maximumPrayer, player.prayer+item.Consumable.PrayerRestoration)
 		player.lastConsumeSequence = command.Sequence
 		player.nextConsumePulse = w.combat.pulse + item.Consumable.CooldownPulses
 	}
+}
+
+func playerCanBenefitFromConsumable(player *playerState, consumable ConsumableDefinition) bool {
+	if player == nil {
+		return false
+	}
+	return consumable.Healing > 0 && player.health < player.maximumHealth ||
+		consumable.PrayerRestoration > 0 && player.prayer < player.maximumPrayer
 }

@@ -191,6 +191,22 @@ func send_consume_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
+func send_brew(sequence: int, item_ids: Array[String]) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot brew while disconnected")
+		return false
+	var message: Dictionary = {
+		"type": "brew",
+		"sequence": sequence,
+		"item_ids": item_ids,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not brew: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_gather(sequence: int, spot_id: String, recipe_id: String = "", instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot gather while disconnected")

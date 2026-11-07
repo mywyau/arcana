@@ -11,6 +11,9 @@ const ICON_PRESENTATION: Dictionary = {
 	"thread": {"world_size": 0.58, "rotation": 8.0},
 	"tinderbox": {"world_size": 0.64, "rotation": -6.0},
 	"hammer": {"world_size": 0.82, "rotation": 22.0},
+	"fishing_rod": {"world_size": 0.9, "rotation": -18.0},
+	"lobster_cage": {"world_size": 0.72, "rotation": 6.0},
+	"prayer_potion": {"world_size": 0.58, "rotation": -4.0},
 	"iron_arrow": {"world_size": 0.72, "rotation": -24.0},
 	"air_rune": {"world_size": 0.56, "rotation": 0.0},
 }

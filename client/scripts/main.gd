@@ -50,16 +50,16 @@ const CRAFTING_RECIPES: Dictionary = {
 		{"id": "mithril_bar", "name": "Mithril Bar", "level": 5, "inputs": "1 Mithril Ore + 2 Coal"},
 	],
 	"forging": [
-		{"id": "bronze_sword", "name": "Bronze Sword", "level": 1, "inputs": "2 Bronze Bars"},
-		{"id": "bronze_helm", "name": "Bronze Helm", "level": 1, "inputs": "2 Bronze Bars"},
-		{"id": "bronze_platebody", "name": "Bronze Platebody", "level": 2, "inputs": "5 Bronze Bars"},
-		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "level": 1, "inputs": "3 Bronze Bars"},
-		{"id": "iron_sword", "name": "Iron Sword", "level": 3, "inputs": "2 Iron Bars"},
-		{"id": "iron_helm", "name": "Iron Helm", "level": 3, "inputs": "2 Iron Bars"},
-		{"id": "iron_platebody", "name": "Iron Platebody", "level": 4, "inputs": "5 Iron Bars"},
-		{"id": "mithril_sword", "name": "Mithril Sword", "level": 6, "inputs": "3 Mithril Bars"},
-		{"id": "mithril_helm", "name": "Mithril Helm", "level": 6, "inputs": "3 Mithril Bars"},
-		{"id": "mithril_platebody", "name": "Mithril Platebody", "level": 7, "inputs": "6 Mithril Bars"},
+		{"id": "bronze_sword", "name": "Bronze Sword", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_helm", "name": "Bronze Helm", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_platebody", "name": "Bronze Platebody", "tier": "bronze", "level": 2, "inputs": "5 Bronze Bars"},
+		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "tier": "bronze", "level": 1, "inputs": "3 Bronze Bars"},
+		{"id": "iron_sword", "name": "Iron Sword", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
+		{"id": "iron_helm", "name": "Iron Helm", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
+		{"id": "iron_platebody", "name": "Iron Platebody", "tier": "iron", "level": 4, "inputs": "5 Iron Bars"},
+		{"id": "mithril_sword", "name": "Mithril Sword", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
+		{"id": "mithril_helm", "name": "Mithril Helm", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
+		{"id": "mithril_platebody", "name": "Mithril Platebody", "tier": "mithril", "level": 7, "inputs": "6 Mithril Bars"},
 	],
 }
 
@@ -97,6 +97,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Mining": "mining",
 	"Smithing": "smithing",
 	"Woodcutting": "woodcutting",
+	"Herblore": "herblore",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -110,6 +111,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"mining": "Mining",
 	"smithing": "Smithing",
 	"woodcutting": "Woodcutting",
+	"herblore": "Herblore",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -125,6 +127,7 @@ const TAB_SKILLS_ICON: Texture2D = IconCatalog.TAB_SKILLS
 const TAB_EQUIPMENT_ICON: Texture2D = IconCatalog.TAB_EQUIPMENT
 const TAB_MAGIC_ICON: Texture2D = IconCatalog.TAB_MAGIC
 const TAB_PRAYER_ICON: Texture2D = IconCatalog.TAB_PRAYER
+const TAB_SETTINGS_ICON: Texture2D = IconCatalog.TAB_SETTINGS
 const PLACEHOLDER_SPELLS: Array = IconCatalog.SPELLS
 const PLACEHOLDER_PRAYERS: Array = IconCatalog.PRAYERS
 
@@ -243,12 +246,26 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 const SPELLBOOK_ITEMS: Dictionary = {
 	"standard_spellbook": "standard",
 }
-const FOOD_ITEMS: Dictionary = {
+const CONSUMABLE_ITEMS: Dictionary = {
 	"cooked_minnow": {"healing": 8, "stack_limit": 10},
 	"cooked_trout": {"healing": 12, "stack_limit": 10},
 	"cooked_salmon": {"healing": 16, "stack_limit": 10},
 	"cooked_tuna": {"healing": 20, "stack_limit": 10},
 	"cooked_lobster": {"healing": 25, "stack_limit": 10},
+	"prayer_potion": {"prayer_restore": 25, "stack_limit": 5},
+	"minor_healing_potion": {"healing": 15, "stack_limit": 5},
+	"murky_brew": {"healing": 5, "stack_limit": 5},
+}
+const BREWING_INGREDIENTS: Dictionary = {
+	"vial_of_water": {"name": "Vial of Water", "role": "Base"},
+	"sunleaf": {"name": "Sunleaf", "role": "Herb"},
+	"moonleaf": {"name": "Moonleaf", "role": "Herb"},
+	"sacred_dust": {"name": "Sacred Dust", "role": "Secondary"},
+	"fish_oil": {"name": "Fish Oil", "role": "Secondary"},
+}
+const KNOWN_BREWS: Dictionary = {
+	"sunleaf+vial_of_water": "Minor Healing Potion",
+	"sacred_dust+sunleaf+vial_of_water": "Prayer Potion",
 }
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
@@ -258,6 +275,18 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
 @onready var ground: PrototypeTerrain = $Ground
 @onready var network: NetworkClient = $NetworkClient
+@onready var smithing_window: Window = $SmithingWindow
+@onready var smithing_tabs: TabContainer = $SmithingWindow/Panel/Margin/VBox/Tabs
+@onready var brewing_window: Window = $BrewingWindow
+@onready var brewing_slots: Array[Button] = [
+	$BrewingWindow/Panel/Margin/VBox/Selected/Slot1,
+	$BrewingWindow/Panel/Margin/VBox/Selected/Slot2,
+	$BrewingWindow/Panel/Margin/VBox/Selected/Slot3,
+]
+@onready var brewing_result: Label = $BrewingWindow/Panel/Margin/VBox/Result
+@onready var brewing_grid: GridContainer = $BrewingWindow/Panel/Margin/VBox/IngredientScroll/Grid
+@onready var brewing_clear_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/Clear
+@onready var brewing_brew_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/Brew
 @onready var players: Node3D = $Players
 @onready var targets: Node3D = $Targets
 @onready var drops: Node3D = $Drops
@@ -475,6 +504,7 @@ var _skill_progress: Dictionary = {
 	"mining": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"woodcutting": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"herblore": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -491,6 +521,9 @@ var _crafting_menu: PopupMenu
 var _crafting_menu_actions: Dictionary = {}
 var _selected_station_id: String = ""
 var _selected_station_position: Vector3 = Vector3.ZERO
+var _brewing_selection: Array[String] = []
+var _next_brew_sequence: int = 1
+var _brew_pending: bool = false
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
@@ -512,6 +545,12 @@ func _ready() -> void:
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
+	smithing_window.close_requested.connect(smithing_window.hide)
+	brewing_window.close_requested.connect(brewing_window.hide)
+	for slot_index: int in range(brewing_slots.size()):
+		brewing_slots[slot_index].pressed.connect(_remove_brewing_ingredient.bind(slot_index))
+	brewing_clear_button.pressed.connect(_clear_brewing_selection)
+	brewing_brew_button.pressed.connect(_request_brew)
 	_bank_item_menu = PopupMenu.new()
 	_bank_item_menu.name = "BankItemMenu"
 	add_child(_bank_item_menu)
@@ -588,6 +627,10 @@ func _ready() -> void:
 	settings_music_slider.value_changed.connect(_on_music_volume_changed)
 	settings_edit_hud_button.pressed.connect(_begin_hud_editing_from_settings)
 	settings_reset_hud_button.pressed.connect(_reset_hud_layout_from_settings)
+	for settings_button: Button in [inventory_settings_button, $UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row/Settings]:
+		settings_button.icon = TAB_SETTINGS_ICON
+		settings_button.expand_icon = true
+		settings_button.add_theme_constant_override("icon_max_width", 30)
 	_configure_player_menu()
 	_update_combat_hud()
 	_update_inventory_hud()
@@ -616,6 +659,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if brewing_window.visible:
+						brewing_window.hide()
+						get_viewport().set_input_as_handled()
+						return
+					if smithing_window.visible:
+						smithing_window.hide()
+						get_viewport().set_input_as_handled()
+						return
 					if settings_hud.visible:
 						_show_inventory_tab()
 						get_viewport().set_input_as_handled()
@@ -946,6 +997,9 @@ func _take_test_supply(drop_id: String) -> void:
 func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
 	_selected_station_id = spot_id
 	_selected_station_position = spot_position
+	if station == "forging":
+		_open_smithing_window()
+		return
 	_crafting_menu.clear()
 	_crafting_menu_actions.clear()
 	var recipes: Array = CRAFTING_RECIPES.get(station, []) as Array
@@ -979,6 +1033,186 @@ func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: Strin
 			next_menu_id += 1
 	_crafting_menu.position = Vector2i(screen_position)
 	_crafting_menu.popup()
+
+
+func _open_smithing_window() -> void:
+	for child: Node in smithing_tabs.get_children():
+		smithing_tabs.remove_child(child)
+		child.queue_free()
+	var smithing_progress: Dictionary = _skill_progress.get("smithing", {}) as Dictionary
+	var smithing_level: int = int(smithing_progress.get("level", 1))
+	var recipes: Array = CRAFTING_RECIPES.get("forging", []) as Array
+	for tier: String in ["bronze", "iron", "mithril"]:
+		var tier_scroll := ScrollContainer.new()
+		tier_scroll.name = tier.capitalize()
+		tier_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		var tier_grid := GridContainer.new()
+		tier_grid.columns = 2
+		tier_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tier_grid.add_theme_constant_override("h_separation", 10)
+		tier_grid.add_theme_constant_override("v_separation", 10)
+		tier_scroll.add_child(tier_grid)
+		smithing_tabs.add_child(tier_scroll)
+		for recipe_data: Variant in recipes:
+			var recipe := recipe_data as Dictionary
+			if str(recipe.get("tier", "")) != tier:
+				continue
+			var recipe_id: String = str(recipe.get("id", ""))
+			var required_level: int = int(recipe.get("level", 1))
+			var recipe_button := Button.new()
+			recipe_button.custom_minimum_size = Vector2(330, 104)
+			recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			recipe_button.focus_mode = Control.FOCUS_NONE
+			recipe_button.text = "%s\n%s  •  Smithing %d" % [
+				recipe.get("name", recipe_id.capitalize()), recipe.get("inputs", ""), required_level,
+			]
+			recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			var icon_id: String = "sword" if recipe_id == "iron_sword" else recipe_id
+			recipe_button.icon = ITEM_ICONS.get(icon_id, EMPTY_SLOT_ICON) as Texture2D
+			recipe_button.expand_icon = true
+			recipe_button.add_theme_constant_override("icon_max_width", 62)
+			recipe_button.disabled = smithing_level < required_level
+			recipe_button.tooltip_text = (
+				"Requires Smithing level %d" % required_level
+				if recipe_button.disabled
+				else "Forge %s" % recipe.get("name", recipe_id.capitalize())
+			)
+			recipe_button.pressed.connect(_select_smithing_recipe.bind(recipe_id, ""))
+			tier_grid.add_child(recipe_button)
+	_add_reinforcement_smithing_tab()
+	smithing_window.popup_centered()
+
+
+func _add_reinforcement_smithing_tab() -> void:
+	var reinforce_scroll := ScrollContainer.new()
+	reinforce_scroll.name = "Reinforce"
+	reinforce_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var reinforce_list := VBoxContainer.new()
+	reinforce_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reinforce_list.add_theme_constant_override("separation", 10)
+	reinforce_scroll.add_child(reinforce_list)
+	smithing_tabs.add_child(reinforce_scroll)
+	var candidates: int = 0
+	for payload: Variant in _inventory_items:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var item := payload as Dictionary
+		var item_id: String = str(item.get("item_id", ""))
+		var instance_id: String = str(item.get("instance_id", ""))
+		if instance_id.is_empty() or int(item.get("reinforcement", 0)) > 0 or not item_id in ["bronze_sword", "bronze_helm"]:
+			continue
+		var bar_cost: int = 3 if item_id == "bronze_sword" else 2
+		var recipe_button := Button.new()
+		recipe_button.custom_minimum_size = Vector2(0, 90)
+		recipe_button.text = "Reinforce %s\n%d Bronze Bars  •  Smithing 2  •  inventory slot %d" % [
+			item_id.capitalize(), bar_cost, int(item.get("slot", 0)) + 1,
+		]
+		recipe_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+		recipe_button.expand_icon = true
+		recipe_button.add_theme_constant_override("icon_max_width", 56)
+		recipe_button.pressed.connect(_select_smithing_recipe.bind("reinforce_%s" % item_id, instance_id))
+		reinforce_list.add_child(recipe_button)
+		candidates += 1
+	if candidates == 0:
+		var empty_label := Label.new()
+		empty_label.text = "No eligible equipment to reinforce."
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_label.custom_minimum_size = Vector2(0, 80)
+		reinforce_list.add_child(empty_label)
+
+
+func _select_smithing_recipe(recipe_id: String, instance_id: String) -> void:
+	smithing_window.hide()
+	_request_gather(_selected_station_id, _selected_station_position, recipe_id, instance_id)
+
+
+func _open_brewing_window(starting_item_id: String = "") -> void:
+	if not brewing_window.visible:
+		_brewing_selection.clear()
+	if not starting_item_id.is_empty():
+		_add_brewing_ingredient(starting_item_id)
+	_refresh_brewing_window()
+	brewing_window.popup_centered()
+
+
+func _add_brewing_ingredient(item_id: String) -> void:
+	if _brew_pending or _brewing_selection.size() >= 3 or not BREWING_INGREDIENTS.has(item_id):
+		return
+	var selected_count: int = _brewing_selection.count(item_id)
+	if selected_count >= _inventory_quantity(item_id):
+		return
+	_brewing_selection.append(item_id)
+	_refresh_brewing_window()
+
+
+func _remove_brewing_ingredient(slot_index: int) -> void:
+	if _brew_pending or slot_index < 0 or slot_index >= _brewing_selection.size():
+		return
+	_brewing_selection.remove_at(slot_index)
+	_refresh_brewing_window()
+
+
+func _clear_brewing_selection() -> void:
+	if _brew_pending:
+		return
+	_brewing_selection.clear()
+	_refresh_brewing_window()
+
+
+func _refresh_brewing_window() -> void:
+	for slot_index: int in range(brewing_slots.size()):
+		var slot_button := brewing_slots[slot_index]
+		if slot_index < _brewing_selection.size():
+			var item_id: String = _brewing_selection[slot_index]
+			slot_button.text = str(BREWING_INGREDIENTS[item_id].get("name", item_id.capitalize()))
+			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+			slot_button.expand_icon = true
+			slot_button.tooltip_text = "Click to remove"
+		else:
+			slot_button.text = "+ Optional" if slot_index == 2 else "+ Ingredient"
+			slot_button.icon = null
+			slot_button.tooltip_text = ""
+	for child: Node in brewing_grid.get_children():
+		brewing_grid.remove_child(child)
+		child.queue_free()
+	for item_id: String in BREWING_INGREDIENTS.keys():
+		var quantity: int = _inventory_quantity(item_id)
+		if quantity <= 0:
+			continue
+		var ingredient: Dictionary = BREWING_INGREDIENTS[item_id] as Dictionary
+		var ingredient_button := Button.new()
+		ingredient_button.custom_minimum_size = Vector2(158, 96)
+		ingredient_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ingredient_button.text = "%s\n%s ×%d" % [ingredient.get("name", item_id.capitalize()), ingredient.get("role", "Ingredient"), quantity]
+		ingredient_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+		ingredient_button.expand_icon = true
+		ingredient_button.add_theme_constant_override("icon_max_width", 48)
+		ingredient_button.disabled = _brew_pending or _brewing_selection.size() >= 3 or _brewing_selection.count(item_id) >= quantity
+		ingredient_button.pressed.connect(_add_brewing_ingredient.bind(item_id))
+		brewing_grid.add_child(ingredient_button)
+	var valid_roles := _brewing_selection.size() >= 2 and _brewing_selection.size() <= 3
+	valid_roles = valid_roles and _brewing_selection.count("vial_of_water") == 1
+	var has_herb: bool = _brewing_selection.has("sunleaf") or _brewing_selection.has("moonleaf")
+	valid_roles = valid_roles and has_herb
+	if valid_roles:
+		var key_items := _brewing_selection.duplicate()
+		key_items.sort()
+		var mixture_key := "+".join(key_items)
+		brewing_result.text = "Known result: %s" % KNOWN_BREWS[mixture_key] if KNOWN_BREWS.has(mixture_key) else "Unknown mixture: experimentation may create a Murky Brew"
+	else:
+		brewing_result.text = "Requires exactly one Vial of Water and at least one herb"
+	brewing_brew_button.disabled = not valid_roles or _brew_pending
+	brewing_brew_button.text = "Brewing…" if _brew_pending else "Brew mixture"
+	brewing_clear_button.disabled = _brew_pending or _brewing_selection.is_empty()
+
+
+func _request_brew() -> void:
+	if _brew_pending or _brewing_selection.size() < 2 or _brewing_selection.size() > 3:
+		return
+	if network.send_brew(_next_brew_sequence, _brewing_selection):
+		_next_brew_sequence += 1
+		_brew_pending = true
+		_refresh_brewing_window()
 
 
 func _on_crafting_recipe_selected(menu_id: int) -> void:
@@ -1234,13 +1468,21 @@ func _request_drop_item(item_id: String, instance_id: String = "") -> void:
 
 
 func _request_consume_item(item_id: String) -> void:
-	if _player_defeated or not FOOD_ITEMS.has(item_id) or not _queued_consume_item.is_empty():
+	if _player_defeated or not CONSUMABLE_ITEMS.has(item_id) or not _queued_consume_item.is_empty():
 		return
-	if _player_health >= _player_maximum_health:
-		status_label.text = "You are already at full health"
+	var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
+	var restores_health: bool = int(consumable.get("healing", 0)) > 0
+	var restores_prayer: bool = int(consumable.get("prayer_restore", 0)) > 0
+	var can_benefit: bool = (
+		restores_health and _player_health < _player_maximum_health
+	) or (
+		restores_prayer and _player_prayer < _player_maximum_prayer
+	)
+	if not can_benefit:
+		status_label.text = "You are already at full %s" % ("prayer" if restores_prayer else "health")
 		return
 	if _action_pulse < _next_consume_pulse:
-		status_label.text = "Food cooldown: %d pulse(s) remaining" % (_next_consume_pulse - _action_pulse)
+		status_label.text = "Consumable cooldown: %d pulse(s) remaining" % (_next_consume_pulse - _action_pulse)
 		return
 	if network.send_consume_item(_next_consume_sequence, item_id):
 		_queued_consume_item = item_id
@@ -1498,6 +1740,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Prayer points fully restored"
 					"fishing":
 						status_label.text = "Fishing…"
+					"missing_fishing_rod":
+						status_label.text = "Fishing stopped: a Fishing Rod is required"
+					"missing_lobster_cage":
+						status_label.text = "Fishing stopped: a Lobster Cage is required"
 					"caught_raw_minnow":
 						status_label.text = "Caught a Raw Minnow • Fishing continues…"
 					"cooking":
@@ -1985,6 +2231,11 @@ func _on_server_error(code: String, message: String) -> void:
 		_next_consume_sequence = _last_consume_sequence + 1
 		_queued_consume_item = ""
 		_update_inventory_hud()
+	if code == "brew_rejected":
+		_brew_pending = false
+		status_label.text = "Brewing failed: %s" % message
+		if brewing_window.visible:
+			_refresh_brewing_window()
 	if code == "gather_rejected":
 		_next_gather_sequence = _last_gather_sequence + 1
 	if code == "command_rejected":
@@ -2498,6 +2749,8 @@ func _populate_placeholder_skills() -> void:
 				"tile": skill_tile,
 				"level_label": level_label,
 			}
+			if skill_id == "herblore":
+				skill_tile.pressed.connect(_open_brewing_window)
 		else:
 			skill_tile.tooltip_text = "%s • Level %d/%d • progression is not active yet" % [
 				skill_name, starting_level, starting_level,
@@ -2585,6 +2838,8 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successfully smelted bars grant Smithing XP"
 		"woodcutting":
 			training_description = "successfully chopped logs grant Woodcutting XP"
+		"herblore":
+			training_description = "brewing mixtures grants Herblore XP • click to open Experimental Brewing"
 		"agility":
 			training_description = "completing Agility obstacles grants Agility XP and increases movement speed"
 	if next_level_experience <= 0:
@@ -2683,13 +2938,52 @@ func _update_prayer_hud() -> void:
 			if _queued_prayer_id == prayer_id:
 				displayed_active = _queued_prayer_active
 			prayer_button.set_pressed_no_signal(displayed_active)
-			prayer_button.tooltip_text = "%s\n%s" % [
-				prayer.get("name", "Prayer"), prayer.get("description", ""),
+			prayer_button.tooltip_text = "%s • %s\n%s" % [
+				prayer.get("name", "Prayer"),
+				"ACTIVE • click to turn off" if displayed_active else "Inactive • click to turn on",
+				prayer.get("description", ""),
 			]
+			if displayed_active:
+				_style_active_prayer_button(prayer_button, _queued_prayer_id == prayer_id)
 			prayer_button.pressed.connect(_request_prayer.bind(prayer_id))
 		else:
 			prayer_button.tooltip_text = "%s (coming later)" % prayer.get("name", "Prayer")
 		prayer_grid.add_child(prayer_button)
+
+
+func _style_active_prayer_button(prayer_button: Button, pending: bool) -> void:
+	var active_color := Color(0.98, 0.78, 0.2) if not pending else Color(0.35, 0.78, 1.0)
+	var active_style := StyleBoxFlat.new()
+	active_style.bg_color = Color(0.16, 0.21, 0.08, 0.98) if not pending else Color(0.07, 0.16, 0.23, 0.98)
+	active_style.border_width_left = 4
+	active_style.border_width_top = 4
+	active_style.border_width_right = 4
+	active_style.border_width_bottom = 4
+	active_style.border_color = active_color
+	active_style.corner_radius_top_left = 7
+	active_style.corner_radius_top_right = 7
+	active_style.corner_radius_bottom_left = 7
+	active_style.corner_radius_bottom_right = 7
+	prayer_button.add_theme_stylebox_override("normal", active_style)
+	prayer_button.add_theme_stylebox_override("pressed", active_style)
+	prayer_button.add_theme_stylebox_override("hover_pressed", active_style)
+	prayer_button.add_theme_stylebox_override("disabled", active_style)
+
+	var active_badge := Label.new()
+	active_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	active_badge.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	active_badge.offset_left = 5.0
+	active_badge.offset_top = -25.0
+	active_badge.offset_right = -5.0
+	active_badge.offset_bottom = -4.0
+	active_badge.text = "ACTIVATING…" if pending else "● ACTIVE"
+	active_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	active_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	active_badge.add_theme_color_override("font_color", active_color)
+	active_badge.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.04, 0.95))
+	active_badge.add_theme_constant_override("outline_size", 5)
+	active_badge.add_theme_font_size_override("font_size", 13)
+	prayer_button.add_child(active_badge)
 
 
 func _update_combat_styles_hud() -> void:
@@ -3043,6 +3337,12 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_signature = signature
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
+	if _brew_pending:
+		_brew_pending = false
+		_brewing_selection.clear()
+		status_label.text = "Mixture brewed • Herblore XP gained"
+	if brewing_window.visible:
+		_refresh_brewing_window()
 	_update_inventory_hud()
 	_update_magic_hud()
 
@@ -3389,7 +3689,8 @@ func _update_inventory_hud() -> void:
 			slot_button.set_stack_quantity(quantity)
 			slot_button.set_reinforcement(reinforcement)
 			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id)
-			var is_food: bool = FOOD_ITEMS.has(item_id)
+			var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
+			var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 			var is_queued: bool = equipment_pending and _queued_item == item_id and (
 				_queued_instance_id.is_empty() or _queued_instance_id == instance_id
@@ -3405,7 +3706,7 @@ func _update_inventory_hud() -> void:
 			if is_queued:
 				item_status = "Queued"
 			elif is_consume_queued:
-				item_status = "Eating"
+				item_status = "Using"
 			elif is_equipped:
 				item_status = "Equipped"
 			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
@@ -3415,13 +3716,18 @@ func _update_inventory_hud() -> void:
 			var interaction_text: String = "right-click to drop" if not instance_id.is_empty() else "right-click to drop all"
 			if is_equipable:
 				interaction_text = "%s • %s" % [equip_action, interaction_text]
-			elif is_food:
-				var food: Dictionary = FOOD_ITEMS[item_id] as Dictionary
-				interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
-					int(food.get("healing", 0)),
-					int(food.get("stack_limit", 1)),
-					interaction_text,
-				]
+			elif is_consumable:
+				var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
+				if int(consumable.get("healing", 0)) > 0:
+					interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
+						int(consumable.get("healing", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
+					]
+				else:
+					interaction_text = "left-click to drink one dose (+%d prayer, max %d doses/slot) • %s" % [
+						int(consumable.get("prayer_restore", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
+					]
+			elif is_brewing_ingredient:
+				interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text
 			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
 				interaction_text = "left-click to unequip • right-click to unequip and drop"
 			if is_banking:
@@ -3458,8 +3764,10 @@ func _update_inventory_hud() -> void:
 				slot_button.pressed.connect(_request_ammunition_deposit.bind(slot))
 			elif is_equipable:
 				slot_button.pressed.connect(_request_equip.bind(item_id, instance_id))
-			elif is_food:
+			elif is_consumable:
 				slot_button.pressed.connect(_request_consume_item.bind(item_id))
+			elif is_brewing_ingredient:
+				slot_button.pressed.connect(_open_brewing_window.bind(item_id))
 			slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id, instance_id))
 		else:
 			slot_button.configure(slot, false, true)

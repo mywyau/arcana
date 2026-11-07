@@ -75,6 +75,16 @@ func TestDecodeConsumeItemMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeBrewMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"brew","sequence":7,"item_ids":["vial_of_water","sunleaf","sacred_dust"]}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageBrew || message.Sequence != 7 || len(message.ItemIDs) != 3 {
+		t.Fatalf("decoded brew message = %+v", message)
+	}
+}
+
 func TestDecodeGatherMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"starter_furnace","recipe_id":"bronze_bar"}`))
 	if err != nil {

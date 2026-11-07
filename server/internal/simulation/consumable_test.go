@@ -60,3 +60,43 @@ func TestCookedMinnowCannotBeEatenAtFullHealthOrDuringCooldown(t *testing.T) {
 		t.Fatal("QueueConsumeItem() error = nil during cooldown")
 	}
 }
+
+func TestPrayerPotionRestoresPrayerAndConsumesOneDose(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.prayer = 60
+	if !player.inventory.add(ItemPrayerPotion, 5) {
+		t.Fatal("could not add prayer potion doses")
+	}
+	if err := world.QueueConsumeItem(ConsumeItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemPrayerPotion,
+	}); err != nil {
+		t.Fatalf("QueueConsumeItem() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.Prayer != 85 || snapshot.Inventory.itemsQuantity(ItemPrayerPotion) != 4 {
+		t.Fatalf("player after drinking a prayer potion = %+v", snapshot)
+	}
+}
+
+func TestPrayerPotionCannotBeUsedAtFullPrayer(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.health = 50
+	if !player.inventory.add(ItemPrayerPotion, 1) {
+		t.Fatal("could not add a prayer potion dose")
+	}
+	if err := world.QueueConsumeItem(ConsumeItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemPrayerPotion,
+	}); err == nil {
+		t.Fatal("QueueConsumeItem() error = nil at full prayer")
+	}
+}

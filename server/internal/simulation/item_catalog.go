@@ -11,42 +11,53 @@ const (
 	ItemKindConsumable ItemKind = "consumable"
 	ItemKindResource   ItemKind = "resource"
 
-	ItemStandardSpellbook = "standard_spellbook"
-	ItemIronArrow         = "iron_arrow"
-	ItemCoins             = "coins"
-	ItemBronzePickaxe     = "bronze_pickaxe"
-	ItemBronzeAxe         = "bronze_axe"
-	ItemKnife             = "knife"
-	ItemChisel            = "chisel"
-	ItemSewingNeedle      = "sewing_needle"
-	ItemThread            = "thread"
-	ItemTinderbox         = "tinderbox"
-	ItemHammer            = "hammer"
-	ItemNormalLogs        = "normal_logs"
-	ItemOakLogs           = "oak_logs"
-	ItemCopperOre         = "copper_ore"
-	ItemTinOre            = "tin_ore"
-	ItemIronOre           = "iron_ore"
-	ItemCoal              = "coal"
-	ItemMithrilOre        = "mithril_ore"
-	ItemBronzeBar         = "bronze_bar"
-	ItemIronBar           = "iron_bar"
-	ItemMithrilBar        = "mithril_bar"
-	ItemCookedMinnow      = "cooked_minnow"
-	ItemRawMinnow         = "raw_minnow"
-	ItemRawTrout          = "raw_trout"
-	ItemCookedTrout       = "cooked_trout"
-	ItemRawSalmon         = "raw_salmon"
-	ItemCookedSalmon      = "cooked_salmon"
-	ItemRawTuna           = "raw_tuna"
-	ItemCookedTuna        = "cooked_tuna"
-	ItemRawLobster        = "raw_lobster"
-	ItemCookedLobster     = "cooked_lobster"
+	ItemStandardSpellbook  = "standard_spellbook"
+	ItemIronArrow          = "iron_arrow"
+	ItemCoins              = "coins"
+	ItemBronzePickaxe      = "bronze_pickaxe"
+	ItemBronzeAxe          = "bronze_axe"
+	ItemKnife              = "knife"
+	ItemChisel             = "chisel"
+	ItemSewingNeedle       = "sewing_needle"
+	ItemThread             = "thread"
+	ItemTinderbox          = "tinderbox"
+	ItemHammer             = "hammer"
+	ItemPrayerPotion       = "prayer_potion"
+	ItemFishingRod         = "fishing_rod"
+	ItemLobsterCage        = "lobster_cage"
+	ItemVialOfWater        = "vial_of_water"
+	ItemSunleaf            = "sunleaf"
+	ItemMoonleaf           = "moonleaf"
+	ItemSacredDust         = "sacred_dust"
+	ItemFishOil            = "fish_oil"
+	ItemMinorHealingPotion = "minor_healing_potion"
+	ItemMurkyBrew          = "murky_brew"
+	ItemNormalLogs         = "normal_logs"
+	ItemOakLogs            = "oak_logs"
+	ItemCopperOre          = "copper_ore"
+	ItemTinOre             = "tin_ore"
+	ItemIronOre            = "iron_ore"
+	ItemCoal               = "coal"
+	ItemMithrilOre         = "mithril_ore"
+	ItemBronzeBar          = "bronze_bar"
+	ItemIronBar            = "iron_bar"
+	ItemMithrilBar         = "mithril_bar"
+	ItemCookedMinnow       = "cooked_minnow"
+	ItemRawMinnow          = "raw_minnow"
+	ItemRawTrout           = "raw_trout"
+	ItemCookedTrout        = "cooked_trout"
+	ItemRawSalmon          = "raw_salmon"
+	ItemCookedSalmon       = "cooked_salmon"
+	ItemRawTuna            = "raw_tuna"
+	ItemCookedTuna         = "cooked_tuna"
+	ItemRawLobster         = "raw_lobster"
+	ItemCookedLobster      = "cooked_lobster"
 )
 
 type ConsumableDefinition struct {
-	Healing        int
-	CooldownPulses uint64
+	Healing           int
+	PrayerRestoration int
+	CooldownPulses    uint64
 }
 
 type SkillRequirement struct {
@@ -210,6 +221,25 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemThread, Name: "Thread", Kind: ItemKindResource, StackLimit: 100},
 	{ID: ItemTinderbox, Name: "Tinderbox", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemHammer, Name: "Hammer", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemFishingRod, Name: "Fishing Rod", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemLobsterCage, Name: "Lobster Cage", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemVialOfWater, Name: "Vial of Water", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemSunleaf, Name: "Sunleaf", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemMoonleaf, Name: "Moonleaf", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemSacredDust, Name: "Sacred Dust", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemFishOil, Name: "Fish Oil", Kind: ItemKindResource, StackLimit: 25},
+	{
+		ID: ItemPrayerPotion, Name: "Prayer Potion", Kind: ItemKindConsumable, StackLimit: 5,
+		Consumable: ConsumableDefinition{PrayerRestoration: 25, CooldownPulses: 2},
+	},
+	{
+		ID: ItemMinorHealingPotion, Name: "Minor Healing Potion", Kind: ItemKindConsumable, StackLimit: 5,
+		Consumable: ConsumableDefinition{Healing: 15, CooldownPulses: 2},
+	},
+	{
+		ID: ItemMurkyBrew, Name: "Murky Brew", Kind: ItemKindConsumable, StackLimit: 5,
+		Consumable: ConsumableDefinition{Healing: 5, CooldownPulses: 2},
+	},
 	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource},
@@ -291,8 +321,10 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 				return nil, fmt.Errorf("spellbook item %q requires a spellbook ID", definition.ID)
 			}
 		case ItemKindConsumable:
-			if definition.StackLimit == 0 || definition.Consumable.Healing <= 0 || definition.Consumable.CooldownPulses == 0 {
-				return nil, fmt.Errorf("consumable %q requires a stack limit, positive healing, and cooldown", definition.ID)
+			if definition.StackLimit == 0 || definition.Consumable.CooldownPulses == 0 ||
+				definition.Consumable.Healing < 0 || definition.Consumable.PrayerRestoration < 0 ||
+				(definition.Consumable.Healing == 0 && definition.Consumable.PrayerRestoration == 0) {
+				return nil, fmt.Errorf("consumable %q requires a stack limit, positive effect, and cooldown", definition.ID)
 			}
 		case ItemKindResource:
 		default:

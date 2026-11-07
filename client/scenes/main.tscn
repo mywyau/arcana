@@ -260,6 +260,137 @@ fov = 48.0
 [node name="NetworkClient" type="Node" parent="." unique_id=54155322]
 script = ExtResource("2_network")
 
+[node name="SmithingWindow" type="Window" parent="."]
+title = "Smithing"
+initial_position = 1
+size = Vector2i(760, 580)
+min_size = Vector2i(620, 460)
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="SmithingWindow"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="SmithingWindow/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="SmithingWindow/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="SmithingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Smithing"
+theme_override_font_sizes/font_size = 26
+
+[node name="Hint" type="Label" parent="SmithingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Choose a material tier, then select an item to forge."
+
+[node name="Tabs" type="TabContainer" parent="SmithingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BrewingWindow" type="Window" parent="."]
+title = "Experimental Brewing"
+initial_position = 1
+size = Vector2i(760, 610)
+min_size = Vector2i(620, 500)
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="BrewingWindow"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="BrewingWindow/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="BrewingWindow/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="BrewingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Experimental Brewing"
+theme_override_font_sizes/font_size = 26
+
+[node name="Hint" type="Label" parent="BrewingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Combine one Vial of Water, at least one herb, and an optional third ingredient."
+autowrap_mode = 2
+
+[node name="Selected" type="HBoxContainer" parent="BrewingWindow/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Slot1" type="Button" parent="BrewingWindow/Panel/Margin/VBox/Selected"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "+ Ingredient"
+
+[node name="Slot2" type="Button" parent="BrewingWindow/Panel/Margin/VBox/Selected"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "+ Ingredient"
+
+[node name="Slot3" type="Button" parent="BrewingWindow/Panel/Margin/VBox/Selected"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "+ Optional"
+
+[node name="Result" type="Label" parent="BrewingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Select two or three ingredients"
+horizontal_alignment = 1
+
+[node name="IngredientScroll" type="ScrollContainer" parent="BrewingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="BrewingWindow/Panel/Margin/VBox/IngredientScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 4
+
+[node name="Actions" type="HBoxContainer" parent="BrewingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Clear" type="Button" parent="BrewingWindow/Panel/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(150, 48)
+layout_mode = 2
+text = "Clear"
+
+[node name="Spacer" type="Control" parent="BrewingWindow/Panel/Margin/VBox/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Brew" type="Button" parent="BrewingWindow/Panel/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(190, 48)
+layout_mode = 2
+disabled = true
+text = "Brew mixture"
+
 [node name="UI" type="CanvasLayer" parent="." unique_id=705812827]
 
 [node name="Margin" type="MarginContainer" parent="UI" unique_id=1258717813]
@@ -641,9 +772,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Settings" type="Button" parent="UI/InventoryHUD/Margin/VBox/UtilityTabs/Margin/Row"]
-custom_minimum_size = Vector2(118, 44)
+custom_minimum_size = Vector2(52, 44)
 layout_mode = 2
-text = "⚙  Settings"
+text = ""
 tooltip_text = "Open settings"
 
 [node name="SettingsHUD" type="PanelContainer" parent="UI"]
@@ -767,10 +898,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Settings" type="Button" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
-custom_minimum_size = Vector2(118, 44)
+custom_minimum_size = Vector2(52, 44)
 layout_mode = 2
 disabled = true
-text = "⚙  Settings"
+text = ""
 
 [node name="SkillsHUD" type="PanelContainer" parent="UI"]
 visible = false

@@ -342,6 +342,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				ItemID:   message.ItemID,
 			})
+		case protocol.MessageBrew:
+			rejectionCode = "brew_rejected"
+			err = h.world.QueueBrew(simulation.BrewCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				ItemIDs:  message.ItemIDs,
+			})
 		case protocol.MessageGather:
 			rejectionCode = "gather_rejected"
 			err = h.world.QueueGather(simulation.GatherCommand{

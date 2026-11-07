@@ -11,6 +11,7 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
+	world.players["player-one"].inventory.add(ItemFishingRod, 1)
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID,
 	}); err != nil {
@@ -101,6 +102,7 @@ func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	player := world.players["player-one"]
+	player.inventory.add(ItemFishingRod, 1)
 	player.skills[SkillFishing] = SkillExperienceForLevel(3)
 	player.skills[SkillCooking] = SkillExperienceForLevel(3)
 	if err := world.QueueGather(GatherCommand{
@@ -134,6 +136,7 @@ func TestFishingSpotOnlyAllowsItsConfiguredFish(t *testing.T) {
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
+	world.players["player-one"].inventory.add(ItemFishingRod, 1)
 	world.players["player-one"].skills[SkillFishing] = SkillExperienceForLevel(5)
 
 	err := world.QueueGather(GatherCommand{
@@ -170,6 +173,7 @@ func TestMovementCancelsFishing(t *testing.T) {
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
+	world.players["player-one"].inventory.add(ItemFishingRod, 1)
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID,
 	}); err != nil {
@@ -184,6 +188,30 @@ func TestMovementCancelsFishing(t *testing.T) {
 	world.Step(50 * time.Millisecond)
 	if player := mustPlayer(t, world, "player-one"); player.GatheringSpot != "" {
 		t.Fatalf("gathering continued after movement: %+v", player)
+	}
+}
+
+func TestFishingSpotsRequireTheMatchingTool(t *testing.T) {
+	spots := newGatheringSpots()
+	if got := spots[starterFishingSpotID].RequiredTool; got != ItemFishingRod {
+		t.Fatalf("minnow fishing tool = %q, want %q", got, ItemFishingRod)
+	}
+	if got := spots[starterLobsterSpotID].RequiredTool; got != ItemLobsterCage {
+		t.Fatalf("lobster fishing tool = %q, want %q", got, ItemLobsterCage)
+	}
+
+	world := NewWorld()
+	spot := world.gatheringSpots[starterLobsterSpotID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].skills[SkillFishing] = SkillExperienceForLevel(5)
+	if err := world.QueueGather(GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterLobsterSpotID}); err != nil {
+		t.Fatalf("QueueGather() rejected the missing-cage interaction: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_lobster_cage" {
+		t.Fatalf("gathering result = %q, want missing_lobster_cage", player.GatheringResult)
 	}
 }
 
