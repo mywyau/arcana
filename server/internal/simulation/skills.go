@@ -12,6 +12,7 @@ const (
 	SkillMagic    SkillID = "magic"
 	SkillRange    SkillID = "range"
 	SkillStrength SkillID = "strength"
+	SkillFishing  SkillID = "fishing"
 
 	MaximumSkillLevel               = 100
 	skillLevelExperienceScale int64 = 100
@@ -39,6 +40,7 @@ type skillState map[SkillID]int64
 func newDefaultSkills() skillState {
 	return skillState{
 		SkillAttack: 0, SkillAgility: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
+		SkillFishing: 0,
 	}
 }
 
@@ -130,7 +132,7 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 
 func skillIDValid(skill SkillID) bool {
 	return skill == SkillAttack || skill == SkillAgility || skill == SkillStrength || skill == SkillDefence ||
-		skill == SkillRange || skill == SkillMagic
+		skill == SkillRange || skill == SkillMagic || skill == SkillFishing
 }
 
 func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {

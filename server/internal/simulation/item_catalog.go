@@ -14,6 +14,7 @@ const (
 	ItemStandardSpellbook = "standard_spellbook"
 	ItemIronArrow         = "iron_arrow"
 	ItemCookedMinnow      = "cooked_minnow"
+	ItemRawMinnow         = "raw_minnow"
 )
 
 type ConsumableDefinition struct {
@@ -104,6 +105,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		StackLimit: 10,
 		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2},
 	},
+	{ID: ItemRawMinnow, Name: "Raw Minnow", Kind: ItemKindResource, StackLimit: 10},
 	{ID: trainingShardItem, Name: "Training Shard", Kind: ItemKindResource},
 })
 

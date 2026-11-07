@@ -111,6 +111,7 @@ const ITEMS: Dictionary = {
 	"air_rune": preload("res://assets/icons/spells/breeze.svg"),
 	"iron_arrow": preload("res://assets/icons/items/iron_arrow.svg"),
 	"cooked_minnow": preload("res://assets/icons/items/cooked_minnow.svg"),
+	"raw_minnow": preload("res://assets/icons/items/raw_minnow.svg"),
 	"training_shard": TRAINING_SHARD,
 	"training_helm": TRAINING_HELM,
 	"training_plate": TRAINING_PLATE,

@@ -32,6 +32,27 @@ func TestHillWardenMeleeEngagementStartsApproach(t *testing.T) {
 	}
 }
 
+func TestStarterFishingSpotCanBeApproachedOnPrototypeMap(t *testing.T) {
+	world := simulation.NewWorldWithPathfinder(NewPrototypeMap())
+	if err := world.AddPlayer("player-one", simulation.Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	spots := world.Snapshot().GatheringSpots
+	if len(spots) == 0 {
+		t.Fatal("starter gathering spot is missing")
+	}
+	if err := world.QueueGather(simulation.GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: spots[0].ID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected pathfinding error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	player, _ := world.Player("player-one")
+	if player.GatheringSpot != spots[0].ID || player.Destination == nil {
+		t.Fatalf("fishing approach did not start: %+v", player)
+	}
+}
+
 func TestPrototypeMapFindsMeleeRangePathOnHill(t *testing.T) {
 	world := NewPrototypeMap()
 	start := simulation.Position{X: hillCenterX - 6, Z: hillCenterZ}

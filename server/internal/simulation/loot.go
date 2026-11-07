@@ -135,6 +135,8 @@ func (w *World) QueuePickup(command PickupCommand) error {
 		return fmt.Errorf("find pickup path: empty path")
 	}
 	delete(w.pendingMoves, command.PlayerID)
+	delete(w.pendingGathering, command.PlayerID)
+	clearGathering(player, "")
 	w.pendingPickups[command.PlayerID] = pendingPickup{command: command, path: clonePositions(path)}
 	return nil
 }

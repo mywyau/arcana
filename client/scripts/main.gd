@@ -3,6 +3,7 @@ extends Node3D
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const TARGET_SCENE: PackedScene = preload("res://scenes/target_dummy.tscn")
 const LOOT_SCENE: PackedScene = preload("res://scenes/loot_drop.tscn")
+const GATHERING_SCENE: PackedScene = preload("res://scenes/gathering_spot.tscn")
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
 const RAY_LENGTH: float = 1000.0
 const GROUND_COLLISION_MASK: int = 1
@@ -10,6 +11,7 @@ const UPPER_COLLISION_MASK: int = 2
 const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const LOOT_COLLISION_MASK: int = 16
+const GATHERING_COLLISION_MASK: int = 32
 const ALL_WORLD_COLLISION_MASK: int = 7
 const HUD_LAYOUT_PATH: String = "user://hud_layout.cfg"
 const HUD_MINIMUM_SCALE: float = 0.75
@@ -50,6 +52,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Range": "range",
 	"Magic": "magic",
 	"Agility": "agility",
+	"Fishing": "fishing",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -58,6 +61,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"range": "Range",
 	"magic": "Magic",
 	"agility": "Agility",
+	"fishing": "Fishing",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -158,6 +162,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var players: Node3D = $Players
 @onready var targets: Node3D = $Targets
 @onready var drops: Node3D = $Drops
+@onready var gathering_spots: Node3D = $GatheringSpots
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var hud_edit_hint: Label = $UI/HudEditHint
@@ -263,6 +268,7 @@ var _next_pickup_sequence: int = 1
 var _next_drop_sequence: int = 1
 var _next_inventory_move_sequence: int = 1
 var _next_consume_sequence: int = 1
+var _next_gather_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -272,6 +278,12 @@ var _action_pulse: int = 0
 var _last_consume_sequence: int = 0
 var _next_consume_pulse: int = 0
 var _queued_consume_item: String = ""
+var _last_gather_sequence: int = 0
+var _gathering_spot: String = ""
+var _gathering_result: String = ""
+var _next_gather_pulse: int = 0
+var _gathering_views: Dictionary = {}
+var _gathering_states: Dictionary = {}
 var _target_views: Dictionary = {}
 var _target_states: Dictionary = {}
 var _drop_views: Dictionary = {}
@@ -316,6 +328,7 @@ var _skill_progress: Dictionary = {
 	"range": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"magic": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"agility": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"fishing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -498,6 +511,18 @@ func _physics_process(_delta: float) -> void:
 			_request_engage_target(target_id, target_body.global_position)
 			return
 
+	var gathering_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	gathering_query.collision_mask = GATHERING_COLLISION_MASK
+	var gathering_result: Dictionary = get_world_3d().direct_space_state.intersect_ray(gathering_query)
+	if not gathering_result.is_empty():
+		var gathering_body := gathering_result.get("collider") as CollisionObject3D
+		if gathering_body != null and gathering_body.has_meta(&"gathering_spot_id"):
+			_request_gather(
+				str(gathering_body.get_meta(&"gathering_spot_id")),
+				gathering_body.global_position,
+			)
+			return
+
 	var loot_result: Dictionary = _top_loot_hit(ray_origin, ray_end)
 	if not loot_result.is_empty():
 		var loot_body := loot_result.get("collider") as CollisionObject3D
@@ -554,6 +579,18 @@ func _request_pickup_drop(drop_id: String, drop_position: Vector3) -> void:
 			_request_disengage()
 		click_marker.visible = false
 		_play_target_click_feedback(drop_position)
+
+
+func _request_gather(spot_id: String, spot_position: Vector3) -> void:
+	if spot_id.is_empty() or _player_defeated:
+		return
+	if network.send_gather(_next_gather_sequence, spot_id):
+		_next_gather_sequence += 1
+		var local_view: PlayerView = _player_views.get(_local_player_id)
+		if local_view != null:
+			local_view.stop_prediction()
+		click_marker.visible = false
+		_play_target_click_feedback(spot_position)
 
 
 func _open_world_context_menu(screen_position: Vector2) -> void:
@@ -896,6 +933,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 	_action_pulse = int(snapshot.get("action_pulse", 0))
 	_sync_targets(snapshot.get("targets", []))
 	_sync_drops(snapshot.get("drops", []))
+	_sync_gathering_spots(snapshot.get("gathering_spots", []))
 	var player_payloads: Variant = snapshot.get("players", [])
 	if typeof(player_payloads) != TYPE_ARRAY:
 		return
@@ -942,6 +980,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var server_driven_path: bool = (
 			bool(player_data.get("auto_approaching", false))
 			or bool(player_data.get("auto_picking_up", false))
+			or not str(player_data.get("gathering_spot", "")).is_empty()
 		)
 		var correction: float = view.apply_authoritative_state(
 			position,
@@ -1013,6 +1052,26 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
 				_queued_consume_item = ""
 				inventory_selection_changed = true
+			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
+			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
+			_gathering_spot = str(player_data.get("gathering_spot", ""))
+			_next_gather_pulse = int(player_data.get("next_gather_pulse", 0))
+			var gathering_result_text: String = str(player_data.get("gathering_result", ""))
+			if gathering_result_text != _gathering_result:
+				var previous_gathering_result: String = _gathering_result
+				_gathering_result = gathering_result_text
+				match _gathering_result:
+					"":
+						if not previous_gathering_result.is_empty():
+							status_label.text = "Fishing stopped"
+					"approaching":
+						status_label.text = "Walking to the fishing spot…"
+					"fishing":
+						status_label.text = "Fishing…"
+					"caught_raw_minnow":
+						status_label.text = "Caught a Raw Minnow • Fishing continues…"
+					"inventory_full":
+						status_label.text = "Fishing stopped: inventory is full"
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			if equipped_weapon != _equipped_weapon:
 				_equipped_weapon = equipped_weapon
@@ -1170,6 +1229,48 @@ func _sync_drops(drop_payloads: Variant) -> void:
 		_drop_states.erase(drop_id)
 
 
+func _sync_gathering_spots(spot_payloads: Variant) -> void:
+	if typeof(spot_payloads) != TYPE_ARRAY:
+		return
+	var active_ids: Dictionary = {}
+	for payload: Variant in spot_payloads:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var spot_data: Dictionary = payload
+		var spot_id: String = str(spot_data.get("id", ""))
+		var position_data: Variant = spot_data.get("position", {})
+		if spot_id.is_empty() or typeof(position_data) != TYPE_DICTIONARY:
+			continue
+		var view := _gathering_views.get(spot_id) as GatheringSpot
+		if view == null:
+			view = GATHERING_SCENE.instantiate() as GatheringSpot
+			view.name = "Gathering_%s" % spot_id
+			gathering_spots.add_child(view)
+			view.set_spot(
+				spot_id,
+				str(spot_data.get("name", spot_id.capitalize())),
+				str(spot_data.get("skill", "gathering")),
+			)
+			_gathering_views[spot_id] = view
+		var coordinates: Dictionary = position_data
+		view.position = Vector3(
+			float(coordinates.get("x", 0.0)),
+			float(coordinates.get("y", 0.0)),
+			float(coordinates.get("z", 0.0)),
+		)
+		_gathering_states[spot_id] = spot_data.duplicate(true)
+		active_ids[spot_id] = true
+
+	for spot_id: String in _gathering_views.keys():
+		if active_ids.has(spot_id):
+			continue
+		var departed := _gathering_views.get(spot_id) as GatheringSpot
+		if departed != null:
+			departed.queue_free()
+		_gathering_views.erase(spot_id)
+		_gathering_states.erase(spot_id)
+
+
 func _process_combat_events(snapshot: Dictionary) -> void:
 	var events_data: Variant = snapshot.get("combat_events", [])
 	if typeof(events_data) != TYPE_ARRAY:
@@ -1279,6 +1380,8 @@ func _on_server_error(code: String, message: String) -> void:
 		_next_consume_sequence = _last_consume_sequence + 1
 		_queued_consume_item = ""
 		_update_inventory_hud()
+	if code == "gather_rejected":
+		_next_gather_sequence = _last_gather_sequence + 1
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -1793,6 +1896,8 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successful staff hits grant Magic XP"
 		"agility":
 			training_description = "Agility affects dodge chance • training is not active yet"
+		"fishing":
+			training_description = "successful catches grant Fishing XP"
 	if next_level_experience <= 0:
 		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
 			skill_name, level, level, experience, training_description,

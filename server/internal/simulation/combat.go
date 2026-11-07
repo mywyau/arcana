@@ -466,6 +466,8 @@ func (w *World) QueueTarget(command TargetCommand) error {
 	}
 	if command.TargetID != "" {
 		delete(w.pendingPickups, command.PlayerID)
+		delete(w.pendingGathering, command.PlayerID)
+		clearGathering(player, "")
 		player.autoPickingUp = false
 	}
 
@@ -485,6 +487,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.applySpellCommands()
 		w.applyTargetCommands()
 		w.resolveAutoAttacks()
+		w.resolveGatheringActions()
 		w.updateRoamingEnemies()
 		w.resolveDummyAttack()
 		w.drainActivePrayers()

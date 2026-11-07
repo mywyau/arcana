@@ -107,17 +107,22 @@ type PlayerSnapshot struct {
 	LastPickupSequence      uint64
 	LastConsumeSequence     uint64
 	NextConsumePulse        uint64
+	GatheringSpot           string
+	GatheringResult         string
+	NextGatherPulse         uint64
+	LastGatherSequence      uint64
 	Skills                  []SkillSnapshot
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
 type Snapshot struct {
-	Tick         uint64
-	Players      []PlayerSnapshot
-	ActionPulse  uint64
-	Targets      []TargetSnapshot
-	Drops        []DropSnapshot
-	CombatEvents []CombatEvent
+	Tick           uint64
+	Players        []PlayerSnapshot
+	ActionPulse    uint64
+	Targets        []TargetSnapshot
+	Drops          []DropSnapshot
+	CombatEvents   []CombatEvent
+	GatheringSpots []GatheringSpotSnapshot
 }
 
 type playerState struct {
@@ -162,6 +167,10 @@ type playerState struct {
 	lastInventoryMoveSequence uint64
 	lastConsumeSequence       uint64
 	nextConsumePulse          uint64
+	gatheringSpot             string
+	gatheringResult           string
+	nextGatherPulse           uint64
+	lastGatherSequence        uint64
 	skills                    skillState
 }
 
@@ -177,11 +186,13 @@ type World struct {
 	pendingItemDrops      map[PlayerID]DropItemCommand
 	pendingInventoryMoves map[PlayerID]MoveInventoryItemCommand
 	pendingConsumables    map[PlayerID]ConsumeItemCommand
+	pendingGathering      map[PlayerID]pendingGather
 	drops                 map[string]DropSnapshot
 	nextDropID            uint64
 	pathfinder            Pathfinder
 	combat                *combatState
 	rollSource            RollSource
+	gatheringSpots        map[string]gatheringSpotDefinition
 }
 
 type pendingMove struct {
@@ -213,9 +224,11 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingItemDrops:      make(map[PlayerID]DropItemCommand),
 		pendingInventoryMoves: make(map[PlayerID]MoveInventoryItemCommand),
 		pendingConsumables:    make(map[PlayerID]ConsumeItemCommand),
+		pendingGathering:      make(map[PlayerID]pendingGather),
 		drops:                 make(map[string]DropSnapshot),
 		combat:                newCombatState(),
 		rollSource:            rollSource,
+		gatheringSpots:        newGatheringSpots(),
 	}
 }
 
@@ -307,6 +320,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingItemDrops, id)
 	delete(w.pendingInventoryMoves, id)
 	delete(w.pendingConsumables, id)
+	delete(w.pendingGathering, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -367,6 +381,8 @@ func (w *World) QueueMove(command MoveCommand) error {
 
 	w.pendingMoves[command.PlayerID] = pendingMove{command: command, path: clonePositions(path)}
 	delete(w.pendingPickups, command.PlayerID)
+	delete(w.pendingGathering, command.PlayerID)
+	clearGathering(player, "")
 	player.autoPickingUp = false
 	return nil
 }
@@ -396,6 +412,7 @@ func (w *World) Step(elapsed time.Duration) {
 		delete(w.pendingMoves, id)
 	}
 	w.startPendingPickupApproaches()
+	w.startPendingGathering()
 
 	// A target click supersedes an existing movement route immediately on the
 	// next simulation step. Combat still begins on an action pulse, but the
@@ -478,12 +495,13 @@ func (w *World) Snapshot() Snapshot {
 	defer w.mu.RUnlock()
 
 	snapshot := Snapshot{
-		Tick:         w.tick,
-		Players:      make([]PlayerSnapshot, 0, len(w.players)),
-		ActionPulse:  w.combat.pulse,
-		Targets:      make([]TargetSnapshot, 0, len(w.combat.targets)),
-		Drops:        make([]DropSnapshot, 0, len(w.drops)),
-		CombatEvents: append([]CombatEvent(nil), w.combat.events...),
+		Tick:           w.tick,
+		Players:        make([]PlayerSnapshot, 0, len(w.players)),
+		ActionPulse:    w.combat.pulse,
+		Targets:        make([]TargetSnapshot, 0, len(w.combat.targets)),
+		Drops:          make([]DropSnapshot, 0, len(w.drops)),
+		GatheringSpots: w.gatheringSpotSnapshots(),
+		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {
 		snapshot.Targets = append(snapshot.Targets, *target.dummy)
@@ -583,6 +601,10 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastPickupSequence:      player.lastPickupSequence,
 		LastConsumeSequence:     player.lastConsumeSequence,
 		NextConsumePulse:        player.nextConsumePulse,
+		GatheringSpot:           player.gatheringSpot,
+		GatheringResult:         player.gatheringResult,
+		NextGatherPulse:         player.nextGatherPulse,
+		LastGatherSequence:      player.lastGatherSequence,
 		Skills:                  snapshotSkills(player.skills),
 	}
 	if player.destination != nil {

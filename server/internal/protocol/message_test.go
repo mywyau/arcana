@@ -75,6 +75,16 @@ func TestDecodeConsumeItemMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeGatherMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"willowbrook_pond"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "willowbrook_pond" {
+		t.Fatalf("decoded gather message = %+v", message)
+	}
+}
+
 func TestDecodeCombatStyleMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"set_combat_style","sequence":6,"combat_style":"rapid"}`))
 	if err != nil {

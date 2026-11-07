@@ -28,6 +28,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemAirRune, ItemKindResource},
 		{ItemIronArrow, ItemKindResource},
 		{ItemCookedMinnow, ItemKindConsumable},
+		{ItemRawMinnow, ItemKindResource},
 		{trainingShardItem, ItemKindResource},
 	}
 	if got, want := len(itemCatalog), len(tests); got != want {

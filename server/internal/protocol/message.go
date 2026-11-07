@@ -21,6 +21,7 @@ const (
 	MessageDropItem          = "drop_item"
 	MessageMoveInventoryItem = "move_inventory_item"
 	MessageConsumeItem       = "consume_item"
+	MessageGather            = "gather"
 	MessageWelcome           = "welcome"
 	MessageSnapshot          = "snapshot"
 	MessageError             = "error"
@@ -44,6 +45,7 @@ type ClientMessage struct {
 	CombatStyle string    `json:"combat_style,omitempty"`
 	PrayerID    string    `json:"prayer_id,omitempty"`
 	SpellID     string    `json:"spell_id,omitempty"`
+	SpotID      string    `json:"spot_id,omitempty"`
 	Active      bool      `json:"active,omitempty"`
 	GuestToken  string    `json:"guest_token,omitempty"`
 }
@@ -57,12 +59,13 @@ type ServerMessage struct {
 }
 
 type WorldSnapshot struct {
-	Tick         uint64           `json:"tick"`
-	ActionPulse  uint64           `json:"action_pulse"`
-	Targets      []TargetSnapshot `json:"targets"`
-	Drops        []DropSnapshot   `json:"drops"`
-	CombatEvents []CombatEvent    `json:"combat_events"`
-	Players      []PlayerSnapshot `json:"players"`
+	Tick           uint64                  `json:"tick"`
+	ActionPulse    uint64                  `json:"action_pulse"`
+	Targets        []TargetSnapshot        `json:"targets"`
+	Drops          []DropSnapshot          `json:"drops"`
+	CombatEvents   []CombatEvent           `json:"combat_events"`
+	GatheringSpots []GatheringSpotSnapshot `json:"gathering_spots"`
+	Players        []PlayerSnapshot        `json:"players"`
 }
 
 type CombatEvent struct {
@@ -96,6 +99,15 @@ type DropSnapshot struct {
 	Position Position `json:"position"`
 	ItemID   string   `json:"item_id"`
 	Quantity int      `json:"quantity"`
+}
+
+type GatheringSpotSnapshot struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Skill         string   `json:"skill"`
+	Position      Position `json:"position"`
+	Range         float64  `json:"range"`
+	RequiredLevel int      `json:"required_level"`
 }
 
 type PlayerSnapshot struct {
@@ -138,6 +150,10 @@ type PlayerSnapshot struct {
 	LastPickupSequence      uint64              `json:"last_pickup_sequence"`
 	LastConsumeSequence     uint64              `json:"last_consume_sequence"`
 	NextConsumePulse        uint64              `json:"next_consume_pulse"`
+	GatheringSpot           string              `json:"gathering_spot"`
+	GatheringResult         string              `json:"gathering_result"`
+	NextGatherPulse         uint64              `json:"next_gather_pulse"`
+	LastGatherSequence      uint64              `json:"last_gather_sequence"`
 	Skills                  []SkillSnapshot     `json:"skills"`
 }
 
@@ -222,7 +238,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem {
+		message.Type != MessageConsumeItem && message.Type != MessageGather {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -252,6 +268,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageSetPrayer && message.PrayerID == "" {
 		return ClientMessage{}, fmt.Errorf("prayer ID is required")
+	}
+	if message.Type == MessageGather && message.SpotID == "" {
+		return ClientMessage{}, fmt.Errorf("gathering spot ID is required")
 	}
 	return message, nil
 }

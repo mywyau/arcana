@@ -185,6 +185,23 @@ func send_consume_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
+func send_gather(sequence: int, spot_id: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot gather while disconnected")
+		return false
+
+	var message: Dictionary = {
+		"type": "gather",
+		"sequence": sequence,
+		"spot_id": spot_id,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not start gathering: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_combat_style(sequence: int, combat_style: String) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot change combat style while disconnected")

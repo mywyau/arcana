@@ -339,6 +339,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				ItemID:   message.ItemID,
 			})
+		case protocol.MessageGather:
+			rejectionCode = "gather_rejected"
+			err = h.world.QueueGather(simulation.GatherCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				SpotID:   message.SpotID,
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
@@ -371,12 +378,13 @@ func errorMessage(code string, err error) protocol.ServerMessage {
 
 func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
-		Tick:         snapshot.Tick,
-		ActionPulse:  snapshot.ActionPulse,
-		Targets:      make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
-		Drops:        make([]protocol.DropSnapshot, 0, len(snapshot.Drops)),
-		CombatEvents: make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
-		Players:      make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+		Tick:           snapshot.Tick,
+		ActionPulse:    snapshot.ActionPulse,
+		Targets:        make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
+		Drops:          make([]protocol.DropSnapshot, 0, len(snapshot.Drops)),
+		CombatEvents:   make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
+		GatheringSpots: make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots)),
+		Players:        make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
 	}
 	for _, target := range snapshot.Targets {
 		message.Targets = append(message.Targets, targetSnapshotMessage(target))
@@ -398,6 +406,13 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			TargetID: event.TargetID,
 			Amount:   event.Amount,
 			SpellID:  string(event.SpellID),
+		})
+	}
+	for _, spot := range snapshot.GatheringSpots {
+		message.GatheringSpots = append(message.GatheringSpots, protocol.GatheringSpotSnapshot{
+			ID: spot.ID, Name: spot.Name, Skill: string(spot.Skill),
+			Position: protocol.Position{X: spot.Position.X, Y: spot.Position.Y, Z: spot.Position.Z},
+			Range:    spot.Range, RequiredLevel: spot.RequiredLevel,
 		})
 	}
 	for _, player := range snapshot.Players {
@@ -478,6 +493,10 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			LastPickupSequence:  player.LastPickupSequence,
 			LastConsumeSequence: player.LastConsumeSequence,
 			NextConsumePulse:    player.NextConsumePulse,
+			GatheringSpot:       player.GatheringSpot,
+			GatheringResult:     player.GatheringResult,
+			NextGatherPulse:     player.NextGatherPulse,
+			LastGatherSequence:  player.LastGatherSequence,
 			Skills:              make([]protocol.SkillSnapshot, 0, len(player.Skills)),
 			Path:                make([]protocol.Position, 0, len(player.Path)),
 		}
