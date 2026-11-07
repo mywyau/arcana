@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://csqowxj8tjrhl"
-path="res://.godot/imported/Angled Pixel Trout Icon-2.png-6cc1b43566e3e49f3beb249daf33ac9b.ctex"
+uid="uid://b8vtd5hhsukp6"
+path="res://.godot/imported/raw_tuna.png-d54a81d71705bd9f06beb9344a7779bc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/fish/Angled Pixel Trout Icon-2.png"
-dest_files=["res://.godot/imported/Angled Pixel Trout Icon-2.png-6cc1b43566e3e49f3beb249daf33ac9b.ctex"]
+source_file="res://assets/icons/items/fish/raw_tuna.png"
+dest_files=["res://.godot/imported/raw_tuna.png-d54a81d71705bd9f06beb9344a7779bc.ctex"]
 
 [params]
 

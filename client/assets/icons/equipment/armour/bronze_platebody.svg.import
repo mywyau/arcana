@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dst4f1em5j33w"
-path="res://.godot/imported/cooked_minnow.svg-cd487bea9eb44a50866f03a86285c213.ctex"
+uid="uid://cd8lw1b0nrqfn"
+path="res://.godot/imported/bronze_platebody.svg-3fef44e0ddd20a2704f1f36ca84a59f8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/items/cooked_minnow.svg"
-dest_files=["res://.godot/imported/cooked_minnow.svg-cd487bea9eb44a50866f03a86285c213.ctex"]
+source_file="res://assets/icons/equipment/armour/bronze_platebody.svg"
+dest_files=["res://.godot/imported/bronze_platebody.svg-3fef44e0ddd20a2704f1f36ca84a59f8.ctex"]
 
 [params]
 

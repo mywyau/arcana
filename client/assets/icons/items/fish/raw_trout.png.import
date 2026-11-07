@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ssikt1p1trqy"
-path="res://.godot/imported/Faceted Blue-Gray Tuna Icon-3.png-1e9317d6442ca116ed28710557453eb6.ctex"
+uid="uid://bri6wg08g3m1j"
+path="res://.godot/imported/raw_trout.png-a192a61f103e6b7340af26bb211119c1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/fish/Faceted Blue-Gray Tuna Icon-3.png"
-dest_files=["res://.godot/imported/Faceted Blue-Gray Tuna Icon-3.png-1e9317d6442ca116ed28710557453eb6.ctex"]
+source_file="res://assets/icons/items/fish/raw_trout.png"
+dest_files=["res://.godot/imported/raw_trout.png-a192a61f103e6b7340af26bb211119c1.ctex"]
 
 [params]
 

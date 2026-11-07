@@ -41,6 +41,7 @@ static func centered_icon(texture: Texture2D) -> Texture2D:
 const SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/iron_sword.png")
 const BRONZE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/bronze_sword.png")
 const STEEL_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/steel_sword.png")
+const MITHRIL_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/mithril_sword.png")
 const RUNE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/sword.svg")
 const DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/dagger.svg")
 const BOW: Texture2D = preload("res://assets/icons/equipment/weapons/bow.svg")
@@ -49,6 +50,11 @@ const BATTLE_AXE: Texture2D = preload("res://assets/icons/equipment/weapons/batt
 const STAFF: Texture2D = preload("res://assets/icons/equipment/weapons/staff.svg")
 const TRAINING_HELM: Texture2D = preload("res://assets/icons/equipment/armour/training_helm.svg")
 const BRONZE_HELM: Texture2D = preload("res://assets/icons/equipment/armour/bronze_helm.svg")
+const BRONZE_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/bronze_platebody.svg")
+const IRON_HELM: Texture2D = preload("res://assets/icons/equipment/armour/iron_helm.svg")
+const IRON_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/iron_platebody.svg")
+const MITHRIL_HELM: Texture2D = preload("res://assets/icons/equipment/armour/mithril_helm.svg")
+const MITHRIL_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/mithril_platebody.svg")
 const TRAINING_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/training_plate.svg")
 const SWIFT_HELM: Texture2D = preload("res://assets/icons/equipment/armour/swift_helm.svg")
 const SWIFT_BODY: Texture2D = preload("res://assets/icons/equipment/armour/swift_body.svg")
@@ -142,6 +148,7 @@ const WEAPONS: Dictionary = {
 	"sword": SWORD,
 	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": STEEL_SWORD,
+	"mithril_sword": MITHRIL_SWORD,
 	"rune_sword": RUNE_SWORD,
 	"dagger": DAGGER,
 	"bow": BOW,
@@ -154,6 +161,7 @@ const ITEMS: Dictionary = {
 	"sword": SWORD,
 	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": STEEL_SWORD,
+	"mithril_sword": MITHRIL_SWORD,
 	"rune_sword": RUNE_SWORD,
 	"dagger": DAGGER,
 	"bow": BOW,
@@ -162,8 +170,16 @@ const ITEMS: Dictionary = {
 	"staff": STAFF,
 	"air_rune": preload("res://assets/icons/runes/air_rune.png"),
 	"iron_arrow": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
-	"cooked_minnow": preload("res://assets/icons/items/cooked_minnow.svg"),
-	"raw_minnow": preload("res://assets/icons/items/raw_minnow.svg"),
+	"raw_minnow": preload("res://assets/icons/items/fish/raw_minnow.svg"),
+	"cooked_minnow": preload("res://assets/icons/items/fish/cooked_minnow.svg"),
+	"raw_trout": preload("res://assets/icons/items/fish/raw_trout.png"),
+	"cooked_trout": preload("res://assets/icons/items/fish/cooked_trout.svg"),
+	"raw_salmon": preload("res://assets/icons/items/fish/raw_salmon.png"),
+	"cooked_salmon": preload("res://assets/icons/items/fish/cooked_salmon.svg"),
+	"raw_tuna": preload("res://assets/icons/items/fish/raw_tuna.png"),
+	"cooked_tuna": preload("res://assets/icons/items/fish/cooked_tuna.svg"),
+	"raw_lobster": preload("res://assets/icons/items/fish/raw_lobster.svg"),
+	"cooked_lobster": preload("res://assets/icons/items/fish/cooked_lobster.png"),
 	"training_shard": TRAINING_SHARD,
 	"coins": COINS,
 	"bronze_pickaxe": BRONZE_PICKAXE,
@@ -178,6 +194,11 @@ const ITEMS: Dictionary = {
 	"mithril_bar": MITHRIL_BAR,
 	"training_helm": TRAINING_HELM,
 	"bronze_helm": BRONZE_HELM,
+	"bronze_platebody": BRONZE_PLATE,
+	"iron_helm": IRON_HELM,
+	"iron_platebody": IRON_PLATE,
+	"mithril_helm": MITHRIL_HELM,
+	"mithril_platebody": MITHRIL_PLATE,
 	"training_plate": TRAINING_PLATE,
 	"swift_helm": SWIFT_HELM,
 	"swift_body": SWIFT_BODY,

@@ -42,6 +42,40 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 	}
 }
 
+func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
+	world := NewWorld()
+	pond := world.gatheringSpots[starterFishingSpotID]
+	if err := world.AddPlayer("player-one", pond.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.skills[SkillFishing] = SkillExperienceForLevel(3)
+	player.skills[SkillCooking] = SkillExperienceForLevel(3)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID, RecipeID: ItemRawSalmon,
+	}); err != nil {
+		t.Fatalf("QueueGather(salmon) returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(time.Duration(fishingRecipes[ItemRawSalmon].Interval) * actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").Inventory.itemsQuantity(ItemRawSalmon); got != 1 {
+		t.Fatalf("raw salmon quantity = %d, want 1", got)
+	}
+
+	player.position = world.gatheringSpots[starterCookingRangeID].Position
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 2, SpotID: starterCookingRangeID, RecipeID: ItemCookedSalmon,
+	}); err != nil {
+		t.Fatalf("QueueGather(cooked salmon) returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(time.Duration(cookingRecipes[ItemCookedSalmon].Interval) * actionPulseInterval)
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.Inventory.itemsQuantity(ItemRawSalmon) != 0 || snapshot.Inventory.itemsQuantity(ItemCookedSalmon) != 1 {
+		t.Fatalf("inventory after selected cooking = %+v", snapshot.Inventory)
+	}
+}
+
 func TestMovementCancelsFishing(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterFishingSpotID]

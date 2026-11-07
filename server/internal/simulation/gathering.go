@@ -34,6 +34,8 @@ const (
 type craftingStationID string
 
 const (
+	craftingStationFishing  craftingStationID = "fishing"
+	craftingStationCooking  craftingStationID = "cooking"
 	craftingStationSmelting craftingStationID = "smelting"
 	craftingStationForging  craftingStationID = "forging"
 )
@@ -84,18 +86,17 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterFishingSpotID, Name: "Willowbrook Pond", Skill: SkillFishing,
 				Position: Position{X: -14, Z: 14}, Range: gatheringRange, RequiredLevel: 1,
+				Station: craftingStationFishing,
 			},
-			RewardItem: ItemRawMinnow, RewardQuantity: 1, RewardXP: fishingExperience,
-			Interval: fishingInterval, ActiveResult: "fishing", RewardResult: "caught_raw_minnow",
+			ActiveResult: "fishing",
 		},
 		starterCookingRangeID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCookingRangeID, Name: "Willowbrook Cooking Range", Skill: SkillCooking,
 				Position: Position{X: -8, Z: -8}, Range: gatheringRange, RequiredLevel: 1,
+				Station: craftingStationCooking,
 			},
-			RewardItem: ItemCookedMinnow, RewardQuantity: 1, RewardXP: cookingExperience,
-			Interval: cookingInterval, Costs: []ItemCost{{ItemID: ItemRawMinnow, Quantity: 1}},
-			ActiveResult: "cooking", RewardResult: "cooked_minnow", MissingResult: "missing_raw_minnow",
+			ActiveResult: "cooking",
 		},
 		starterFurnaceID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
@@ -168,6 +169,19 @@ func (w *World) QueueGather(command GatherCommand) error {
 	}
 	if SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
 		return fmt.Errorf("%s level %d is required", spot.Skill, spot.RequiredLevel)
+	}
+	if spot.Station == craftingStationFishing || spot.Station == craftingStationCooking {
+		recipe, recipeExists := foodRecipe(spot.Station, command.RecipeID)
+		if !recipeExists {
+			return fmt.Errorf("%s recipe %q does not exist", spot.Station, command.RecipeID)
+		}
+		if SkillLevelForExperience(player.skills[spot.Skill]) < recipe.RequiredLevel {
+			return fmt.Errorf("%s level %d is required", spot.Skill, recipe.RequiredLevel)
+		}
+		if _, err := foodInventoryAfter(player.inventory, recipe); err != nil {
+			return err
+		}
+		command.RecipeID = recipe.ID
 	}
 	if spot.Station == craftingStationSmelting {
 		recipe, recipeExists := smeltingRecipe(SmeltingRecipeID(command.RecipeID))
@@ -253,6 +267,9 @@ func (w *World) startPendingGathering() {
 		player.gatheringRecipe = pending.command.RecipeID
 		player.gatheringInstanceID = pending.command.InstanceID
 		interval := spot.Interval
+		if recipe, exists := foodRecipe(spot.Station, player.gatheringRecipe); exists {
+			interval = recipe.Interval
+		}
 		if recipe, exists := smeltingRecipe(SmeltingRecipeID(player.gatheringRecipe)); spot.Station == craftingStationSmelting && exists {
 			interval = recipe.Interval
 		}
@@ -307,6 +324,30 @@ func (w *World) resolveGatheringActions() {
 		}
 		if w.combat.pulse < player.nextGatherPulse {
 			player.gatheringResult = spot.ActiveResult
+			continue
+		}
+		if spot.Station == craftingStationFishing || spot.Station == craftingStationCooking {
+			recipe, recipeExists := foodRecipe(spot.Station, player.gatheringRecipe)
+			if !recipeExists {
+				clearGathering(player, "recipe_missing")
+				continue
+			}
+			if err := applyFoodRecipe(player, spot.Skill, recipe); err != nil {
+				if errors.Is(err, errFoodInventoryFull) {
+					clearGathering(player, "inventory_full")
+				} else if spot.Station == craftingStationCooking {
+					clearGathering(player, "missing_"+recipe.Costs[0].ItemID)
+				} else {
+					clearGathering(player, "fishing_failed")
+				}
+				continue
+			}
+			if spot.Station == craftingStationFishing {
+				player.gatheringResult = "caught_" + recipe.RewardItem
+			} else {
+				player.gatheringResult = recipe.RewardItem
+			}
+			player.nextGatherPulse = w.combat.pulse + recipe.Interval
 			continue
 		}
 		if spot.Station == craftingStationSmelting {

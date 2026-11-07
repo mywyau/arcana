@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://v65e12luy6ab"
-path="res://.godot/imported/Faceted Cooked Lobster Icon-4.png-93c1e61cb1e87837a9d3896e5166dcb5.ctex"
+uid="uid://6b4825242jb4"
+path="res://.godot/imported/raw_minnow.svg-230d7d1150aa6d24fd536c44c5c0d9b5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/fish/Faceted Cooked Lobster Icon-4.png"
-dest_files=["res://.godot/imported/Faceted Cooked Lobster Icon-4.png-93c1e61cb1e87837a9d3896e5166dcb5.ctex"]
+source_file="res://assets/icons/items/fish/raw_minnow.svg"
+dest_files=["res://.godot/imported/raw_minnow.svg-230d7d1150aa6d24fd536c44c5c0d9b5.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

@@ -15,7 +15,14 @@ type ForgingRecipeID string
 const (
 	ForgingBronzeSword   ForgingRecipeID = "bronze_sword"
 	ForgingBronzeHelm    ForgingRecipeID = "bronze_helm"
+	ForgingBronzePlate   ForgingRecipeID = "bronze_platebody"
 	ForgingBronzePickaxe ForgingRecipeID = "bronze_pickaxe"
+	ForgingIronSword     ForgingRecipeID = "iron_sword"
+	ForgingIronHelm      ForgingRecipeID = "iron_helm"
+	ForgingIronPlate     ForgingRecipeID = "iron_platebody"
+	ForgingMithrilSword  ForgingRecipeID = "mithril_sword"
+	ForgingMithrilHelm   ForgingRecipeID = "mithril_helm"
+	ForgingMithrilPlate  ForgingRecipeID = "mithril_platebody"
 )
 
 type forgingRecipeDefinition struct {
@@ -41,9 +48,44 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		RewardItem: ItemBronzeHelm, RewardQuantity: 1, RewardXP: 20, Interval: 4,
 	},
 	{
+		ID: ForgingBronzePlate, Name: "Bronze Platebody", RequiredLevel: 2,
+		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 5}},
+		RewardItem: ItemBronzePlate, RewardQuantity: 1, RewardXP: 50, Interval: 6,
+	},
+	{
 		ID: ForgingBronzePickaxe, Name: "Bronze Pickaxe", RequiredLevel: 1,
 		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}},
 		RewardItem: ItemBronzePickaxe, RewardQuantity: 1, RewardXP: 30, Interval: 5,
+	},
+	{
+		ID: ForgingIronSword, Name: "Iron Sword", RequiredLevel: 3,
+		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 2}},
+		RewardItem: string(WeaponSword), RewardQuantity: 1, RewardXP: 36, Interval: 5,
+	},
+	{
+		ID: ForgingIronHelm, Name: "Iron Helm", RequiredLevel: 3,
+		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 2}},
+		RewardItem: ItemIronHelm, RewardQuantity: 1, RewardXP: 36, Interval: 5,
+	},
+	{
+		ID: ForgingIronPlate, Name: "Iron Platebody", RequiredLevel: 4,
+		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 5}},
+		RewardItem: ItemIronPlate, RewardQuantity: 1, RewardXP: 90, Interval: 7,
+	},
+	{
+		ID: ForgingMithrilSword, Name: "Mithril Sword", RequiredLevel: 6,
+		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},
+		RewardItem: string(WeaponMithrilSword), RewardQuantity: 1, RewardXP: 90, Interval: 6,
+	},
+	{
+		ID: ForgingMithrilHelm, Name: "Mithril Helm", RequiredLevel: 6,
+		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},
+		RewardItem: ItemMithrilHelm, RewardQuantity: 1, RewardXP: 90, Interval: 6,
+	},
+	{
+		ID: ForgingMithrilPlate, Name: "Mithril Platebody", RequiredLevel: 7,
+		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 6}},
+		RewardItem: ItemMithrilPlate, RewardQuantity: 1, RewardXP: 180, Interval: 8,
 	},
 })
 

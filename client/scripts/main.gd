@@ -23,6 +23,20 @@ const INVENTORY_PAGE_SIZE: int = 25
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
 const CRAFTING_RECIPES: Dictionary = {
+	"fishing": [
+		{"id": "raw_minnow", "name": "Minnow", "level": 1, "inputs": "Pond"},
+		{"id": "raw_trout", "name": "Trout", "level": 2, "inputs": "Pond"},
+		{"id": "raw_salmon", "name": "Salmon", "level": 3, "inputs": "Pond"},
+		{"id": "raw_tuna", "name": "Tuna", "level": 4, "inputs": "Pond"},
+		{"id": "raw_lobster", "name": "Lobster", "level": 5, "inputs": "Pond"},
+	],
+	"cooking": [
+		{"id": "cooked_minnow", "name": "Minnow", "level": 1, "inputs": "1 Raw Minnow"},
+		{"id": "cooked_trout", "name": "Trout", "level": 2, "inputs": "1 Raw Trout"},
+		{"id": "cooked_salmon", "name": "Salmon", "level": 3, "inputs": "1 Raw Salmon"},
+		{"id": "cooked_tuna", "name": "Tuna", "level": 4, "inputs": "1 Raw Tuna"},
+		{"id": "cooked_lobster", "name": "Lobster", "level": 5, "inputs": "1 Raw Lobster"},
+	],
 	"smelting": [
 		{"id": "copper_bar", "name": "Copper Bar", "level": 1, "inputs": "1 Copper Ore"},
 		{"id": "bronze_bar", "name": "Bronze Bar", "level": 1, "inputs": "1 Copper Ore + 1 Tin Ore"},
@@ -32,7 +46,14 @@ const CRAFTING_RECIPES: Dictionary = {
 	"forging": [
 		{"id": "bronze_sword", "name": "Bronze Sword", "level": 1, "inputs": "2 Bronze Bars"},
 		{"id": "bronze_helm", "name": "Bronze Helm", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_platebody", "name": "Bronze Platebody", "level": 2, "inputs": "5 Bronze Bars"},
 		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "level": 1, "inputs": "3 Bronze Bars"},
+		{"id": "iron_sword", "name": "Iron Sword", "level": 3, "inputs": "2 Iron Bars"},
+		{"id": "iron_helm", "name": "Iron Helm", "level": 3, "inputs": "2 Iron Bars"},
+		{"id": "iron_platebody", "name": "Iron Platebody", "level": 4, "inputs": "5 Iron Bars"},
+		{"id": "mithril_sword", "name": "Mithril Sword", "level": 6, "inputs": "3 Mithril Bars"},
+		{"id": "mithril_helm", "name": "Mithril Helm", "level": 6, "inputs": "3 Mithril Bars"},
+		{"id": "mithril_platebody", "name": "Mithril Platebody", "level": 7, "inputs": "6 Mithril Bars"},
 	],
 }
 
@@ -125,6 +146,12 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
 		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
+	"mithril_sword": [
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
+	],
 	"rune_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
@@ -165,6 +192,11 @@ const COMBAT_STYLES: Dictionary = {
 const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
 	"bronze_helm": "head",
+	"bronze_platebody": "body",
+	"iron_helm": "head",
+	"iron_platebody": "body",
+	"mithril_helm": "head",
+	"mithril_platebody": "body",
 	"training_helm": "head",
 	"training_plate": "body",
 	"swift_helm": "head",
@@ -176,6 +208,10 @@ const SPELLBOOK_ITEMS: Dictionary = {
 }
 const FOOD_ITEMS: Dictionary = {
 	"cooked_minnow": {"healing": 8, "stack_limit": 10},
+	"cooked_trout": {"healing": 12, "stack_limit": 10},
+	"cooked_salmon": {"healing": 16, "stack_limit": 10},
+	"cooked_tuna": {"healing": 20, "stack_limit": 10},
+	"cooked_lobster": {"healing": 25, "stack_limit": 10},
 }
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
@@ -1206,7 +1242,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"forged_bronze_pickaxe":
 						status_label.text = "Forged a Bronze Pickaxe • Smithing continues…"
 					"missing_forging_inputs":
-						status_label.text = "Smithing stopped: not enough Bronze Bars"
+						status_label.text = "Smithing stopped: required bars are missing"
 					"reinforced_bronze_sword":
 						status_label.text = "Bronze Sword reinforced to +1"
 					"reinforced_bronze_helm":
@@ -1219,6 +1255,19 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Mining stopped: the vein is depleted"
 					"inventory_full":
 						status_label.text = "Gathering stopped: inventory is full"
+					_:
+						if _gathering_result.begins_with("caught_raw_"):
+							var caught_name: String = _gathering_result.trim_prefix("caught_").replace("_", " ").capitalize()
+							status_label.text = "Caught a %s • Fishing continues…" % caught_name
+						elif _gathering_result.begins_with("cooked_"):
+							var cooked_name: String = _gathering_result.trim_prefix("cooked_").replace("_", " ").capitalize()
+							status_label.text = "Cooked a %s • Cooking continues…" % cooked_name
+						elif _gathering_result.begins_with("missing_raw_"):
+							var missing_name: String = _gathering_result.trim_prefix("missing_").replace("_", " ").capitalize()
+							status_label.text = "Cooking stopped: no %s" % missing_name
+						elif _gathering_result.begins_with("forged_"):
+							var forged_name: String = _gathering_result.trim_prefix("forged_").replace("_", " ").capitalize()
+							status_label.text = "Forged a %s • Smithing continues…" % forged_name
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))
 			if equipped_weapon != _equipped_weapon or equipped_weapon_instance_id != _equipped_weapon_instance_id:

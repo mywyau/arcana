@@ -864,6 +864,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 	}{
 		{id: WeaponMace, strength: maceMeleeStrength, interval: maceAttackIntervalPulses, range_: maceRange},
 		{id: WeaponSteelSword, strength: steelSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
+		{id: WeaponMithrilSword, strength: 18, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponRuneSword, strength: runeSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponBattleAxe, strength: battleAxeMeleeStrength, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
 		{id: WeaponStaff, strength: staffMagicStrength, interval: staffAttackIntervalPulses, range_: staffRange},
@@ -880,6 +881,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSteelSword) ||
+		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponMithrilSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponRuneSword) ||
 		!combatStyleValidForWeapon(CombatStyleUnfocused, WeaponBow) {
 		t.Fatal("additional weapon combat styles are not valid")

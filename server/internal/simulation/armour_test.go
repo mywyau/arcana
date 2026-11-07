@@ -38,6 +38,25 @@ func TestSwiftSetDefinitionsUseDistinctArmourSlots(t *testing.T) {
 	}
 }
 
+func TestMetalArmourUsesHeadAndBodySlots(t *testing.T) {
+	tests := []struct {
+		itemID string
+		slot   ArmourSlot
+	}{
+		{ItemBronzeHelm, ArmourSlotHead},
+		{ItemBronzePlate, ArmourSlotBody},
+		{ItemIronHelm, ArmourSlotHead},
+		{ItemIronPlate, ArmourSlotBody},
+		{ItemMithrilHelm, ArmourSlotHead},
+		{ItemMithrilPlate, ArmourSlotBody},
+	}
+	for _, test := range tests {
+		if got, exists := armourSlot(test.itemID); !exists || got != test.slot {
+			t.Errorf("armourSlot(%q) = %q, %t; want %q, true", test.itemID, got, exists, test.slot)
+		}
+	}
+}
+
 func TestSwiftSetChangesAuthoritativeAttackCadence(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)

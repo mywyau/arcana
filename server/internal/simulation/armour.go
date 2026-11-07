@@ -12,6 +12,11 @@ const (
 
 	ItemTrainingHelm  = "training_helm"
 	ItemBronzeHelm    = "bronze_helm"
+	ItemBronzePlate   = "bronze_platebody"
+	ItemIronHelm      = "iron_helm"
+	ItemIronPlate     = "iron_platebody"
+	ItemMithrilHelm   = "mithril_helm"
+	ItemMithrilPlate  = "mithril_platebody"
 	ItemTrainingPlate = "training_plate"
 	ItemSwiftHelm     = "swift_helm"
 	ItemSwiftBody     = "swift_body"

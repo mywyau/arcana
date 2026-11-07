@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0weurfyrvd5s"
-path="res://.godot/imported/raw_minnow.svg-e08c27e16b3c220379bee6008ba7df97.ctex"
+uid="uid://cl2p6ceksedtp"
+path="res://.godot/imported/cooked_salmon.svg-ae8074fd10dc4c8d576f9d872a748c40.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/items/raw_minnow.svg"
-dest_files=["res://.godot/imported/raw_minnow.svg-e08c27e16b3c220379bee6008ba7df97.ctex"]
+source_file="res://assets/icons/items/fish/cooked_salmon.svg"
+dest_files=["res://.godot/imported/cooked_salmon.svg-ae8074fd10dc4c8d576f9d872a748c40.ctex"]
 
 [params]
 

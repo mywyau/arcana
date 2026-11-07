@@ -26,6 +26,14 @@ const (
 	ItemMithrilBar        = "mithril_bar"
 	ItemCookedMinnow      = "cooked_minnow"
 	ItemRawMinnow         = "raw_minnow"
+	ItemRawTrout          = "raw_trout"
+	ItemCookedTrout       = "cooked_trout"
+	ItemRawSalmon         = "raw_salmon"
+	ItemCookedSalmon      = "cooked_salmon"
+	ItemRawTuna           = "raw_tuna"
+	ItemCookedTuna        = "cooked_tuna"
+	ItemRawLobster        = "raw_lobster"
+	ItemCookedLobster     = "cooked_lobster"
 )
 
 type ConsumableDefinition struct {
@@ -54,7 +62,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponUnarmed, AccuracyBonus: 0, MeleeStrength: 1, DamageVariance: 0, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleCrush, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleDefensive),
 	},
 	{
-		ID: string(WeaponSword), Name: "Sword", Kind: ItemKindWeapon,
+		ID: string(WeaponSword), Name: "Iron Sword", Kind: ItemKindWeapon,
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
 	{
@@ -64,6 +72,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+	},
+	{
+		ID: string(WeaponMithrilSword), Name: "Mithril Sword", Kind: ItemKindWeapon,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
 	{
 		ID: string(WeaponRuneSword), Name: "Rune Sword", Kind: ItemKindWeapon,
@@ -96,6 +108,26 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{
 		ID: ItemBronzeHelm, Name: "Bronze Helm", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 3, Ranged: 1, Magic: -1}},
+	},
+	{
+		ID: ItemBronzePlate, Name: "Bronze Platebody", Kind: ItemKindArmour,
+		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 3, Magic: -2}},
+	},
+	{
+		ID: ItemIronHelm, Name: "Iron Helm", Kind: ItemKindArmour,
+		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 4, Ranged: 2, Magic: -1}},
+	},
+	{
+		ID: ItemIronPlate, Name: "Iron Platebody", Kind: ItemKindArmour,
+		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 9, Ranged: 7, Magic: -3}},
+	},
+	{
+		ID: ItemMithrilHelm, Name: "Mithril Helm", Kind: ItemKindArmour,
+		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 4, Magic: -2}},
+	},
+	{
+		ID: ItemMithrilPlate, Name: "Mithril Platebody", Kind: ItemKindArmour,
+		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 11, Magic: -5}},
 	},
 	{
 		ID: ItemTrainingPlate, Name: "Training Plate", Kind: ItemKindArmour,
@@ -136,6 +168,14 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2},
 	},
 	{ID: ItemRawMinnow, Name: "Raw Minnow", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemRawTrout, Name: "Raw Trout", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemCookedTrout, Name: "Cooked Trout", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 12, CooldownPulses: 2}},
+	{ID: ItemRawSalmon, Name: "Raw Salmon", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemCookedSalmon, Name: "Cooked Salmon", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 16, CooldownPulses: 2}},
+	{ID: ItemRawTuna, Name: "Raw Tuna", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemCookedTuna, Name: "Cooked Tuna", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 20, CooldownPulses: 2}},
+	{ID: ItemRawLobster, Name: "Raw Lobster", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemCookedLobster, Name: "Cooked Lobster", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 25, CooldownPulses: 2}},
 	{ID: trainingShardItem, Name: "Training Shard", Kind: ItemKindResource},
 })
 

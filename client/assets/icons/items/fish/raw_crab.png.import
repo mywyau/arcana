@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dn6dtv18w73yx"
-path="res://.godot/imported/Faceted Salmon Game Icon-1.png-8a875c43b7f74f54640fb07da54a2993.ctex"
+uid="uid://ogp7nquy4tcv"
+path="res://.godot/imported/raw_crab.png-e88c6e0b8074e5e96b2fd814dd1fe969.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/fish/Faceted Salmon Game Icon-1.png"
-dest_files=["res://.godot/imported/Faceted Salmon Game Icon-1.png-8a875c43b7f74f54640fb07da54a2993.ctex"]
+source_file="res://assets/icons/items/fish/raw_crab.png"
+dest_files=["res://.godot/imported/raw_crab.png-e88c6e0b8074e5e96b2fd814dd1fe969.ctex"]
 
 [params]
 

@@ -49,6 +49,12 @@ func main() {
 		{position: simulation.Position{X: 7, Z: -7}, itemID: simulation.ItemCookedMinnow, quantity: 10},
 		{position: simulation.Position{X: 9, Z: -7}, itemID: simulation.ItemCoins, quantity: 1000},
 		{position: simulation.Position{X: 10, Z: 10}, itemID: simulation.ItemBronzePickaxe, quantity: 1},
+		{position: simulation.Position{X: -5, Z: -9}, itemID: simulation.ItemBronzePlate, quantity: 1},
+		{position: simulation.Position{X: -3, Z: -9}, itemID: simulation.ItemIronHelm, quantity: 1},
+		{position: simulation.Position{X: -1, Z: -9}, itemID: simulation.ItemIronPlate, quantity: 1},
+		{position: simulation.Position{X: 1, Z: -9}, itemID: string(simulation.WeaponMithrilSword), quantity: 1},
+		{position: simulation.Position{X: 3, Z: -9}, itemID: simulation.ItemMithrilHelm, quantity: 1},
+		{position: simulation.Position{X: 5, Z: -9}, itemID: simulation.ItemMithrilPlate, quantity: 1},
 	}
 	for _, drop := range initialDrops {
 		if err := world.AddWorldDrop(drop.position, drop.itemID, drop.quantity); err != nil {

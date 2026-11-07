@@ -50,3 +50,28 @@ func TestApplyForgingRecipeDoesNotConsumePartialInputs(t *testing.T) {
 		t.Fatalf("failed forge consumed bars: %+v", player.inventory)
 	}
 }
+
+func TestForgingRecipesCoverMetalEquipmentProgression(t *testing.T) {
+	tests := []struct {
+		id     ForgingRecipeID
+		level  int
+		bar    string
+		bars   int
+		output string
+	}{
+		{ForgingBronzePlate, 2, ItemBronzeBar, 5, ItemBronzePlate},
+		{ForgingIronSword, 3, ItemIronBar, 2, string(WeaponSword)},
+		{ForgingIronHelm, 3, ItemIronBar, 2, ItemIronHelm},
+		{ForgingIronPlate, 4, ItemIronBar, 5, ItemIronPlate},
+		{ForgingMithrilSword, 6, ItemMithrilBar, 3, string(WeaponMithrilSword)},
+		{ForgingMithrilHelm, 6, ItemMithrilBar, 3, ItemMithrilHelm},
+		{ForgingMithrilPlate, 7, ItemMithrilBar, 6, ItemMithrilPlate},
+	}
+	for _, test := range tests {
+		recipe, exists := forgingRecipe(test.id)
+		if !exists || recipe.RequiredLevel != test.level || recipe.RewardItem != test.output ||
+			len(recipe.Costs) != 1 || recipe.Costs[0] != (ItemCost{ItemID: test.bar, Quantity: test.bars}) {
+			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
+		}
+	}
+}

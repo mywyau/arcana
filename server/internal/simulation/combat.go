@@ -71,16 +71,17 @@ const (
 type WeaponID string
 
 const (
-	WeaponSword       WeaponID = "sword"
-	WeaponBronzeSword WeaponID = "bronze_sword"
-	WeaponUnarmed     WeaponID = "unarmed"
-	WeaponSteelSword  WeaponID = "steel_sword"
-	WeaponRuneSword   WeaponID = "rune_sword"
-	WeaponDagger      WeaponID = "dagger"
-	WeaponBow         WeaponID = "bow"
-	WeaponMace        WeaponID = "mace"
-	WeaponBattleAxe   WeaponID = "battle_axe"
-	WeaponStaff       WeaponID = "staff"
+	WeaponSword        WeaponID = "sword"
+	WeaponBronzeSword  WeaponID = "bronze_sword"
+	WeaponMithrilSword WeaponID = "mithril_sword"
+	WeaponUnarmed      WeaponID = "unarmed"
+	WeaponSteelSword   WeaponID = "steel_sword"
+	WeaponRuneSword    WeaponID = "rune_sword"
+	WeaponDagger       WeaponID = "dagger"
+	WeaponBow          WeaponID = "bow"
+	WeaponMace         WeaponID = "mace"
+	WeaponBattleAxe    WeaponID = "battle_axe"
+	WeaponStaff        WeaponID = "staff"
 )
 
 type CombatStyleID string
