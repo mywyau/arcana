@@ -536,7 +536,7 @@ func (w *World) Snapshot() Snapshot {
 		Targets:        make([]TargetSnapshot, 0, len(w.combat.targets)),
 		Drops:          make([]DropSnapshot, 0, len(w.drops)),
 		GatheringSpots: w.gatheringSpotSnapshots(),
-		BankChests:     []BankChestSnapshot{starterBankChest},
+		BankChests:     []BankChestSnapshot{starterBankChest, testSupplyChest},
 		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {

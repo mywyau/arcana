@@ -28,6 +28,7 @@ const (
 	starterNormalTreeID       = "starter_normal_tree"
 	starterOakTreeID          = "starter_oak_tree"
 	starterAgilityObstacleID  = "starter_balance_beam"
+	starterPrayerAltarID      = "starter_prayer_altar"
 	miningInterval            = 4
 	miningExperience          = 10
 	copperVeinCapacity        = 20
@@ -49,6 +50,7 @@ const (
 	craftingStationCooking  craftingStationID = "cooking"
 	craftingStationSmelting craftingStationID = "smelting"
 	craftingStationForging  craftingStationID = "forging"
+	craftingStationPrayer   craftingStationID = "prayer_altar"
 )
 
 type GatheringSpotSnapshot struct {
@@ -128,7 +130,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterCopperVeinID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCopperVeinID, Name: "Copper Vein", Skill: SkillMining,
-				Position: Position{X: 12, Z: 10}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 19, Z: 12}, Range: gatheringRange, RequiredLevel: 1,
 				CurrentAmount: copperVeinCapacity, MaximumAmount: copperVeinCapacity,
 			},
 			RewardItem: ItemCopperOre, RewardQuantity: 1, RewardXP: miningExperience,
@@ -136,10 +138,10 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe,
 			RechargePulses: copperRechargePulses,
 		},
-		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 8, Z: 15}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
-		starterIronVeinID:    miningVein(starterIronVeinID, "Iron Vein", Position{X: 16, Z: 10}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
-		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 12, Z: 15}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
-		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 16, Z: 15}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
+		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 22, Z: 15}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
+		starterIronVeinID:    miningVein(starterIronVeinID, "Iron Vein", Position{X: 25, Z: 11}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
+		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 20, Z: 18}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
+		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 25, Z: 18}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
 		starterNormalTreeID:  woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
 		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -14, Z: -4}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
 		starterAgilityObstacleID: {
@@ -149,6 +151,14 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			},
 			RewardXP: agilityObstacleExperience, Interval: agilityObstacleInterval,
 			ActiveResult: "balancing", RewardResult: "completed_agility_obstacle", TrainingOnly: true,
+		},
+		starterPrayerAltarID: {
+			GatheringSpotSnapshot: GatheringSpotSnapshot{
+				ID: starterPrayerAltarID, Name: "Prayer Altar", Skill: SkillID("prayer"),
+				Position: Position{X: -8, Z: -14}, Range: gatheringRange, RequiredLevel: 1,
+				Station: craftingStationPrayer,
+			},
+			Interval: 1, ActiveResult: "praying", RewardResult: "prayer_restored",
 		},
 	}
 }
@@ -270,9 +280,6 @@ func (w *World) QueueGather(command GatherCommand) error {
 			}
 		}
 	}
-	if spot.RequiredTool != "" && !player.inventory.contains(spot.RequiredTool) {
-		return fmt.Errorf("required tool %q is missing", spot.RequiredTool)
-	}
 	if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
 		return fmt.Errorf("gathering spot %q is depleted", spot.ID)
 	}
@@ -376,6 +383,12 @@ func (w *World) resolveGatheringActions() {
 		if player.destination != nil {
 			stopPlayer(player)
 		}
+		// Resolve tool requirements at the resource so the approach remains a
+		// valid server-driven route even when the player lacks the tool.
+		if spot.RequiredTool != "" && !player.inventory.contains(spot.RequiredTool) {
+			clearGathering(player, spot.MissingResult)
+			continue
+		}
 		if w.combat.pulse < player.nextGatherPulse {
 			player.gatheringResult = spot.ActiveResult
 			continue
@@ -449,13 +462,14 @@ func (w *World) resolveGatheringActions() {
 			player.nextGatherPulse = w.combat.pulse + recipe.Interval
 			continue
 		}
-		if spot.TrainingOnly {
-			grantSkillExperience(player, spot.Skill, spot.RewardXP)
+		if spot.Station == craftingStationPrayer {
+			player.prayer = player.maximumPrayer
 			clearGathering(player, spot.RewardResult)
 			continue
 		}
-		if spot.RequiredTool != "" && !player.inventory.contains(spot.RequiredTool) {
-			clearGathering(player, spot.MissingResult)
+		if spot.TrainingOnly {
+			grantSkillExperience(player, spot.Skill, spot.RewardXP)
+			clearGathering(player, spot.RewardResult)
 			continue
 		}
 		if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {

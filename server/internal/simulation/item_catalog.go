@@ -16,6 +16,12 @@ const (
 	ItemCoins             = "coins"
 	ItemBronzePickaxe     = "bronze_pickaxe"
 	ItemBronzeAxe         = "bronze_axe"
+	ItemKnife             = "knife"
+	ItemChisel            = "chisel"
+	ItemSewingNeedle      = "sewing_needle"
+	ItemThread            = "thread"
+	ItemTinderbox         = "tinderbox"
+	ItemHammer            = "hammer"
 	ItemNormalLogs        = "normal_logs"
 	ItemOakLogs           = "oak_logs"
 	ItemCopperOre         = "copper_ore"
@@ -198,6 +204,12 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
 	{ID: ItemBronzeAxe, Name: "Bronze Axe", Kind: ItemKindResource},
+	{ID: ItemKnife, Name: "Knife", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemChisel, Name: "Chisel", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemSewingNeedle, Name: "Sewing Needle", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemThread, Name: "Thread", Kind: ItemKindResource, StackLimit: 100},
+	{ID: ItemTinderbox, Name: "Tinderbox", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemHammer, Name: "Hammer", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource},

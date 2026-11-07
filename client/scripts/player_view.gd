@@ -1,6 +1,13 @@
 class_name PlayerView
 extends Node3D
 
+const BRONZE_COLOUR := Color("9a5b32")
+const IRON_COLOUR := Color("4b535b")
+const STEEL_COLOUR := Color("c8d0d8")
+const MITHRIL_COLOUR := Color("2f9fda")
+const RUNE_COLOUR := Color("3ca66b")
+const TRAINING_COLOUR := Color("7b8790")
+
 @export var interpolation_speed: float = 14.0
 @export var movement_speed: float = 6.0
 @export var correction_threshold: float = 0.75
@@ -29,7 +36,9 @@ extends Node3D
 @onready var hilt: MeshInstance3D = $VisualRoot/WeaponAnchor/SwordPivot/Hilt
 @onready var bow_pivot: Node3D = $VisualRoot/WeaponAnchor/BowPivot
 @onready var mace_pivot: Node3D = $VisualRoot/WeaponAnchor/MacePivot
+@onready var mace_head: MeshInstance3D = $VisualRoot/WeaponAnchor/MacePivot/Head
 @onready var battle_axe_pivot: Node3D = $VisualRoot/WeaponAnchor/BattleAxePivot
+@onready var battle_axe_blade: MeshInstance3D = $VisualRoot/WeaponAnchor/BattleAxePivot/Blade
 @onready var staff_pivot: Node3D = $VisualRoot/WeaponAnchor/StaffPivot
 @onready var damage_label: Label3D = $DamageLabel
 
@@ -49,6 +58,7 @@ var _following_server_path: bool = false
 var _equipped_weapon: String = "sword"
 var _equipped_armour: Dictionary = {}
 var _walk_time: float = 0.0
+var _equipment_materials: Dictionary = {}
 
 
 func _process(delta: float) -> void:
@@ -177,15 +187,16 @@ func play_weapon_attack(target_position: Vector3) -> float:
 		return _play_bow_attack(target_position)
 	if _equipped_weapon == "staff":
 		return _play_staff_attack(target_position)
-	if _equipped_weapon == "mace":
+	if _equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"):
 		_play_melee_attack(mace_pivot, -50.0, 65.0, 0.2, 0.28)
 		return 0.0
-	if _equipped_weapon == "battle_axe":
+	if _equipped_weapon == "battle_axe" or _equipped_weapon.ends_with("_battle_axe"):
 		_play_melee_attack(battle_axe_pivot, -55.0, 75.0, 0.24, 0.34)
 		return 0.0
 
-	var forward_duration: float = 0.11 if _equipped_weapon == "dagger" else 0.16
-	var return_duration: float = 0.14 if _equipped_weapon == "dagger" else 0.22
+	var is_dagger: bool = _equipped_weapon == "dagger" or _equipped_weapon.ends_with("_dagger")
+	var forward_duration: float = 0.11 if is_dagger else 0.16
+	var return_duration: float = 0.14 if is_dagger else 0.22
 	_play_melee_attack(sword_pivot, -55.0, 70.0, forward_duration, return_duration)
 	return 0.0
 
@@ -328,8 +339,9 @@ func _play_staff_attack(target_position: Vector3) -> float:
 
 func set_weapon(weapon_id: String) -> void:
 	_equipped_weapon = weapon_id
-	var dagger_equipped: bool = weapon_id == "dagger"
+	var dagger_equipped: bool = weapon_id == "dagger" or weapon_id.ends_with("_dagger")
 	_update_weapon_visibility()
+	_update_weapon_material()
 	blade.scale = Vector3(0.8, 0.55, 1.0) if dagger_equipped else Vector3.ONE
 	blade.position.y = 0.3 if dagger_equipped else 0.5
 	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
@@ -342,29 +354,85 @@ func set_armour(equipped_armour: Dictionary) -> void:
 	var head_item: String = str(_equipped_armour.get("head", ""))
 	var body_item: String = str(_equipped_armour.get("body", ""))
 	var feet_item: String = str(_equipped_armour.get("feet", ""))
-	training_helm.visible = head_item == "training_helm" or head_item == "bronze_helm"
+	training_helm.visible = head_item == "training_helm" or _is_tiered_item(head_item, "helm")
 	swift_helm.visible = head_item == "swift_helm"
 	var helmet_equipped: bool = training_helm.visible or swift_helm.visible
 	hair_top.visible = not helmet_equipped
 	hair_back.visible = not helmet_equipped
-	training_plate.visible = body_item == "training_plate"
+	training_plate.visible = body_item == "training_plate" or _is_tiered_item(body_item, "platebody")
 	swift_body.visible = body_item == "swift_body"
 	swift_chest_trim.visible = swift_body.visible
 	swift_boots.visible = feet_item == "swift_boots"
+	if training_helm.visible:
+		_apply_material_to_meshes(training_helm, _material_for_item(head_item))
+	if training_plate.visible:
+		training_plate.material_override = _material_for_item(body_item)
 
 
 func _update_weapon_visibility() -> void:
-	sword_pivot.visible = not _defeated and (
+	var is_sword_or_dagger: bool = (
 		_equipped_weapon == "sword" or
-		_equipped_weapon == "bronze_sword" or
-		_equipped_weapon == "steel_sword" or
-		_equipped_weapon == "rune_sword" or
-		_equipped_weapon == "dagger"
+		_equipped_weapon == "dagger" or
+		_equipped_weapon.ends_with("_sword") or
+		_equipped_weapon.ends_with("_dagger")
 	)
+	sword_pivot.visible = not _defeated and is_sword_or_dagger
 	bow_pivot.visible = not _defeated and _equipped_weapon == "bow"
-	mace_pivot.visible = not _defeated and _equipped_weapon == "mace"
-	battle_axe_pivot.visible = not _defeated and _equipped_weapon == "battle_axe"
+	mace_pivot.visible = not _defeated and (_equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"))
+	battle_axe_pivot.visible = not _defeated and (_equipped_weapon == "battle_axe" or _equipped_weapon.ends_with("_battle_axe"))
 	staff_pivot.visible = not _defeated and _equipped_weapon == "staff"
+
+
+func _update_weapon_material() -> void:
+	var material: StandardMaterial3D = _material_for_item(_equipped_weapon)
+	blade.material_override = material
+	mace_head.material_override = material
+	battle_axe_blade.material_override = material
+
+
+func _is_tiered_item(item_id: String, item_suffix: String) -> bool:
+	return item_id.ends_with("_" + item_suffix) and (
+		item_id.begins_with("bronze_") or
+		item_id.begins_with("iron_") or
+		item_id.begins_with("steel_") or
+		item_id.begins_with("mithril_") or
+		item_id.begins_with("rune_")
+	)
+
+
+func _material_for_item(item_id: String) -> StandardMaterial3D:
+	var tier: String = "training"
+	var colour: Color = TRAINING_COLOUR
+	if item_id.begins_with("bronze_"):
+		tier = "bronze"
+		colour = BRONZE_COLOUR
+	elif item_id.begins_with("steel_"):
+		tier = "steel"
+		colour = STEEL_COLOUR
+	elif item_id.begins_with("mithril_"):
+		tier = "mithril"
+		colour = MITHRIL_COLOUR
+	elif item_id.begins_with("rune_"):
+		tier = "rune"
+		colour = RUNE_COLOUR
+	elif item_id.begins_with("iron_") or item_id in ["sword", "dagger", "mace", "battle_axe"]:
+		tier = "iron"
+		colour = IRON_COLOUR
+	if _equipment_materials.has(tier):
+		return _equipment_materials[tier] as StandardMaterial3D
+	var material := StandardMaterial3D.new()
+	material.albedo_color = colour
+	material.metallic = 0.68
+	material.roughness = 0.3
+	_equipment_materials[tier] = material
+	return material
+
+
+func _apply_material_to_meshes(node: Node, material: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = material
+	for child: Node in node.get_children():
+		_apply_material_to_meshes(child, material)
 
 
 func play_hit(damage: int) -> void:

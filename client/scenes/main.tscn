@@ -104,6 +104,15 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
+[sub_resource type="StyleBoxFlat" id="UtilityStripStyle"]
+bg_color = Color(0.055, 0.075, 0.095, 0.96)
+border_width_top = 2
+border_color = Color(0.24, 0.31, 0.37, 0.95)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
 [sub_resource type="StyleBoxFlat" id="HUDBarBackground"]
 bg_color = Color(0.08, 0.1, 0.12, 0.95)
 corner_radius_top_left = 4
@@ -610,6 +619,158 @@ size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 5
+
+[node name="UtilityTabs" type="PanelContainer" parent="UI/InventoryHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_styles/panel = SubResource("UtilityStripStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/InventoryHUD/Margin/VBox/UtilityTabs"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="Row" type="HBoxContainer" parent="UI/InventoryHUD/Margin/VBox/UtilityTabs/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Spacer" type="Control" parent="UI/InventoryHUD/Margin/VBox/UtilityTabs/Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Settings" type="Button" parent="UI/InventoryHUD/Margin/VBox/UtilityTabs/Margin/Row"]
+custom_minimum_size = Vector2(118, 44)
+layout_mode = 2
+text = "⚙  Settings"
+tooltip_text = "Open settings"
+
+[node name="SettingsHUD" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -620.0
+offset_top = -670.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/SettingsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/SettingsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Settings"
+theme_override_font_sizes/font_size = 26
+
+[node name="Divider" type="HSeparator" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="InterfaceTitle" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Interface"
+theme_override_font_sizes/font_size = 20
+
+[node name="ShowDiagnostics" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+button_pressed = true
+text = "Show network diagnostics"
+
+[node name="AudioTitle" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Audio"
+theme_override_font_sizes/font_size = 20
+
+[node name="MusicVolume" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="UI/SettingsHUD/Margin/VBox/MusicVolume"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "Music volume"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="UI/SettingsHUD/Margin/VBox/MusicVolume"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 1.0
+value = 40.0
+
+[node name="Value" type="Label" parent="UI/SettingsHUD/Margin/VBox/MusicVolume"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+text = "40%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="EditHUD" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Edit HUD layout"
+
+[node name="ResetHUD" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Reset HUD layout"
+
+[node name="ShortcutHint" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+text = "F10 toggles HUD editing • Shift+F10 resets the layout"
+autowrap_mode = 2
+
+[node name="ContentSpacer" type="Control" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="UtilityTabs" type="PanelContainer" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_styles/panel = SubResource("UtilityStripStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="Row" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Inventory" type="Button" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
+custom_minimum_size = Vector2(118, 44)
+layout_mode = 2
+text = "Inventory"
+tooltip_text = "Return to inventory"
+
+[node name="Spacer" type="Control" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Settings" type="Button" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
+custom_minimum_size = Vector2(118, 44)
+layout_mode = 2
+disabled = true
+text = "⚙  Settings"
 
 [node name="SkillsHUD" type="PanelContainer" parent="UI"]
 visible = false

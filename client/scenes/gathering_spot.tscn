@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/gathering_spot.gd" id="1_spot"]
 
@@ -59,6 +59,21 @@ top_radius = 0.46
 bottom_radius = 0.46
 height = 0.06
 radial_segments = 24
+
+[sub_resource type="StandardMaterial3D" id="AltarLightMaterial"]
+transparency = 1
+albedo_color = Color(0.72, 0.9, 1, 0.9)
+emission_enabled = true
+emission = Color(0.28, 0.62, 1, 1)
+emission_energy_multiplier = 2.2
+roughness = 0.2
+
+[sub_resource type="CylinderMesh" id="AltarLightMesh"]
+material = SubResource("AltarLightMaterial")
+top_radius = 0.38
+bottom_radius = 0.5
+height = 0.16
+radial_segments = 16
 
 [sub_resource type="StandardMaterial3D" id="RockMaterial"]
 albedo_color = Color(0.25, 0.23, 0.21, 1)
@@ -228,6 +243,24 @@ mesh = SubResource("RangeBackMesh")
 position = Vector3(1.6, 0.3, 0)
 scale = Vector3(0.18, 0.36, 0.28)
 mesh = SubResource("RangeBackMesh")
+
+[node name="AltarVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="Base" type="MeshInstance3D" parent="AltarVisual"]
+position = Vector3(0, 0.28, 0)
+scale = Vector3(0.82, 0.32, 0.72)
+mesh = SubResource("RangeBaseMesh")
+
+[node name="Pedestal" type="MeshInstance3D" parent="AltarVisual"]
+position = Vector3(0, 0.78, 0.15)
+scale = Vector3(0.42, 0.7, 0.42)
+mesh = SubResource("RangeBackMesh")
+
+[node name="Light" type="MeshInstance3D" parent="AltarVisual"]
+position = Vector3(0, 1.3, 0)
+scale = Vector3(0.72, 0.72, 0.72)
+mesh = SubResource("AltarLightMesh")
 
 [node name="Horn" type="MeshInstance3D" parent="AnvilVisual"]
 position = Vector3(0.82, 0.87, 0)

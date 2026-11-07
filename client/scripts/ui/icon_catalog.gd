@@ -64,6 +64,12 @@ const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_sha
 const COINS: Texture2D = preload("res://assets/icons/items/coins.png")
 const BRONZE_PICKAXE: Texture2D = preload("res://assets/icons/items/bronze_pickaxe.svg")
 const BRONZE_AXE: Texture2D = preload("res://assets/icons/items/bronze_axe.svg")
+const KNIFE: Texture2D = preload("res://assets/icons/items/tools/knife.svg")
+const CHISEL: Texture2D = preload("res://assets/icons/items/tools/chisel.svg")
+const SEWING_NEEDLE: Texture2D = preload("res://assets/icons/items/tools/sewing_needle.svg")
+const THREAD: Texture2D = preload("res://assets/icons/items/tools/thread.svg")
+const TINDERBOX: Texture2D = preload("res://assets/icons/items/tools/tinderbox.svg")
+const HAMMER: Texture2D = preload("res://assets/icons/items/tools/hammer.svg")
 const NORMAL_LOGS: Texture2D = preload("res://assets/icons/logs/normal_logs_150.png")
 const OAK_LOGS: Texture2D = preload("res://assets/icons/logs/oak_logs_150.png")
 const COPPER_ORE: Texture2D = preload("res://assets/icons/ore/Pixel-Art Copper Ore Cluster-1.png")
@@ -188,6 +194,12 @@ const ITEMS: Dictionary = {
 	"coins": COINS,
 	"bronze_pickaxe": BRONZE_PICKAXE,
 	"bronze_axe": BRONZE_AXE,
+	"knife": KNIFE,
+	"chisel": CHISEL,
+	"sewing_needle": SEWING_NEEDLE,
+	"thread": THREAD,
+	"tinderbox": TINDERBOX,
+	"hammer": HAMMER,
 	"normal_logs": NORMAL_LOGS,
 	"oak_logs": OAK_LOGS,
 	"copper_ore": COPPER_ORE,

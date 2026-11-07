@@ -1,6 +1,20 @@
 class_name LootDrop
 extends Node3D
 
+const DEFAULT_ICON_WORLD_SIZE: float = 0.78
+const ICON_PRESENTATION: Dictionary = {
+	# World size is the longest visible edge in metres. Rotation is applied
+	# within the ground plane, which makes long silhouettes less repetitive.
+	"knife": {"world_size": 0.72, "rotation": -18.0},
+	"chisel": {"world_size": 0.72, "rotation": 14.0},
+	"sewing_needle": {"world_size": 0.62, "rotation": -28.0},
+	"thread": {"world_size": 0.58, "rotation": 8.0},
+	"tinderbox": {"world_size": 0.64, "rotation": -6.0},
+	"hammer": {"world_size": 0.82, "rotation": 22.0},
+	"iron_arrow": {"world_size": 0.72, "rotation": -24.0},
+	"air_rune": {"world_size": 0.56, "rotation": 0.0},
+}
+
 @onready var visual: Node3D = $Visual
 @onready var mesh: MeshInstance3D = $Visual/Mesh
 @onready var icon_sprite: Sprite3D = $Visual/IconSprite
@@ -50,6 +64,10 @@ func _build_item_visual(item_id: String) -> void:
 	mesh.rotation = Vector3.ZERO
 	mesh.scale = Vector3.ONE
 	mesh.visible = true
+	icon_sprite.position = Vector3(0.0, 0.04, 0.0)
+	icon_sprite.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	icon_sprite.scale = Vector3.ONE
+	icon_sprite.offset = Vector2.ZERO
 	icon_sprite.visible = false
 	if item_id == "coins":
 		visual.position.y = 0.06
@@ -143,8 +161,7 @@ func _build_item_visual(item_id: String) -> void:
 		var item_icon: Texture2D = IconCatalog.ITEMS.get(item_id) as Texture2D
 		if item_icon != null:
 			mesh.visible = false
-			icon_sprite.texture = item_icon
-			icon_sprite.visible = true
+			_configure_icon_sprite(item_id, item_icon)
 		return
 	mesh.position.y = 0.42
 	var blade_mesh := BoxMesh.new()
@@ -159,3 +176,20 @@ func _build_item_visual(item_id: String) -> void:
 	blade_mesh.material = blade_material
 	mesh.mesh = blade_mesh
 	mesh.rotation_degrees.z = -35.0
+
+
+func _configure_icon_sprite(item_id: String, texture: Texture2D) -> void:
+	var centered_texture := IconCatalog.centered_icon(texture)
+	icon_sprite.texture = centered_texture
+	var visible_size := Vector2i(centered_texture.get_width(), centered_texture.get_height())
+	var image := centered_texture.get_image()
+	if image != null and not image.is_empty():
+		var used_rect := image.get_used_rect()
+		if used_rect.size.x > 0 and used_rect.size.y > 0:
+			visible_size = used_rect.size
+	var longest_edge: int = maxi(visible_size.x, visible_size.y)
+	var presentation: Dictionary = ICON_PRESENTATION.get(item_id, {}) as Dictionary
+	var world_size: float = float(presentation.get("world_size", DEFAULT_ICON_WORLD_SIZE))
+	icon_sprite.pixel_size = world_size / float(maxi(longest_edge, 1))
+	icon_sprite.rotation_degrees.z = float(presentation.get("rotation", 0.0))
+	icon_sprite.visible = true

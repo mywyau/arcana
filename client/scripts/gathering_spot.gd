@@ -12,6 +12,7 @@ extends Node3D
 @onready var anvil_visual: Node3D = $AnvilVisual
 @onready var tree_visual: Node3D = $TreeVisual
 @onready var agility_visual: Node3D = $AgilityVisual
+@onready var altar_visual: Node3D = $AltarVisual
 @onready var full_tree_visual: Node3D = $TreeVisual/FullTree
 @onready var stump_visual: Node3D = $TreeVisual/Stump
 @onready var ore_meshes: Array[MeshInstance3D] = [$MineVisual/CopperA, $MineVisual/CopperB]
@@ -27,16 +28,18 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 	var is_anvil: bool = station == "forging"
 	var is_tree: bool = skill == "woodcutting"
 	var is_agility: bool = skill == "agility"
-	pond_visual.visible = not is_cooking_range and not is_mine and not is_furnace and not is_anvil and not is_tree and not is_agility
+	var is_prayer_altar: bool = station == "prayer_altar"
+	pond_visual.visible = not is_cooking_range and not is_mine and not is_furnace and not is_anvil and not is_tree and not is_agility and not is_prayer_altar
 	range_visual.visible = is_cooking_range
 	mine_visual.visible = is_mine
 	furnace_visual.visible = is_furnace
 	anvil_visual.visible = is_anvil
 	tree_visual.visible = is_tree
 	agility_visual.visible = is_agility
+	altar_visual.visible = is_prayer_altar
 	default_collision.disabled = is_tree
 	tree_collision.disabled = not is_tree
-	label.position.y = 3.65 if is_tree else 2.45 if is_furnace else 1.6 if is_agility else 1.4 if is_anvil else 1.15
+	label.position.y = 3.65 if is_tree else 2.45 if is_furnace else 2.15 if is_prayer_altar else 1.6 if is_agility else 1.4 if is_anvil else 1.15
 	if is_tree:
 		var foliage_material := StandardMaterial3D.new()
 		foliage_material.albedo_color = Color(0.24, 0.48, 0.16) if id == "starter_oak_tree" else Color(0.31, 0.59, 0.2)

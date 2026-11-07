@@ -69,6 +69,31 @@ func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
 	}
 }
 
+func TestPrayerAltarRestoresPrayerToMaximum(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterPrayerAltarID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.players["player-one"].prayer = 7
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterPrayerAltarID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.Prayer != player.MaximumPrayer {
+		t.Fatalf("prayer after altar = %d/%d, want full", player.Prayer, player.MaximumPrayer)
+	}
+	if player.GatheringSpot != "" || player.GatheringResult != "prayer_restored" {
+		t.Fatalf("altar did not finish as a one-shot interaction: %+v", player)
+	}
+}
+
 func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	world := NewWorld()
 	pond := world.gatheringSpots[starterSalmonSpotID]
@@ -271,12 +296,17 @@ func TestCopperVeinRequiresPickaxeAndConsumesSharedCapacity(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	command := GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterCopperVeinID}
-	if err := world.QueueGather(command); err == nil {
-		t.Fatal("QueueGather() error = nil without a Bronze Pickaxe")
+	if err := world.QueueGather(command); err != nil {
+		t.Fatalf("QueueGather() rejected an approach without a Bronze Pickaxe: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_bronze_pickaxe" || player.GatheringSpot != "" {
+		t.Fatalf("player without a pickaxe = %+v, want stopped with a missing-tool result", player)
 	}
 	if !world.players["player-one"].inventory.add(ItemBronzePickaxe, 1) {
 		t.Fatal("failed to add Bronze Pickaxe")
 	}
+	command.Sequence = 2
 	if err := world.QueueGather(command); err != nil {
 		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
 	}
@@ -343,12 +373,17 @@ func TestNormalTreeRequiresAxeAndGrantsWoodcuttingXP(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	command := GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterNormalTreeID}
-	if err := world.QueueGather(command); err == nil {
-		t.Fatal("QueueGather() error = nil without a Bronze Axe")
+	if err := world.QueueGather(command); err != nil {
+		t.Fatalf("QueueGather() rejected an approach without a Bronze Axe: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_bronze_axe" || player.GatheringSpot != "" {
+		t.Fatalf("player without an axe = %+v, want stopped with a missing-tool result", player)
 	}
 	if !world.players["player-one"].inventory.add(ItemBronzeAxe, 1) {
 		t.Fatal("failed to add Bronze Axe")
 	}
+	command.Sequence = 2
 	if err := world.QueueGather(command); err != nil {
 		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
 	}
@@ -366,6 +401,30 @@ func TestNormalTreeRequiresAxeAndGrantsWoodcuttingXP(t *testing.T) {
 	}
 	if got := world.gatheringSpots[starterNormalTreeID].CurrentAmount; got != normalTreeCapacity-1 {
 		t.Fatalf("tree amount = %d, want %d", got, normalTreeCapacity-1)
+	}
+}
+
+func TestMissingGatheringToolApproachesAndStopsWithinRange(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterNormalTreeID]
+	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
+	if err := world.AddPlayer("player-one", start, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueGather(GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterNormalTreeID}); err != nil {
+		t.Fatalf("QueueGather() rejected a missing-tool approach: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if distance(player.Position, spot.Position) > spot.Range {
+		t.Fatalf("player stopped %.2f away, want within interaction range %.2f", distance(player.Position, spot.Position), spot.Range)
+	}
+	if player.Destination != nil || len(player.Path) != 0 {
+		t.Fatalf("player continued moving after reaching the tree: %+v", player)
+	}
+	if player.GatheringResult != "missing_bronze_axe" {
+		t.Fatalf("gathering result = %q, want missing_bronze_axe", player.GatheringResult)
 	}
 }
 

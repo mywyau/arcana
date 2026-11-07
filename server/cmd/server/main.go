@@ -29,40 +29,45 @@ func main() {
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
 	initialDrops := []struct {
-		position simulation.Position
 		itemID   string
 		quantity int
 	}{
-		{position: simulation.Position{X: -5, Z: -7}, itemID: string(simulation.WeaponSword), quantity: 1},
-		{position: simulation.Position{X: -3, Z: -7}, itemID: string(simulation.WeaponDagger), quantity: 1},
-		{position: simulation.Position{X: -1, Z: -7}, itemID: string(simulation.WeaponBow), quantity: 1},
-		{position: simulation.Position{X: -1, Z: -5.5}, itemID: simulation.ItemIronArrow, quantity: 100},
-		{position: simulation.Position{X: 1, Z: -7}, itemID: string(simulation.WeaponMace), quantity: 1},
-		{position: simulation.Position{X: 3, Z: -7}, itemID: string(simulation.WeaponBattleAxe), quantity: 1},
-		{position: simulation.Position{X: 5, Z: -7}, itemID: string(simulation.WeaponStaff), quantity: 1},
-		{position: simulation.Position{X: -2, Z: -5}, itemID: string(simulation.WeaponSteelSword), quantity: 1},
-		{position: simulation.Position{X: -1, Z: -5}, itemID: simulation.ItemAirRune, quantity: 50},
-		{position: simulation.Position{X: 1, Z: -5}, itemID: simulation.ItemSwiftHelm, quantity: 1},
-		{position: simulation.Position{X: 3, Z: -5}, itemID: simulation.ItemSwiftBody, quantity: 1},
-		{position: simulation.Position{X: 5, Z: -5}, itemID: simulation.ItemSwiftBoots, quantity: 1},
-		{position: simulation.Position{X: 7, Z: -5}, itemID: simulation.ItemStandardSpellbook, quantity: 1},
-		{position: simulation.Position{X: 7, Z: -7}, itemID: simulation.ItemCookedMinnow, quantity: 10},
-		{position: simulation.Position{X: 9, Z: -7}, itemID: simulation.ItemCoins, quantity: 1000},
-		{position: simulation.Position{X: 10, Z: 10}, itemID: simulation.ItemBronzePickaxe, quantity: 1},
-		{position: simulation.Position{X: -15, Z: -6}, itemID: simulation.ItemBronzeAxe, quantity: 1},
-		{position: simulation.Position{X: -5, Z: -9}, itemID: simulation.ItemBronzePlate, quantity: 1},
-		{position: simulation.Position{X: -3, Z: -9}, itemID: simulation.ItemIronHelm, quantity: 1},
-		{position: simulation.Position{X: -1, Z: -9}, itemID: simulation.ItemIronPlate, quantity: 1},
-		{position: simulation.Position{X: 1, Z: -9}, itemID: string(simulation.WeaponMithrilSword), quantity: 1},
-		{position: simulation.Position{X: 3, Z: -9}, itemID: simulation.ItemMithrilHelm, quantity: 1},
-		{position: simulation.Position{X: 5, Z: -9}, itemID: simulation.ItemMithrilPlate, quantity: 1},
-		{position: simulation.Position{X: -5, Z: -11}, itemID: simulation.ItemAmuletFerocity, quantity: 1},
-		{position: simulation.Position{X: -3, Z: -11}, itemID: simulation.ItemAmuletHawk, quantity: 1},
-		{position: simulation.Position{X: -1, Z: -11}, itemID: simulation.ItemAmuletEmbers, quantity: 1},
-		{position: simulation.Position{X: 1, Z: -11}, itemID: simulation.ItemAmuletFury, quantity: 1},
+		{itemID: string(simulation.WeaponSword), quantity: 1},
+		{itemID: string(simulation.WeaponDagger), quantity: 1},
+		{itemID: string(simulation.WeaponBow), quantity: 1},
+		{itemID: simulation.ItemIronArrow, quantity: 100},
+		{itemID: string(simulation.WeaponMace), quantity: 1},
+		{itemID: string(simulation.WeaponBattleAxe), quantity: 1},
+		{itemID: string(simulation.WeaponStaff), quantity: 1},
+		{itemID: string(simulation.WeaponSteelSword), quantity: 1},
+		{itemID: simulation.ItemAirRune, quantity: 50},
+		{itemID: simulation.ItemSwiftHelm, quantity: 1},
+		{itemID: simulation.ItemSwiftBody, quantity: 1},
+		{itemID: simulation.ItemSwiftBoots, quantity: 1},
+		{itemID: simulation.ItemStandardSpellbook, quantity: 1},
+		{itemID: simulation.ItemCookedMinnow, quantity: 10},
+		{itemID: simulation.ItemCoins, quantity: 1000},
+		{itemID: simulation.ItemBronzePickaxe, quantity: 1},
+		{itemID: simulation.ItemBronzeAxe, quantity: 1},
+		{itemID: simulation.ItemKnife, quantity: 1},
+		{itemID: simulation.ItemChisel, quantity: 1},
+		{itemID: simulation.ItemSewingNeedle, quantity: 1},
+		{itemID: simulation.ItemThread, quantity: 50},
+		{itemID: simulation.ItemTinderbox, quantity: 1},
+		{itemID: simulation.ItemHammer, quantity: 1},
+		{itemID: simulation.ItemBronzePlate, quantity: 1},
+		{itemID: simulation.ItemIronHelm, quantity: 1},
+		{itemID: simulation.ItemIronPlate, quantity: 1},
+		{itemID: string(simulation.WeaponMithrilSword), quantity: 1},
+		{itemID: simulation.ItemMithrilHelm, quantity: 1},
+		{itemID: simulation.ItemMithrilPlate, quantity: 1},
+		{itemID: simulation.ItemAmuletFerocity, quantity: 1},
+		{itemID: simulation.ItemAmuletHawk, quantity: 1},
+		{itemID: simulation.ItemAmuletEmbers, quantity: 1},
+		{itemID: simulation.ItemAmuletFury, quantity: 1},
 	}
 	for _, drop := range initialDrops {
-		if err := world.AddWorldDrop(drop.position, drop.itemID, drop.quantity); err != nil {
+		if err := world.AddWorldDrop(simulation.TestSupplyChestPosition, drop.itemID, drop.quantity); err != nil {
 			log.Fatal(err)
 		}
 	}

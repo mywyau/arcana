@@ -42,6 +42,12 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemCoins, ItemKindResource},
 		{ItemBronzePickaxe, ItemKindResource},
 		{ItemBronzeAxe, ItemKindResource},
+		{ItemKnife, ItemKindResource},
+		{ItemChisel, ItemKindResource},
+		{ItemSewingNeedle, ItemKindResource},
+		{ItemThread, ItemKindResource},
+		{ItemTinderbox, ItemKindResource},
+		{ItemHammer, ItemKindResource},
 		{ItemNormalLogs, ItemKindResource},
 		{ItemOakLogs, ItemKindResource},
 		{ItemCopperOre, ItemKindResource},
@@ -80,6 +86,14 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		if definition, _ := itemDefinition(itemID); definition.StackLimit != 10 {
 			t.Errorf("%s stack limit = %d, want 10", itemID, definition.StackLimit)
 		}
+	}
+	for _, itemID := range []string{ItemKnife, ItemChisel, ItemSewingNeedle, ItemTinderbox, ItemHammer} {
+		if definition, _ := itemDefinition(itemID); definition.StackLimit != 1 {
+			t.Errorf("%s stack limit = %d, want 1", itemID, definition.StackLimit)
+		}
+	}
+	if definition, _ := itemDefinition(ItemThread); definition.StackLimit != 100 {
+		t.Errorf("%s stack limit = %d, want 100", ItemThread, definition.StackLimit)
 	}
 }
 

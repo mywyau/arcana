@@ -16,6 +16,7 @@ const GATHERING_COLLISION_MASK: int = 32
 const BANK_COLLISION_MASK: int = 64
 const ALL_WORLD_COLLISION_MASK: int = 7
 const HUD_LAYOUT_PATH: String = "user://hud_layout.cfg"
+const CLIENT_SETTINGS_PATH: String = "user://client_settings.cfg"
 const HUD_MINIMUM_SCALE: float = 0.75
 const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
@@ -27,6 +28,7 @@ const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
 const BANK_TAKE_ONE: int = 0
 const BANK_TAKE_X: int = 1
 const BANK_TAKE_ALL: int = 2
+const TEST_SUPPLY_CHEST_ID: String = "test_supply_chest"
 const CRAFTING_RECIPES: Dictionary = {
 	"fishing": [
 		{"id": "raw_minnow", "name": "Minnow", "level": 1, "inputs": "Pond"},
@@ -272,7 +274,17 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var magic_hud: PanelContainer = $UI/MagicHUD
 @onready var prayer_hud: PanelContainer = $UI/PrayerHUD
 @onready var styles_hud: PanelContainer = $UI/StylesHUD
+@onready var settings_hud: PanelContainer = $UI/SettingsHUD
+@onready var inventory_settings_button: Button = $UI/InventoryHUD/Margin/VBox/UtilityTabs/Margin/Row/Settings
+@onready var settings_inventory_button: Button = $UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row/Inventory
+@onready var settings_diagnostics_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowDiagnostics
+@onready var settings_music_slider: HSlider = $UI/SettingsHUD/Margin/VBox/MusicVolume/Slider
+@onready var settings_music_value: Label = $UI/SettingsHUD/Margin/VBox/MusicVolume/Value
+@onready var settings_edit_hud_button: Button = $UI/SettingsHUD/Margin/VBox/EditHUD
+@onready var settings_reset_hud_button: Button = $UI/SettingsHUD/Margin/VBox/ResetHUD
 @onready var bank_hud: PanelContainer = $UI/BankHUD
+@onready var bank_title: Label = $UI/BankHUD/Margin/VBox/Header/Title
+@onready var bank_hint: Label = $UI/BankHUD/Margin/VBox/Hint
 @onready var bank_close_button: Button = $UI/BankHUD/Margin/VBox/Header/Close
 @onready var bank_summary: Label = $UI/BankHUD/Margin/VBox/Summary
 @onready var bank_grid: GridContainer = $UI/BankHUD/Margin/VBox/ContentScroll/Grid
@@ -392,6 +404,7 @@ var _bank_chest_states: Dictionary = {}
 var _bank_items: Array = []
 var _bank_capacity: int = 100
 var _bank_signature: String = ""
+var _test_supply_signature: String = ""
 var _active_bank_chest_id: String = ""
 var _pending_bank_chest_id: String = ""
 var _bank_withdraw_dialog: ConfirmationDialog
@@ -568,6 +581,13 @@ func _ready() -> void:
 	styles_magic_tab_button.pressed.connect(_show_magic_tab)
 	styles_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	styles_active_tab_button.pressed.connect(_show_styles_tab)
+	_load_client_settings()
+	inventory_settings_button.pressed.connect(_show_settings_tab)
+	settings_inventory_button.pressed.connect(_show_inventory_tab)
+	settings_diagnostics_toggle.toggled.connect(_on_diagnostics_toggled)
+	settings_music_slider.value_changed.connect(_on_music_volume_changed)
+	settings_edit_hud_button.pressed.connect(_begin_hud_editing_from_settings)
+	settings_reset_hud_button.pressed.connect(_reset_hud_layout_from_settings)
 	_configure_player_menu()
 	_update_combat_hud()
 	_update_inventory_hud()
@@ -596,6 +616,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if settings_hud.visible:
+						_show_inventory_tab()
+						get_viewport().set_input_as_handled()
+						return
 					if _ammunition_pouch_window != null and _ammunition_pouch_window.visible:
 						_close_ammunition_pouch()
 						get_viewport().set_input_as_handled()
@@ -709,7 +733,7 @@ func _physics_process(_delta: float) -> void:
 
 	var clicked_body := result.get("collider") as CollisionObject3D
 	var destination: Vector3 = result["position"]
-	if bank_hud.visible or not _pending_bank_chest_id.is_empty():
+	if bank_hud.visible or not _pending_bank_chest_id.is_empty() or not _active_bank_chest_id.is_empty():
 		_close_bank()
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
@@ -783,7 +807,18 @@ func _request_open_bank(chest_id: String, chest_position: Vector3, interaction_r
 func _open_bank(chest_id: String) -> void:
 	_active_bank_chest_id = chest_id
 	_pending_bank_chest_id = ""
+	if chest_id == TEST_SUPPLY_CHEST_ID:
+		_show_inventory_tab()
+		bank_title.text = "Test Supply Chest"
+		bank_hint.text = "Click a supply to take its stack • supplies return when the server restarts"
+		bank_hud.visible = true
+		_update_test_supply_hud(true)
+		_update_inventory_hud()
+		status_label.text = "Test supply chest opened"
+		return
 	_show_inventory_tab()
+	bank_title.text = "Personal Bank"
+	bank_hint.text = "Click an inventory item to deposit one • click a bank item to withdraw one"
 	bank_hud.visible = true
 	_update_bank_hud()
 	_update_inventory_hud()
@@ -806,7 +841,7 @@ func _close_bank() -> void:
 
 func _update_bank_proximity(player_position: Vector3) -> void:
 	if not _combat_target.is_empty():
-		if bank_hud.visible or not _pending_bank_chest_id.is_empty():
+		if bank_hud.visible or not _pending_bank_chest_id.is_empty() or not _active_bank_chest_id.is_empty():
 			_close_bank()
 		return
 	var chest_id: String = _active_bank_chest_id if not _active_bank_chest_id.is_empty() else _pending_bank_chest_id
@@ -825,10 +860,87 @@ func _update_bank_proximity(player_position: Vector3) -> void:
 	)
 	var interaction_range: float = float(chest.get("range", 2.5))
 	if player_position.distance_to(chest_position) <= interaction_range:
-		if bank_hud.visible == false:
+		if _active_bank_chest_id.is_empty():
 			_open_bank(chest_id)
 	elif not _active_bank_chest_id.is_empty():
 		_close_bank()
+
+
+func _test_supply_items() -> Array[Dictionary]:
+	var supplies: Array[Dictionary] = []
+	var chest: Dictionary = _bank_chest_states.get(TEST_SUPPLY_CHEST_ID, {}) as Dictionary
+	var chest_position_data: Variant = chest.get("position", {})
+	if typeof(chest_position_data) != TYPE_DICTIONARY:
+		return supplies
+	var chest_coordinates := chest_position_data as Dictionary
+	var chest_position := Vector3(
+		float(chest_coordinates.get("x", 0.0)),
+		float(chest_coordinates.get("y", 0.0)),
+		float(chest_coordinates.get("z", 0.0)),
+	)
+	for drop_id: String in _drop_states.keys():
+		var state: Dictionary = _drop_states.get(drop_id, {}) as Dictionary
+		var position_data: Variant = state.get("position", {})
+		if typeof(position_data) != TYPE_DICTIONARY:
+			continue
+		var coordinates := position_data as Dictionary
+		var position := Vector3(
+			float(coordinates.get("x", 0.0)),
+			float(coordinates.get("y", 0.0)),
+			float(coordinates.get("z", 0.0)),
+		)
+		if position.distance_to(chest_position) > 0.1:
+			continue
+		supplies.append({
+			"drop_id": drop_id,
+			"item_id": str(state.get("item_id", "item")),
+			"quantity": int(state.get("quantity", 1)),
+		})
+	supplies.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("item_id", "")) < str(right.get("item_id", ""))
+	)
+	return supplies
+
+
+func _update_test_supply_hud(force: bool = false) -> void:
+	if _active_bank_chest_id != TEST_SUPPLY_CHEST_ID or not bank_hud.visible:
+		return
+	var supplies := _test_supply_items()
+	var signature := JSON.stringify(supplies)
+	if not force and signature == _test_supply_signature:
+		return
+	_test_supply_signature = signature
+	for child: Node in bank_grid.get_children():
+		bank_grid.remove_child(child)
+		child.queue_free()
+	bank_summary.text = "%d test suppl%s remaining" % [
+		supplies.size(),
+		"y" if supplies.size() == 1 else "ies",
+	]
+	for supply: Dictionary in supplies:
+		var drop_id: String = str(supply.get("drop_id", ""))
+		var item_id: String = str(supply.get("item_id", ""))
+		var quantity: int = int(supply.get("quantity", 1))
+		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
+		slot_button.custom_minimum_size = Vector2(112, 86)
+		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot_button.focus_mode = Control.FOCUS_NONE
+		slot_button.text = ""
+		slot_button.configure(0, true, true)
+		slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+		slot_button.expand_icon = true
+		slot_button.set_stack_quantity(quantity)
+		slot_button.tooltip_text = "%s ×%d • click to take the stack" % [item_id.capitalize(), quantity]
+		slot_button.pressed.connect(_take_test_supply.bind(drop_id))
+		bank_grid.add_child(slot_button)
+
+
+func _take_test_supply(drop_id: String) -> void:
+	var drop_view := _drop_views.get(drop_id) as LootDrop
+	if drop_view == null or not is_instance_valid(drop_view):
+		status_label.text = "That test supply is no longer available"
+		return
+	_request_pickup_drop(drop_id, drop_view.global_position)
 
 
 func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
@@ -1380,6 +1492,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Crossing the balance beam…"
 					"completed_agility_obstacle":
 						status_label.text = "Balance beam completed • Agility XP gained"
+					"praying":
+						status_label.text = "Praying at the altar…"
+					"prayer_restored":
+						status_label.text = "Prayer points fully restored"
 					"fishing":
 						status_label.text = "Fishing…"
 					"caught_raw_minnow":
@@ -1634,6 +1750,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 		stack_layout_changed = true
 	if stack_layout_changed:
 		_arrange_drop_stacks()
+	_update_test_supply_hud()
 
 
 func _arrange_drop_stacks() -> void:
@@ -1918,9 +2035,61 @@ func _toggle_combat_debug_hud() -> void:
 		_show_combat_tab()
 
 
+func _load_client_settings() -> void:
+	var config := ConfigFile.new()
+	var music_volume: float = 40.0
+	var show_diagnostics: bool = true
+	if config.load(CLIENT_SETTINGS_PATH) == OK:
+		music_volume = clampf(float(config.get_value("audio", "music_volume", music_volume)), 0.0, 100.0)
+		show_diagnostics = bool(config.get_value("interface", "show_diagnostics", show_diagnostics))
+	settings_music_slider.set_value_no_signal(music_volume)
+	settings_diagnostics_toggle.set_pressed_no_signal(show_diagnostics)
+	_apply_music_volume(music_volume)
+	settings_music_value.text = "%d%%" % roundi(music_volume)
+	diagnostics_label.visible = show_diagnostics
+
+
+func _save_client_settings() -> void:
+	var config := ConfigFile.new()
+	config.set_value("audio", "music_volume", settings_music_slider.value)
+	config.set_value("interface", "show_diagnostics", settings_diagnostics_toggle.button_pressed)
+	config.save(CLIENT_SETTINGS_PATH)
+
+
+func _on_music_volume_changed(volume: float) -> void:
+	_apply_music_volume(volume)
+	settings_music_value.text = "%d%%" % roundi(volume)
+	_save_client_settings()
+
+
+func _apply_music_volume(volume: float) -> void:
+	var music_bus_index := AudioServer.get_bus_index(&"Music")
+	if music_bus_index < 0:
+		return
+	var normalized_volume := clampf(volume / 100.0, 0.0, 1.0)
+	AudioServer.set_bus_mute(music_bus_index, normalized_volume <= 0.0)
+	if normalized_volume > 0.0:
+		AudioServer.set_bus_volume_db(music_bus_index, linear_to_db(normalized_volume))
+
+
+func _on_diagnostics_toggled(visible: bool) -> void:
+	diagnostics_label.visible = visible
+	_save_client_settings()
+
+
+func _begin_hud_editing_from_settings() -> void:
+	_set_hud_edit_mode(true)
+	status_label.text = "HUD editing enabled • F10 saves and closes"
+
+
+func _reset_hud_layout_from_settings() -> void:
+	_reset_hud_layout()
+	status_label.text = "HUD layout reset"
+
+
 func _setup_hud_layout() -> void:
 	var menu_panels: Array[Control] = [
-		combat_hud, inventory_hud, skills_hud, equipment_hud, magic_hud, prayer_hud, styles_hud,
+		combat_hud, inventory_hud, skills_hud, equipment_hud, magic_hud, prayer_hud, styles_hud, settings_hud,
 	]
 	for panel: Control in menu_panels:
 		panel.size = MENU_HUD_BASE_SIZE
@@ -2157,6 +2326,7 @@ func _show_combat_tab() -> void:
 	magic_hud.visible = false
 	prayer_hud.visible = false
 	styles_hud.visible = false
+	settings_hud.visible = false
 	combat_tab_button.set_pressed_no_signal(true)
 	inventory_tab_button.set_pressed_no_signal(false)
 	combat_skills_tab_button.set_pressed_no_signal(false)
@@ -2175,6 +2345,7 @@ func _show_inventory_tab() -> void:
 	magic_hud.visible = false
 	prayer_hud.visible = false
 	styles_hud.visible = false
+	settings_hud.visible = false
 	inventory_combat_tab_button.set_pressed_no_signal(false)
 	inventory_active_tab_button.set_pressed_no_signal(true)
 	inventory_skills_tab_button.set_pressed_no_signal(false)
@@ -2194,6 +2365,7 @@ func _show_skills_tab() -> void:
 	magic_hud.visible = false
 	prayer_hud.visible = false
 	styles_hud.visible = false
+	settings_hud.visible = false
 	skills_combat_tab_button.set_pressed_no_signal(false)
 	skills_inventory_tab_button.set_pressed_no_signal(false)
 	skills_active_tab_button.set_pressed_no_signal(true)
@@ -2213,6 +2385,7 @@ func _show_equipment_tab() -> void:
 	magic_hud.visible = false
 	prayer_hud.visible = false
 	styles_hud.visible = false
+	settings_hud.visible = false
 	equipment_combat_tab_button.set_pressed_no_signal(false)
 	equipment_inventory_tab_button.set_pressed_no_signal(false)
 	equipment_skills_tab_button.set_pressed_no_signal(false)
@@ -2232,6 +2405,7 @@ func _show_magic_tab() -> void:
 	magic_hud.visible = true
 	prayer_hud.visible = false
 	styles_hud.visible = false
+	settings_hud.visible = false
 	magic_combat_tab_button.set_pressed_no_signal(false)
 	magic_inventory_tab_button.set_pressed_no_signal(false)
 	magic_skills_tab_button.set_pressed_no_signal(false)
@@ -2251,6 +2425,7 @@ func _show_prayer_tab() -> void:
 	magic_hud.visible = false
 	prayer_hud.visible = true
 	styles_hud.visible = false
+	settings_hud.visible = false
 	prayer_inventory_tab_button.set_pressed_no_signal(false)
 	prayer_skills_tab_button.set_pressed_no_signal(false)
 	prayer_equipment_tab_button.set_pressed_no_signal(false)
@@ -2269,6 +2444,7 @@ func _show_styles_tab() -> void:
 	magic_hud.visible = false
 	prayer_hud.visible = false
 	styles_hud.visible = true
+	settings_hud.visible = false
 	styles_combat_tab_button.set_pressed_no_signal(false)
 	styles_inventory_tab_button.set_pressed_no_signal(false)
 	styles_skills_tab_button.set_pressed_no_signal(false)
@@ -2276,6 +2452,21 @@ func _show_styles_tab() -> void:
 	styles_magic_tab_button.set_pressed_no_signal(false)
 	styles_prayer_tab_button.set_pressed_no_signal(false)
 	styles_active_tab_button.set_pressed_no_signal(true)
+	_refresh_hud_edit_handles()
+
+
+func _show_settings_tab() -> void:
+	if bank_hud.visible:
+		_close_bank()
+	_combat_debug_hud_visible = false
+	combat_hud.visible = false
+	inventory_hud.visible = false
+	skills_hud.visible = false
+	equipment_hud.visible = false
+	magic_hud.visible = false
+	prayer_hud.visible = false
+	styles_hud.visible = false
+	settings_hud.visible = true
 	_refresh_hud_edit_handles()
 
 
@@ -2991,7 +3182,7 @@ func _update_ammunition_pouch_window() -> void:
 
 
 func _request_bank_deposit(item_id: String, instance_id: String, inventory_slot: int, quantity: int) -> void:
-	if not bank_hud.visible or item_id.is_empty() or _player_defeated:
+	if not bank_hud.visible or _active_bank_chest_id == TEST_SUPPLY_CHEST_ID or item_id.is_empty() or _player_defeated:
 		return
 	if _is_item_equipped(item_id, instance_id):
 		status_label.text = "Unequip the item before depositing it"
@@ -3005,7 +3196,7 @@ func _request_bank_deposit(item_id: String, instance_id: String, inventory_slot:
 
 
 func _request_bank_withdraw(bank_slot: int, quantity: int = 1) -> void:
-	if not bank_hud.visible or bank_slot < 0 or _player_defeated:
+	if not bank_hud.visible or _active_bank_chest_id == TEST_SUPPLY_CHEST_ID or bank_slot < 0 or _player_defeated:
 		return
 	if network.send_bank_withdraw(_next_bank_sequence, bank_slot, quantity):
 		_next_bank_sequence += 1
@@ -3172,7 +3363,7 @@ func _update_inventory_hud() -> void:
 	]
 	inventory_previous_page_button.disabled = _inventory_page == 0
 	inventory_next_page_button.disabled = _inventory_page >= page_count - 1
-	var is_banking: bool = bank_hud.visible
+	var is_banking: bool = bank_hud.visible and _active_bank_chest_id != TEST_SUPPLY_CHEST_ID
 	var is_storing_ammunition: bool = _ammunition_pouch_window != null and _ammunition_pouch_window.visible
 	for slot: int in range(first_slot, final_slot):
 		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()

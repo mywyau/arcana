@@ -7,6 +7,7 @@ import (
 
 const (
 	StarterBankChestID       = "starter_bank_chest"
+	TestSupplyChestID        = "test_supply_chest"
 	BankCapacity             = 100
 	MaximumBankStackQuantity = 2_147_483_647
 	bankInteractionRange     = 2.5
@@ -18,6 +19,15 @@ var starterBankChest = BankChestSnapshot{
 	Position: Position{X: -11, Z: -8},
 	Range:    bankInteractionRange,
 }
+
+var testSupplyChest = BankChestSnapshot{
+	ID:       TestSupplyChestID,
+	Name:     "Test Supply Chest",
+	Position: Position{X: 0, Z: -11},
+	Range:    bankInteractionRange,
+}
+
+var TestSupplyChestPosition = testSupplyChest.Position
 
 type BankChestSnapshot struct {
 	ID       string
