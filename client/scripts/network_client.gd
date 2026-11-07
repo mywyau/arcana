@@ -212,6 +212,72 @@ func send_gather(sequence: int, spot_id: String, recipe_id: String = "", instanc
 	return true
 
 
+func send_bank_deposit(sequence: int, item_id: String, inventory_slot: int, instance_id: String = "") -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the bank while disconnected")
+		return false
+	var message: Dictionary = {
+		"type": "bank_deposit",
+		"sequence": sequence,
+		"item_id": item_id,
+		"inventory_slot": inventory_slot,
+	}
+	if not instance_id.is_empty():
+		message["instance_id"] = instance_id
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not deposit item: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_bank_withdraw(sequence: int, bank_slot: int, quantity: int = 1) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the bank while disconnected")
+		return false
+	var message: Dictionary = {
+		"type": "bank_withdraw",
+		"sequence": sequence,
+		"bank_slot": bank_slot,
+		"quantity": quantity,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not withdraw item: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_ammunition_deposit(sequence: int, inventory_slot: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the ammunition pouch while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "ammunition_deposit",
+		"sequence": sequence,
+		"inventory_slot": inventory_slot,
+	}))
+	if result != OK:
+		status_changed.emit("Could not store ammunition: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_ammunition_withdraw(sequence: int, ammunition_slot: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the ammunition pouch while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "ammunition_withdraw",
+		"sequence": sequence,
+		"ammunition_slot": ammunition_slot,
+	}))
+	if result != OK:
+		status_changed.emit("Could not withdraw ammunition: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_combat_style(sequence: int, combat_style: String) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot change combat style while disconnected")

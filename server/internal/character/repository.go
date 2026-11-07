@@ -46,6 +46,8 @@ func (repository *MemoryRepository) Save(
 
 func cloneState(state simulation.PersistentPlayerState) simulation.PersistentPlayerState {
 	state.Inventory.Items = append([]simulation.InventoryItem(nil), state.Inventory.Items...)
+	state.AmmunitionPouch.Items = append([]simulation.InventoryItem(nil), state.AmmunitionPouch.Items...)
+	state.Bank.Items = append([]simulation.InventoryItem(nil), state.Bank.Items...)
 	state.Skills = append([]simulation.PersistentSkillState(nil), state.Skills...)
 	armour := make(map[simulation.ArmourSlot]string, len(state.EquippedArmour))
 	for slot, itemID := range state.EquippedArmour {
@@ -57,5 +59,10 @@ func cloneState(state simulation.PersistentPlayerState) simulation.PersistentPla
 		armourInstances[slot] = instanceID
 	}
 	state.EquippedArmourInstances = armourInstances
+	armourReinforcements := make(map[simulation.ArmourSlot]int, len(state.EquippedArmourReinforcements))
+	for slot, reinforcement := range state.EquippedArmourReinforcements {
+		armourReinforcements[slot] = reinforcement
+	}
+	state.EquippedArmourReinforcements = armourReinforcements
 	return state
 }

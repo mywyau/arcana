@@ -76,12 +76,34 @@ func TestDecodeConsumeItemMessage(t *testing.T) {
 }
 
 func TestDecodeGatherMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"willowbrook_furnace","recipe_id":"bronze_bar"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"starter_furnace","recipe_id":"bronze_bar"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
-	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "willowbrook_furnace" || message.RecipeID != "bronze_bar" {
+	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "starter_furnace" || message.RecipeID != "bronze_bar" {
 		t.Fatalf("decoded gather message = %+v", message)
+	}
+}
+
+func TestDecodeBankTransferMessages(t *testing.T) {
+	deposit, err := DecodeClientMessage([]byte(`{"type":"bank_deposit","sequence":8,"item_id":"air_rune","inventory_slot":3}`))
+	if err != nil || deposit.Type != MessageBankDeposit || deposit.ItemID != "air_rune" || deposit.InventorySlot != 3 {
+		t.Fatalf("decoded deposit = %+v, error %v", deposit, err)
+	}
+	withdraw, err := DecodeClientMessage([]byte(`{"type":"bank_withdraw","sequence":9,"bank_slot":4,"quantity":12}`))
+	if err != nil || withdraw.Type != MessageBankWithdraw || withdraw.BankSlot != 4 || withdraw.Quantity != 12 {
+		t.Fatalf("decoded withdrawal = %+v, error %v", withdraw, err)
+	}
+}
+
+func TestDecodeAmmunitionTransferMessages(t *testing.T) {
+	deposit, err := DecodeClientMessage([]byte(`{"type":"ammunition_deposit","sequence":10,"inventory_slot":3}`))
+	if err != nil || deposit.Type != MessageAmmunitionDeposit || deposit.InventorySlot != 3 {
+		t.Fatalf("decoded ammunition deposit = %+v, error %v", deposit, err)
+	}
+	withdraw, err := DecodeClientMessage([]byte(`{"type":"ammunition_withdraw","sequence":11,"ammunition_slot":1}`))
+	if err != nil || withdraw.Type != MessageAmmunitionWithdraw || withdraw.AmmunitionSlot != 1 {
+		t.Fatalf("decoded ammunition withdrawal = %+v, error %v", withdraw, err)
 	}
 }
 

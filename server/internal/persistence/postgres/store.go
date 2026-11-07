@@ -160,11 +160,13 @@ func (store *Store) Load(
 	var state simulation.PersistentPlayerState
 	err := store.database.QueryRowContext(ctx, `
 		SELECT position_x, position_y, position_z, health,
-		       equipped_weapon, COALESCE(equipped_weapon_instance_id, ''), combat_style, inventory_capacity
+		       equipped_weapon, COALESCE(equipped_weapon_instance_id, ''), equipped_weapon_reinforcement,
+		       combat_style, inventory_capacity
 		FROM characters WHERE player_id = $1`, playerID,
 	).Scan(
 		&state.Position.X, &state.Position.Y, &state.Position.Z, &state.Health,
-		&state.EquippedWeapon, &state.EquippedWeaponInstanceID, &state.CombatStyle, &state.Inventory.Capacity,
+		&state.EquippedWeapon, &state.EquippedWeaponInstanceID, &state.EquippedWeaponReinforcement,
+		&state.CombatStyle, &state.Inventory.Capacity,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return simulation.PersistentPlayerState{}, false, nil
@@ -193,8 +195,51 @@ func (store *Store) Load(
 	if err := rows.Close(); err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close inventory rows: %w", err)
 	}
+	state.AmmunitionPouch.Capacity = simulation.AmmunitionPouchCapacity
+	state.AmmunitionPouch.UnlockedSlots = simulation.BaseAmmunitionPouchUnlocked
+	ammunitionRows, err := store.database.QueryContext(ctx, `
+		SELECT slot, item_id, quantity FROM character_ammunition_pouch
+		WHERE player_id = $1 ORDER BY slot`, playerID)
+	if err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query ammunition pouch: %w", err)
+	}
+	defer ammunitionRows.Close()
+	for ammunitionRows.Next() {
+		var item simulation.InventoryItem
+		if err := ammunitionRows.Scan(&item.Slot, &item.ItemID, &item.Quantity); err != nil {
+			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan ammunition pouch: %w", err)
+		}
+		state.AmmunitionPouch.Items = append(state.AmmunitionPouch.Items, item)
+	}
+	if err := ammunitionRows.Err(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read ammunition pouch: %w", err)
+	}
+	if err := ammunitionRows.Close(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close ammunition pouch rows: %w", err)
+	}
+	state.Bank.Capacity = simulation.BankCapacity
+	bankRows, err := store.database.QueryContext(ctx, `
+		SELECT slot, item_id, quantity, COALESCE(instance_id, ''), reinforcement FROM character_bank_items
+		WHERE player_id = $1 ORDER BY slot`, playerID)
+	if err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query bank: %w", err)
+	}
+	defer bankRows.Close()
+	for bankRows.Next() {
+		var item simulation.InventoryItem
+		if err := bankRows.Scan(&item.Slot, &item.ItemID, &item.Quantity, &item.InstanceID, &item.Reinforcement); err != nil {
+			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan bank: %w", err)
+		}
+		state.Bank.Items = append(state.Bank.Items, item)
+	}
+	if err := bankRows.Err(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read bank: %w", err)
+	}
+	if err := bankRows.Close(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close bank rows: %w", err)
+	}
 	equipmentRows, err := store.database.QueryContext(ctx, `
-		SELECT slot, item_id, COALESCE(instance_id, '') FROM character_equipment
+		SELECT slot, item_id, COALESCE(instance_id, ''), reinforcement FROM character_equipment
 		WHERE player_id = $1 ORDER BY slot`, playerID)
 	if err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query equipment: %w", err)
@@ -202,11 +247,13 @@ func (store *Store) Load(
 	defer equipmentRows.Close()
 	state.EquippedArmour = make(map[simulation.ArmourSlot]string)
 	state.EquippedArmourInstances = make(map[simulation.ArmourSlot]string)
+	state.EquippedArmourReinforcements = make(map[simulation.ArmourSlot]int)
 	for equipmentRows.Next() {
 		var slot string
 		var itemID string
 		var instanceID string
-		if err := equipmentRows.Scan(&slot, &itemID, &instanceID); err != nil {
+		var reinforcement int
+		if err := equipmentRows.Scan(&slot, &itemID, &instanceID, &reinforcement); err != nil {
 			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan equipment: %w", err)
 		}
 		if slot == "spellbook" {
@@ -214,6 +261,7 @@ func (store *Store) Load(
 		} else {
 			state.EquippedArmour[simulation.ArmourSlot(slot)] = itemID
 			state.EquippedArmourInstances[simulation.ArmourSlot(slot)] = instanceID
+			state.EquippedArmourReinforcements[simulation.ArmourSlot(slot)] = reinforcement
 		}
 	}
 	if err := equipmentRows.Err(); err != nil {
@@ -255,8 +303,9 @@ func (store *Store) Save(
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO characters (
 			player_id, position_x, position_y, position_z, health,
-			equipped_weapon, equipped_weapon_instance_id, combat_style, inventory_capacity, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+			equipped_weapon, equipped_weapon_instance_id, equipped_weapon_reinforcement,
+			combat_style, inventory_capacity, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
 		ON CONFLICT (player_id) DO UPDATE SET
 			position_x = EXCLUDED.position_x,
 			position_y = EXCLUDED.position_y,
@@ -264,11 +313,13 @@ func (store *Store) Save(
 			health = EXCLUDED.health,
 			equipped_weapon = EXCLUDED.equipped_weapon,
 			equipped_weapon_instance_id = EXCLUDED.equipped_weapon_instance_id,
+			equipped_weapon_reinforcement = EXCLUDED.equipped_weapon_reinforcement,
 			combat_style = EXCLUDED.combat_style,
 			inventory_capacity = EXCLUDED.inventory_capacity,
 			updated_at = now()`,
 		playerID, state.Position.X, state.Position.Y, state.Position.Z, state.Health,
-		state.EquippedWeapon, nullableString(state.EquippedWeaponInstanceID), state.CombatStyle, state.Inventory.Capacity,
+		state.EquippedWeapon, nullableString(state.EquippedWeaponInstanceID), state.EquippedWeaponReinforcement,
+		state.CombatStyle, state.Inventory.Capacity,
 	); err != nil {
 		return fmt.Errorf("upsert character: %w", err)
 	}
@@ -282,13 +333,34 @@ func (store *Store) Save(
 			return fmt.Errorf("insert inventory item: %w", err)
 		}
 	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM character_ammunition_pouch WHERE player_id = $1", playerID); err != nil {
+		return fmt.Errorf("replace ammunition pouch: %w", err)
+	}
+	for _, item := range state.AmmunitionPouch.Items {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO character_ammunition_pouch (player_id, slot, item_id, quantity)
+			VALUES ($1, $2, $3, $4)`, playerID, item.Slot, item.ItemID, item.Quantity); err != nil {
+			return fmt.Errorf("insert ammunition pouch item: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM character_bank_items WHERE player_id = $1", playerID); err != nil {
+		return fmt.Errorf("replace bank: %w", err)
+	}
+	for _, item := range state.Bank.Items {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO character_bank_items (player_id, slot, item_id, quantity, instance_id, reinforcement)
+			VALUES ($1, $2, $3, $4, $5, $6)`, playerID, item.Slot, item.ItemID, item.Quantity, nullableString(item.InstanceID), item.Reinforcement); err != nil {
+			return fmt.Errorf("insert bank item: %w", err)
+		}
+	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM character_equipment WHERE player_id = $1", playerID); err != nil {
 		return fmt.Errorf("replace equipment: %w", err)
 	}
 	for slot, itemID := range state.EquippedArmour {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO character_equipment (player_id, slot, item_id, instance_id)
-			VALUES ($1, $2, $3, $4)`, playerID, slot, itemID, nullableString(state.EquippedArmourInstances[slot])); err != nil {
+			INSERT INTO character_equipment (player_id, slot, item_id, instance_id, reinforcement)
+			VALUES ($1, $2, $3, $4, $5)`, playerID, slot, itemID,
+			nullableString(state.EquippedArmourInstances[slot]), state.EquippedArmourReinforcements[slot]); err != nil {
 			return fmt.Errorf("insert equipment: %w", err)
 		}
 	}

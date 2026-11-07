@@ -215,20 +215,22 @@ func mustAddPlayer(t *testing.T, world *World, id PlayerID, position Position, s
 	// Seed their required testing loadout explicitly now that production
 	// characters start unarmed with an empty inventory.
 	player := world.players[id]
-	player.inventory = inventoryState{
-		capacity: BaseInventoryCapacity,
-		items: []InventoryItem{
-			{Slot: 0, ItemID: string(WeaponSword), Quantity: 1},
-			{Slot: 1, ItemID: string(WeaponDagger), Quantity: 1},
-			{Slot: 2, ItemID: string(WeaponBow), Quantity: 1},
-			{Slot: 3, ItemID: string(WeaponMace), Quantity: 1},
-			{Slot: 4, ItemID: string(WeaponBattleAxe), Quantity: 1},
-			{Slot: 5, ItemID: string(WeaponStaff), Quantity: 1},
-			{Slot: 6, ItemID: ItemAirRune, Quantity: 50},
-		},
+	for _, itemID := range []string{
+		string(WeaponSword), string(WeaponDagger), string(WeaponBow), string(WeaponMace),
+		string(WeaponBattleAxe), string(WeaponStaff), ItemAirRune,
+	} {
+		quantity := 1
+		if itemID == ItemAirRune {
+			quantity = 50
+		}
+		if !player.inventory.add(itemID, quantity) {
+			t.Fatalf("could not add test item %q", itemID)
+		}
 	}
-	player.equippedWeapon = WeaponSword
-	player.combatStyle = defaultCombatStyle(WeaponSword)
+	sword, _ := itemDefinition(string(WeaponSword))
+	swordItem, _ := inventoryEquipment(player.inventory, sword, resolveOwnedInstanceID(player.inventory, string(WeaponSword), ""))
+	player.inventory.removeInstance(swordItem.InstanceID)
+	setEquippedItem(player, sword, swordItem)
 }
 
 func mustEquipStandardSpellbook(t *testing.T, world *World, id PlayerID) {

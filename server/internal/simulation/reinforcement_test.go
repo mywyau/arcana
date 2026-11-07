@@ -35,8 +35,10 @@ func TestReinforcedEquippedBronzeSwordImprovesCombatStats(t *testing.T) {
 	}
 	player.inventory.add(string(WeaponBronzeSword), 1)
 	player.equippedWeaponInstanceID = player.inventory.items[0].InstanceID
+	player.equippedWeaponReinforcement = 0
+	player.inventory.removeInstance(player.equippedWeaponInstanceID)
 	base := derivedCombatStats(player)
-	player.inventory.items[0].Reinforcement = 1
+	player.equippedWeaponReinforcement = 1
 	reinforced := derivedCombatStats(player)
 	if reinforced.WeaponAccuracyBonus != base.WeaponAccuracyBonus+1 || reinforced.StrengthBonus != base.StrengthBonus+1 || reinforced.MaximumDamage <= base.MaximumDamage {
 		t.Fatalf("base stats = %+v, reinforced stats = %+v", base, reinforced)

@@ -26,6 +26,7 @@ func spellAccuracyScore(player *playerState, spell SpellDefinition) int {
 		if weapon, exists := weaponDefinition(player.equippedWeapon); exists && weapon.MagicStrength > 0 {
 			focusAccuracy = weapon.AccuracyBonus
 		}
+		focusAccuracy += equippedOffenceBonuses(player.equippedArmour).MagicAccuracy
 	}
 	return level + spell.AccuracyBonus + focusAccuracy
 }
@@ -42,8 +43,13 @@ func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
 		if weapon, exists := weaponDefinition(player.equippedWeapon); exists {
 			focusStrength = weapon.MagicStrength
 		}
+		focusStrength += equippedOffenceBonuses(player.equippedArmour).MagicStrength
 	}
-	return float64(spell.BasePower+focusStrength) + float64(level-1)*skillDamagePointsPerLevel
+	damage := float64(spell.BasePower+focusStrength) + float64(level-1)*skillDamagePointsPerLevel
+	if player != nil {
+		damage *= 1 + activePrayerBonuses(player).MagicDamage
+	}
+	return damage
 }
 
 func canPayItemCosts(inventory inventoryState, costs []ItemCost) bool {

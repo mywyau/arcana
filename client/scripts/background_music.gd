@@ -3,7 +3,7 @@ extends AudioStreamPlayer
 
 const TRACKS: Array[AudioStream] = [
 	preload("res://assets/audio/music/a_life_begins_revised_adventure.ogg"),
-	preload("res://assets/audio/music/first_steps_in_willowbrook.ogg"),
+	preload("res://assets/audio/music/unnamed_area_theme.ogg"),
 	preload("res://assets/audio/music/wanderers_glade.ogg"),
 ]
 

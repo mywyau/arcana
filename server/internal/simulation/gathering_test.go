@@ -42,6 +42,33 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 	}
 }
 
+func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterAgilityObstacleID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	for sequence := uint64(1); sequence <= 4; sequence++ {
+		if err := world.QueueGather(GatherCommand{
+			PlayerID: "player-one", Sequence: sequence, SpotID: starterAgilityObstacleID,
+		}); err != nil {
+			t.Fatalf("QueueGather(%d) returned an unexpected error: %v", sequence, err)
+		}
+		world.Step(50 * time.Millisecond)
+		world.Step(agilityObstacleInterval * actionPulseInterval)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if agility := mustSkill(t, player, SkillAgility); agility.Experience != 4*agilityObstacleExperience || agility.Level != 2 {
+		t.Fatalf("Agility after four obstacle completions = %+v", agility)
+	}
+	if got, want := player.Speed, movementSpeedForAgility(4, 2); got != want {
+		t.Fatalf("movement speed after Agility level 2 = %.3f, want %.3f", got, want)
+	}
+	if player.GatheringSpot != "" || player.GatheringResult != "completed_agility_obstacle" {
+		t.Fatalf("obstacle did not finish as a one-shot action: %+v", player)
+	}
+}
+
 func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	world := NewWorld()
 	pond := world.gatheringSpots[starterFishingSpotID]
@@ -273,6 +300,93 @@ func TestMiningVeinProgressionDefinitions(t *testing.T) {
 	}
 }
 
+func TestNormalTreeRequiresAxeAndGrantsWoodcuttingXP(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterNormalTreeID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	command := GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterNormalTreeID}
+	if err := world.QueueGather(command); err == nil {
+		t.Fatal("QueueGather() error = nil without a Bronze Axe")
+	}
+	if !world.players["player-one"].inventory.add(ItemBronzeAxe, 1) {
+		t.Fatal("failed to add Bronze Axe")
+	}
+	if err := world.QueueGather(command); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(4 * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(ItemNormalLogs) != 1 {
+		t.Fatalf("normal logs quantity = %d, want 1", player.Inventory.itemsQuantity(ItemNormalLogs))
+	}
+	if skill := mustSkill(t, player, SkillWoodcutting); skill.Experience != 10 {
+		t.Fatalf("Woodcutting after first log = %+v", skill)
+	}
+	if player.GatheringResult != "chopped_normal_logs" {
+		t.Fatalf("gathering result = %q", player.GatheringResult)
+	}
+	if got := world.gatheringSpots[starterNormalTreeID].CurrentAmount; got != normalTreeCapacity-1 {
+		t.Fatalf("tree amount = %d, want %d", got, normalTreeCapacity-1)
+	}
+}
+
+func TestWoodcuttingTreeProgressionAndRecharge(t *testing.T) {
+	spots := newGatheringSpots()
+	normal := spots[starterNormalTreeID]
+	oak := spots[starterOakTreeID]
+	if normal.RequiredLevel != 1 || normal.RewardItem != ItemNormalLogs || normal.CurrentAmount != normalTreeCapacity {
+		t.Fatalf("normal tree = %+v", normal)
+	}
+	if oak.RequiredLevel != 2 || oak.RewardItem != ItemOakLogs || oak.RewardXP != 16 || oak.CurrentAmount != oakTreeCapacity {
+		t.Fatalf("oak tree = %+v", oak)
+	}
+
+	world := NewWorld()
+	depleting := world.gatheringSpots[starterNormalTreeID]
+	depleting.CurrentAmount = 1
+	world.gatheringSpots[starterNormalTreeID] = depleting
+	if err := world.AddPlayer("player-one", depleting.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemBronzeAxe, 1)
+	if err := world.QueueGather(GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterNormalTreeID}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(4 * actionPulseInterval)
+	if got := world.gatheringSpots[starterNormalTreeID].CurrentAmount; got != 0 {
+		t.Fatalf("depleted tree amount = %d, want 0", got)
+	}
+	world.Step(4 * actionPulseInterval)
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "tree_depleted" {
+		t.Fatalf("gathering did not stop at depleted tree: %+v", player)
+	}
+	world.Step(4 * actionPulseInterval)
+	if got := world.gatheringSpots[starterNormalTreeID].CurrentAmount; got != 1 {
+		t.Fatalf("recharged tree amount = %d, want 1", got)
+	}
+}
+
+func TestOakTreeRequiresWoodcuttingLevelTwo(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterOakTreeID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemBronzeAxe, 1)
+	command := GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterOakTreeID}
+	if err := world.QueueGather(command); err == nil {
+		t.Fatal("QueueGather() error = nil below Woodcutting level 2")
+	}
+	world.players["player-one"].skills[SkillWoodcutting] = SkillExperienceForLevel(2)
+	if err := world.QueueGather(command); err != nil {
+		t.Fatalf("QueueGather() rejected Woodcutting level 2: %v", err)
+	}
+}
+
 func TestFurnaceRepeatedlySmeltsSelectedRecipe(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterFurnaceID]
@@ -329,7 +443,7 @@ func TestFurnaceRequiresAValidAffordableRecipe(t *testing.T) {
 		t.Fatal("QueueGather() error = nil without a recipe")
 	}
 	if err := world.QueueGather(GatherCommand{
-		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID, RecipeID: string(SmeltingCopperBar),
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID, RecipeID: string(SmeltingBronzeBar),
 	}); err == nil {
 		t.Fatal("QueueGather() error = nil without recipe inputs")
 	}

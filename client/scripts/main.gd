@@ -4,6 +4,7 @@ const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const TARGET_SCENE: PackedScene = preload("res://scenes/target_dummy.tscn")
 const LOOT_SCENE: PackedScene = preload("res://scenes/loot_drop.tscn")
 const GATHERING_SCENE: PackedScene = preload("res://scenes/gathering_spot.tscn")
+const BANK_CHEST_SCENE: PackedScene = preload("res://scenes/bank_chest.tscn")
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
 const RAY_LENGTH: float = 1000.0
 const GROUND_COLLISION_MASK: int = 1
@@ -12,6 +13,7 @@ const CONNECTOR_COLLISION_MASK: int = 4
 const TARGET_COLLISION_MASK: int = 8
 const LOOT_COLLISION_MASK: int = 16
 const GATHERING_COLLISION_MASK: int = 32
+const BANK_COLLISION_MASK: int = 64
 const ALL_WORLD_COLLISION_MASK: int = 7
 const HUD_LAYOUT_PATH: String = "user://hud_layout.cfg"
 const HUD_MINIMUM_SCALE: float = 0.75
@@ -38,7 +40,6 @@ const CRAFTING_RECIPES: Dictionary = {
 		{"id": "cooked_lobster", "name": "Lobster", "level": 5, "inputs": "1 Raw Lobster"},
 	],
 	"smelting": [
-		{"id": "copper_bar", "name": "Copper Bar", "level": 1, "inputs": "1 Copper Ore"},
 		{"id": "bronze_bar", "name": "Bronze Bar", "level": 1, "inputs": "1 Copper Ore + 1 Tin Ore"},
 		{"id": "iron_bar", "name": "Iron Bar", "level": 2, "inputs": "1 Iron Ore + 1 Coal"},
 		{"id": "mithril_bar", "name": "Mithril Bar", "level": 5, "inputs": "1 Mithril Ore + 2 Coal"},
@@ -90,6 +91,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Cooking": "cooking",
 	"Mining": "mining",
 	"Smithing": "smithing",
+	"Woodcutting": "woodcutting",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -102,6 +104,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"cooking": "Cooking",
 	"mining": "Mining",
 	"smithing": "Smithing",
+	"woodcutting": "Woodcutting",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -202,6 +205,35 @@ const ARMOUR_SLOTS: Dictionary = {
 	"swift_helm": "head",
 	"swift_body": "body",
 	"swift_boots": "feet",
+	"amulet_ferocity": "neck",
+	"amulet_hawk": "neck",
+	"amulet_embers": "neck",
+	"amulet_fury": "neck",
+}
+const AMMUNITION_ITEMS: Dictionary = {"iron_arrow": true}
+const ITEM_COMBAT_BONUSES: Dictionary = {
+	"amulet_ferocity": "+5 melee accuracy • +5 melee strength",
+	"amulet_hawk": "+5 ranged accuracy • +5 ranged strength",
+	"amulet_embers": "+5 magic accuracy • +5 magic strength",
+	"amulet_fury": "+2 accuracy • +2 strength for melee, ranged, and magic",
+}
+const EQUIPMENT_REQUIREMENTS: Dictionary = {
+	"steel_sword": "Attack level 5",
+	"mithril_sword": "Attack level 10",
+	"rune_sword": "Attack level 20",
+	"mace": "Attack level 5",
+	"battle_axe": "Attack level 10",
+	"iron_helm": "Defence level 5",
+	"iron_platebody": "Defence level 5",
+	"mithril_helm": "Defence level 10",
+	"mithril_platebody": "Defence level 10",
+	"swift_helm": "Defence level 5",
+	"swift_body": "Defence level 5",
+	"swift_boots": "Defence level 5",
+	"amulet_ferocity": "Attack level 5",
+	"amulet_hawk": "Range level 5",
+	"amulet_embers": "Magic level 5",
+	"amulet_fury": "Defence level 5",
 }
 const SPELLBOOK_ITEMS: Dictionary = {
 	"standard_spellbook": "standard",
@@ -225,6 +257,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var targets: Node3D = $Targets
 @onready var drops: Node3D = $Drops
 @onready var gathering_spots: Node3D = $GatheringSpots
+@onready var bank_chests: Node3D = $BankChests
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var hud_edit_hint: Label = $UI/HudEditHint
@@ -236,6 +269,10 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var magic_hud: PanelContainer = $UI/MagicHUD
 @onready var prayer_hud: PanelContainer = $UI/PrayerHUD
 @onready var styles_hud: PanelContainer = $UI/StylesHUD
+@onready var bank_hud: PanelContainer = $UI/BankHUD
+@onready var bank_close_button: Button = $UI/BankHUD/Margin/VBox/Header/Close
+@onready var bank_summary: Label = $UI/BankHUD/Margin/VBox/Summary
+@onready var bank_grid: GridContainer = $UI/BankHUD/Margin/VBox/ContentScroll/Grid
 @onready var combat_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Combat
 @onready var inventory_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Inventory
 @onready var combat_skills_tab_button: Button = $UI/CombatHUD/Margin/VBox/TabRow/Skills
@@ -331,6 +368,7 @@ var _next_drop_sequence: int = 1
 var _next_inventory_move_sequence: int = 1
 var _next_consume_sequence: int = 1
 var _next_gather_sequence: int = 1
+var _next_bank_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -346,6 +384,23 @@ var _gathering_result: String = ""
 var _next_gather_pulse: int = 0
 var _gathering_views: Dictionary = {}
 var _gathering_states: Dictionary = {}
+var _bank_chest_views: Dictionary = {}
+var _bank_chest_states: Dictionary = {}
+var _bank_items: Array = []
+var _bank_capacity: int = 100
+var _bank_signature: String = ""
+var _active_bank_chest_id: String = ""
+var _pending_bank_chest_id: String = ""
+var _bank_withdraw_dialog: ConfirmationDialog
+var _bank_withdraw_amount: SpinBox
+var _pending_bank_withdraw_slot: int = -1
+var _ammunition_pouch_items: Array = []
+var _ammunition_pouch_capacity: int = 10
+var _ammunition_pouch_unlocked: int = 2
+var _next_ammunition_sequence: int = 1
+var _ammunition_pouch_window: Window
+var _ammunition_pouch_grid: GridContainer
+var _ammunition_pouch_summary: Label
 var _target_views: Dictionary = {}
 var _target_states: Dictionary = {}
 var _drop_views: Dictionary = {}
@@ -369,6 +424,7 @@ var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "unarmed"
 var _equipped_weapon_instance_id: String = ""
+var _equipped_weapon_reinforcement: int = 0
 var _last_equipment_sequence: int = 0
 var _queued_item: String = ""
 var _queued_instance_id: String = ""
@@ -376,6 +432,7 @@ var _queued_unequip: bool = false
 var _queued_drop_after_unequip: String = ""
 var _equipped_armour: Dictionary = {}
 var _equipped_armour_instances: Dictionary = {}
+var _equipped_armour_reinforcements: Dictionary = {}
 var _equipped_spellbook: String = ""
 var _active_spellbook: String = ""
 var _combat_style: String = "crush"
@@ -397,6 +454,7 @@ var _skill_progress: Dictionary = {
 	"cooking": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"mining": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"woodcutting": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -434,6 +492,9 @@ func _ready() -> void:
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
+	bank_close_button.pressed.connect(_close_bank)
+	_setup_bank_withdraw_dialog()
+	_setup_ammunition_pouch_window()
 	network.status_changed.connect(_on_status_changed)
 	network.welcome_received.connect(_on_welcome_received)
 	network.snapshot_received.connect(_on_snapshot_received)
@@ -587,6 +648,16 @@ func _physics_process(_delta: float) -> void:
 			_request_engage_target(target_id, target_body.global_position)
 			return
 
+	var bank_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	bank_query.collision_mask = BANK_COLLISION_MASK
+	var bank_result: Dictionary = get_world_3d().direct_space_state.intersect_ray(bank_query)
+	if not bank_result.is_empty():
+		var bank_body := bank_result.get("collider") as CollisionObject3D
+		if bank_body != null and bank_body.has_meta(&"bank_chest_id"):
+			var bank_chest_id: String = str(bank_body.get_meta(&"bank_chest_id"))
+			_request_open_bank(bank_chest_id, bank_body.global_position, float(bank_body.get_meta(&"bank_range", 2.5)))
+			return
+
 	var gathering_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
 	gathering_query.collision_mask = GATHERING_COLLISION_MASK
 	var gathering_result: Dictionary = get_world_3d().direct_space_state.intersect_ray(gathering_query)
@@ -618,6 +689,8 @@ func _physics_process(_delta: float) -> void:
 
 	var clicked_body := result.get("collider") as CollisionObject3D
 	var destination: Vector3 = result["position"]
+	if bank_hud.visible or not _pending_bank_chest_id.is_empty():
+		_close_bank()
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
 		_next_sequence += 1
@@ -670,6 +743,68 @@ func _request_gather(spot_id: String, spot_position: Vector3, recipe_id: String 
 			local_view.stop_prediction()
 		click_marker.visible = false
 		_play_target_click_feedback(spot_position)
+
+
+func _request_open_bank(chest_id: String, chest_position: Vector3, interaction_range: float) -> void:
+	if chest_id.is_empty() or _player_defeated:
+		return
+	_pending_bank_chest_id = chest_id
+	var local_view: PlayerView = _player_views.get(_local_player_id)
+	if local_view != null and local_view.global_position.distance_to(chest_position) <= interaction_range:
+		_open_bank(chest_id)
+		return
+	if network.send_move(_next_sequence, chest_position):
+		_next_sequence += 1
+		status_label.text = "Walking to the bank chest…"
+		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
+			_request_disengage()
+
+
+func _open_bank(chest_id: String) -> void:
+	_active_bank_chest_id = chest_id
+	_pending_bank_chest_id = ""
+	_show_inventory_tab()
+	bank_hud.visible = true
+	_update_bank_hud()
+	_update_inventory_hud()
+	status_label.text = "Bank opened"
+
+
+func _close_bank() -> void:
+	_active_bank_chest_id = ""
+	_pending_bank_chest_id = ""
+	bank_hud.visible = false
+	_pending_bank_withdraw_slot = -1
+	if _bank_withdraw_dialog != null:
+		_bank_withdraw_dialog.hide()
+	_update_inventory_hud()
+
+
+func _update_bank_proximity(player_position: Vector3) -> void:
+	if not _combat_target.is_empty():
+		if bank_hud.visible or not _pending_bank_chest_id.is_empty():
+			_close_bank()
+		return
+	var chest_id: String = _active_bank_chest_id if not _active_bank_chest_id.is_empty() else _pending_bank_chest_id
+	if chest_id.is_empty():
+		return
+	var chest: Dictionary = _bank_chest_states.get(chest_id, {}) as Dictionary
+	var chest_position_value: Variant = chest.get("position", {})
+	if typeof(chest_position_value) != TYPE_DICTIONARY:
+		_close_bank()
+		return
+	var coordinates: Dictionary = chest_position_value
+	var chest_position := Vector3(
+		float(coordinates.get("x", 0.0)),
+		float(coordinates.get("y", 0.0)),
+		float(coordinates.get("z", 0.0)),
+	)
+	var interaction_range: float = float(chest.get("range", 2.5))
+	if player_position.distance_to(chest_position) <= interaction_range:
+		if bank_hud.visible == false:
+			_open_bank(chest_id)
+	elif not _active_bank_chest_id.is_empty():
+		_close_bank()
 
 
 func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
@@ -933,6 +1068,8 @@ func _is_item_equipped(item_id: String, instance_id: String = "") -> bool:
 func _on_inventory_item_input(event: InputEvent, item_id: String, instance_id: String = "") -> void:
 	if _player_defeated:
 		return
+	if bank_hud.visible:
+		return
 	if event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.pressed and mouse_button.button_index == MOUSE_BUTTON_RIGHT:
@@ -1064,6 +1201,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 	_sync_targets(snapshot.get("targets", []))
 	_sync_drops(snapshot.get("drops", []))
 	_sync_gathering_spots(snapshot.get("gathering_spots", []))
+	_sync_bank_chests(snapshot.get("bank_chests", []))
 	var player_payloads: Variant = snapshot.get("players", [])
 	if typeof(player_payloads) != TYPE_ARRAY:
 		return
@@ -1179,6 +1317,17 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var inventory_data: Variant = player_data.get("inventory", {})
 			if typeof(inventory_data) == TYPE_DICTIONARY:
 				_apply_inventory_snapshot(inventory_data as Dictionary)
+			var ammunition_data: Variant = player_data.get("ammunition_pouch", {})
+			if typeof(ammunition_data) == TYPE_DICTIONARY:
+				_apply_ammunition_pouch_snapshot(ammunition_data as Dictionary)
+			var last_ammunition_sequence: int = int(player_data.get("last_ammunition_sequence", 0))
+			_next_ammunition_sequence = maxi(_next_ammunition_sequence, last_ammunition_sequence + 1)
+			var bank_data: Variant = player_data.get("bank", {})
+			if typeof(bank_data) == TYPE_DICTIONARY:
+				_apply_bank_snapshot(bank_data as Dictionary)
+			var last_bank_sequence: int = int(player_data.get("last_bank_sequence", 0))
+			_next_bank_sequence = maxi(_next_bank_sequence, last_bank_sequence + 1)
+			_update_bank_proximity(position)
 			_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
 			_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
 			_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
@@ -1199,6 +1348,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							status_label.text = "Gathering stopped"
 					"approaching":
 						status_label.text = "Walking to the resource…"
+					"balancing":
+						status_label.text = "Crossing the balance beam…"
+					"completed_agility_obstacle":
+						status_label.text = "Balance beam completed • Agility XP gained"
 					"fishing":
 						status_label.text = "Fishing…"
 					"caught_raw_minnow":
@@ -1221,10 +1374,18 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Mined Coal • Mining continues…"
 					"mined_mithril_ore":
 						status_label.text = "Mined Mithril Ore • Mining continues…"
+					"woodcutting":
+						status_label.text = "Chopping…"
+					"chopped_normal_logs":
+						status_label.text = "Chopped Normal Logs • Woodcutting continues…"
+					"chopped_oak_logs":
+						status_label.text = "Chopped Oak Logs • Woodcutting continues…"
+					"missing_bronze_axe":
+						status_label.text = "Woodcutting stopped: a Bronze Axe is required"
+					"tree_depleted":
+						status_label.text = "Woodcutting stopped: the tree is depleted"
 					"smelting":
 						status_label.text = "Smelting…"
-					"smelted_copper_bar":
-						status_label.text = "Smelted a Copper Bar • Smithing continues…"
 					"smelted_bronze_bar":
 						status_label.text = "Smelted a Bronze Bar • Smithing continues…"
 					"smelted_iron_bar":
@@ -1270,21 +1431,28 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							status_label.text = "Forged a %s • Smithing continues…" % forged_name
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))
-			if equipped_weapon != _equipped_weapon or equipped_weapon_instance_id != _equipped_weapon_instance_id:
+			var equipped_weapon_reinforcement: int = int(player_data.get("equipped_weapon_reinforcement", 0))
+			if equipped_weapon != _equipped_weapon or equipped_weapon_instance_id != _equipped_weapon_instance_id or equipped_weapon_reinforcement != _equipped_weapon_reinforcement:
 				_equipped_weapon = equipped_weapon
 				_equipped_weapon_instance_id = equipped_weapon_instance_id
+				_equipped_weapon_reinforcement = equipped_weapon_reinforcement
 				_update_equipment_hud()
 				inventory_selection_changed = true
 				combat_style_changed = true
 			var equipped_armour_data: Variant = player_data.get("equipped_armour", {})
 			var equipped_armour_instances_data: Variant = player_data.get("equipped_armour_instances", {})
+			var equipped_armour_reinforcements_data: Variant = player_data.get("equipped_armour_reinforcements", {})
 			if typeof(equipped_armour_data) == TYPE_DICTIONARY and (
-				equipped_armour_data != _equipped_armour or equipped_armour_instances_data != _equipped_armour_instances
+				equipped_armour_data != _equipped_armour or equipped_armour_instances_data != _equipped_armour_instances or equipped_armour_reinforcements_data != _equipped_armour_reinforcements
 			):
 				_equipped_armour = (equipped_armour_data as Dictionary).duplicate(true)
 				_equipped_armour_instances = (
 					(equipped_armour_instances_data as Dictionary).duplicate(true)
 					if typeof(equipped_armour_instances_data) == TYPE_DICTIONARY else {}
+				)
+				_equipped_armour_reinforcements = (
+					(equipped_armour_reinforcements_data as Dictionary).duplicate(true)
+					if typeof(equipped_armour_reinforcements_data) == TYPE_DICTIONARY else {}
 				)
 				_update_equipment_hud()
 				inventory_selection_changed = true
@@ -1477,6 +1645,46 @@ func _sync_gathering_spots(spot_payloads: Variant) -> void:
 			departed.queue_free()
 		_gathering_views.erase(spot_id)
 		_gathering_states.erase(spot_id)
+
+
+func _sync_bank_chests(chest_payloads: Variant) -> void:
+	if typeof(chest_payloads) != TYPE_ARRAY:
+		return
+	var active_ids: Dictionary = {}
+	for payload: Variant in chest_payloads:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var chest_data: Dictionary = payload
+		var chest_id: String = str(chest_data.get("id", ""))
+		var position_data: Variant = chest_data.get("position", {})
+		if chest_id.is_empty() or typeof(position_data) != TYPE_DICTIONARY:
+			continue
+		var view := _bank_chest_views.get(chest_id) as BankChest
+		if view == null:
+			view = BANK_CHEST_SCENE.instantiate() as BankChest
+			view.name = "Bank_%s" % chest_id
+			bank_chests.add_child(view)
+			view.set_chest(chest_id, str(chest_data.get("name", "Bank Chest")), float(chest_data.get("range", 2.5)))
+			_bank_chest_views[chest_id] = view
+		var coordinates: Dictionary = position_data
+		view.position = Vector3(
+			float(coordinates.get("x", 0.0)),
+			float(coordinates.get("y", 0.0)),
+			float(coordinates.get("z", 0.0)),
+		)
+		_bank_chest_states[chest_id] = chest_data.duplicate(true)
+		active_ids[chest_id] = true
+
+	for chest_id: String in _bank_chest_views.keys():
+		if active_ids.has(chest_id):
+			continue
+		var departed := _bank_chest_views.get(chest_id) as BankChest
+		if departed != null:
+			departed.queue_free()
+		_bank_chest_views.erase(chest_id)
+		_bank_chest_states.erase(chest_id)
+		if chest_id == _active_bank_chest_id or chest_id == _pending_bank_chest_id:
+			_close_bank()
 
 
 func _process_combat_events(snapshot: Dictionary) -> void:
@@ -2112,6 +2320,10 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successful mining actions grant Mining XP"
 		"smithing":
 			training_description = "successfully smelted bars grant Smithing XP"
+		"woodcutting":
+			training_description = "successfully chopped logs grant Woodcutting XP"
+		"agility":
+			training_description = "completing Agility obstacles grants Agility XP and increases movement speed"
 	if next_level_experience <= 0:
 		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
 			skill_name, level, level, experience, training_description,
@@ -2121,11 +2333,15 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 	var level_span: int = maxi(1, next_level_experience - current_level_experience)
 	var level_progress: int = clampi(experience - current_level_experience, 0, level_span)
 	var progress_percent: int = roundi(float(level_progress) / float(level_span) * 100.0)
-	tile.tooltip_text = "%s • Level %d/%d • %d XP • XP equals damage dealt • %s • %d XP to level %d • %d%%" % [
+	var experience_rule: String = "XP is awarded per successful action"
+	if skill_id in ["attack", "strength", "defence", "range", "magic"]:
+		experience_rule = "XP equals damage dealt"
+	tile.tooltip_text = "%s • Level %d/%d • %d XP • %s • %s • %d XP to level %d • %d%%" % [
 		skill_name,
 		level,
 		level,
 		experience,
+		experience_rule,
 		training_description,
 		experience_remaining,
 		level + 1,
@@ -2289,19 +2505,19 @@ func _update_equipment_hud() -> void:
 	# head, legs, and feet aligned down the centre of the body.
 	var equipment_slots: Array = [
 		{"spacer": true},
-		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", "")), "instance": str(_equipped_armour_instances.get("head", ""))},
+		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", "")), "instance": str(_equipped_armour_instances.get("head", "")), "reinforcement": int(_equipped_armour_reinforcements.get("head", 0))},
 		{"spacer": true},
 		{"slot": "cape", "name": "Cape", "item": ""},
-		{"slot": "neck", "name": "Neck", "item": ""},
+		{"slot": "neck", "name": "Neck", "item": str(_equipped_armour.get("neck", "")), "instance": str(_equipped_armour_instances.get("neck", "")), "reinforcement": int(_equipped_armour_reinforcements.get("neck", 0))},
 		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
-		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon, "instance": _equipped_weapon_instance_id},
-		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", "")), "instance": str(_equipped_armour_instances.get("body", ""))},
+		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon, "instance": _equipped_weapon_instance_id, "reinforcement": _equipped_weapon_reinforcement},
+		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", "")), "instance": str(_equipped_armour_instances.get("body", "")), "reinforcement": int(_equipped_armour_reinforcements.get("body", 0))},
 		{"slot": "left_hand", "name": "Left Hand", "item": ""},
-		{"spacer": true},
+		{"slot": "ammunition", "name": "Ammunition Pouch", "item": ""},
 		{"slot": "legs", "name": "Legs", "item": ""},
 		{"slot": "ring", "name": "Ring", "item": ""},
 		{"spacer": true},
-		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", "")), "instance": str(_equipped_armour_instances.get("feet", ""))},
+		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", "")), "instance": str(_equipped_armour_instances.get("feet", "")), "reinforcement": int(_equipped_armour_reinforcements.get("feet", 0))},
 		{"spacer": true},
 	]
 	for slot_data: Variant in equipment_slots:
@@ -2314,6 +2530,7 @@ func _update_equipment_hud() -> void:
 			continue
 		var item_id: String = str(slot.get("item", ""))
 		var instance_id: String = str(slot.get("instance", ""))
+		var reinforcement: int = int(slot.get("reinforcement", 0))
 		var slot_id: String = str(slot.get("slot", ""))
 		var slot_panel := Button.new()
 		slot_panel.custom_minimum_size = Vector2(168, 82)
@@ -2324,10 +2541,19 @@ func _update_equipment_hud() -> void:
 			and _queued_item == item_id
 			and (_queued_instance_id.is_empty() or _queued_instance_id == instance_id)
 		)
-		slot_panel.tooltip_text = "%s: %s" % [
+		slot_panel.tooltip_text = "%s: %s%s" % [
 			slot.get("name", "Equipment"),
 			item_id.capitalize() if not item_id.is_empty() else "No item equipped",
+			" +%d" % reinforcement if reinforcement > 0 else "",
 		]
+		if slot_id == "ammunition":
+			slot_panel.tooltip_text = "Ammunition Pouch • %d/%d types stored • left-click to open" % [
+				_ammunition_pouch_items.size(), _ammunition_pouch_unlocked,
+			]
+		elif ITEM_COMBAT_BONUSES.has(item_id):
+			slot_panel.tooltip_text += " • %s" % str(ITEM_COMBAT_BONUSES[item_id])
+		if EQUIPMENT_REQUIREMENTS.has(item_id):
+			slot_panel.tooltip_text += " • requires %s" % str(EQUIPMENT_REQUIREMENTS[item_id])
 		if unequip_pending:
 			slot_panel.tooltip_text += " • unequipping…"
 		elif not item_id.is_empty():
@@ -2369,7 +2595,10 @@ func _update_equipment_hud() -> void:
 		slot_panel.expand_icon = true
 		slot_panel.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot_panel.add_theme_constant_override("icon_max_width", 56)
-		if not item_id.is_empty():
+		if slot_id == "ammunition":
+			slot_panel.disabled = false
+			slot_panel.pressed.connect(_toggle_ammunition_pouch)
+		elif not item_id.is_empty():
 			slot_panel.disabled = unequip_pending or _player_defeated
 			slot_panel.pressed.connect(_request_unequip.bind(item_id, instance_id))
 		else:
@@ -2424,23 +2653,31 @@ func _detailed_offence_text() -> String:
 		_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
 		_signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0))),
 	]
+	accuracy_breakdown += "\nAccessory accuracy: %s" % _signed_stat(
+		int(_combat_stats.get("equipment_accuracy_bonus", 0)),
+	)
 	var prayer_accuracy_bonus: int = int(_combat_stats.get("prayer_accuracy_bonus", 0))
 	if prayer_accuracy_bonus != 0:
 		accuracy_breakdown += "\nPrayer accuracy: %s" % _signed_stat(prayer_accuracy_bonus)
 	var damage_breakdown: String = "Weapon strength: %s" % _signed_stat(
 		int(_combat_stats.get("strength_bonus", 0)),
 	)
+	damage_breakdown += "\nAccessory strength: %s" % _signed_stat(
+		int(_combat_stats.get("equipment_strength_bonus", 0)),
+	)
 	if not spell_id.is_empty():
 		loadout_text = "%s  •  %s equipped" % [
 			spell_id.capitalize(), str(_combat_stats.get("weapon", "unarmed")).capitalize(),
 		]
-		accuracy_breakdown = "Spell accuracy: %s\nEquipment magic accuracy: %s" % [
+		accuracy_breakdown = "Spell accuracy: %s\nWeapon focus accuracy: %s\nAccessory magic accuracy: %s" % [
 			_signed_stat(int(_combat_stats.get("spell_accuracy_bonus", 0))),
 			_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
+			_signed_stat(int(_combat_stats.get("equipment_accuracy_bonus", 0))),
 		]
-		damage_breakdown = "Spell power: %s\nEquipment magic strength: %s" % [
+		damage_breakdown = "Spell power: %s\nWeapon focus strength: %s\nAccessory magic strength: %s" % [
 			_signed_stat(int(_combat_stats.get("spell_power", 0))),
 			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
+			_signed_stat(int(_combat_stats.get("equipment_strength_bonus", 0))),
 		]
 	var prayer_damage_bonus: float = float(_combat_stats.get("prayer_damage_bonus", 0.0))
 	if prayer_damage_bonus > 0.0 and spell_id.is_empty():
@@ -2481,6 +2718,10 @@ func _detailed_defence_text() -> String:
 		+"Prayer damage reduction: %.0f%%\n" % (
 			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
 		)
+		+"Armour reduction vs crush: %.1f%%\n" % (
+			float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0
+		)
+		+"Maximum health from armour: +%d\n" % int(_combat_stats.get("maximum_health_bonus", 0))
 		+"\nEQUIPMENT DEFENCE BONUSES\n"
 		+"Stab: %s\nSlash: %s\nCrush: %s\n" % [
 			_signed_stat(int(defence.get("stab", 0))),
@@ -2491,8 +2732,7 @@ func _detailed_defence_text() -> String:
 			_signed_stat(int(defence.get("ranged", 0))),
 			_signed_stat(int(defence.get("magic", 0))),
 		]
-		+"Equipment defence bonuses are currently informational;\n"
-		+"damage mitigation is not active yet."
+		+"Matching defence uses diminishing returns for damage reduction."
 	)
 
 
@@ -2508,6 +2748,7 @@ func _detailed_effects_text() -> String:
 		"EQUIPPED ITEMS\n"
 		+"Main hand: %s\n" % _equipped_weapon.capitalize()
 		+"Spellbook: %s\n" % spellbook_text
+		+"Neck: %s\n" % _equipment_item_name("neck")
 		+"Head: %s\n" % _equipment_item_name("head")
 		+"Body: %s\n" % _equipment_item_name("body")
 		+"Feet: %s\n\n" % _equipment_item_name("feet")
@@ -2541,6 +2782,227 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_items = (items_data as Array).duplicate(true)
 	_update_inventory_hud()
 	_update_magic_hud()
+
+
+func _apply_bank_snapshot(bank: Dictionary) -> void:
+	var capacity: int = maxi(0, int(bank.get("capacity", _bank_capacity)))
+	var items_data: Variant = bank.get("items", [])
+	if typeof(items_data) != TYPE_ARRAY:
+		return
+	var signature := "%d:%s" % [capacity, JSON.stringify(items_data)]
+	if signature == _bank_signature:
+		return
+	_bank_signature = signature
+	_bank_capacity = capacity
+	_bank_items = (items_data as Array).duplicate(true)
+	_update_bank_hud()
+
+
+func _apply_ammunition_pouch_snapshot(pouch: Dictionary) -> void:
+	_ammunition_pouch_capacity = int(pouch.get("capacity", 10))
+	_ammunition_pouch_unlocked = int(pouch.get("unlocked_slots", 2))
+	var items_data: Variant = pouch.get("items", [])
+	_ammunition_pouch_items = (items_data as Array).duplicate(true) if typeof(items_data) == TYPE_ARRAY else []
+	_update_ammunition_pouch_window()
+	_update_equipment_hud()
+
+
+func _setup_ammunition_pouch_window() -> void:
+	_ammunition_pouch_window = Window.new()
+	_ammunition_pouch_window.title = "Ammunition Pouch"
+	_ammunition_pouch_window.min_size = Vector2i(570, 300)
+	_ammunition_pouch_window.size = Vector2i(570, 300)
+	_ammunition_pouch_window.close_requested.connect(_close_ammunition_pouch)
+	add_child(_ammunition_pouch_window)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	_ammunition_pouch_window.add_child(margin)
+	var layout := VBoxContainer.new()
+	margin.add_child(layout)
+	_ammunition_pouch_summary = Label.new()
+	layout.add_child(_ammunition_pouch_summary)
+	_ammunition_pouch_grid = GridContainer.new()
+	_ammunition_pouch_grid.columns = 5
+	_ammunition_pouch_grid.add_theme_constant_override("h_separation", 8)
+	_ammunition_pouch_grid.add_theme_constant_override("v_separation", 8)
+	layout.add_child(_ammunition_pouch_grid)
+	_update_ammunition_pouch_window()
+
+
+func _toggle_ammunition_pouch() -> void:
+	if _ammunition_pouch_window.visible:
+		_close_ammunition_pouch()
+	else:
+		_ammunition_pouch_window.popup_centered()
+		_update_ammunition_pouch_window()
+		_update_inventory_hud()
+
+
+func _close_ammunition_pouch() -> void:
+	_ammunition_pouch_window.hide()
+	_update_inventory_hud()
+
+
+func _request_ammunition_deposit(inventory_slot: int) -> void:
+	if network.send_ammunition_deposit(_next_ammunition_sequence, inventory_slot):
+		_next_ammunition_sequence += 1
+		status_label.text = "Moving ammunition into the pouch…"
+
+
+func _request_ammunition_withdraw(pouch_slot: int) -> void:
+	if network.send_ammunition_withdraw(_next_ammunition_sequence, pouch_slot):
+		_next_ammunition_sequence += 1
+		status_label.text = "Moving ammunition into the inventory…"
+
+
+func _update_ammunition_pouch_window() -> void:
+	if _ammunition_pouch_grid == null:
+		return
+	for child: Node in _ammunition_pouch_grid.get_children():
+		child.queue_free()
+	var items_by_slot: Dictionary = {}
+	for payload: Variant in _ammunition_pouch_items:
+		if typeof(payload) == TYPE_DICTIONARY:
+			items_by_slot[int((payload as Dictionary).get("slot", -1))] = payload
+	_ammunition_pouch_summary.text = "%d/%d ammunition types stored • %d/%d slots unlocked" % [
+		items_by_slot.size(), _ammunition_pouch_unlocked, _ammunition_pouch_unlocked, _ammunition_pouch_capacity,
+	]
+	for slot: int in range(_ammunition_pouch_capacity):
+		var button: Variant = INVENTORY_SLOT_SCRIPT.new()
+		button.custom_minimum_size = Vector2(96, 88)
+		button.focus_mode = Control.FOCUS_NONE
+		button.text = ""
+		if slot >= _ammunition_pouch_unlocked:
+			button.configure(slot, false, false)
+			button.icon = EMPTY_SLOT_ICON
+			button.expand_icon = true
+			button.disabled = true
+			button.modulate = Color(0.28, 0.31, 0.34)
+			button.tooltip_text = "Locked ammunition slot"
+		elif items_by_slot.has(slot):
+			var item: Dictionary = items_by_slot[slot]
+			var item_id: String = str(item.get("item_id", ""))
+			var quantity: int = int(item.get("quantity", 0))
+			button.configure(slot, true, true)
+			button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+			button.expand_icon = true
+			button.set_stack_quantity(quantity)
+			button.tooltip_text = "%s ×%d • left-click to return the whole stack to inventory" % [item_id.capitalize(), quantity]
+			button.pressed.connect(_request_ammunition_withdraw.bind(slot))
+		else:
+			button.configure(slot, false, true)
+			button.icon = EMPTY_SLOT_ICON
+			button.expand_icon = true
+			button.tooltip_text = "Unlocked ammunition slot • click ammunition in your inventory to store it"
+		_ammunition_pouch_grid.add_child(button)
+
+
+func _request_bank_deposit(item_id: String, instance_id: String, inventory_slot: int, quantity: int) -> void:
+	if not bank_hud.visible or item_id.is_empty() or _player_defeated:
+		return
+	if _is_item_equipped(item_id, instance_id):
+		status_label.text = "Unequip the item before depositing it"
+		return
+	if network.send_bank_deposit(_next_bank_sequence, item_id, inventory_slot, instance_id):
+		_next_bank_sequence += 1
+		status_label.text = "Depositing %s%s…" % [
+			item_id.capitalize(),
+			" ×%d" % quantity if quantity > 1 else "",
+		]
+
+
+func _request_bank_withdraw(bank_slot: int, quantity: int = 1) -> void:
+	if not bank_hud.visible or bank_slot < 0 or _player_defeated:
+		return
+	if network.send_bank_withdraw(_next_bank_sequence, bank_slot, quantity):
+		_next_bank_sequence += 1
+		status_label.text = "Withdrawing %d item%s…" % [quantity, "" if quantity == 1 else "s"]
+
+
+func _setup_bank_withdraw_dialog() -> void:
+	_bank_withdraw_dialog = ConfirmationDialog.new()
+	_bank_withdraw_dialog.title = "Withdraw items"
+	_bank_withdraw_dialog.dialog_text = "Choose an amount to withdraw:"
+	_bank_withdraw_dialog.min_size = Vector2i(360, 180)
+	_bank_withdraw_dialog.get_ok_button().text = "Withdraw"
+	_bank_withdraw_amount = SpinBox.new()
+	_bank_withdraw_amount.min_value = 1
+	_bank_withdraw_amount.step = 1
+	_bank_withdraw_amount.custom_minimum_size = Vector2(280, 44)
+	_bank_withdraw_amount.position = Vector2(40, 74)
+	_bank_withdraw_dialog.add_child(_bank_withdraw_amount)
+	_bank_withdraw_dialog.confirmed.connect(_confirm_bank_withdraw)
+	add_child(_bank_withdraw_dialog)
+
+
+func _on_bank_item_pressed(bank_slot: int, available_quantity: int) -> void:
+	if available_quantity <= 1:
+		_request_bank_withdraw(bank_slot, 1)
+		return
+	_pending_bank_withdraw_slot = bank_slot
+	_bank_withdraw_amount.max_value = available_quantity
+	_bank_withdraw_amount.value = mini(available_quantity, 10)
+	_bank_withdraw_dialog.popup_centered()
+	_bank_withdraw_amount.grab_focus()
+	_bank_withdraw_amount.get_line_edit().select_all()
+
+
+func _confirm_bank_withdraw() -> void:
+	if _pending_bank_withdraw_slot < 0:
+		return
+	var bank_slot: int = _pending_bank_withdraw_slot
+	_pending_bank_withdraw_slot = -1
+	_request_bank_withdraw(bank_slot, int(_bank_withdraw_amount.value))
+
+
+func _update_bank_hud() -> void:
+	if bank_grid == null:
+		return
+	for child: Node in bank_grid.get_children():
+		bank_grid.remove_child(child)
+		child.queue_free()
+	var items_by_slot: Dictionary = {}
+	for payload: Variant in _bank_items:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var item: Dictionary = payload
+		var slot: int = int(item.get("slot", -1))
+		if slot >= 0 and slot < _bank_capacity:
+			items_by_slot[slot] = item
+	bank_summary.text = "%d/%d slots used" % [items_by_slot.size(), _bank_capacity]
+	for slot: int in range(_bank_capacity):
+		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
+		slot_button.custom_minimum_size = Vector2(112, 86)
+		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot_button.focus_mode = Control.FOCUS_NONE
+		slot_button.text = ""
+		if items_by_slot.has(slot):
+			var item: Dictionary = items_by_slot[slot]
+			var item_id: String = str(item.get("item_id", ""))
+			var quantity: int = int(item.get("quantity", 1))
+			var reinforcement: int = int(item.get("reinforcement", 0))
+			slot_button.configure(slot, true, true)
+			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
+			slot_button.expand_icon = true
+			slot_button.set_stack_quantity(quantity)
+			slot_button.set_reinforcement(reinforcement)
+			slot_button.tooltip_text = "%s%s ×%d • %s" % [
+				item_id.capitalize(),
+				" +%d" % reinforcement if reinforcement > 0 else "",
+				quantity,
+				"click to choose amount" if quantity > 1 else "click to withdraw",
+			]
+			slot_button.pressed.connect(_on_bank_item_pressed.bind(slot, quantity))
+		else:
+			slot_button.configure(slot, false, true)
+			slot_button.icon = EMPTY_SLOT_ICON
+			slot_button.expand_icon = true
+			slot_button.disabled = true
+			slot_button.modulate = Color(0.6, 0.64, 0.68)
+		bank_grid.add_child(slot_button)
 
 
 func _inventory_quantity(item_id: String) -> int:
@@ -2590,6 +3052,8 @@ func _update_inventory_hud() -> void:
 	]
 	inventory_previous_page_button.disabled = _inventory_page == 0
 	inventory_next_page_button.disabled = _inventory_page >= page_count - 1
+	var is_banking: bool = bank_hud.visible
+	var is_storing_ammunition: bool = _ammunition_pouch_window != null and _ammunition_pouch_window.visible
 	for slot: int in range(first_slot, final_slot):
 		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
 		slot_button.custom_minimum_size = Vector2(104, 92)
@@ -2621,7 +3085,7 @@ func _update_inventory_hud() -> void:
 			)
 			var is_consume_queued: bool = _queued_consume_item == item_id
 			var is_equipped: bool = _is_item_equipped(item_id, instance_id)
-			slot_button.toggle_mode = is_equipable
+			slot_button.toggle_mode = is_equipable and not is_banking
 			var displayed_equipped: bool = not _queued_unequip if is_queued else is_equipped
 			slot_button.set_pressed_no_signal(displayed_equipped)
 			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
@@ -2649,11 +3113,19 @@ func _update_inventory_hud() -> void:
 				]
 			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
 				interaction_text = "left-click to unequip • right-click to unequip and drop"
+			if is_banking:
+				interaction_text = "left-click to deposit whole stack"
+			elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
+				interaction_text = "left-click to move the whole stack into the ammunition pouch"
 			slot_button.tooltip_text = "%s%s%s%s • slot %d%s" % [
 				item_id.capitalize(), reinforcement_text, quantity_text, status_text,
 				slot + 1,
 				" — %s" % interaction_text,
 			]
+			if ITEM_COMBAT_BONUSES.has(item_id):
+				slot_button.tooltip_text += " • %s" % str(ITEM_COMBAT_BONUSES[item_id])
+			if EQUIPMENT_REQUIREMENTS.has(item_id):
+				slot_button.tooltip_text += " • requires %s" % str(EQUIPMENT_REQUIREMENTS[item_id])
 			slot_button.disabled = _player_defeated and is_equipable
 			if is_equipped or is_queued or is_consume_queued:
 				var selection_style := StyleBoxFlat.new()
@@ -2669,7 +3141,11 @@ func _update_inventory_hud() -> void:
 				selection_style.corner_radius_bottom_right = 6
 				slot_button.add_theme_stylebox_override("pressed", selection_style)
 				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
-			if is_equipable:
+			if is_banking:
+				slot_button.pressed.connect(_request_bank_deposit.bind(item_id, instance_id, slot, quantity))
+			elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
+				slot_button.pressed.connect(_request_ammunition_deposit.bind(slot))
+			elif is_equipable:
 				slot_button.pressed.connect(_request_equip.bind(item_id, instance_id))
 			elif is_food:
 				slot_button.pressed.connect(_request_consume_item.bind(item_id))

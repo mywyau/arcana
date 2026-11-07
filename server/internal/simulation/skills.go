@@ -6,19 +6,22 @@ import (
 )
 
 const (
-	SkillAttack   SkillID = "attack"
-	SkillAgility  SkillID = "agility"
-	SkillDefence  SkillID = "defence"
-	SkillMagic    SkillID = "magic"
-	SkillRange    SkillID = "range"
-	SkillStrength SkillID = "strength"
-	SkillFishing  SkillID = "fishing"
-	SkillCooking  SkillID = "cooking"
-	SkillMining   SkillID = "mining"
-	SkillSmithing SkillID = "smithing"
+	SkillAttack      SkillID = "attack"
+	SkillAgility     SkillID = "agility"
+	SkillDefence     SkillID = "defence"
+	SkillMagic       SkillID = "magic"
+	SkillRange       SkillID = "range"
+	SkillStrength    SkillID = "strength"
+	SkillFishing     SkillID = "fishing"
+	SkillCooking     SkillID = "cooking"
+	SkillMining      SkillID = "mining"
+	SkillSmithing    SkillID = "smithing"
+	SkillWoodcutting SkillID = "woodcutting"
 
 	MaximumSkillLevel               = 100
 	skillLevelExperienceScale int64 = 100
+	agilitySpeedPerLevel            = 0.0025
+	maximumAgilitySpeedBonus        = 0.25
 )
 
 type SkillID string
@@ -43,7 +46,7 @@ type skillState map[SkillID]int64
 func newDefaultSkills() skillState {
 	return skillState{
 		SkillAttack: 0, SkillAgility: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
-		SkillFishing: 0, SkillCooking: 0, SkillMining: 0, SkillSmithing: 0,
+		SkillFishing: 0, SkillCooking: 0, SkillMining: 0, SkillSmithing: 0, SkillWoodcutting: 0,
 	}
 }
 
@@ -131,12 +134,20 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 		player.skills = newDefaultSkills()
 	}
 	player.skills[skill] += amount
+	if skill == SkillAgility {
+		player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(player.skills[SkillAgility]))
+	}
+}
+
+func movementSpeedForAgility(baseSpeed float64, agilityLevel int) float64 {
+	bonus := min(maximumAgilitySpeedBonus, float64(max(1, agilityLevel)-1)*agilitySpeedPerLevel)
+	return baseSpeed * (1 + bonus)
 }
 
 func skillIDValid(skill SkillID) bool {
 	return skill == SkillAttack || skill == SkillAgility || skill == SkillStrength || skill == SkillDefence ||
 		skill == SkillRange || skill == SkillMagic || skill == SkillFishing || skill == SkillCooking || skill == SkillMining ||
-		skill == SkillSmithing
+		skill == SkillSmithing || skill == SkillWoodcutting
 }
 
 func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {

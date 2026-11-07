@@ -64,3 +64,53 @@ func TestDerivedCombatStatsDescribeSelectedSpell(t *testing.T) {
 		t.Fatalf("Wind Bolt combat stats = %+v", stats)
 	}
 }
+
+func TestAmuletsApplyOnlyTheirMatchingOffensiveBonuses(t *testing.T) {
+	tests := []struct {
+		name         string
+		amulet       string
+		weapon       WeaponID
+		wantAccuracy int
+		wantStrength int
+	}{
+		{name: "melee", amulet: ItemAmuletFerocity, weapon: WeaponSword, wantAccuracy: 5, wantStrength: 5},
+		{name: "ranged", amulet: ItemAmuletHawk, weapon: WeaponBow, wantAccuracy: 5, wantStrength: 5},
+		{name: "magic", amulet: ItemAmuletEmbers, weapon: WeaponStaff, wantAccuracy: 5, wantStrength: 5},
+		{name: "hybrid", amulet: ItemAmuletFury, weapon: WeaponSword, wantAccuracy: 2, wantStrength: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			player := &playerState{
+				equippedWeapon: test.weapon,
+				combatStyle:    defaultCombatStyle(test.weapon),
+				equippedArmour: map[ArmourSlot]string{ArmourSlotNeck: test.amulet},
+				skills:         newDefaultSkills(),
+			}
+			weapon, _ := weaponDefinition(test.weapon)
+			stats := derivedCombatStats(player)
+			if stats.EquipmentAccuracyBonus != test.wantAccuracy || stats.EquipmentStrengthBonus != test.wantStrength {
+				t.Fatalf("amulet combat stats = %+v", stats)
+			}
+			baseStrength := weapon.MeleeStrength + weapon.RangedStrength + weapon.MagicStrength
+			if got, want := weaponPoweredDamage(player, weapon), float64(baseStrength+test.wantStrength); got != want {
+				t.Fatalf("powered damage = %.1f, want %.1f", got, want)
+			}
+		})
+	}
+}
+
+func TestMagicAmuletBoostsStafflessSpellcasting(t *testing.T) {
+	player := &playerState{
+		equippedWeapon: WeaponSword,
+		selectedSpell:  SpellWindBolt,
+		equippedArmour: map[ArmourSlot]string{ArmourSlotNeck: ItemAmuletEmbers},
+		skills:         newDefaultSkills(),
+	}
+	spell, _ := spellDefinition(SpellWindBolt)
+	if got, want := spellAccuracyScore(player, spell), 16; got != want {
+		t.Fatalf("spell accuracy = %d, want %d", got, want)
+	}
+	if got, want := spellPoweredDamage(player, spell), float64(spell.BasePower+5); got != want {
+		t.Fatalf("spell damage = %.1f, want %.1f", got, want)
+	}
+}

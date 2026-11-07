@@ -57,7 +57,7 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 			coin.transform = coin_transform
 			visual.add_child(coin)
 		return
-	if item_id == "bronze_pickaxe":
+	if item_id in ["bronze_pickaxe", "bronze_axe"]:
 		var handle_mesh := BoxMesh.new()
 		handle_mesh.size = Vector3(0.09, 0.9, 0.09)
 		var handle_material := StandardMaterial3D.new()
@@ -68,7 +68,7 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 		mesh.rotation_degrees.z = -42.0
 		var head := MeshInstance3D.new()
 		var head_mesh := BoxMesh.new()
-		head_mesh.size = Vector3(0.52, 0.13, 0.12)
+		head_mesh.size = Vector3(0.52 if item_id == "bronze_pickaxe" else 0.32, 0.13, 0.12)
 		var bronze_material := StandardMaterial3D.new()
 		bronze_material.albedo_color = Color(0.68, 0.32, 0.12)
 		bronze_material.metallic = 0.65
@@ -76,7 +76,22 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 		head_mesh.material = bronze_material
 		head.mesh = head_mesh
 		head.position = Vector3(0.0, 0.43, 0.0)
+		if item_id == "bronze_axe":
+			head.position.x = 0.12
 		mesh.add_child(head)
+		return
+	if item_id in ["normal_logs", "oak_logs"]:
+		var log_mesh := CylinderMesh.new()
+		log_mesh.top_radius = 0.18
+		log_mesh.bottom_radius = 0.18
+		log_mesh.height = 0.75
+		log_mesh.radial_segments = 8
+		var log_material := StandardMaterial3D.new()
+		log_material.albedo_color = Color(0.3, 0.15, 0.055) if item_id == "oak_logs" else Color(0.42, 0.24, 0.1)
+		log_material.roughness = 0.95
+		log_mesh.material = log_material
+		mesh.mesh = log_mesh
+		mesh.rotation_degrees = Vector3(0.0, 0.0, 90.0)
 		return
 	if item_id in ["copper_ore", "tin_ore", "iron_ore", "coal", "mithril_ore"]:
 		var ore_mesh := SphereMesh.new()

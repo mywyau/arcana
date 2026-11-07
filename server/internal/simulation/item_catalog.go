@@ -15,12 +15,14 @@ const (
 	ItemIronArrow         = "iron_arrow"
 	ItemCoins             = "coins"
 	ItemBronzePickaxe     = "bronze_pickaxe"
+	ItemBronzeAxe         = "bronze_axe"
+	ItemNormalLogs        = "normal_logs"
+	ItemOakLogs           = "oak_logs"
 	ItemCopperOre         = "copper_ore"
 	ItemTinOre            = "tin_ore"
 	ItemIronOre           = "iron_ore"
 	ItemCoal              = "coal"
 	ItemMithrilOre        = "mithril_ore"
-	ItemCopperBar         = "copper_bar"
 	ItemBronzeBar         = "bronze_bar"
 	ItemIronBar           = "iron_bar"
 	ItemMithrilBar        = "mithril_bar"
@@ -41,19 +43,26 @@ type ConsumableDefinition struct {
 	CooldownPulses uint64
 }
 
+type SkillRequirement struct {
+	Skill SkillID
+	Level int
+}
+
 // ItemDefinition is the authoritative gameplay definition for one stable item
 // ID. Definitions are currently declared in Go; the registry boundary allows
 // them to move to validated data files without changing combat or inventory.
 type ItemDefinition struct {
-	ID         string
-	Name       string
-	Kind       ItemKind
-	Virtual    bool
-	StackLimit int
-	Weapon     WeaponDefinition
-	Armour     ArmourDefinition
-	Spellbook  SpellbookID
-	Consumable ConsumableDefinition
+	ID                string
+	Name              string
+	Kind              ItemKind
+	Virtual           bool
+	StackLimit        int
+	Ammunition        bool
+	EquipRequirements []SkillRequirement
+	Weapon            WeaponDefinition
+	Armour            ArmourDefinition
+	Spellbook         SpellbookID
+	Consumable        ConsumableDefinition
 }
 
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
@@ -71,15 +80,18 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
 	{
 		ID: string(WeaponMithrilSword), Name: "Mithril Sword", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
 	{
 		ID: string(WeaponRuneSword), Name: "Rune Sword", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponRuneSword, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 20}},
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponRuneSword, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
 	{
 		ID: string(WeaponDagger), Name: "Dagger", Kind: ItemKindWeapon,
@@ -91,11 +103,13 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponMace), Name: "Mace", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponMace, AccuracyBonus: 8, MeleeStrength: maceMeleeStrength, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, CombatStyleCrush, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleDefensive),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponMace, AccuracyBonus: 8, MeleeStrength: maceMeleeStrength, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, CombatStyleCrush, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleDefensive),
 	},
 	{
 		ID: string(WeaponBattleAxe), Name: "Battle Axe", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBattleAxe, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, CombatStyleSlash, CombatStyleSlash, CombatStyleHeavyCrush, CombatStyleDefensive),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponBattleAxe, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, CombatStyleSlash, CombatStyleSlash, CombatStyleHeavyCrush, CombatStyleDefensive),
 	},
 	{
 		ID: string(WeaponStaff), Name: "Staff", Kind: ItemKindWeapon,
@@ -103,62 +117,94 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: ItemTrainingHelm, Name: "Training Helm", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 2, Slash: 3, Crush: 2, Ranged: 1}},
+		Armour: ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 3, Crush: 2, Ranged: 1}},
 	},
 	{
 		ID: ItemBronzeHelm, Name: "Bronze Helm", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 3, Ranged: 1, Magic: -1}},
+		Armour: ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 3, Ranged: 1, Magic: -1}},
 	},
 	{
 		ID: ItemBronzePlate, Name: "Bronze Platebody", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 3, Magic: -2}},
+		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 6, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 3, Magic: -2}},
 	},
 	{
 		ID: ItemIronHelm, Name: "Iron Helm", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 4, Ranged: 2, Magic: -1}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 4, Ranged: 2, Magic: -1}},
 	},
 	{
 		ID: ItemIronPlate, Name: "Iron Platebody", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 9, Ranged: 7, Magic: -3}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 10, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 9, Ranged: 7, Magic: -3}},
 	},
 	{
 		ID: ItemMithrilHelm, Name: "Mithril Helm", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 4, Magic: -2}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 6, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 4, Magic: -2}},
 	},
 	{
 		ID: ItemMithrilPlate, Name: "Mithril Platebody", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 11, Magic: -5}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 15, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 11, Magic: -5}},
 	},
 	{
 		ID: ItemTrainingPlate, Name: "Training Plate", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2}},
+		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2}},
 	},
 	{
 		ID: ItemSwiftHelm, Name: "Swift Helm", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetSwift, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetSwift, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2}},
 	},
 	{
 		ID: ItemSwiftBody, Name: "Swift Body", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetSwift, Defence: DefenceBonuses{Stab: 4, Slash: 4, Crush: 3, Ranged: 5, Magic: -1}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetSwift, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 4, Crush: 3, Ranged: 5, Magic: -1}},
 	},
 	{
 		ID: ItemSwiftBoots, Name: "Swift Boots", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetSwift, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetSwift, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2}},
+	},
+	{
+		ID: ItemAmuletFerocity, Name: "Amulet of Ferocity", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MeleeAccuracy: 5, MeleeStrength: 5}},
+	},
+	{
+		ID: ItemAmuletHawk, Name: "Amulet of the Hawk", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{RangedAccuracy: 5, RangedStrength: 5}},
+	},
+	{
+		ID: ItemAmuletEmbers, Name: "Amulet of Embers", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 5}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MagicAccuracy: 5, MagicStrength: 5}},
+	},
+	{
+		ID: ItemAmuletFury, Name: "Amulet of Fury", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{
+			MeleeAccuracy: 2, RangedAccuracy: 2, MagicAccuracy: 2,
+			MeleeStrength: 2, RangedStrength: 2, MagicStrength: 2,
+		}},
 	},
 	{
 		ID: ItemStandardSpellbook, Name: "Standard Spellbook", Kind: ItemKindSpellbook,
 		Spellbook: SpellbookStandard,
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
-	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource},
+	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
+	{ID: ItemBronzeAxe, Name: "Bronze Axe", Kind: ItemKindResource},
+	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource},
 	{ID: ItemTinOre, Name: "Tin Ore", Kind: ItemKindResource},
 	{ID: ItemIronOre, Name: "Iron Ore", Kind: ItemKindResource},
 	{ID: ItemCoal, Name: "Coal", Kind: ItemKindResource},
 	{ID: ItemMithrilOre, Name: "Mithril Ore", Kind: ItemKindResource},
-	{ID: ItemCopperBar, Name: "Copper Bar", Kind: ItemKindResource},
 	{ID: ItemBronzeBar, Name: "Bronze Bar", Kind: ItemKindResource},
 	{ID: ItemIronBar, Name: "Iron Bar", Kind: ItemKindResource},
 	{ID: ItemMithrilBar, Name: "Mithril Bar", Kind: ItemKindResource},
@@ -197,6 +243,19 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		if definition.StackLimit < 0 {
 			return nil, fmt.Errorf("item %q has a negative stack limit", definition.ID)
 		}
+		if definition.Ammunition && definition.Kind != ItemKindResource {
+			return nil, fmt.Errorf("ammunition %q must be a resource", definition.ID)
+		}
+		seenRequirements := make(map[SkillID]struct{}, len(definition.EquipRequirements))
+		for _, requirement := range definition.EquipRequirements {
+			if !skillIDValid(requirement.Skill) || requirement.Level < 1 || requirement.Level > MaximumSkillLevel {
+				return nil, fmt.Errorf("item %q has invalid equipment requirement %+v", definition.ID, requirement)
+			}
+			if _, duplicate := seenRequirements[requirement.Skill]; duplicate {
+				return nil, fmt.Errorf("item %q repeats its %q requirement", definition.ID, requirement.Skill)
+			}
+			seenRequirements[requirement.Skill] = struct{}{}
+		}
 		switch definition.Kind {
 		case ItemKindWeapon:
 			if string(definition.Weapon.ID) != definition.ID || definition.Weapon.AttackInterval == 0 ||
@@ -207,8 +266,8 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 				return nil, fmt.Errorf("weapon %q: %w", definition.ID, err)
 			}
 		case ItemKindArmour:
-			if definition.Armour.Slot == "" {
-				return nil, fmt.Errorf("armour %q requires a slot", definition.ID)
+			if definition.Armour.Slot == "" || definition.Armour.HealthBonus < 0 {
+				return nil, fmt.Errorf("armour %q requires a slot and non-negative health bonus", definition.ID)
 			}
 			if definition.Armour.Set != "" {
 				if _, exists := armourSetDefinitions[definition.Armour.Set]; !exists {
@@ -240,6 +299,19 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		}
 	}
 	return catalog, nil
+}
+
+func unmetEquipRequirement(player *playerState, definition ItemDefinition) (SkillRequirement, bool) {
+	for _, requirement := range definition.EquipRequirements {
+		level := 1
+		if player != nil {
+			level = SkillLevelForExperience(player.skills[requirement.Skill])
+		}
+		if level < requirement.Level {
+			return requirement, true
+		}
+	}
+	return SkillRequirement{}, false
 }
 
 func validateWeaponStyles(weapon WeaponDefinition) error {

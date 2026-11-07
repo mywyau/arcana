@@ -70,9 +70,13 @@ func equippedReinforcement(player *playerState, instanceID string) int {
 	if player == nil || instanceID == "" {
 		return 0
 	}
-	item, exists := player.inventory.itemByInstance(instanceID)
-	if !exists {
-		return 0
+	if instanceID == player.equippedWeaponInstanceID {
+		return player.equippedWeaponReinforcement
 	}
-	return item.Reinforcement
+	for slot, equippedInstanceID := range player.equippedArmourInstances {
+		if instanceID == equippedInstanceID {
+			return player.equippedArmourReinforcements[slot]
+		}
+	}
+	return 0
 }

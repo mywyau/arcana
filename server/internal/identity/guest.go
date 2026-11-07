@@ -43,6 +43,7 @@ func NewGuestManager(repository GuestRepository) (*GuestManager, error) {
 }
 
 func (manager *GuestManager) Authenticate(ctx context.Context, token string) (GuestIdentity, error) {
+	
 	if token != "" {
 		rawToken, err := base64.RawURLEncoding.DecodeString(token)
 		if err != nil || len(rawToken) != guestTokenBytes {

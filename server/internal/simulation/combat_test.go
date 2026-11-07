@@ -49,7 +49,7 @@ func newCombatTestWorld() *World {
 func mustGiveIronArrows(t *testing.T, world *World, id PlayerID, quantity int) {
 	t.Helper()
 	player, exists := world.players[id]
-	if !exists || !player.inventory.add(ItemIronArrow, quantity) {
+	if !exists || !player.ammunitionPouch.add(ItemIronArrow, quantity) {
 		t.Fatalf("could not add %d iron arrows to player %q", quantity, id)
 	}
 }
@@ -344,6 +344,9 @@ func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
 	if got := player.EquippedArmour[ArmourSlotHead]; got != ItemTrainingHelm {
 		t.Fatalf("equipped head item = %q, want %q", got, ItemTrainingHelm)
 	}
+	if snapshotInventoryContains(player.Inventory, ItemTrainingHelm) {
+		t.Fatal("equipped helm still occupies an inventory slot")
+	}
 	if player.EquippedWeapon != WeaponSword {
 		t.Fatalf("equipping armour changed weapon to %q", player.EquippedWeapon)
 	}
@@ -359,6 +362,47 @@ func TestOwnedArmourEquipsIntoItsSlot(t *testing.T) {
 	}
 	if !snapshotInventoryContains(player.Inventory, ItemTrainingHelm) {
 		t.Fatal("unequipped helm was removed from inventory")
+	}
+}
+
+func TestWeaponSwapMovesOnlyUnequippedWeaponBackToInventory(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	if snapshotInventoryContains(mustPlayer(t, world, "player-one").Inventory, string(WeaponSword)) {
+		t.Fatal("equipped sword occupies an inventory slot")
+	}
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.EquippedWeapon != WeaponDagger || snapshotInventoryContains(player.Inventory, string(WeaponDagger)) ||
+		!snapshotInventoryContains(player.Inventory, string(WeaponSword)) {
+		t.Fatalf("inventory after weapon swap = %+v; equipped = %q", player.Inventory, player.EquippedWeapon)
+	}
+}
+
+func TestUnequipRejectsFullInventory(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemTrainingHelm, 1)
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemTrainingHelm)}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	for _, itemID := range []string{ItemAirRune, ItemIronArrow, ItemCoins, ItemBronzePickaxe, ItemBronzeAxe, ItemCopperOre, ItemTinOre, ItemIronOre} {
+		if !player.inventory.add(itemID, 1) {
+			t.Fatalf("failed to fill inventory with %q", itemID)
+		}
+	}
+	if err := world.QueueUnequip(UnequipCommand{PlayerID: "player-one", Sequence: 2, ItemID: ItemTrainingHelm}); err == nil {
+		t.Fatal("QueueUnequip() error = nil with a full inventory")
+	}
+	if player.equippedArmour[ArmourSlotHead] != ItemTrainingHelm {
+		t.Fatal("failed unequip cleared the equipped helm")
 	}
 }
 
@@ -499,7 +543,7 @@ func TestBowRequiresAndConsumesIronArrows(t *testing.T) {
 
 	mustGiveIronArrows(t, world, "player-one", 1)
 	world.Step(actionPulseInterval)
-	if got := mustPlayer(t, world, "player-one").Inventory.itemsQuantity(ItemIronArrow); got != 0 {
+	if got := (InventorySnapshot{Items: mustPlayer(t, world, "player-one").AmmunitionPouch.Items}).itemsQuantity(ItemIronArrow); got != 0 {
 		t.Fatalf("iron arrows after firing = %d, want 0", got)
 	}
 	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-bowDamage; got != want {
@@ -524,7 +568,7 @@ func TestDodgedBowShotStillConsumesIronArrow(t *testing.T) {
 
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	if player.LastActionResult != "dodged" || player.Inventory.itemsQuantity(ItemIronArrow) != 0 {
+	if player.LastActionResult != "dodged" || (InventorySnapshot{Items: player.AmmunitionPouch.Items}).itemsQuantity(ItemIronArrow) != 0 {
 		t.Fatalf("bow state after dodged shot = %+v", player)
 	}
 }
@@ -675,12 +719,12 @@ func TestLatestEquipmentCommandWinsBeforePulse(t *testing.T) {
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponDagger}); err != nil {
 		t.Fatalf("QueueEquip(1) returned an unexpected error: %v", err)
 	}
-	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponSword}); err != nil {
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip(2) returned an unexpected error: %v", err)
 	}
 	world.Step(actionPulseInterval)
-	if got := mustPlayer(t, world, "player-one").EquippedWeapon; got != WeaponSword {
-		t.Fatalf("EquippedWeapon = %q, want %q", got, WeaponSword)
+	if got := mustPlayer(t, world, "player-one").EquippedWeapon; got != WeaponBow {
+		t.Fatalf("EquippedWeapon = %q, want %q", got, WeaponBow)
 	}
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponDagger}); err == nil {
 		t.Fatal("QueueEquip() error = nil for stale sequence")

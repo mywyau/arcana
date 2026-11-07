@@ -168,7 +168,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		case <-ticker.C:
 			message := protocol.ServerMessage{
 				Type:     protocol.MessageSnapshot,
-				Snapshot: snapshotMessage(h.world.Snapshot()),
+				Snapshot: snapshotMessage(h.world.Snapshot(), playerID),
 			}
 			if err := writeMessage(ctx, connection, message); err != nil {
 				return
@@ -351,6 +351,27 @@ func (h *Handler) readCommands(
 				RecipeID:   message.RecipeID,
 				InstanceID: message.InstanceID,
 			})
+		case protocol.MessageBankDeposit:
+			rejectionCode = "bank_rejected"
+			err = h.world.QueueBankTransfer(simulation.BankTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, Deposit: true,
+				ItemID: message.ItemID, InstanceID: message.InstanceID, InventorySlot: message.InventorySlot,
+			})
+		case protocol.MessageBankWithdraw:
+			rejectionCode = "bank_rejected"
+			err = h.world.QueueBankTransfer(simulation.BankTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, BankSlot: message.BankSlot, Quantity: message.Quantity,
+			})
+		case protocol.MessageAmmunitionDeposit:
+			rejectionCode = "ammunition_rejected"
+			err = h.world.QueueAmmunitionTransfer(simulation.AmmunitionTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, Deposit: true, InventorySlot: message.InventorySlot,
+			})
+		case protocol.MessageAmmunitionWithdraw:
+			rejectionCode = "ammunition_rejected"
+			err = h.world.QueueAmmunitionTransfer(simulation.AmmunitionTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, PouchSlot: message.AmmunitionSlot,
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
@@ -381,7 +402,7 @@ func errorMessage(code string, err error) protocol.ServerMessage {
 	}
 }
 
-func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
+func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.PlayerID) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
 		Tick:           snapshot.Tick,
 		ActionPulse:    snapshot.ActionPulse,
@@ -389,6 +410,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 		Drops:          make([]protocol.DropSnapshot, 0, len(snapshot.Drops)),
 		CombatEvents:   make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
 		GatheringSpots: make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots)),
+		BankChests:     make([]protocol.BankChestSnapshot, 0, len(snapshot.BankChests)),
 		Players:        make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
 	}
 	for _, target := range snapshot.Targets {
@@ -424,6 +446,13 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 			Station: string(spot.Station),
 		})
 	}
+	for _, chest := range snapshot.BankChests {
+		message.BankChests = append(message.BankChests, protocol.BankChestSnapshot{
+			ID: chest.ID, Name: chest.Name,
+			Position: protocol.Position{X: chest.Position.X, Y: chest.Position.Y, Z: chest.Position.Z},
+			Range:    chest.Range,
+		})
+	}
 	for _, player := range snapshot.Players {
 		playerMessage := protocol.PlayerSnapshot{
 			ID: string(player.ID),
@@ -439,34 +468,36 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Kind: string(player.NavigationLocation.Kind),
 				ID:   player.NavigationLocation.ID,
 			},
-			LastActionSequence:       player.LastActionSequence,
-			LastActionPulse:          player.LastActionPulse,
-			LastActionResult:         player.LastActionResult,
-			CombatTarget:             player.CombatTarget,
-			NextAttackPulse:          player.NextAttackPulse,
-			AutoApproaching:          player.AutoApproaching,
-			AutoPickingUp:            player.AutoPickingUp,
-			Health:                   player.Health,
-			MaximumHealth:            player.MaximumHealth,
-			Prayer:                   player.Prayer,
-			MaximumPrayer:            player.MaximumPrayer,
-			Defeated:                 player.Defeated,
-			RespawnAtPulse:           player.RespawnAtPulse,
-			EquippedWeapon:           string(player.EquippedWeapon),
-			EquippedWeaponInstanceID: player.EquippedWeaponInstanceID,
-			EquippedArmour:           make(map[string]string, len(player.EquippedArmour)),
-			EquippedArmourInstances:  make(map[string]string, len(player.EquippedArmourInstances)),
-			EquippedSpellbook:        player.EquippedSpellbook,
-			ActiveSpellbook:          string(player.ActiveSpellbook),
-			LastEquipmentSequence:    player.LastEquipmentSequence,
-			LastEquipmentPulse:       player.LastEquipmentPulse,
-			CombatStyle:              string(player.CombatStyle),
-			LastCombatStyleSequence:  player.LastCombatStyleSequence,
-			ActivePrayers:            make([]string, 0, len(player.ActivePrayers)),
-			LastPrayerSequence:       player.LastPrayerSequence,
-			SelectedSpell:            string(player.SelectedSpell),
-			LastSpellSequence:        player.LastSpellSequence,
-			DodgeRate:                player.DodgeRate,
+			LastActionSequence:           player.LastActionSequence,
+			LastActionPulse:              player.LastActionPulse,
+			LastActionResult:             player.LastActionResult,
+			CombatTarget:                 player.CombatTarget,
+			NextAttackPulse:              player.NextAttackPulse,
+			AutoApproaching:              player.AutoApproaching,
+			AutoPickingUp:                player.AutoPickingUp,
+			Health:                       player.Health,
+			MaximumHealth:                player.MaximumHealth,
+			Prayer:                       player.Prayer,
+			MaximumPrayer:                player.MaximumPrayer,
+			Defeated:                     player.Defeated,
+			RespawnAtPulse:               player.RespawnAtPulse,
+			EquippedWeapon:               string(player.EquippedWeapon),
+			EquippedWeaponInstanceID:     player.EquippedWeaponInstanceID,
+			EquippedWeaponReinforcement:  player.EquippedWeaponReinforcement,
+			EquippedArmour:               make(map[string]string, len(player.EquippedArmour)),
+			EquippedArmourInstances:      make(map[string]string, len(player.EquippedArmourInstances)),
+			EquippedArmourReinforcements: make(map[string]int, len(player.EquippedArmourReinforcements)),
+			EquippedSpellbook:            player.EquippedSpellbook,
+			ActiveSpellbook:              string(player.ActiveSpellbook),
+			LastEquipmentSequence:        player.LastEquipmentSequence,
+			LastEquipmentPulse:           player.LastEquipmentPulse,
+			CombatStyle:                  string(player.CombatStyle),
+			LastCombatStyleSequence:      player.LastCombatStyleSequence,
+			ActivePrayers:                make([]string, 0, len(player.ActivePrayers)),
+			LastPrayerSequence:           player.LastPrayerSequence,
+			SelectedSpell:                string(player.SelectedSpell),
+			LastSpellSequence:            player.LastSpellSequence,
+			DodgeRate:                    player.DodgeRate,
 			CombatStats: protocol.CombatStatsSnapshot{
 				Weapon:                 string(player.CombatStats.Weapon),
 				Style:                  string(player.CombatStats.Style),
@@ -474,6 +505,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				AccuracySkill:          string(player.CombatStats.AccuracySkill),
 				AccuracyLevel:          player.CombatStats.AccuracyLevel,
 				WeaponAccuracyBonus:    player.CombatStats.WeaponAccuracyBonus,
+				EquipmentAccuracyBonus: player.CombatStats.EquipmentAccuracyBonus,
 				StyleAccuracyBonus:     player.CombatStats.StyleAccuracyBonus,
 				SpellAccuracyBonus:     player.CombatStats.SpellAccuracyBonus,
 				PrayerAccuracyBonus:    player.CombatStats.PrayerAccuracyBonus,
@@ -481,6 +513,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				DamageSkill:            string(player.CombatStats.DamageSkill),
 				DamageLevel:            player.CombatStats.DamageLevel,
 				StrengthBonus:          player.CombatStats.StrengthBonus,
+				EquipmentStrengthBonus: player.CombatStats.EquipmentStrengthBonus,
 				SpellPower:             player.CombatStats.SpellPower,
 				SkillDamageBonus:       player.CombatStats.SkillDamageBonus,
 				PrayerDamageBonus:      player.CombatStats.PrayerDamageBonus,
@@ -491,6 +524,8 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				MinimumDamage:          player.CombatStats.MinimumDamage,
 				MaximumDamage:          player.CombatStats.MaximumDamage,
 				DefenceLevel:           player.CombatStats.DefenceLevel,
+				ArmourDamageReduction:  player.CombatStats.ArmourDamageReduction,
+				MaximumHealthBonus:     player.CombatStats.MaximumHealthBonus,
 				DefenceBonuses: protocol.DefenceBonuses{
 					Stab: player.CombatStats.DefenceBonuses.Stab, Slash: player.CombatStats.DefenceBonuses.Slash,
 					Crush: player.CombatStats.DefenceBonuses.Crush, Ranged: player.CombatStats.DefenceBonuses.Ranged,
@@ -501,6 +536,7 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 			},
+			LastBankSequence:    player.LastBankSequence,
 			LastPickupSequence:  player.LastPickupSequence,
 			LastConsumeSequence: player.LastConsumeSequence,
 			NextConsumePulse:    player.NextConsumePulse,
@@ -520,11 +556,36 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 		for slot, instanceID := range player.EquippedArmourInstances {
 			playerMessage.EquippedArmourInstances[string(slot)] = instanceID
 		}
+		for slot, reinforcement := range player.EquippedArmourReinforcements {
+			playerMessage.EquippedArmourReinforcements[string(slot)] = reinforcement
+		}
 		for _, item := range player.Inventory.Items {
 			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{
 				Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 				InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
 			})
+		}
+		if player.ID == localPlayerID {
+			playerMessage.AmmunitionPouch = protocol.AmmunitionPouchSnapshot{
+				Capacity: player.AmmunitionPouch.Capacity, UnlockedSlots: player.AmmunitionPouch.UnlockedSlots,
+				Items: make([]protocol.InventoryItem, 0, len(player.AmmunitionPouch.Items)),
+			}
+			playerMessage.LastAmmunitionSequence = player.LastAmmunitionSequence
+			for _, item := range player.AmmunitionPouch.Items {
+				playerMessage.AmmunitionPouch.Items = append(playerMessage.AmmunitionPouch.Items, protocol.InventoryItem{
+					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+				})
+			}
+			playerMessage.Bank = &protocol.InventorySnapshot{
+				Capacity: player.Bank.Capacity,
+				Items:    make([]protocol.InventoryItem, 0, len(player.Bank.Items)),
+			}
+			for _, item := range player.Bank.Items {
+				playerMessage.Bank.Items = append(playerMessage.Bank.Items, protocol.InventoryItem{
+					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+					InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
+				})
+			}
 		}
 		for _, skill := range player.Skills {
 			playerMessage.Skills = append(playerMessage.Skills, protocol.SkillSnapshot{

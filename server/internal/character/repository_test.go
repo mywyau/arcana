@@ -11,12 +11,18 @@ func TestMemoryRepositoryCopiesInventoryState(t *testing.T) {
 	repository := NewMemoryRepository()
 	state := simulation.DefaultPersistentPlayerState()
 	state.Inventory.Items = []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 1}}
+	state.Bank.Items = []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 100}}
+	state.AmmunitionPouch.Items = []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemIronArrow, Quantity: 50}}
+	state.EquippedArmourReinforcements[simulation.ArmourSlotHead] = 1
 	if err := repository.Save(context.Background(), "player-one", state); err != nil {
 		t.Fatalf("Save() returned an unexpected error: %v", err)
 	}
 
 	state.Inventory.Items[0].Quantity = 99
+	state.Bank.Items[0].Quantity = 999
+	state.AmmunitionPouch.Items[0].Quantity = 999
 	state.Skills[0].Experience = 99
+	state.EquippedArmourReinforcements[simulation.ArmourSlotHead] = 0
 	loaded, found, err := repository.Load(context.Background(), "player-one")
 	if err != nil || !found {
 		t.Fatalf("Load() = found %t, error %v", found, err)
@@ -24,17 +30,38 @@ func TestMemoryRepositoryCopiesInventoryState(t *testing.T) {
 	if loaded.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("stored quantity = %d, want 1", loaded.Inventory.Items[0].Quantity)
 	}
+	if loaded.Bank.Items[0].Quantity != 100 {
+		t.Fatalf("stored bank quantity = %d, want 100", loaded.Bank.Items[0].Quantity)
+	}
+	if loaded.AmmunitionPouch.Items[0].Quantity != 50 {
+		t.Fatalf("stored ammunition quantity = %d, want 50", loaded.AmmunitionPouch.Items[0].Quantity)
+	}
 	if loaded.Skills[0].Experience != 0 {
 		t.Fatalf("stored Attack XP = %d, want 0", loaded.Skills[0].Experience)
 	}
+	if loaded.EquippedArmourReinforcements[simulation.ArmourSlotHead] != 1 {
+		t.Fatal("stored equipment reinforcement was not copied")
+	}
 
 	loaded.Inventory.Items[0].Quantity = 42
+	loaded.Bank.Items[0].Quantity = 42
+	loaded.AmmunitionPouch.Items[0].Quantity = 42
 	loaded.Skills[0].Experience = 42
+	loaded.EquippedArmourReinforcements[simulation.ArmourSlotHead] = 0
 	reloaded, _, _ := repository.Load(context.Background(), "player-one")
 	if reloaded.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("reloaded quantity = %d, want 1", reloaded.Inventory.Items[0].Quantity)
 	}
+	if reloaded.Bank.Items[0].Quantity != 100 {
+		t.Fatalf("reloaded bank quantity = %d, want 100", reloaded.Bank.Items[0].Quantity)
+	}
+	if reloaded.AmmunitionPouch.Items[0].Quantity != 50 {
+		t.Fatalf("reloaded ammunition quantity = %d, want 50", reloaded.AmmunitionPouch.Items[0].Quantity)
+	}
 	if reloaded.Skills[0].Experience != 0 {
 		t.Fatalf("reloaded Attack XP = %d, want 0", reloaded.Skills[0].Experience)
+	}
+	if reloaded.EquippedArmourReinforcements[simulation.ArmourSlotHead] != 1 {
+		t.Fatal("reloaded equipment reinforcement was not copied")
 	}
 }

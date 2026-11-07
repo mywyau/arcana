@@ -13,7 +13,6 @@ var (
 type SmeltingRecipeID string
 
 const (
-	SmeltingCopperBar  SmeltingRecipeID = "copper_bar"
 	SmeltingBronzeBar  SmeltingRecipeID = "bronze_bar"
 	SmeltingIronBar    SmeltingRecipeID = "iron_bar"
 	SmeltingMithrilBar SmeltingRecipeID = "mithril_bar"
@@ -31,11 +30,6 @@ type smeltingRecipeDefinition struct {
 }
 
 var smeltingRecipes = mustBuildSmeltingRecipes([]smeltingRecipeDefinition{
-	{
-		ID: SmeltingCopperBar, Name: "Copper Bar", RequiredLevel: 1,
-		Costs:      []ItemCost{{ItemID: ItemCopperOre, Quantity: 1}},
-		RewardItem: ItemCopperBar, RewardQuantity: 1, RewardXP: 10, Interval: 4,
-	},
 	{
 		ID: SmeltingBronzeBar, Name: "Bronze Bar", RequiredLevel: 1,
 		Costs:      []ItemCost{{ItemID: ItemCopperOre, Quantity: 1}, {ItemID: ItemTinOre, Quantity: 1}},

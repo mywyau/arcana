@@ -8,23 +8,27 @@ import (
 )
 
 const (
-	MessageAuthenticate      = "authenticate"
-	MessageMoveTo            = "move_to"
-	MessageEngageTarget      = "engage_target"
-	MessageDisengage         = "disengage"
-	MessageEquipItem         = "equip_item"
-	MessageUnequipItem       = "unequip_item"
-	MessageCombatStyle       = "set_combat_style"
-	MessageSetPrayer         = "set_prayer"
-	MessageSetSpell          = "set_spell"
-	MessagePickupItem        = "pickup_item"
-	MessageDropItem          = "drop_item"
-	MessageMoveInventoryItem = "move_inventory_item"
-	MessageConsumeItem       = "consume_item"
-	MessageGather            = "gather"
-	MessageWelcome           = "welcome"
-	MessageSnapshot          = "snapshot"
-	MessageError             = "error"
+	MessageAuthenticate       = "authenticate"
+	MessageMoveTo             = "move_to"
+	MessageEngageTarget       = "engage_target"
+	MessageDisengage          = "disengage"
+	MessageEquipItem          = "equip_item"
+	MessageUnequipItem        = "unequip_item"
+	MessageCombatStyle        = "set_combat_style"
+	MessageSetPrayer          = "set_prayer"
+	MessageSetSpell           = "set_spell"
+	MessagePickupItem         = "pickup_item"
+	MessageDropItem           = "drop_item"
+	MessageMoveInventoryItem  = "move_inventory_item"
+	MessageConsumeItem        = "consume_item"
+	MessageGather             = "gather"
+	MessageBankDeposit        = "bank_deposit"
+	MessageBankWithdraw       = "bank_withdraw"
+	MessageAmmunitionDeposit  = "ammunition_deposit"
+	MessageAmmunitionWithdraw = "ammunition_withdraw"
+	MessageWelcome            = "welcome"
+	MessageSnapshot           = "snapshot"
+	MessageError              = "error"
 )
 
 type Position struct {
@@ -34,22 +38,26 @@ type Position struct {
 }
 
 type ClientMessage struct {
-	Type        string    `json:"type"`
-	Sequence    uint64    `json:"sequence"`
-	Destination *Position `json:"destination"`
-	TargetID    string    `json:"target_id,omitempty"`
-	ItemID      string    `json:"item_id,omitempty"`
-	InstanceID  string    `json:"instance_id,omitempty"`
-	DropID      string    `json:"drop_id,omitempty"`
-	FromSlot    int       `json:"from_slot,omitempty"`
-	ToSlot      int       `json:"to_slot,omitempty"`
-	CombatStyle string    `json:"combat_style,omitempty"`
-	PrayerID    string    `json:"prayer_id,omitempty"`
-	SpellID     string    `json:"spell_id,omitempty"`
-	SpotID      string    `json:"spot_id,omitempty"`
-	RecipeID    string    `json:"recipe_id,omitempty"`
-	Active      bool      `json:"active,omitempty"`
-	GuestToken  string    `json:"guest_token,omitempty"`
+	Type           string    `json:"type"`
+	Sequence       uint64    `json:"sequence"`
+	Destination    *Position `json:"destination"`
+	TargetID       string    `json:"target_id,omitempty"`
+	ItemID         string    `json:"item_id,omitempty"`
+	InstanceID     string    `json:"instance_id,omitempty"`
+	DropID         string    `json:"drop_id,omitempty"`
+	FromSlot       int       `json:"from_slot,omitempty"`
+	ToSlot         int       `json:"to_slot,omitempty"`
+	CombatStyle    string    `json:"combat_style,omitempty"`
+	PrayerID       string    `json:"prayer_id,omitempty"`
+	SpellID        string    `json:"spell_id,omitempty"`
+	SpotID         string    `json:"spot_id,omitempty"`
+	RecipeID       string    `json:"recipe_id,omitempty"`
+	BankSlot       int       `json:"bank_slot,omitempty"`
+	InventorySlot  int       `json:"inventory_slot,omitempty"`
+	AmmunitionSlot int       `json:"ammunition_slot,omitempty"`
+	Quantity       int       `json:"quantity,omitempty"`
+	Active         bool      `json:"active,omitempty"`
+	GuestToken     string    `json:"guest_token,omitempty"`
 }
 
 type ServerMessage struct {
@@ -67,6 +75,7 @@ type WorldSnapshot struct {
 	Drops          []DropSnapshot          `json:"drops"`
 	CombatEvents   []CombatEvent           `json:"combat_events"`
 	GatheringSpots []GatheringSpotSnapshot `json:"gathering_spots"`
+	BankChests     []BankChestSnapshot     `json:"bank_chests"`
 	Players        []PlayerSnapshot        `json:"players"`
 }
 
@@ -117,53 +126,66 @@ type GatheringSpotSnapshot struct {
 	Station       string   `json:"station,omitempty"`
 }
 
+type BankChestSnapshot struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Position Position `json:"position"`
+	Range    float64  `json:"range"`
+}
+
 type PlayerSnapshot struct {
-	ID                       string              `json:"id"`
-	Position                 Position            `json:"position"`
-	Destination              *Position           `json:"destination,omitempty"`
-	Path                     []Position          `json:"path"`
-	Speed                    float64             `json:"speed"`
-	LastCommandSequence      uint64              `json:"last_command_sequence"`
-	LastCommandTick          uint64              `json:"last_command_tick"`
-	NavigationLocation       NavigationLocation  `json:"navigation_location"`
-	LastActionSequence       uint64              `json:"last_action_sequence"`
-	LastActionPulse          uint64              `json:"last_action_pulse"`
-	LastActionResult         string              `json:"last_action_result"`
-	CombatTarget             string              `json:"combat_target"`
-	NextAttackPulse          uint64              `json:"next_attack_pulse"`
-	AutoApproaching          bool                `json:"auto_approaching"`
-	AutoPickingUp            bool                `json:"auto_picking_up"`
-	Health                   int                 `json:"health"`
-	MaximumHealth            int                 `json:"maximum_health"`
-	Prayer                   int                 `json:"prayer"`
-	MaximumPrayer            int                 `json:"maximum_prayer"`
-	Defeated                 bool                `json:"defeated"`
-	RespawnAtPulse           uint64              `json:"respawn_at_pulse"`
-	EquippedWeapon           string              `json:"equipped_weapon"`
-	EquippedWeaponInstanceID string              `json:"equipped_weapon_instance_id,omitempty"`
-	EquippedArmour           map[string]string   `json:"equipped_armour"`
-	EquippedArmourInstances  map[string]string   `json:"equipped_armour_instances"`
-	EquippedSpellbook        string              `json:"equipped_spellbook"`
-	ActiveSpellbook          string              `json:"active_spellbook"`
-	LastEquipmentSequence    uint64              `json:"last_equipment_sequence"`
-	LastEquipmentPulse       uint64              `json:"last_equipment_pulse"`
-	CombatStyle              string              `json:"combat_style"`
-	LastCombatStyleSequence  uint64              `json:"last_combat_style_sequence"`
-	ActivePrayers            []string            `json:"active_prayers"`
-	LastPrayerSequence       uint64              `json:"last_prayer_sequence"`
-	SelectedSpell            string              `json:"selected_spell"`
-	LastSpellSequence        uint64              `json:"last_spell_sequence"`
-	DodgeRate                float64             `json:"dodge_rate"`
-	CombatStats              CombatStatsSnapshot `json:"combat_stats"`
-	Inventory                InventorySnapshot   `json:"inventory"`
-	LastPickupSequence       uint64              `json:"last_pickup_sequence"`
-	LastConsumeSequence      uint64              `json:"last_consume_sequence"`
-	NextConsumePulse         uint64              `json:"next_consume_pulse"`
-	GatheringSpot            string              `json:"gathering_spot"`
-	GatheringResult          string              `json:"gathering_result"`
-	NextGatherPulse          uint64              `json:"next_gather_pulse"`
-	LastGatherSequence       uint64              `json:"last_gather_sequence"`
-	Skills                   []SkillSnapshot     `json:"skills"`
+	ID                           string                  `json:"id"`
+	Position                     Position                `json:"position"`
+	Destination                  *Position               `json:"destination,omitempty"`
+	Path                         []Position              `json:"path"`
+	Speed                        float64                 `json:"speed"`
+	LastCommandSequence          uint64                  `json:"last_command_sequence"`
+	LastCommandTick              uint64                  `json:"last_command_tick"`
+	NavigationLocation           NavigationLocation      `json:"navigation_location"`
+	LastActionSequence           uint64                  `json:"last_action_sequence"`
+	LastActionPulse              uint64                  `json:"last_action_pulse"`
+	LastActionResult             string                  `json:"last_action_result"`
+	CombatTarget                 string                  `json:"combat_target"`
+	NextAttackPulse              uint64                  `json:"next_attack_pulse"`
+	AutoApproaching              bool                    `json:"auto_approaching"`
+	AutoPickingUp                bool                    `json:"auto_picking_up"`
+	Health                       int                     `json:"health"`
+	MaximumHealth                int                     `json:"maximum_health"`
+	Prayer                       int                     `json:"prayer"`
+	MaximumPrayer                int                     `json:"maximum_prayer"`
+	Defeated                     bool                    `json:"defeated"`
+	RespawnAtPulse               uint64                  `json:"respawn_at_pulse"`
+	EquippedWeapon               string                  `json:"equipped_weapon"`
+	EquippedWeaponInstanceID     string                  `json:"equipped_weapon_instance_id,omitempty"`
+	EquippedWeaponReinforcement  int                     `json:"equipped_weapon_reinforcement,omitempty"`
+	EquippedArmour               map[string]string       `json:"equipped_armour"`
+	EquippedArmourInstances      map[string]string       `json:"equipped_armour_instances"`
+	EquippedArmourReinforcements map[string]int          `json:"equipped_armour_reinforcements"`
+	EquippedSpellbook            string                  `json:"equipped_spellbook"`
+	ActiveSpellbook              string                  `json:"active_spellbook"`
+	LastEquipmentSequence        uint64                  `json:"last_equipment_sequence"`
+	LastEquipmentPulse           uint64                  `json:"last_equipment_pulse"`
+	CombatStyle                  string                  `json:"combat_style"`
+	LastCombatStyleSequence      uint64                  `json:"last_combat_style_sequence"`
+	ActivePrayers                []string                `json:"active_prayers"`
+	LastPrayerSequence           uint64                  `json:"last_prayer_sequence"`
+	SelectedSpell                string                  `json:"selected_spell"`
+	LastSpellSequence            uint64                  `json:"last_spell_sequence"`
+	DodgeRate                    float64                 `json:"dodge_rate"`
+	CombatStats                  CombatStatsSnapshot     `json:"combat_stats"`
+	Inventory                    InventorySnapshot       `json:"inventory"`
+	Bank                         *InventorySnapshot      `json:"bank,omitempty"`
+	AmmunitionPouch              AmmunitionPouchSnapshot `json:"ammunition_pouch"`
+	LastAmmunitionSequence       uint64                  `json:"last_ammunition_sequence,omitempty"`
+	LastBankSequence             uint64                  `json:"last_bank_sequence,omitempty"`
+	LastPickupSequence           uint64                  `json:"last_pickup_sequence"`
+	LastConsumeSequence          uint64                  `json:"last_consume_sequence"`
+	NextConsumePulse             uint64                  `json:"next_consume_pulse"`
+	GatheringSpot                string                  `json:"gathering_spot"`
+	GatheringResult              string                  `json:"gathering_result"`
+	NextGatherPulse              uint64                  `json:"next_gather_pulse"`
+	LastGatherSequence           uint64                  `json:"last_gather_sequence"`
+	Skills                       []SkillSnapshot         `json:"skills"`
 }
 
 type CombatStatsSnapshot struct {
@@ -173,6 +195,7 @@ type CombatStatsSnapshot struct {
 	AccuracySkill          string         `json:"accuracy_skill"`
 	AccuracyLevel          int            `json:"accuracy_level"`
 	WeaponAccuracyBonus    int            `json:"weapon_accuracy_bonus"`
+	EquipmentAccuracyBonus int            `json:"equipment_accuracy_bonus"`
 	StyleAccuracyBonus     int            `json:"style_accuracy_bonus"`
 	SpellAccuracyBonus     int            `json:"spell_accuracy_bonus"`
 	PrayerAccuracyBonus    int            `json:"prayer_accuracy_bonus"`
@@ -180,6 +203,7 @@ type CombatStatsSnapshot struct {
 	DamageSkill            string         `json:"damage_skill"`
 	DamageLevel            int            `json:"damage_level"`
 	StrengthBonus          int            `json:"strength_bonus"`
+	EquipmentStrengthBonus int            `json:"equipment_strength_bonus"`
 	SpellPower             int            `json:"spell_power"`
 	SkillDamageBonus       float64        `json:"skill_damage_bonus"`
 	PrayerDamageBonus      float64        `json:"prayer_damage_bonus"`
@@ -191,6 +215,8 @@ type CombatStatsSnapshot struct {
 	MaximumDamage          int            `json:"maximum_damage"`
 	DefenceLevel           int            `json:"defence_level"`
 	DefenceBonuses         DefenceBonuses `json:"defence_bonuses"`
+	ArmourDamageReduction  float64        `json:"armour_damage_reduction"`
+	MaximumHealthBonus     int            `json:"maximum_health_bonus"`
 }
 
 type DefenceBonuses struct {
@@ -212,6 +238,12 @@ type SkillSnapshot struct {
 type InventorySnapshot struct {
 	Capacity int             `json:"capacity"`
 	Items    []InventoryItem `json:"items"`
+}
+
+type AmmunitionPouchSnapshot struct {
+	Capacity      int             `json:"capacity"`
+	UnlockedSlots int             `json:"unlocked_slots"`
+	Items         []InventoryItem `json:"items"`
 }
 
 type InventoryItem struct {
@@ -249,7 +281,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem && message.Type != MessageGather {
+		message.Type != MessageConsumeItem && message.Type != MessageGather &&
+		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw &&
+		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -282,6 +316,24 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageGather && message.SpotID == "" {
 		return ClientMessage{}, fmt.Errorf("gathering spot ID is required")
+	}
+	if message.Type == MessageBankDeposit && message.ItemID == "" {
+		return ClientMessage{}, fmt.Errorf("item ID is required")
+	}
+	if message.Type == MessageBankDeposit && message.InventorySlot < 0 {
+		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
+	}
+	if message.Type == MessageBankWithdraw && message.BankSlot < 0 {
+		return ClientMessage{}, fmt.Errorf("bank slot cannot be negative")
+	}
+	if message.Type == MessageBankWithdraw && message.Quantity < 0 {
+		return ClientMessage{}, fmt.Errorf("withdraw quantity cannot be negative")
+	}
+	if message.Type == MessageAmmunitionDeposit && message.InventorySlot < 0 {
+		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
+	}
+	if message.Type == MessageAmmunitionWithdraw && message.AmmunitionSlot < 0 {
+		return ClientMessage{}, fmt.Errorf("ammunition slot cannot be negative")
 	}
 	return message, nil
 }

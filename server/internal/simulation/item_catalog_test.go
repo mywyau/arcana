@@ -32,17 +32,23 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemSwiftHelm, ItemKindArmour},
 		{ItemSwiftBody, ItemKindArmour},
 		{ItemSwiftBoots, ItemKindArmour},
+		{ItemAmuletFerocity, ItemKindArmour},
+		{ItemAmuletHawk, ItemKindArmour},
+		{ItemAmuletEmbers, ItemKindArmour},
+		{ItemAmuletFury, ItemKindArmour},
 		{ItemStandardSpellbook, ItemKindSpellbook},
 		{ItemAirRune, ItemKindResource},
 		{ItemIronArrow, ItemKindResource},
 		{ItemCoins, ItemKindResource},
 		{ItemBronzePickaxe, ItemKindResource},
+		{ItemBronzeAxe, ItemKindResource},
+		{ItemNormalLogs, ItemKindResource},
+		{ItemOakLogs, ItemKindResource},
 		{ItemCopperOre, ItemKindResource},
 		{ItemTinOre, ItemKindResource},
 		{ItemIronOre, ItemKindResource},
 		{ItemCoal, ItemKindResource},
 		{ItemMithrilOre, ItemKindResource},
-		{ItemCopperBar, ItemKindResource},
 		{ItemBronzeBar, ItemKindResource},
 		{ItemIronBar, ItemKindResource},
 		{ItemMithrilBar, ItemKindResource},
@@ -69,6 +75,11 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 	}
 	if unarmed, exists := itemDefinition(string(WeaponUnarmed)); !exists || !unarmed.Virtual {
 		t.Fatalf("Unarmed definition = %+v, %t; want virtual item", unarmed, exists)
+	}
+	for _, itemID := range []string{ItemNormalLogs, ItemOakLogs} {
+		if definition, _ := itemDefinition(itemID); definition.StackLimit != 10 {
+			t.Errorf("%s stack limit = %d, want 10", itemID, definition.StackLimit)
+		}
 	}
 }
 
@@ -99,6 +110,13 @@ func TestBuildItemCatalogRejectsMalformedEquipment(t *testing.T) {
 			definition: ItemDefinition{ID: "broken_armour", Name: "Broken Armour", Kind: ItemKindArmour},
 		},
 		{
+			name: "armour with negative health bonus",
+			definition: ItemDefinition{
+				ID: "broken_health_armour", Name: "Broken Health Armour", Kind: ItemKindArmour,
+				Armour: ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: -1},
+			},
+		},
+		{
 			name:       "spellbook item without book",
 			definition: ItemDefinition{ID: "broken_book", Name: "Broken Book", Kind: ItemKindSpellbook},
 		},
@@ -111,6 +129,14 @@ func TestBuildItemCatalogRejectsMalformedEquipment(t *testing.T) {
 			definition: ItemDefinition{
 				ID: "unknown_set_armour", Name: "Unknown Set Armour", Kind: ItemKindArmour,
 				Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: "missing_set"},
+			},
+		},
+		{
+			name: "equipment with invalid level requirement",
+			definition: ItemDefinition{
+				ID: "invalid_requirement", Name: "Invalid Requirement", Kind: ItemKindArmour,
+				Armour:            ArmourDefinition{Slot: ArmourSlotHead},
+				EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: MaximumSkillLevel + 1}},
 			},
 		},
 	}

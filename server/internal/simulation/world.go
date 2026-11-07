@@ -68,52 +68,58 @@ type NavigationLocation struct {
 
 // PlayerSnapshot is a detached view of a player's authoritative state.
 type PlayerSnapshot struct {
-	ID                       PlayerID
-	Position                 Position
-	Destination              *Position
-	Path                     []Position
-	NavigationLocation       NavigationLocation
-	Speed                    float64
-	LastCommandSequence      uint64
-	LastCommandTick          uint64
-	LastActionSequence       uint64
-	LastActionPulse          uint64
-	LastActionResult         string
-	CombatTarget             string
-	NextAttackPulse          uint64
-	AutoApproaching          bool
-	AutoPickingUp            bool
-	Health                   int
-	MaximumHealth            int
-	Prayer                   int
-	MaximumPrayer            int
-	ActivePrayers            []PrayerID
-	LastPrayerSequence       uint64
-	SelectedSpell            SpellID
-	LastSpellSequence        uint64
-	Defeated                 bool
-	RespawnAtPulse           uint64
-	EquippedWeapon           WeaponID
-	EquippedWeaponInstanceID string
-	EquippedArmour           map[ArmourSlot]string
-	EquippedArmourInstances  map[ArmourSlot]string
-	EquippedSpellbook        string
-	ActiveSpellbook          SpellbookID
-	LastEquipmentSequence    uint64
-	LastEquipmentPulse       uint64
-	CombatStyle              CombatStyleID
-	LastCombatStyleSequence  uint64
-	DodgeRate                float64
-	CombatStats              CombatStatsSnapshot
-	Inventory                InventorySnapshot
-	LastPickupSequence       uint64
-	LastConsumeSequence      uint64
-	NextConsumePulse         uint64
-	GatheringSpot            string
-	GatheringResult          string
-	NextGatherPulse          uint64
-	LastGatherSequence       uint64
-	Skills                   []SkillSnapshot
+	ID                           PlayerID
+	Position                     Position
+	Destination                  *Position
+	Path                         []Position
+	NavigationLocation           NavigationLocation
+	Speed                        float64
+	LastCommandSequence          uint64
+	LastCommandTick              uint64
+	LastActionSequence           uint64
+	LastActionPulse              uint64
+	LastActionResult             string
+	CombatTarget                 string
+	NextAttackPulse              uint64
+	AutoApproaching              bool
+	AutoPickingUp                bool
+	Health                       int
+	MaximumHealth                int
+	Prayer                       int
+	MaximumPrayer                int
+	ActivePrayers                []PrayerID
+	LastPrayerSequence           uint64
+	SelectedSpell                SpellID
+	LastSpellSequence            uint64
+	Defeated                     bool
+	RespawnAtPulse               uint64
+	EquippedWeapon               WeaponID
+	EquippedWeaponInstanceID     string
+	EquippedWeaponReinforcement  int
+	EquippedArmour               map[ArmourSlot]string
+	EquippedArmourInstances      map[ArmourSlot]string
+	EquippedArmourReinforcements map[ArmourSlot]int
+	EquippedSpellbook            string
+	ActiveSpellbook              SpellbookID
+	LastEquipmentSequence        uint64
+	LastEquipmentPulse           uint64
+	CombatStyle                  CombatStyleID
+	LastCombatStyleSequence      uint64
+	DodgeRate                    float64
+	CombatStats                  CombatStatsSnapshot
+	Inventory                    InventorySnapshot
+	AmmunitionPouch              AmmunitionPouchSnapshot
+	LastAmmunitionSequence       uint64
+	Bank                         BankSnapshot
+	LastBankSequence             uint64
+	LastPickupSequence           uint64
+	LastConsumeSequence          uint64
+	NextConsumePulse             uint64
+	GatheringSpot                string
+	GatheringResult              string
+	NextGatherPulse              uint64
+	LastGatherSequence           uint64
+	Skills                       []SkillSnapshot
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -125,80 +131,90 @@ type Snapshot struct {
 	Drops          []DropSnapshot
 	CombatEvents   []CombatEvent
 	GatheringSpots []GatheringSpotSnapshot
+	BankChests     []BankChestSnapshot
 }
 
 type playerState struct {
-	id                        PlayerID
-	position                  Position
-	destination               *Position
-	path                      []Position
-	navigationLocation        NavigationLocation
-	speed                     float64
-	lastCommandSequence       uint64
-	lastCommandTick           uint64
-	lastActionSequence        uint64
-	lastActionPulse           uint64
-	lastActionResult          string
-	combatTarget              string
-	nextAttackPulse           uint64
-	autoApproaching           bool
-	autoPickingUp             bool
-	spawnPosition             Position
-	health                    int
-	maximumHealth             int
-	prayer                    int
-	maximumPrayer             int
-	activePrayers             map[PrayerID]bool
-	prayerDrainProgress       map[PrayerID]uint64
-	lastPrayerSequence        uint64
-	selectedSpell             SpellID
-	lastSpellSequence         uint64
-	defeated                  bool
-	respawnAtPulse            uint64
-	equippedWeapon            WeaponID
-	equippedWeaponInstanceID  string
-	equippedArmour            map[ArmourSlot]string
-	equippedArmourInstances   map[ArmourSlot]string
-	equippedSpellbook         string
-	lastEquipmentSequence     uint64
-	lastEquipmentPulse        uint64
-	combatStyle               CombatStyleID
-	lastCombatStyleSequence   uint64
-	dodgeRate                 float64
-	inventory                 inventoryState
-	lastPickupSequence        uint64
-	lastDropSequence          uint64
-	lastInventoryMoveSequence uint64
-	lastConsumeSequence       uint64
-	nextConsumePulse          uint64
-	gatheringSpot             string
-	gatheringRecipe           string
-	gatheringInstanceID       string
-	gatheringResult           string
-	nextGatherPulse           uint64
-	lastGatherSequence        uint64
-	skills                    skillState
+	id                           PlayerID
+	position                     Position
+	destination                  *Position
+	path                         []Position
+	navigationLocation           NavigationLocation
+	speed                        float64
+	baseSpeed                    float64
+	lastCommandSequence          uint64
+	lastCommandTick              uint64
+	lastActionSequence           uint64
+	lastActionPulse              uint64
+	lastActionResult             string
+	combatTarget                 string
+	nextAttackPulse              uint64
+	autoApproaching              bool
+	autoPickingUp                bool
+	spawnPosition                Position
+	health                       int
+	maximumHealth                int
+	prayer                       int
+	maximumPrayer                int
+	activePrayers                map[PrayerID]bool
+	prayerDrainProgress          map[PrayerID]uint64
+	lastPrayerSequence           uint64
+	selectedSpell                SpellID
+	lastSpellSequence            uint64
+	defeated                     bool
+	respawnAtPulse               uint64
+	equippedWeapon               WeaponID
+	equippedWeaponInstanceID     string
+	equippedWeaponReinforcement  int
+	equippedArmour               map[ArmourSlot]string
+	equippedArmourInstances      map[ArmourSlot]string
+	equippedArmourReinforcements map[ArmourSlot]int
+	equippedSpellbook            string
+	lastEquipmentSequence        uint64
+	lastEquipmentPulse           uint64
+	combatStyle                  CombatStyleID
+	lastCombatStyleSequence      uint64
+	dodgeRate                    float64
+	inventory                    inventoryState
+	ammunitionPouch              inventoryState
+	lastAmmunitionSequence       uint64
+	bank                         bankState
+	lastBankSequence             uint64
+	lastPickupSequence           uint64
+	lastDropSequence             uint64
+	lastInventoryMoveSequence    uint64
+	lastConsumeSequence          uint64
+	nextConsumePulse             uint64
+	gatheringSpot                string
+	gatheringRecipe              string
+	gatheringInstanceID          string
+	gatheringResult              string
+	nextGatherPulse              uint64
+	lastGatherSequence           uint64
+	skills                       skillState
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
 type World struct {
-	mu                    sync.RWMutex
-	tick                  uint64
-	players               map[PlayerID]*playerState
-	pendingJoins          map[PlayerID]*playerState
-	pendingLeaves         map[PlayerID]struct{}
-	pendingMoves          map[PlayerID]pendingMove
-	pendingPickups        map[PlayerID]pendingPickup
-	pendingItemDrops      map[PlayerID]DropItemCommand
-	pendingInventoryMoves map[PlayerID]MoveInventoryItemCommand
-	pendingConsumables    map[PlayerID]ConsumeItemCommand
-	pendingGathering      map[PlayerID]pendingGather
-	drops                 map[string]DropSnapshot
-	nextDropID            uint64
-	pathfinder            Pathfinder
-	combat                *combatState
-	rollSource            RollSource
-	gatheringSpots        map[string]gatheringSpotDefinition
+	mu                         sync.RWMutex
+	tick                       uint64
+	players                    map[PlayerID]*playerState
+	pendingJoins               map[PlayerID]*playerState
+	pendingLeaves              map[PlayerID]struct{}
+	pendingMoves               map[PlayerID]pendingMove
+	pendingPickups             map[PlayerID]pendingPickup
+	pendingItemDrops           map[PlayerID]DropItemCommand
+	pendingInventoryMoves      map[PlayerID]MoveInventoryItemCommand
+	pendingConsumables         map[PlayerID]ConsumeItemCommand
+	pendingGathering           map[PlayerID]pendingGather
+	pendingBankTransfers       map[PlayerID]BankTransferCommand
+	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
+	drops                      map[string]DropSnapshot
+	nextDropID                 uint64
+	pathfinder                 Pathfinder
+	combat                     *combatState
+	rollSource                 RollSource
+	gatheringSpots             map[string]gatheringSpotDefinition
 }
 
 type pendingMove struct {
@@ -222,19 +238,21 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		rollSource = newRandomRollSource()
 	}
 	return &World{
-		players:               make(map[PlayerID]*playerState),
-		pendingJoins:          make(map[PlayerID]*playerState),
-		pendingLeaves:         make(map[PlayerID]struct{}),
-		pendingMoves:          make(map[PlayerID]pendingMove),
-		pendingPickups:        make(map[PlayerID]pendingPickup),
-		pendingItemDrops:      make(map[PlayerID]DropItemCommand),
-		pendingInventoryMoves: make(map[PlayerID]MoveInventoryItemCommand),
-		pendingConsumables:    make(map[PlayerID]ConsumeItemCommand),
-		pendingGathering:      make(map[PlayerID]pendingGather),
-		drops:                 make(map[string]DropSnapshot),
-		combat:                newCombatState(),
-		rollSource:            rollSource,
-		gatheringSpots:        newGatheringSpots(),
+		players:                    make(map[PlayerID]*playerState),
+		pendingJoins:               make(map[PlayerID]*playerState),
+		pendingLeaves:              make(map[PlayerID]struct{}),
+		pendingMoves:               make(map[PlayerID]pendingMove),
+		pendingPickups:             make(map[PlayerID]pendingPickup),
+		pendingItemDrops:           make(map[PlayerID]DropItemCommand),
+		pendingInventoryMoves:      make(map[PlayerID]MoveInventoryItemCommand),
+		pendingConsumables:         make(map[PlayerID]ConsumeItemCommand),
+		pendingGathering:           make(map[PlayerID]pendingGather),
+		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
+		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
+		drops:                      make(map[string]DropSnapshot),
+		combat:                     newCombatState(),
+		rollSource:                 rollSource,
+		gatheringSpots:             newGatheringSpots(),
 	}
 }
 
@@ -263,15 +281,16 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 	}
 
 	w.players[id] = &playerState{
-		id: id, position: position, spawnPosition: position, speed: speed,
+		id: id, position: position, spawnPosition: position, speed: speed, baseSpeed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponUnarmed,
-		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(),
-		equippedArmour:          make(map[ArmourSlot]string),
-		equippedArmourInstances: make(map[ArmourSlot]string),
-		combatStyle:             defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
+		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(), bank: newEmptyBank(),
+		equippedArmour:               make(map[ArmourSlot]string),
+		equippedArmourInstances:      make(map[ArmourSlot]string),
+		equippedArmourReinforcements: make(map[ArmourSlot]int),
+		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
 	}
 	return nil
 }
@@ -298,14 +317,16 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 	}
 
 	w.pendingJoins[id] = &playerState{
-		id: id, position: position, spawnPosition: position, speed: speed,
+		id: id, position: position, spawnPosition: position, speed: speed, baseSpeed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponUnarmed,
-		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(),
-		equippedArmour: make(map[ArmourSlot]string),
-		combatStyle:    defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
+		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(), bank: newEmptyBank(),
+		equippedArmour:               make(map[ArmourSlot]string),
+		equippedArmourInstances:      make(map[ArmourSlot]string),
+		equippedArmourReinforcements: make(map[ArmourSlot]int),
+		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
 	}
 	return nil
 }
@@ -328,6 +349,8 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingInventoryMoves, id)
 	delete(w.pendingConsumables, id)
 	delete(w.pendingGathering, id)
+	delete(w.pendingBankTransfers, id)
+	delete(w.pendingAmmunitionTransfers, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -442,6 +465,8 @@ func (w *World) Step(elapsed time.Duration) {
 	}
 	w.moveRoamingEnemies(seconds)
 	w.applyPendingInventoryMoves()
+	w.applyPendingAmmunitionTransfers()
+	w.applyPendingBankTransfers()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
 	w.applyPendingItemDrops()
@@ -508,6 +533,7 @@ func (w *World) Snapshot() Snapshot {
 		Targets:        make([]TargetSnapshot, 0, len(w.combat.targets)),
 		Drops:          make([]DropSnapshot, 0, len(w.drops)),
 		GatheringSpots: w.gatheringSpotSnapshots(),
+		BankChests:     []BankChestSnapshot{starterBankChest},
 		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {
@@ -571,50 +597,56 @@ func movePlayer(player *playerState, seconds float64) {
 
 func snapshotPlayer(player *playerState) PlayerSnapshot {
 	snapshot := PlayerSnapshot{
-		ID:                       player.id,
-		Position:                 player.position,
-		Speed:                    player.speed,
-		LastCommandSequence:      player.lastCommandSequence,
-		LastCommandTick:          player.lastCommandTick,
-		NavigationLocation:       player.navigationLocation,
-		LastActionSequence:       player.lastActionSequence,
-		LastActionPulse:          player.lastActionPulse,
-		LastActionResult:         player.lastActionResult,
-		CombatTarget:             player.combatTarget,
-		NextAttackPulse:          player.nextAttackPulse,
-		AutoApproaching:          player.autoApproaching,
-		AutoPickingUp:            player.autoPickingUp,
-		Health:                   player.health,
-		MaximumHealth:            player.maximumHealth,
-		Prayer:                   player.prayer,
-		MaximumPrayer:            player.maximumPrayer,
-		ActivePrayers:            activePrayerIDs(player),
-		LastPrayerSequence:       player.lastPrayerSequence,
-		SelectedSpell:            player.selectedSpell,
-		LastSpellSequence:        player.lastSpellSequence,
-		Defeated:                 player.defeated,
-		RespawnAtPulse:           player.respawnAtPulse,
-		EquippedWeapon:           player.equippedWeapon,
-		EquippedWeaponInstanceID: player.equippedWeaponInstanceID,
-		EquippedArmour:           cloneEquippedArmour(player.equippedArmour),
-		EquippedArmourInstances:  cloneEquippedArmourInstances(player.equippedArmourInstances),
-		EquippedSpellbook:        player.equippedSpellbook,
-		ActiveSpellbook:          activeSpellbook(player),
-		LastEquipmentSequence:    player.lastEquipmentSequence,
-		LastEquipmentPulse:       player.lastEquipmentPulse,
-		CombatStyle:              player.combatStyle,
-		LastCombatStyleSequence:  player.lastCombatStyleSequence,
-		DodgeRate:                playerDodgeChance(dummyAccuracyScore, player),
-		CombatStats:              derivedCombatStats(player),
-		Inventory:                snapshotInventory(player.inventory),
-		LastPickupSequence:       player.lastPickupSequence,
-		LastConsumeSequence:      player.lastConsumeSequence,
-		NextConsumePulse:         player.nextConsumePulse,
-		GatheringSpot:            player.gatheringSpot,
-		GatheringResult:          player.gatheringResult,
-		NextGatherPulse:          player.nextGatherPulse,
-		LastGatherSequence:       player.lastGatherSequence,
-		Skills:                   snapshotSkills(player.skills),
+		ID:                           player.id,
+		Position:                     player.position,
+		Speed:                        player.speed,
+		LastCommandSequence:          player.lastCommandSequence,
+		LastCommandTick:              player.lastCommandTick,
+		NavigationLocation:           player.navigationLocation,
+		LastActionSequence:           player.lastActionSequence,
+		LastActionPulse:              player.lastActionPulse,
+		LastActionResult:             player.lastActionResult,
+		CombatTarget:                 player.combatTarget,
+		NextAttackPulse:              player.nextAttackPulse,
+		AutoApproaching:              player.autoApproaching,
+		AutoPickingUp:                player.autoPickingUp,
+		Health:                       player.health,
+		MaximumHealth:                player.maximumHealth,
+		Prayer:                       player.prayer,
+		MaximumPrayer:                player.maximumPrayer,
+		ActivePrayers:                activePrayerIDs(player),
+		LastPrayerSequence:           player.lastPrayerSequence,
+		SelectedSpell:                player.selectedSpell,
+		LastSpellSequence:            player.lastSpellSequence,
+		Defeated:                     player.defeated,
+		RespawnAtPulse:               player.respawnAtPulse,
+		EquippedWeapon:               player.equippedWeapon,
+		EquippedWeaponInstanceID:     player.equippedWeaponInstanceID,
+		EquippedWeaponReinforcement:  player.equippedWeaponReinforcement,
+		EquippedArmour:               cloneEquippedArmour(player.equippedArmour),
+		EquippedArmourInstances:      cloneEquippedArmourInstances(player.equippedArmourInstances),
+		EquippedArmourReinforcements: cloneEquippedArmourReinforcements(player.equippedArmourReinforcements),
+		EquippedSpellbook:            player.equippedSpellbook,
+		ActiveSpellbook:              activeSpellbook(player),
+		LastEquipmentSequence:        player.lastEquipmentSequence,
+		LastEquipmentPulse:           player.lastEquipmentPulse,
+		CombatStyle:                  player.combatStyle,
+		LastCombatStyleSequence:      player.lastCombatStyleSequence,
+		DodgeRate:                    playerDodgeChance(dummyAccuracyScore, player),
+		CombatStats:                  derivedCombatStats(player),
+		Inventory:                    snapshotInventory(player.inventory),
+		AmmunitionPouch:              snapshotAmmunitionPouch(player.ammunitionPouch),
+		LastAmmunitionSequence:       player.lastAmmunitionSequence,
+		Bank:                         snapshotBank(player.bank),
+		LastBankSequence:             player.lastBankSequence,
+		LastPickupSequence:           player.lastPickupSequence,
+		LastConsumeSequence:          player.lastConsumeSequence,
+		NextConsumePulse:             player.nextConsumePulse,
+		GatheringSpot:                player.gatheringSpot,
+		GatheringResult:              player.gatheringResult,
+		NextGatherPulse:              player.nextGatherPulse,
+		LastGatherSequence:           player.lastGatherSequence,
+		Skills:                       snapshotSkills(player.skills),
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

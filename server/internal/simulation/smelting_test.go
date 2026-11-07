@@ -12,7 +12,6 @@ func TestSmeltingRecipesUseExpectedInputsAndProgression(t *testing.T) {
 		output string
 		costs  []ItemCost
 	}{
-		{SmeltingCopperBar, 1, ItemCopperBar, []ItemCost{{ItemID: ItemCopperOre, Quantity: 1}}},
 		{SmeltingBronzeBar, 1, ItemBronzeBar, []ItemCost{{ItemID: ItemCopperOre, Quantity: 1}, {ItemID: ItemTinOre, Quantity: 1}}},
 		{SmeltingIronBar, 2, ItemIronBar, []ItemCost{{ItemID: ItemIronOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 1}}},
 		{SmeltingMithrilBar, 5, ItemMithrilBar, []ItemCost{{ItemID: ItemMithrilOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 2}}},
@@ -66,7 +65,7 @@ func TestBuildSmeltingRecipesRejectsInvalidCatalogReferences(t *testing.T) {
 	_, err := buildSmeltingRecipes([]smeltingRecipeDefinition{{
 		ID: "invalid", Name: "Invalid", RequiredLevel: 1,
 		Costs:      []ItemCost{{ItemID: "missing_ore", Quantity: 1}},
-		RewardItem: ItemCopperBar, RewardQuantity: 1, RewardXP: 1, Interval: 1,
+		RewardItem: ItemBronzeBar, RewardQuantity: 1, RewardXP: 1, Interval: 1,
 	}})
 	if err == nil {
 		t.Fatal("buildSmeltingRecipes() error = nil for an unknown input")

@@ -9,18 +9,23 @@ const (
 	ArmourSlotHead ArmourSlot = "head"
 	ArmourSlotBody ArmourSlot = "body"
 	ArmourSlotFeet ArmourSlot = "feet"
+	ArmourSlotNeck ArmourSlot = "neck"
 
-	ItemTrainingHelm  = "training_helm"
-	ItemBronzeHelm    = "bronze_helm"
-	ItemBronzePlate   = "bronze_platebody"
-	ItemIronHelm      = "iron_helm"
-	ItemIronPlate     = "iron_platebody"
-	ItemMithrilHelm   = "mithril_helm"
-	ItemMithrilPlate  = "mithril_platebody"
-	ItemTrainingPlate = "training_plate"
-	ItemSwiftHelm     = "swift_helm"
-	ItemSwiftBody     = "swift_body"
-	ItemSwiftBoots    = "swift_boots"
+	ItemTrainingHelm   = "training_helm"
+	ItemBronzeHelm     = "bronze_helm"
+	ItemBronzePlate    = "bronze_platebody"
+	ItemIronHelm       = "iron_helm"
+	ItemIronPlate      = "iron_platebody"
+	ItemMithrilHelm    = "mithril_helm"
+	ItemMithrilPlate   = "mithril_platebody"
+	ItemTrainingPlate  = "training_plate"
+	ItemSwiftHelm      = "swift_helm"
+	ItemSwiftBody      = "swift_body"
+	ItemSwiftBoots     = "swift_boots"
+	ItemAmuletFerocity = "amulet_ferocity"
+	ItemAmuletHawk     = "amulet_hawk"
+	ItemAmuletEmbers   = "amulet_embers"
+	ItemAmuletFury     = "amulet_fury"
 
 	armourSetSwift ArmourSetID = "swift"
 
@@ -35,10 +40,21 @@ type DefenceBonuses struct {
 	Magic  int
 }
 
+type OffenceBonuses struct {
+	MeleeAccuracy  int
+	RangedAccuracy int
+	MagicAccuracy  int
+	MeleeStrength  int
+	RangedStrength int
+	MagicStrength  int
+}
+
 type ArmourDefinition struct {
-	Slot    ArmourSlot
-	Set     ArmourSetID
-	Defence DefenceBonuses
+	Slot        ArmourSlot
+	Set         ArmourSetID
+	Defence     DefenceBonuses
+	Offence     OffenceBonuses
+	HealthBonus int
 }
 
 type ArmourSetDefinition struct {
@@ -95,6 +111,86 @@ func equippedDefenceBonusesForPlayer(player *playerState) DefenceBonuses {
 	return total
 }
 
+func equippedOffenceBonuses(equipped map[ArmourSlot]string) OffenceBonuses {
+	var total OffenceBonuses
+	for _, itemID := range equipped {
+		definition, exists := armourDefinition(itemID)
+		if !exists {
+			continue
+		}
+		total.MeleeAccuracy += definition.Offence.MeleeAccuracy
+		total.RangedAccuracy += definition.Offence.RangedAccuracy
+		total.MagicAccuracy += definition.Offence.MagicAccuracy
+		total.MeleeStrength += definition.Offence.MeleeStrength
+		total.RangedStrength += definition.Offence.RangedStrength
+		total.MagicStrength += definition.Offence.MagicStrength
+	}
+	return total
+}
+
+func equipmentOffenceForWeapon(player *playerState, weapon WeaponDefinition) (accuracy, strength int) {
+	if player == nil {
+		return 0, 0
+	}
+	bonuses := equippedOffenceBonuses(player.equippedArmour)
+	switch {
+	case weapon.RangedStrength > 0:
+		return bonuses.RangedAccuracy, bonuses.RangedStrength
+	case weapon.MagicStrength > 0:
+		return bonuses.MagicAccuracy, bonuses.MagicStrength
+	default:
+		return bonuses.MeleeAccuracy, bonuses.MeleeStrength
+	}
+}
+
+type DamageType string
+
+const (
+	DamageTypeStab   DamageType = "stab"
+	DamageTypeSlash  DamageType = "slash"
+	DamageTypeCrush  DamageType = "crush"
+	DamageTypeRanged DamageType = "ranged"
+	DamageTypeMagic  DamageType = "magic"
+)
+
+func defenceBonusForDamageType(bonuses DefenceBonuses, damageType DamageType) int {
+	switch damageType {
+	case DamageTypeStab:
+		return bonuses.Stab
+	case DamageTypeSlash:
+		return bonuses.Slash
+	case DamageTypeRanged:
+		return bonuses.Ranged
+	case DamageTypeMagic:
+		return bonuses.Magic
+	default:
+		return bonuses.Crush
+	}
+}
+
+func armourDamageReduction(player *playerState, damageType DamageType) float64 {
+	bonus := max(0, defenceBonusForDamageType(equippedDefenceBonusesForPlayer(player), damageType))
+	return float64(bonus) / float64(bonus+100)
+}
+
+func equippedHealthBonus(equipped map[ArmourSlot]string) int {
+	bonus := 0
+	for _, itemID := range equipped {
+		if definition, exists := armourDefinition(itemID); exists {
+			bonus += definition.HealthBonus
+		}
+	}
+	return bonus
+}
+
+func refreshPlayerMaximumHealth(player *playerState) {
+	if player == nil {
+		return
+	}
+	player.maximumHealth = playerMaximumHealth + equippedHealthBonus(player.equippedArmour)
+	player.health = min(player.health, player.maximumHealth)
+}
+
 func equippedAttackIntervalModifier(equipped map[ArmourSlot]string) int {
 	setPieces := make(map[ArmourSetID]int)
 	for _, itemID := range equipped {
@@ -133,6 +229,14 @@ func cloneEquippedArmourInstances(equipped map[ArmourSlot]string) map[ArmourSlot
 	clone := make(map[ArmourSlot]string, len(equipped))
 	for slot, instanceID := range equipped {
 		clone[slot] = instanceID
+	}
+	return clone
+}
+
+func cloneEquippedArmourReinforcements(equipped map[ArmourSlot]int) map[ArmourSlot]int {
+	clone := make(map[ArmourSlot]int, len(equipped))
+	for slot, reinforcement := range equipped {
+		clone[slot] = reinforcement
 	}
 	return clone
 }

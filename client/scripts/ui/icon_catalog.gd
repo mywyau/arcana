@@ -63,12 +63,14 @@ const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
 const COINS: Texture2D = preload("res://assets/icons/items/coins.png")
 const BRONZE_PICKAXE: Texture2D = preload("res://assets/icons/items/bronze_pickaxe.svg")
+const BRONZE_AXE: Texture2D = preload("res://assets/icons/items/bronze_axe.svg")
+const NORMAL_LOGS: Texture2D = preload("res://assets/icons/logs/normal_logs_150.png")
+const OAK_LOGS: Texture2D = preload("res://assets/icons/logs/oak_logs_150.png")
 const COPPER_ORE: Texture2D = preload("res://assets/icons/ore/Pixel-Art Copper Ore Cluster-1.png")
 const TIN_ORE: Texture2D = preload("res://assets/icons/ore/Stylized Tin Ore Pile Icon-2.png")
 const IRON_ORE: Texture2D = preload("res://assets/icons/ore/OSRS-Style Iron Ore Cluster-3.png")
 const COAL: Texture2D = preload("res://assets/icons/ore/Pixel-Art Coal Ore Cluster-4.png")
 const MITHRIL_ORE: Texture2D = preload("res://assets/icons/ore/OSRS-Style Mithril Rock Cluster-5.png")
-const COPPER_BAR: Texture2D = preload("res://assets/icons/items/copper_bar.svg")
 const BRONZE_BAR: Texture2D = preload("res://assets/icons/bars/Bronze Ingot Stack Icon-1.png")
 const IRON_BAR: Texture2D = preload("res://assets/icons/bars/Stacked Iron Ingots-2.png")
 const MITHRIL_BAR: Texture2D = preload("res://assets/icons/bars/Mithril Ingot Stack Icon-4.png")
@@ -86,6 +88,7 @@ const EQUIPMENT_SLOTS: Dictionary = {
 	"legs": preload("res://assets/icons/equipment/slots/legs.svg"),
 	"feet": preload("res://assets/icons/equipment/slots/feet.svg"),
 	"spellbook": preload("res://assets/icons/equipment/slots/spellbook.svg"),
+	"ammunition": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
 }
 
 # Main HUD navigation icons.
@@ -125,9 +128,12 @@ const SPELLS: Array = [
 
 const PRAYERS: Array = [
 	{"id": "accuracy", "name": "Accuracy", "description": "+5 melee accuracy score\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/18_accuracy.png")},
-	{"id": "strength", "name": "Strength", "description": "+10% melee damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/03_strength.png")},
-	{"id": "defence", "name": "Defence", "description": "10% incoming damage reduction\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
+	{"id": "strength", "name": "Strength", "description": "+5% melee damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/03_strength.png")},
+	{"id": "defence", "name": "Defence", "description": "5% incoming damage reduction\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
 	{"id": "evasion", "name": "Evasion", "description": "+5% dodge chance\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/04_agility.png")},
+	{"id": "ranged_strength", "name": "Ranged Strength", "description": "+5% ranged damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/16_ranged_boost.png")},
+	{"id": "magic_strength", "name": "Magic Strength", "description": "+5% magic damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/17_magic_boost.png")},
+	{"id": "regeneration", "name": "Regeneration", "description": "Restores 5% maximum health every 6 seconds\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/20_regeneration.svg")},
 	{"name": "Wisdom", "icon": preload("res://assets/icons/prayers/06_wisdom.png")},
 	{"name": "Protection", "icon": preload("res://assets/icons/prayers/02_protection.png")},
 	{"name": "Vision", "icon": preload("res://assets/icons/prayers/05_vision.png")},
@@ -139,8 +145,6 @@ const PRAYERS: Array = [
 	{"name": "Holy Light", "icon": preload("res://assets/icons/prayers/12_holy_light.png")},
 	{"name": "Melee Boost", "icon": preload("res://assets/icons/prayers/13_melee_boost.png")},
 	{"name": "Strength Boost", "icon": preload("res://assets/icons/prayers/15_strength_boost.png")},
-	{"name": "Ranged Boost", "icon": preload("res://assets/icons/prayers/16_ranged_boost.png")},
-	{"name": "Magic Boost", "icon": preload("res://assets/icons/prayers/17_magic_boost.png")},
 	{"name": "Wrath", "icon": preload("res://assets/icons/prayers/19_wrath.png")},
 ]
 
@@ -183,12 +187,14 @@ const ITEMS: Dictionary = {
 	"training_shard": TRAINING_SHARD,
 	"coins": COINS,
 	"bronze_pickaxe": BRONZE_PICKAXE,
+	"bronze_axe": BRONZE_AXE,
+	"normal_logs": NORMAL_LOGS,
+	"oak_logs": OAK_LOGS,
 	"copper_ore": COPPER_ORE,
 	"tin_ore": TIN_ORE,
 	"iron_ore": IRON_ORE,
 	"coal": COAL,
 	"mithril_ore": MITHRIL_ORE,
-	"copper_bar": COPPER_BAR,
 	"bronze_bar": BRONZE_BAR,
 	"iron_bar": IRON_BAR,
 	"mithril_bar": MITHRIL_BAR,
@@ -203,6 +209,10 @@ const ITEMS: Dictionary = {
 	"swift_helm": SWIFT_HELM,
 	"swift_body": SWIFT_BODY,
 	"swift_boots": SWIFT_BOOTS,
+	"amulet_ferocity": preload("res://assets/icons/equipment/amulets/ferocity.svg"),
+	"amulet_hawk": preload("res://assets/icons/equipment/amulets/hawk.svg"),
+	"amulet_embers": preload("res://assets/icons/equipment/amulets/embers.svg"),
+	"amulet_fury": preload("res://assets/icons/equipment/amulets/fury.svg"),
 	"standard_spellbook": STANDARD_SPELLBOOK,
 }
 

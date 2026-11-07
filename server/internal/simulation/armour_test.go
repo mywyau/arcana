@@ -92,3 +92,48 @@ func TestSwiftSetChangesAuthoritativeAttackCadence(t *testing.T) {
 		t.Fatalf("dummy health after faster cadence = %d, want %d", got, want)
 	}
 }
+
+func TestArmourReducesMatchingDamageWithDiminishingReturns(t *testing.T) {
+	player := &playerState{equippedArmour: map[ArmourSlot]string{
+		ArmourSlotHead: ItemBronzeHelm,
+		ArmourSlotBody: ItemBronzePlate,
+	}}
+
+	// Bronze armour supplies 7 crush defence, so it reduces 15 damage by
+	// 7 / (100 + 7), rounded only after the complete calculation.
+	if got, want := reduceIncomingDamage(player, 15, DamageTypeCrush), 14; got != want {
+		t.Fatalf("incoming crush damage = %d, want %d", got, want)
+	}
+	if got := armourDamageReduction(player, DamageTypeMagic); got != 0 {
+		t.Fatalf("negative magic defence produced %.3f damage reduction, want 0", got)
+	}
+}
+
+func TestArmourHealthBonusRaisesMaximumAndUnequipClampsHealth(t *testing.T) {
+	player := &playerState{
+		health:        playerMaximumHealth,
+		maximumHealth: playerMaximumHealth,
+		equippedArmour: map[ArmourSlot]string{
+			ArmourSlotHead: ItemBronzeHelm,
+			ArmourSlotBody: ItemBronzePlate,
+		},
+	}
+
+	refreshPlayerMaximumHealth(player)
+	if got, want := player.maximumHealth, 108; got != want {
+		t.Fatalf("maximum health with bronze armour = %d, want %d", got, want)
+	}
+	if got, want := player.health, playerMaximumHealth; got != want {
+		t.Fatalf("equipping armour healed to %d, want unchanged %d", got, want)
+	}
+
+	player.health = player.maximumHealth
+	delete(player.equippedArmour, ArmourSlotBody)
+	refreshPlayerMaximumHealth(player)
+	if got, want := player.maximumHealth, 102; got != want {
+		t.Fatalf("maximum health after removing plate = %d, want %d", got, want)
+	}
+	if got, want := player.health, 102; got != want {
+		t.Fatalf("health after removing plate = %d, want clamped %d", got, want)
+	}
+}

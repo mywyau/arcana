@@ -8,19 +8,27 @@ import (
 type PrayerID string
 
 const (
-	PrayerEvasion  PrayerID = "evasion"
-	PrayerStrength PrayerID = "strength"
-	PrayerAccuracy PrayerID = "accuracy"
-	PrayerDefence  PrayerID = "defence"
+	PrayerEvasion        PrayerID = "evasion"
+	PrayerStrength       PrayerID = "strength"
+	PrayerAccuracy       PrayerID = "accuracy"
+	PrayerDefence        PrayerID = "defence"
+	PrayerRangedStrength PrayerID = "ranged_strength"
+	PrayerMagicStrength  PrayerID = "magic_strength"
+	PrayerRegeneration   PrayerID = "regeneration"
 
-	evasionDodgeBonus                 = 0.05
-	evasionDrainIntervalPulses        = 10 // Ten 600 ms action pulses is six seconds.
-	strengthPrayerMeleeDamageBonus    = 0.10
-	strengthPrayerDrainIntervalPulses = 10 // Ten 600 ms action pulses is six seconds.
-	accuracyPrayerMeleeScoreBonus     = 5
-	accuracyPrayerDrainIntervalPulses = 10 // Ten 600 ms action pulses is six seconds.
-	defencePrayerDamageReduction      = 0.10
-	defencePrayerDrainIntervalPulses  = 10 // Ten 600 ms action pulses is six seconds.
+	evasionDodgeBonus                  = 0.05
+	evasionDrainIntervalPulses         = 10 // Ten 600 ms action pulses is six seconds.
+	strengthPrayerMeleeDamageBonus     = 0.05
+	strengthPrayerDrainIntervalPulses  = 10 // Ten 600 ms action pulses is six seconds.
+	accuracyPrayerMeleeScoreBonus      = 5
+	accuracyPrayerDrainIntervalPulses  = 10 // Ten 600 ms action pulses is six seconds.
+	defencePrayerDamageReduction       = 0.05
+	defencePrayerDrainIntervalPulses   = 10 // Ten 600 ms action pulses is six seconds.
+	rangedPrayerDamageBonus            = 0.05
+	magicPrayerDamageBonus             = 0.05
+	offensivePrayerDrainIntervalPulses = 10
+	regenerationHealthFraction         = 0.05
+	regenerationDrainIntervalPulses    = 10
 )
 
 type PrayerCommand struct {
@@ -32,6 +40,9 @@ type PrayerCommand struct {
 
 type prayerDefinition struct {
 	MeleeDamageBonus    float64
+	RangedDamageBonus   float64
+	MagicDamageBonus    float64
+	HealthRegeneration  float64
 	MeleeAccuracyBonus  int
 	DamageReduction     float64
 	DodgeBonus          float64
@@ -40,6 +51,8 @@ type prayerDefinition struct {
 
 type prayerBonuses struct {
 	MeleeDamage     float64
+	RangedDamage    float64
+	MagicDamage     float64
 	MeleeAccuracy   int
 	DamageReduction float64
 	Dodge           float64
@@ -67,6 +80,12 @@ func prayerDefinitionFor(id PrayerID) (prayerDefinition, bool) {
 			DamageReduction:     defencePrayerDamageReduction,
 			DrainIntervalPulses: defencePrayerDrainIntervalPulses,
 		}, true
+	case PrayerRangedStrength:
+		return prayerDefinition{RangedDamageBonus: rangedPrayerDamageBonus, DrainIntervalPulses: offensivePrayerDrainIntervalPulses}, true
+	case PrayerMagicStrength:
+		return prayerDefinition{MagicDamageBonus: magicPrayerDamageBonus, DrainIntervalPulses: offensivePrayerDrainIntervalPulses}, true
+	case PrayerRegeneration:
+		return prayerDefinition{HealthRegeneration: regenerationHealthFraction, DrainIntervalPulses: regenerationDrainIntervalPulses}, true
 	default:
 		return prayerDefinition{}, false
 	}
@@ -148,6 +167,10 @@ func (w *World) drainActivePrayers() {
 				continue
 			}
 			player.prayerDrainProgress[id] = 0
+			if definition.HealthRegeneration > 0 && player.health < player.maximumHealth {
+				healing := max(1, int(float64(player.maximumHealth)*definition.HealthRegeneration+0.5))
+				player.health = min(player.maximumHealth, player.health+healing)
+			}
 			player.prayer = max(0, player.prayer-1)
 			if player.prayer == 0 {
 				clearActivePrayers(player)
@@ -175,6 +198,8 @@ func activePrayerBonuses(player *playerState) prayerBonuses {
 		}
 		if definition, exists := prayerDefinitionFor(id); exists {
 			bonuses.MeleeDamage += definition.MeleeDamageBonus
+			bonuses.RangedDamage += definition.RangedDamageBonus
+			bonuses.MagicDamage += definition.MagicDamageBonus
 			bonuses.MeleeAccuracy += definition.MeleeAccuracyBonus
 			bonuses.DamageReduction += definition.DamageReduction
 			bonuses.Dodge += definition.DodgeBonus
@@ -190,12 +215,13 @@ func prayerAccuracyBonus(player *playerState, weapon WeaponDefinition) int {
 	return activePrayerBonuses(player).MeleeAccuracy
 }
 
-func reduceIncomingDamage(player *playerState, damage int) int {
+func reduceIncomingDamage(player *playerState, damage int, damageType DamageType) int {
 	if damage <= 0 {
 		return 0
 	}
-	reduction := min(0.90, activePrayerBonuses(player).DamageReduction)
-	return max(0, int(float64(damage)*(1-reduction)+0.5))
+	prayerReduction := min(0.90, activePrayerBonuses(player).DamageReduction)
+	armourReduction := armourDamageReduction(player, damageType)
+	return max(0, int(float64(damage)*(1-prayerReduction)*(1-armourReduction)+0.5))
 }
 
 func activePrayerIDs(player *playerState) []PrayerID {

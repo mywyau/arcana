@@ -71,11 +71,15 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	want.Position = simulation.Position{X: 7.5, Y: 3, Z: -2.25}
 	want.Health = 73
 	want.EquippedWeapon = simulation.WeaponBow
+	want.EquippedWeaponInstanceID = "integration-bow-instance"
+	want.EquippedWeaponReinforcement = 1
 	want.CombatStyle = simulation.CombatStyleLongRange
 	want.Skills = []simulation.PersistentSkillState{{ID: simulation.SkillAttack, Experience: 125}}
 	want.Inventory.Items = []simulation.InventoryItem{
-		{Slot: 0, ItemID: simulation.ItemStandardSpellbook, Quantity: 1},
-		{Slot: 1, ItemID: "training_shard", Quantity: 3},
+		{Slot: 0, ItemID: "training_shard", Quantity: 3},
+	}
+	want.Bank.Items = []simulation.InventoryItem{
+		{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 250},
 	}
 	want.EquippedSpellbook = simulation.ItemStandardSpellbook
 	if err := store.Save(ctx, guest.PlayerID, want); err != nil {

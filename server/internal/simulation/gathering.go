@@ -7,28 +7,35 @@ import (
 )
 
 const (
-	starterFishingSpotID  = "willowbrook_pond"
-	starterCookingRangeID = "willowbrook_range"
-	starterFurnaceID      = "willowbrook_furnace"
-	starterAnvilID        = "willowbrook_anvil"
-	gatheringRange        = 2.5
-	fishingInterval       = 4
-	fishingExperience     = 10
-	cookingInterval       = 4
-	cookingExperience     = 10
-	starterCopperVeinID   = "willowbrook_copper_vein"
-	starterTinVeinID      = "willowbrook_tin_vein"
-	starterIronVeinID     = "willowbrook_iron_vein"
-	starterCoalVeinID     = "willowbrook_coal_vein"
-	starterMithrilVeinID  = "willowbrook_mithril_vein"
-	miningInterval        = 4
-	miningExperience      = 10
-	copperVeinCapacity    = 20
-	tinVeinCapacity       = 20
-	copperRechargePulses  = 10
-	ironVeinCapacity      = 16
-	coalVeinCapacity      = 12
-	mithrilVeinCapacity   = 8
+	starterFishingSpotID      = "starter_pond"
+	starterCookingRangeID     = "starter_cooking_range"
+	starterFurnaceID          = "starter_furnace"
+	starterAnvilID            = "starter_anvil"
+	gatheringRange            = 2.5
+	fishingInterval           = 4
+	fishingExperience         = 10
+	cookingInterval           = 4
+	cookingExperience         = 10
+	starterCopperVeinID       = "starter_copper_vein"
+	starterTinVeinID          = "starter_tin_vein"
+	starterIronVeinID         = "starter_iron_vein"
+	starterCoalVeinID         = "starter_coal_vein"
+	starterMithrilVeinID      = "starter_mithril_vein"
+	starterNormalTreeID       = "starter_normal_tree"
+	starterOakTreeID          = "starter_oak_tree"
+	starterAgilityObstacleID  = "starter_balance_beam"
+	miningInterval            = 4
+	miningExperience          = 10
+	copperVeinCapacity        = 20
+	tinVeinCapacity           = 20
+	copperRechargePulses      = 10
+	ironVeinCapacity          = 16
+	coalVeinCapacity          = 12
+	mithrilVeinCapacity       = 8
+	normalTreeCapacity        = 10
+	oakTreeCapacity           = 8
+	agilityObstacleExperience = 25
+	agilityObstacleInterval   = 2
 )
 
 type craftingStationID string
@@ -62,9 +69,11 @@ type gatheringSpotDefinition struct {
 	ActiveResult   string
 	RewardResult   string
 	MissingResult  string
+	DepletedResult string
 	RequiredTool   string
 	RechargePulses uint64
 	NextRecharge   uint64
+	TrainingOnly   bool
 }
 
 type GatherCommand struct {
@@ -84,7 +93,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 	return map[string]gatheringSpotDefinition{
 		starterFishingSpotID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterFishingSpotID, Name: "Willowbrook Pond", Skill: SkillFishing,
+				ID: starterFishingSpotID, Name: "Fishing Pond", Skill: SkillFishing,
 				Position: Position{X: -14, Z: 14}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationFishing,
 			},
@@ -92,7 +101,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		},
 		starterCookingRangeID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterCookingRangeID, Name: "Willowbrook Cooking Range", Skill: SkillCooking,
+				ID: starterCookingRangeID, Name: "Cooking Range", Skill: SkillCooking,
 				Position: Position{X: -8, Z: -8}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationCooking,
 			},
@@ -100,7 +109,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		},
 		starterFurnaceID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterFurnaceID, Name: "Willowbrook Furnace", Skill: SkillSmithing,
+				ID: starterFurnaceID, Name: "Furnace", Skill: SkillSmithing,
 				Position: Position{X: 10, Z: 12}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationSmelting,
 			},
@@ -108,7 +117,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		},
 		starterAnvilID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterAnvilID, Name: "Willowbrook Anvil", Skill: SkillSmithing,
+				ID: starterAnvilID, Name: "Anvil", Skill: SkillSmithing,
 				Position: Position{X: 7, Z: 11}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationForging,
 			},
@@ -116,7 +125,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		},
 		starterCopperVeinID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterCopperVeinID, Name: "Willowbrook Copper Vein", Skill: SkillMining,
+				ID: starterCopperVeinID, Name: "Copper Vein", Skill: SkillMining,
 				Position: Position{X: 12, Z: 10}, Range: gatheringRange, RequiredLevel: 1,
 				CurrentAmount: copperVeinCapacity, MaximumAmount: copperVeinCapacity,
 			},
@@ -125,10 +134,20 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe,
 			RechargePulses: copperRechargePulses,
 		},
-		starterTinVeinID:     miningVein(starterTinVeinID, "Willowbrook Tin Vein", Position{X: 8, Z: 15}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
-		starterIronVeinID:    miningVein(starterIronVeinID, "Willowbrook Iron Vein", Position{X: 16, Z: 10}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
-		starterCoalVeinID:    miningVein(starterCoalVeinID, "Willowbrook Coal Vein", Position{X: 12, Z: 15}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
-		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Willowbrook Mithril Vein", Position{X: 16, Z: 15}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
+		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 8, Z: 15}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
+		starterIronVeinID:    miningVein(starterIronVeinID, "Iron Vein", Position{X: 16, Z: 10}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
+		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 12, Z: 15}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
+		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 16, Z: 15}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
+		starterNormalTreeID:  woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
+		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -14, Z: -4}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
+		starterAgilityObstacleID: {
+			GatheringSpotSnapshot: GatheringSpotSnapshot{
+				ID: starterAgilityObstacleID, Name: "Balance Beam", Skill: SkillAgility,
+				Position: Position{X: -10, Z: 4}, Range: gatheringRange, RequiredLevel: 1,
+			},
+			RewardXP: agilityObstacleExperience, Interval: agilityObstacleInterval,
+			ActiveResult: "balancing", RewardResult: "completed_agility_obstacle", TrainingOnly: true,
+		},
 	}
 }
 
@@ -141,6 +160,19 @@ func miningVein(id, name string, position Position, level int, reward string, xp
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "mining", RewardResult: "mined_" + reward,
 		MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe, RechargePulses: recharge,
+	}
+}
+
+func woodcuttingTree(id, name string, position Position, level int, reward string, xp int64, capacity int, recharge, interval uint64) gatheringSpotDefinition {
+	return gatheringSpotDefinition{
+		GatheringSpotSnapshot: GatheringSpotSnapshot{
+			ID: id, Name: name, Skill: SkillWoodcutting, Position: position, Range: gatheringRange,
+			RequiredLevel: level, CurrentAmount: capacity, MaximumAmount: capacity,
+		},
+		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
+		ActiveResult: "woodcutting", RewardResult: "chopped_" + reward,
+		MissingResult: "missing_bronze_axe", DepletedResult: "tree_depleted",
+		RequiredTool: ItemBronzeAxe, RechargePulses: recharge,
 	}
 }
 
@@ -222,7 +254,7 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
 		return fmt.Errorf("gathering spot %q is depleted", spot.ID)
 	}
-	if spot.Station == "" && !canCompleteGatheringAction(player.inventory, spot) {
+	if spot.Station == "" && !spot.TrainingOnly && !canCompleteGatheringAction(player.inventory, spot) {
 		if !canPayItemCosts(player.inventory, spot.Costs) {
 			return fmt.Errorf("required items are missing")
 		}
@@ -395,12 +427,21 @@ func (w *World) resolveGatheringActions() {
 			player.nextGatherPulse = w.combat.pulse + recipe.Interval
 			continue
 		}
+		if spot.TrainingOnly {
+			grantSkillExperience(player, spot.Skill, spot.RewardXP)
+			clearGathering(player, spot.RewardResult)
+			continue
+		}
 		if spot.RequiredTool != "" && !player.inventory.contains(spot.RequiredTool) {
 			clearGathering(player, spot.MissingResult)
 			continue
 		}
 		if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
-			clearGathering(player, "vein_depleted")
+			result := spot.DepletedResult
+			if result == "" {
+				result = "vein_depleted"
+			}
+			clearGathering(player, result)
 			continue
 		}
 		candidate := cloneInventory(player.inventory)

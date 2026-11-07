@@ -298,7 +298,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 				CurrentLevelExperience: 100, NextLevelExperience: 400,
 			}},
 		}},
-	})
+	}, "player-one")
 
 	if len(message.CombatEvents) != 1 {
 		t.Fatalf("combat event count = %d, want 1", len(message.CombatEvents))
@@ -359,6 +359,23 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		player.Skills[0].Experience != 125 || player.Skills[0].Level != 2 ||
 		player.Skills[0].CurrentLevelExperience != 100 || player.Skills[0].NextLevelExperience != 400 {
 		t.Fatalf("player skills = %+v", player.Skills)
+	}
+}
+
+func TestSnapshotMessageOnlyIncludesLocalPlayersBank(t *testing.T) {
+	bank := simulation.BankSnapshot{
+		Capacity: simulation.BankCapacity,
+		Items:    []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 50}},
+	}
+	message := snapshotMessage(simulation.Snapshot{Players: []simulation.PlayerSnapshot{
+		{ID: "player-one", Bank: bank},
+		{ID: "player-two", Bank: bank},
+	}}, "player-one")
+	if message.Players[0].Bank == nil || len(message.Players[0].Bank.Items) != 1 {
+		t.Fatalf("local bank = %+v", message.Players[0].Bank)
+	}
+	if message.Players[1].Bank != nil {
+		t.Fatalf("remote bank was exposed: %+v", message.Players[1].Bank)
 	}
 }
 

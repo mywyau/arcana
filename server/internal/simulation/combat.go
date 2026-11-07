@@ -441,13 +441,6 @@ func (w *World) queueEquipment(command EquipCommand) error {
 			command.InstanceID = resolveOwnedInstanceID(player.inventory, string(command.ItemID), "")
 		}
 	}
-	ownedItem, ownsInstance := player.inventory.itemByInstance(command.InstanceID)
-	if command.InstanceID != "" && (!ownsInstance || ownedItem.ItemID != string(command.ItemID)) {
-		return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
-	}
-	if command.InstanceID == "" && !player.inventory.contains(string(command.ItemID)) {
-		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
-	}
 	if command.Unequip {
 		if item.Kind == ItemKindWeapon && player.equippedWeapon != command.ItemID {
 			return fmt.Errorf("weapon %q is not equipped", command.ItemID)
@@ -463,6 +456,29 @@ func (w *World) queueEquipment(command EquipCommand) error {
 		}
 		if item.Kind == ItemKindSpellbook && player.equippedSpellbook != string(command.ItemID) {
 			return fmt.Errorf("spellbook %q is not equipped", command.ItemID)
+		}
+		equippedItem, equipped := currentEquippedItem(player, item)
+		candidate := cloneInventory(player.inventory)
+		if !equipped || !addReturnedEquipment(&candidate, equippedItem) {
+			return fmt.Errorf("inventory is full")
+		}
+	} else {
+		if requirement, unmet := unmetEquipRequirement(player, item); unmet {
+			return fmt.Errorf("item %q requires %s level %d", item.ID, requirement.Skill, requirement.Level)
+		}
+		ownedItem, ownsInstance := player.inventory.itemByInstance(command.InstanceID)
+		if command.InstanceID != "" && (!ownsInstance || ownedItem.ItemID != string(command.ItemID)) {
+			return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
+		}
+		if command.InstanceID == "" && !player.inventory.contains(string(command.ItemID)) {
+			return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
+		}
+		candidate := cloneInventory(player.inventory)
+		if !removeInventoryEquipment(&candidate, item, command.InstanceID) {
+			return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
+		}
+		if outgoing, equipped := currentEquippedItem(player, item); equipped && !addReturnedEquipment(&candidate, outgoing) {
+			return fmt.Errorf("inventory is full")
 		}
 	}
 	if command.Sequence <= player.lastEquipmentSequence {
@@ -553,35 +569,140 @@ func (w *World) applyEquipmentCommands() {
 				delete(w.combat.pendingEquipment, id)
 				continue
 			}
-			if command.Unequip {
-				if item.Kind == ItemKindSpellbook {
-					player.equippedSpellbook = ""
-					player.selectedSpell = ""
-				} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
-					delete(player.equippedArmour, slot)
-					delete(player.equippedArmourInstances, slot)
-				} else {
-					player.equippedWeapon = WeaponUnarmed
-					player.equippedWeaponInstanceID = ""
-					player.combatStyle = defaultCombatStyle(WeaponUnarmed)
-				}
-			} else if item.Kind == ItemKindSpellbook {
-				player.equippedSpellbook = string(command.ItemID)
-				if selected, exists := spellDefinition(player.selectedSpell); exists && selected.BookID != item.Spellbook {
-					player.selectedSpell = ""
-				}
-			} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
-				player.equippedArmour[slot] = string(command.ItemID)
-				player.equippedArmourInstances[slot] = command.InstanceID
-			} else {
-				player.equippedWeapon = command.ItemID
-				player.equippedWeaponInstanceID = command.InstanceID
-				player.combatStyle = defaultCombatStyle(command.ItemID)
-			}
+			applyEquipmentChange(player, item, command)
 			player.lastEquipmentSequence = command.Sequence
 			player.lastEquipmentPulse = w.combat.pulse
 		}
 		delete(w.combat.pendingEquipment, id)
+	}
+}
+
+func applyEquipmentChange(player *playerState, item ItemDefinition, command EquipCommand) bool {
+	if player == nil {
+		return false
+	}
+	candidate := cloneInventory(player.inventory)
+	if command.Unequip {
+		outgoing, equipped := currentEquippedItem(player, item)
+		if !equipped || !addReturnedEquipment(&candidate, outgoing) {
+			return false
+		}
+		player.inventory = candidate
+		clearEquippedItem(player, item)
+		refreshPlayerMaximumHealth(player)
+		return true
+	}
+	incoming, exists := inventoryEquipment(candidate, item, command.InstanceID)
+	if !exists || !removeInventoryEquipment(&candidate, item, command.InstanceID) {
+		return false
+	}
+	if outgoing, equipped := currentEquippedItem(player, item); equipped && !addReturnedEquipment(&candidate, outgoing) {
+		return false
+	}
+	player.inventory = candidate
+	setEquippedItem(player, item, incoming)
+	refreshPlayerMaximumHealth(player)
+	return true
+}
+
+func inventoryEquipment(inventory inventoryState, definition ItemDefinition, instanceID string) (InventoryItem, bool) {
+	if itemIsInstanced(definition.ID) {
+		item, exists := inventory.itemByInstance(instanceID)
+		return item, exists && item.ItemID == definition.ID
+	}
+	if inventory.contains(definition.ID) {
+		return InventoryItem{ItemID: definition.ID, Quantity: 1}, true
+	}
+	return InventoryItem{}, false
+}
+
+func removeInventoryEquipment(inventory *inventoryState, definition ItemDefinition, instanceID string) bool {
+	if inventory == nil {
+		return false
+	}
+	if itemIsInstanced(definition.ID) {
+		item, removed := inventory.removeInstance(instanceID)
+		return removed && item.ItemID == definition.ID
+	}
+	return inventory.remove(definition.ID, 1)
+}
+
+func addReturnedEquipment(inventory *inventoryState, item InventoryItem) bool {
+	if inventory == nil || item.ItemID == "" {
+		return false
+	}
+	if itemIsInstanced(item.ItemID) {
+		item.Slot = 0
+		return inventory.addInventoryItem(item)
+	}
+	return inventory.add(item.ItemID, item.Quantity)
+}
+
+func currentEquippedItem(player *playerState, definition ItemDefinition) (InventoryItem, bool) {
+	if player == nil {
+		return InventoryItem{}, false
+	}
+	switch definition.Kind {
+	case ItemKindWeapon:
+		if player.equippedWeapon == WeaponUnarmed {
+			return InventoryItem{}, false
+		}
+		return InventoryItem{ItemID: string(player.equippedWeapon), Quantity: 1, InstanceID: player.equippedWeaponInstanceID, Reinforcement: player.equippedWeaponReinforcement}, true
+	case ItemKindArmour:
+		equippedItemID := player.equippedArmour[definition.Armour.Slot]
+		if equippedItemID == "" {
+			return InventoryItem{}, false
+		}
+		return InventoryItem{ItemID: equippedItemID, Quantity: 1, InstanceID: player.equippedArmourInstances[definition.Armour.Slot], Reinforcement: player.equippedArmourReinforcements[definition.Armour.Slot]}, true
+	case ItemKindSpellbook:
+		return InventoryItem{ItemID: player.equippedSpellbook, Quantity: 1}, player.equippedSpellbook != ""
+	default:
+		return InventoryItem{}, false
+	}
+}
+
+func clearEquippedItem(player *playerState, definition ItemDefinition) {
+	switch definition.Kind {
+	case ItemKindSpellbook:
+		player.equippedSpellbook = ""
+		player.selectedSpell = ""
+	case ItemKindArmour:
+		delete(player.equippedArmour, definition.Armour.Slot)
+		delete(player.equippedArmourInstances, definition.Armour.Slot)
+		delete(player.equippedArmourReinforcements, definition.Armour.Slot)
+	case ItemKindWeapon:
+		player.equippedWeapon = WeaponUnarmed
+		player.equippedWeaponInstanceID = ""
+		player.equippedWeaponReinforcement = 0
+		player.combatStyle = defaultCombatStyle(WeaponUnarmed)
+	}
+}
+
+func setEquippedItem(player *playerState, definition ItemDefinition, item InventoryItem) {
+	if player.equippedArmour == nil {
+		player.equippedArmour = make(map[ArmourSlot]string)
+	}
+	if player.equippedArmourInstances == nil {
+		player.equippedArmourInstances = make(map[ArmourSlot]string)
+	}
+	if player.equippedArmourReinforcements == nil {
+		player.equippedArmourReinforcements = make(map[ArmourSlot]int)
+	}
+	switch definition.Kind {
+	case ItemKindSpellbook:
+		player.equippedSpellbook = definition.ID
+		if selected, exists := spellDefinition(player.selectedSpell); exists && selected.BookID != definition.Spellbook {
+			player.selectedSpell = ""
+		}
+	case ItemKindArmour:
+		player.equippedArmour[definition.Armour.Slot] = definition.ID
+		player.equippedArmourInstances[definition.Armour.Slot] = item.InstanceID
+		player.equippedArmourReinforcements[definition.Armour.Slot] = item.Reinforcement
+	case ItemKindWeapon:
+		player.equippedWeapon = definition.Weapon.ID
+		player.equippedWeaponInstanceID = item.InstanceID
+		player.equippedWeaponReinforcement = item.Reinforcement
+		player.combatStyle = defaultCombatStyle(definition.Weapon.ID)
 	}
 }
 
@@ -716,7 +837,7 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 		if !castingSpell && weapon.Ammunition.Quantity > 0 &&
-			!payItemCosts(&player.inventory, []ItemCost{weapon.Ammunition}) {
+			!payItemCosts(&player.ammunitionPouch, []ItemCost{weapon.Ammunition}) {
 			player.lastActionResult = "missing_ammunition"
 			continue
 		}
@@ -783,13 +904,23 @@ func weaponPoweredDamage(player *playerState, weapon WeaponDefinition) float64 {
 		strength = weapon.MagicStrength
 		skill = SkillMagic
 	}
+	_, equipmentStrength := equipmentOffenceForWeapon(player, weapon)
+	strength += equipmentStrength
 	level := 1
 	if player != nil {
 		level = SkillLevelForExperience(player.skills[skill])
 	}
 	damage := float64(strength) + float64(level-1)*skillDamagePointsPerLevel
-	if player != nil && weapon.MeleeStrength > 0 {
-		damage *= 1 + activePrayerBonuses(player).MeleeDamage
+	if player != nil {
+		bonuses := activePrayerBonuses(player)
+		switch {
+		case weapon.RangedStrength > 0:
+			damage *= 1 + bonuses.RangedDamage
+		case weapon.MagicStrength > 0:
+			damage *= 1 + bonuses.MagicDamage
+		case weapon.MeleeStrength > 0:
+			damage *= 1 + bonuses.MeleeDamage
+		}
 	}
 	return damage
 }
@@ -939,7 +1070,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
-	damageDealt := reduceIncomingDamage(player, dummyAttackDamage)
+	damageDealt := reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush)
 	player.health = max(0, player.health-damageDealt)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,

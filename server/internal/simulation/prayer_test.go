@@ -87,6 +87,35 @@ func TestPrayerCanBeToggledOffBeforeDrain(t *testing.T) {
 	}
 }
 
+func TestRegenerationPrayerHealsFivePercentOnDrainCadence(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.players["player-one"].health = 80
+	if err := world.QueuePrayer(PrayerCommand{
+		PlayerID: "player-one", Sequence: 1, PrayerID: PrayerRegeneration, Active: true,
+	}); err != nil {
+		t.Fatalf("QueuePrayer() returned an unexpected error: %v", err)
+	}
+
+	for range regenerationDrainIntervalPulses {
+		world.Step(actionPulseInterval)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if player.Health != 85 {
+		t.Fatalf("health after regeneration = %d, want 85", player.Health)
+	}
+	if player.Prayer != playerMaximumPrayer-1 {
+		t.Fatalf("prayer after regeneration = %d, want %d", player.Prayer, playerMaximumPrayer-1)
+	}
+	world.players["player-one"].health = 98
+	for range regenerationDrainIntervalPulses {
+		world.Step(actionPulseInterval)
+	}
+	if player := mustPlayer(t, world, "player-one"); player.Health != playerMaximumHealth {
+		t.Fatalf("capped regeneration health = %d, want %d", player.Health, playerMaximumHealth)
+	}
+}
+
 func TestEvasionPrayerAppliesBeforeIncomingAttack(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.12))
 	dummy := world.combat.targets[dummyTargetID]
@@ -130,12 +159,45 @@ func TestStrengthPrayerBoostsMeleeDamageBeforeVariance(t *testing.T) {
 		t.Fatalf("dummy health after Strength hit = %d, want %d", got, want)
 	}
 	if player.CombatStats.PrayerDamageBonus != strengthPrayerMeleeDamageBonus ||
-		player.CombatStats.MinimumDamage != 9 || player.CombatStats.MaximumDamage != 13 {
+		player.CombatStats.MinimumDamage != 8 || player.CombatStats.MaximumDamage != 13 {
 		t.Fatalf("Strength combat stats = %+v", player.CombatStats)
 	}
 	bow, _ := weaponDefinition(WeaponBow)
 	if got := weaponPoweredDamage(world.players["player-one"], bow); got != bowRangedStrength {
 		t.Fatalf("ranged damage with Strength prayer = %.1f, want %d", got, bowRangedStrength)
+	}
+}
+
+func TestRangedAndMagicStrengthPrayersBoostOnlyMatchingDamage(t *testing.T) {
+	player := &playerState{
+		activePrayers: map[PrayerID]bool{PrayerRangedStrength: true},
+		skills:        newDefaultSkills(), equippedWeapon: WeaponBow, combatStyle: CombatStyleAccurate,
+		equippedArmour: make(map[ArmourSlot]string), equippedArmourInstances: make(map[ArmourSlot]string),
+	}
+	bow, _ := weaponDefinition(WeaponBow)
+	sword, _ := weaponDefinition(WeaponSword)
+	if got, want := weaponPoweredDamage(player, bow), float64(bow.RangedStrength)*(1+rangedPrayerDamageBonus); math.Abs(got-want) > 0.000_001 {
+		t.Fatalf("ranged prayer damage = %.2f, want %.2f", got, want)
+	}
+	if got := weaponPoweredDamage(player, sword); got != float64(sword.MeleeStrength) {
+		t.Fatalf("ranged prayer changed melee damage to %.2f", got)
+	}
+	if got := derivedCombatStats(player).PrayerDamageBonus; got != rangedPrayerDamageBonus {
+		t.Fatalf("ranged prayer stats bonus = %.2f", got)
+	}
+
+	player.activePrayers = map[PrayerID]bool{PrayerMagicStrength: true}
+	player.equippedWeapon = WeaponStaff
+	player.combatStyle = CombatStyleAccurate
+	spell, _ := spellDefinition(SpellWindBolt)
+	basePlayer := *player
+	basePlayer.activePrayers = nil
+	if got, want := spellPoweredDamage(player, spell), spellPoweredDamage(&basePlayer, spell)*(1+magicPrayerDamageBonus); math.Abs(got-want) > 0.000_001 {
+		t.Fatalf("magic prayer damage = %.2f, want %.2f", got, want)
+	}
+	player.selectedSpell = SpellWindBolt
+	if got := derivedCombatStats(player).PrayerDamageBonus; got != magicPrayerDamageBonus {
+		t.Fatalf("magic prayer stats bonus = %.2f", got)
 	}
 }
 
@@ -175,7 +237,7 @@ func TestDefencePrayerReducesIncomingDamageWithoutChangingDodge(t *testing.T) {
 
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	reducedDamage := reduceIncomingDamage(world.players["player-one"], dummyAttackDamage)
+	reducedDamage := reduceIncomingDamage(world.players["player-one"], dummyAttackDamage, DamageTypeCrush)
 	if got, want := player.Health, playerMaximumHealth-reducedDamage; got != want {
 		t.Fatalf("health after Defence prayer hit = %d, want %d", got, want)
 	}

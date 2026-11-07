@@ -16,6 +16,7 @@ func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	}
 
 	mustAddPlayer(t, world, "player-one", Position{X: -2, Z: -5}, 4)
+	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(5)
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: drops[0].ID}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}
@@ -43,6 +44,7 @@ func TestWorldRuneSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
 		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
 	}
 	mustAddPlayer(t, world, "player-one", playerPosition, 4)
+	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(20)
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}
@@ -79,11 +81,11 @@ func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 		t.Fatalf("drop count after pickup = %d, want 0", got)
 	}
 	player := mustPlayer(t, world, "player-one")
-	if got, want := len(player.Inventory.Items), 8; got != want {
+	if got, want := len(player.Inventory.Items), 7; got != want {
 		t.Fatalf("inventory item count = %d, want %d", got, want)
 	}
-	shard := player.Inventory.Items[7]
-	if shard.Slot != 7 || shard.ItemID != trainingShardItem || shard.Quantity != 1 {
+	shard := player.Inventory.Items[0]
+	if shard.Slot != 0 || shard.ItemID != trainingShardItem || shard.Quantity != 1 {
 		t.Fatalf("picked up shard = %+v", shard)
 	}
 }
@@ -234,7 +236,6 @@ func TestSpellbookMustBeUnequippedBeforeDropping(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	player := world.players["player-one"]
-	player.inventory.add(ItemStandardSpellbook, 1)
 	player.equippedSpellbook = ItemStandardSpellbook
 	player.selectedSpell = SpellWindBolt
 
@@ -368,7 +369,7 @@ func TestPickedUpAirRunesStackInExistingInventorySlot(t *testing.T) {
 	if got := player.Inventory.itemsQuantity(ItemAirRune); got != 58 {
 		t.Fatalf("stacked air rune quantity = %d, want 58", got)
 	}
-	if got := len(player.Inventory.Items); got != 7 {
-		t.Fatalf("inventory slots after stacking runes = %d, want 7", got)
+	if got := len(player.Inventory.Items); got != 6 {
+		t.Fatalf("inventory slots after stacking runes = %d, want 6", got)
 	}
 }

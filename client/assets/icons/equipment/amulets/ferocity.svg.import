@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://l6yw7auigsfb"
-path="res://.godot/imported/copper_bar.svg-5ad1c598a677c042eb34af9fec42333f.ctex"
+uid="uid://l0cmtl3jexwi"
+path="res://.godot/imported/ferocity.svg-b7e0846bea8dd772250c5f47d63586a2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/items/copper_bar.svg"
-dest_files=["res://.godot/imported/copper_bar.svg-5ad1c598a677c042eb34af9fec42333f.ctex"]
+source_file="res://assets/icons/equipment/amulets/ferocity.svg"
+dest_files=["res://.godot/imported/ferocity.svg-b7e0846bea8dd772250c5f47d63586a2.ctex"]
 
 [params]
 
