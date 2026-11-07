@@ -227,7 +227,7 @@ func TestDropRejectsEquippedItem(t *testing.T) {
 	}
 }
 
-func TestDropRejectsEquippedSpellbook(t *testing.T) {
+func TestSpellbookMustBeUnequippedBeforeDropping(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -235,11 +235,54 @@ func TestDropRejectsEquippedSpellbook(t *testing.T) {
 	player := world.players["player-one"]
 	player.inventory.add(ItemStandardSpellbook, 1)
 	player.equippedSpellbook = ItemStandardSpellbook
+	player.selectedSpell = SpellWindBolt
 
 	if err := world.QueueDropItem(DropItemCommand{
 		PlayerID: "player-one", Sequence: 1, ItemID: ItemStandardSpellbook,
 	}); err == nil {
 		t.Fatal("QueueDropItem() error = nil for equipped spellbook")
+	}
+	if err := world.QueueUnequip(UnequipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemStandardSpellbook,
+	}); err != nil {
+		t.Fatalf("QueueUnequip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.EquippedSpellbook != "" || snapshot.ActiveSpellbook != "" || snapshot.SelectedSpell != "" {
+		t.Fatalf("state after unequipping spellbook = %+v", snapshot)
+	}
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemStandardSpellbook,
+	}); err != nil {
+		t.Fatalf("QueueDropItem() after unequip returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	snapshot = mustPlayer(t, world, "player-one")
+	if snapshotInventoryContains(snapshot.Inventory, ItemStandardSpellbook) {
+		t.Fatal("dropped spellbook remains in inventory")
+	}
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != ItemStandardSpellbook || drops[0].Quantity != 1 {
+		t.Fatalf("spellbook drops = %+v", drops)
+	}
+}
+
+func TestDropRejectsSpellbookWithPendingEquipmentChange(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemStandardSpellbook, 1)
+	if err := world.QueueEquip(EquipCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemStandardSpellbook),
+	}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemStandardSpellbook,
+	}); err == nil {
+		t.Fatal("QueueDropItem() error = nil during pending spellbook equip")
 	}
 }
 

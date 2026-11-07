@@ -23,11 +23,12 @@ const EQUIPMENT_SLOTS: Dictionary = {
 	"neck": preload("res://assets/icons/equipment/slots/neck.svg"),
 	"ring": preload("res://assets/icons/equipment/slots/ring.svg"),
 	"main_hand": preload("res://assets/icons/equipment/slots/main_hand.svg"),
+	"left_hand": preload("res://assets/icons/equipment/slots/left_hand.svg"),
 	"body": preload("res://assets/icons/equipment/slots/body.svg"),
 	"hands": preload("res://assets/icons/equipment/slots/hands.svg"),
 	"legs": preload("res://assets/icons/equipment/slots/legs.svg"),
 	"feet": preload("res://assets/icons/equipment/slots/feet.svg"),
-	"spellbook": STANDARD_SPELLBOOK,
+	"spellbook": preload("res://assets/icons/equipment/slots/spellbook.svg"),
 }
 
 # Main HUD navigation icons.
@@ -108,6 +109,7 @@ const ITEMS: Dictionary = {
 	"battle_axe": BATTLE_AXE,
 	"staff": STAFF,
 	"air_rune": preload("res://assets/icons/spells/breeze.svg"),
+	"iron_arrow": preload("res://assets/icons/items/iron_arrow.svg"),
 	"training_shard": TRAINING_SHARD,
 	"training_helm": TRAINING_HELM,
 	"training_plate": TRAINING_PLATE,

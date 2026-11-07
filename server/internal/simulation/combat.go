@@ -129,6 +129,7 @@ type WeaponDefinition struct {
 	AttackInterval uint64
 	Range          float64
 	ApproachRange  float64
+	Ammunition     ItemCost
 }
 
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
@@ -660,6 +661,11 @@ func (w *World) resolveAutoAttacks() {
 
 		if castingSpell && !payItemCosts(&player.inventory, spell.Costs) {
 			player.lastActionResult = "missing_reagents"
+			continue
+		}
+		if !castingSpell && weapon.Ammunition.Quantity > 0 &&
+			!payItemCosts(&player.inventory, []ItemCost{weapon.Ammunition}) {
+			player.lastActionResult = "missing_ammunition"
 			continue
 		}
 		player.lastActionPulse = w.combat.pulse

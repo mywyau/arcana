@@ -7,6 +7,7 @@ import (
 
 const (
 	BaseInventoryCapacity = 8
+	MaxInventoryCapacity  = 50
 	ItemAirRune           = "air_rune"
 )
 
@@ -192,8 +193,8 @@ func snapshotInventory(inventory inventoryState) InventorySnapshot {
 }
 
 func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
-	if snapshot.Capacity <= 0 || snapshot.Capacity > 100 {
-		return inventoryState{}, fmt.Errorf("inventory capacity must be between 1 and 100")
+	if snapshot.Capacity <= 0 || snapshot.Capacity > MaxInventoryCapacity {
+		return inventoryState{}, fmt.Errorf("inventory capacity must be between 1 and %d", MaxInventoryCapacity)
 	}
 	if len(snapshot.Items) > snapshot.Capacity {
 		return inventoryState{}, fmt.Errorf("inventory has more items than its capacity")

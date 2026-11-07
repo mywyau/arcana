@@ -36,6 +36,7 @@ func main() {
 		{position: simulation.Position{X: -5, Z: -7}, itemID: string(simulation.WeaponSword), quantity: 1},
 		{position: simulation.Position{X: -3, Z: -7}, itemID: string(simulation.WeaponDagger), quantity: 1},
 		{position: simulation.Position{X: -1, Z: -7}, itemID: string(simulation.WeaponBow), quantity: 1},
+		{position: simulation.Position{X: -1, Z: -5.5}, itemID: simulation.ItemIronArrow, quantity: 100},
 		{position: simulation.Position{X: 1, Z: -7}, itemID: string(simulation.WeaponMace), quantity: 1},
 		{position: simulation.Position{X: 3, Z: -7}, itemID: string(simulation.WeaponBattleAxe), quantity: 1},
 		{position: simulation.Position{X: 5, Z: -7}, itemID: string(simulation.WeaponStaff), quantity: 1},

@@ -16,7 +16,8 @@ const HUD_MINIMUM_SCALE: float = 0.75
 const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
-const INVENTORY_DISPLAY_SLOTS: int = 16
+const INVENTORY_TOTAL_SLOTS: int = 50
+const INVENTORY_PAGE_SIZE: int = 25
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
 
@@ -179,6 +180,9 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var inventory_prayer_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Prayer
 @onready var inventory_styles_tab_button: Button = $UI/InventoryHUD/Margin/VBox/TabRow/Styles
 @onready var inventory_summary: Label = $UI/InventoryHUD/Margin/VBox/Summary
+@onready var inventory_previous_page_button: Button = $UI/InventoryHUD/Margin/VBox/PageRow/Previous
+@onready var inventory_page_label: Label = $UI/InventoryHUD/Margin/VBox/PageRow/Label
+@onready var inventory_next_page_button: Button = $UI/InventoryHUD/Margin/VBox/PageRow/Next
 @onready var inventory_grid: GridContainer = $UI/InventoryHUD/Margin/VBox/ContentScroll/Grid
 @onready var skills_combat_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Combat
 @onready var skills_inventory_tab_button: Button = $UI/SkillsHUD/Margin/VBox/TabRow/Inventory
@@ -286,6 +290,7 @@ var _equipped_weapon: String = "unarmed"
 var _last_equipment_sequence: int = 0
 var _queued_item: String = ""
 var _queued_unequip: bool = false
+var _queued_drop_after_unequip: String = ""
 var _equipped_armour: Dictionary = {}
 var _equipped_spellbook: String = ""
 var _active_spellbook: String = ""
@@ -296,6 +301,7 @@ var _queued_combat_style: String = ""
 var _inventory_capacity: int = 8
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
+var _inventory_page: int = 0
 var _skill_progress: Dictionary = {
 	"attack": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"strength": {"experience": 0, "level": 1, "current": 0, "next": 100},
@@ -353,6 +359,8 @@ func _ready() -> void:
 	inventory_magic_tab_button.pressed.connect(_show_magic_tab)
 	inventory_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	inventory_styles_tab_button.pressed.connect(_show_styles_tab)
+	inventory_previous_page_button.pressed.connect(_change_inventory_page.bind(-1))
+	inventory_next_page_button.pressed.connect(_change_inventory_page.bind(1))
 	skills_combat_tab_button.pressed.connect(_show_combat_tab)
 	skills_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	skills_active_tab_button.pressed.connect(_show_skills_tab)
@@ -722,12 +730,12 @@ func _request_equip(item_id: String) -> void:
 		_update_inventory_hud()
 
 
-func _request_unequip(item_id: String) -> void:
+func _request_unequip(item_id: String) -> bool:
 	if _player_defeated or not _is_item_equipped(item_id):
-		return
+		return false
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 	if equipment_pending:
-		return
+		return false
 	if network.send_unequip_item(_next_equipment_sequence, item_id):
 		_queued_item = item_id
 		_queued_unequip = true
@@ -735,6 +743,8 @@ func _request_unequip(item_id: String) -> void:
 		_update_combat_hud()
 		_update_inventory_hud()
 		_update_equipment_hud()
+		return true
+	return false
 
 
 func _is_item_equipped(item_id: String) -> bool:
@@ -747,14 +757,29 @@ func _is_item_equipped(item_id: String) -> bool:
 
 
 func _on_inventory_item_input(event: InputEvent, item_id: String) -> void:
-	if _is_item_equipped(item_id) or _player_defeated:
+	if _player_defeated:
 		return
 	if event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.pressed and mouse_button.button_index == MOUSE_BUTTON_RIGHT:
-			if network.send_drop_item(_next_drop_sequence, item_id):
-				_next_drop_sequence += 1
+			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
+			if equipment_pending and _queued_item == item_id:
+				return
+			if _is_item_equipped(item_id):
+				if not SPELLBOOK_ITEMS.has(item_id):
+					return
+				if _request_unequip(item_id):
+					_queued_drop_after_unequip = item_id
+			else:
+				_request_drop_item(item_id)
 			get_viewport().set_input_as_handled()
+
+
+func _request_drop_item(item_id: String) -> void:
+	if item_id.is_empty() or _player_defeated or _is_item_equipped(item_id):
+		return
+	if network.send_drop_item(_next_drop_sequence, item_id):
+		_next_drop_sequence += 1
 
 
 func _request_inventory_swap(from_slot: int, to_slot: int) -> void:
@@ -985,9 +1010,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_last_equipment_sequence + 1,
 			)
 			if _last_equipment_sequence >= _next_equipment_sequence - 1 and not _queued_item.is_empty():
+				var completed_item: String = _queued_item
+				var completed_unequip: bool = _queued_unequip
 				_queued_item = ""
 				_queued_unequip = false
 				inventory_selection_changed = true
+				if completed_unequip and _queued_drop_after_unequip == completed_item and not _is_item_equipped(completed_item):
+					_queued_drop_after_unequip = ""
+					_request_drop_item(completed_item)
 			var combat_style: String = str(player_data.get("combat_style", "crush"))
 			if combat_style != _combat_style:
 				_combat_style = combat_style
@@ -1211,6 +1241,8 @@ func _on_server_error(code: String, message: String) -> void:
 		_update_magic_hud()
 	if code == "equipment_rejected":
 		_next_equipment_sequence = _last_equipment_sequence + 1
+		if _queued_drop_after_unequip == _queued_item:
+			_queued_drop_after_unequip = ""
 		_queued_item = ""
 		_queued_unequip = false
 		_update_inventory_hud()
@@ -1908,13 +1940,13 @@ func _update_equipment_hud() -> void:
 		{"spacer": true},
 		{"slot": "cape", "name": "Cape", "item": ""},
 		{"slot": "neck", "name": "Neck", "item": ""},
-		{"slot": "ring", "name": "Ring", "item": ""},
+		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
 		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon},
 		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", ""))},
-		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
+		{"slot": "left_hand", "name": "Left Hand", "item": ""},
 		{"spacer": true},
 		{"slot": "legs", "name": "Legs", "item": ""},
-		{"spacer": true},
+		{"slot": "ring", "name": "Ring", "item": ""},
 		{"spacer": true},
 		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", ""))},
 		{"spacer": true},
@@ -1929,13 +1961,22 @@ func _update_equipment_hud() -> void:
 			continue
 		var item_id: String = str(slot.get("item", ""))
 		var slot_id: String = str(slot.get("slot", ""))
-		var slot_panel := PanelContainer.new()
+		var slot_panel := Button.new()
 		slot_panel.custom_minimum_size = Vector2(168, 82)
-		slot_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		slot_panel.focus_mode = Control.FOCUS_NONE
+		var unequip_pending: bool = (
+			not item_id.is_empty()
+			and _queued_unequip
+			and _queued_item == item_id
+		)
 		slot_panel.tooltip_text = "%s: %s" % [
 			slot.get("name", "Equipment"),
 			item_id.capitalize() if not item_id.is_empty() else "No item equipped",
 		]
+		if unequip_pending:
+			slot_panel.tooltip_text += " • unequipping…"
+		elif not item_id.is_empty():
+			slot_panel.tooltip_text += " • left-click to unequip"
 		var slot_style := StyleBoxFlat.new()
 		slot_style.bg_color = Color(0.055, 0.07, 0.085, 0.94)
 		slot_style.border_width_left = 2
@@ -1943,33 +1984,47 @@ func _update_equipment_hud() -> void:
 		slot_style.border_width_right = 2
 		slot_style.border_width_bottom = 2
 		slot_style.border_color = Color(0.28, 0.34, 0.4, 0.95)
+		if not item_id.is_empty():
+			slot_style.border_width_left = 3
+			slot_style.border_width_top = 3
+			slot_style.border_width_right = 3
+			slot_style.border_width_bottom = 3
+			slot_style.border_color = Color(0.95, 0.72, 0.2)
 		slot_style.corner_radius_top_left = 7
 		slot_style.corner_radius_top_right = 7
 		slot_style.corner_radius_bottom_left = 7
 		slot_style.corner_radius_bottom_right = 7
-		slot_panel.add_theme_stylebox_override("panel", slot_style)
-		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(56, 56)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture = (
+		slot_panel.add_theme_stylebox_override("normal", slot_style)
+		var hover_style := slot_style.duplicate() as StyleBoxFlat
+		hover_style.bg_color = Color(0.09, 0.13, 0.17, 0.98)
+		hover_style.border_color = Color(0.42, 0.55, 0.66, 1.0)
+		slot_panel.add_theme_stylebox_override("hover", hover_style)
+		var pressed_style := hover_style.duplicate() as StyleBoxFlat
+		pressed_style.bg_color = Color(0.08, 0.3, 0.46, 0.98)
+		slot_panel.add_theme_stylebox_override("pressed", pressed_style)
+		if unequip_pending:
+			var pending_style := slot_style.duplicate() as StyleBoxFlat
+			pending_style.border_color = Color(0.35, 0.7, 1.0)
+			slot_panel.add_theme_stylebox_override("disabled", pending_style)
+		slot_panel.icon = (
 			ITEM_ICONS.get(item_id) as Texture2D
 			if not item_id.is_empty()
 			else EQUIPMENT_SLOT_ICONS.get(slot_id, EMPTY_SLOT_ICON) as Texture2D
 		)
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot_panel.add_child(icon)
+		slot_panel.expand_icon = true
+		slot_panel.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		slot_panel.add_theme_constant_override("icon_max_width", 56)
 		if not item_id.is_empty():
-			slot_panel.gui_input.connect(_on_equipment_slot_input.bind(item_id))
+			slot_panel.disabled = unequip_pending or _player_defeated
+			slot_panel.pressed.connect(_request_unequip.bind(item_id))
+		else:
+			slot_panel.disabled = true
+			slot_panel.add_theme_stylebox_override("disabled", slot_style)
+			slot_panel.add_theme_color_override(
+				"icon_disabled_color",
+				Color(0.42, 0.47, 0.52, 0.38),
+			)
 		equipment_grid.add_child(slot_panel)
-
-
-func _on_equipment_slot_input(event: InputEvent, item_id: String) -> void:
-	if event is InputEventMouseButton:
-		var mouse_button := event as InputEventMouseButton
-		if mouse_button.pressed and mouse_button.button_index == MOUSE_BUTTON_LEFT:
-			_request_unequip(item_id)
-			get_viewport().set_input_as_handled()
 
 
 func _show_detailed_combat_stats() -> void:
@@ -2143,6 +2198,12 @@ func _inventory_quantity(item_id: String) -> int:
 	return 0
 
 
+func _change_inventory_page(direction: int) -> void:
+	var page_count: int = ceili(float(INVENTORY_TOTAL_SLOTS) / float(INVENTORY_PAGE_SIZE))
+	_inventory_page = clampi(_inventory_page + direction, 0, page_count - 1)
+	_update_inventory_hud()
+
+
 func _update_inventory_hud() -> void:
 	for child: Node in inventory_grid.get_children():
 		inventory_grid.remove_child(child)
@@ -2159,11 +2220,23 @@ func _update_inventory_hud() -> void:
 		if slot >= 0 and slot < _inventory_capacity and not item_id.is_empty() and quantity > 0:
 			items_by_slot[slot] = item
 
-	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), _inventory_capacity]
-	var displayed_slots: int = maxi(_inventory_capacity, INVENTORY_DISPLAY_SLOTS)
-	for slot: int in range(displayed_slots):
+	var unlocked_slots: int = mini(_inventory_capacity, INVENTORY_TOTAL_SLOTS)
+	var page_count: int = ceili(float(INVENTORY_TOTAL_SLOTS) / float(INVENTORY_PAGE_SIZE))
+	_inventory_page = clampi(_inventory_page, 0, page_count - 1)
+	var first_slot: int = _inventory_page * INVENTORY_PAGE_SIZE
+	var final_slot: int = mini(first_slot + INVENTORY_PAGE_SIZE, INVENTORY_TOTAL_SLOTS)
+	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), unlocked_slots]
+	inventory_page_label.text = "Page %d/%d  •  %d/%d unlocked" % [
+		_inventory_page + 1,
+		page_count,
+		unlocked_slots,
+		INVENTORY_TOTAL_SLOTS,
+	]
+	inventory_previous_page_button.disabled = _inventory_page == 0
+	inventory_next_page_button.disabled = _inventory_page >= page_count - 1
+	for slot: int in range(first_slot, final_slot):
 		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
-		slot_button.custom_minimum_size = Vector2(124, 112)
+		slot_button.custom_minimum_size = Vector2(104, 92)
 		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slot_button.focus_mode = Control.FOCUS_NONE
 		slot_button.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -2200,6 +2273,8 @@ func _update_inventory_hud() -> void:
 			var interaction_text: String = "right-click to drop all"
 			if is_equipable:
 				interaction_text = "%s • %s" % [equip_action, interaction_text]
+			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
+				interaction_text = "left-click to unequip • right-click to unequip and drop"
 			slot_button.tooltip_text = "%s%s%s • slot %d%s" % [
 				item_id.capitalize(), quantity_text, status_text,
 				slot + 1,

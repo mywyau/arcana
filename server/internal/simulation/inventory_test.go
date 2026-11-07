@@ -24,6 +24,16 @@ func TestPlayerStartsUnarmedWithEmptyEightSlotInventory(t *testing.T) {
 	}
 }
 
+func TestInventorySnapshotSupportsFiftySlotsAndRejectsMore(t *testing.T) {
+	if _, err := inventoryFromSnapshot(InventorySnapshot{Capacity: MaxInventoryCapacity}); err != nil {
+		t.Fatalf("inventoryFromSnapshot() rejected maximum capacity: %v", err)
+	}
+	_, err := inventoryFromSnapshot(InventorySnapshot{Capacity: MaxInventoryCapacity + 1})
+	if err == nil {
+		t.Fatal("inventoryFromSnapshot() error = nil for capacity above maximum")
+	}
+}
+
 func TestQueueEquipRejectsItemOutsideInventory(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {

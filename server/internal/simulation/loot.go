@@ -72,6 +72,9 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 	if pending, exists := w.pendingItemDrops[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
 		return fmt.Errorf("drop sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
 	}
+	if pending, exists := w.combat.pendingEquipment[command.PlayerID]; exists && string(pending.ItemID) == command.ItemID {
+		return fmt.Errorf("item %q has a pending equipment change", command.ItemID)
+	}
 	if !player.inventory.contains(command.ItemID) {
 		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
 	}

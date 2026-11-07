@@ -11,6 +11,7 @@ const (
 	ItemKindResource  ItemKind = "resource"
 
 	ItemStandardSpellbook = "standard_spellbook"
+	ItemIronArrow         = "iron_arrow"
 )
 
 // ItemDefinition is the authoritative gameplay definition for one stable item
@@ -49,7 +50,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponBow), Name: "Bow", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange}, CombatStyleAccurate, CombatStyleRapid, CombatStyleAccurate, CombatStyleLongRange),
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}}, CombatStyleAccurate, CombatStyleRapid, CombatStyleAccurate, CombatStyleLongRange),
 	},
 	{
 		ID: string(WeaponMace), Name: "Mace", Kind: ItemKindWeapon,
@@ -88,6 +89,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Spellbook: SpellbookStandard,
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
+	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource},
 	{ID: trainingShardItem, Name: "Training Shard", Kind: ItemKindResource},
 })
 
@@ -133,6 +135,16 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 			return nil, fmt.Errorf("item %q has unknown kind %q", definition.ID, definition.Kind)
 		}
 		catalog[definition.ID] = definition
+	}
+	for _, definition := range catalog {
+		ammunition := definition.Weapon.Ammunition
+		if ammunition.Quantity == 0 {
+			continue
+		}
+		ammunitionItem, exists := catalog[ammunition.ItemID]
+		if ammunition.ItemID == "" || ammunition.Quantity < 0 || !exists || ammunitionItem.Kind != ItemKindResource {
+			return nil, fmt.Errorf("weapon %q has invalid ammunition %+v", definition.ID, ammunition)
+		}
 	}
 	return catalog, nil
 }

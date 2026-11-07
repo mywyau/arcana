@@ -569,6 +569,27 @@ visible = false
 layout_mode = 2
 text = "Inventory  •  0/8 slots used"
 
+[node name="PageRow" type="HBoxContainer" parent="UI/InventoryHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Previous" type="Button" parent="UI/InventoryHUD/Margin/VBox/PageRow"]
+custom_minimum_size = Vector2(64, 40)
+layout_mode = 2
+text = "<"
+
+[node name="Label" type="Label" parent="UI/InventoryHUD/Margin/VBox/PageRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Page 1/2  •  8/50 unlocked"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Next" type="Button" parent="UI/InventoryHUD/Margin/VBox/PageRow"]
+custom_minimum_size = Vector2(64, 40)
+layout_mode = 2
+text = ">"
+
 [node name="ContentScroll" type="ScrollContainer" parent="UI/InventoryHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -579,7 +600,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
-columns = 4
+columns = 5
 
 [node name="SkillsHUD" type="PanelContainer" parent="UI"]
 visible = false
