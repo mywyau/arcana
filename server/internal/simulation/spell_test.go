@@ -299,10 +299,11 @@ func TestWindBoltPausesWithoutRunes(t *testing.T) {
 }
 
 func (snapshot InventorySnapshot) itemsQuantity(itemID string) int {
+	total := 0
 	for _, item := range snapshot.Items {
 		if item.ItemID == itemID {
-			return item.Quantity
+			total += item.Quantity
 		}
 	}
-	return 0
+	return total
 }

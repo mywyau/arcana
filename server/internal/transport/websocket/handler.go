@@ -289,7 +289,6 @@ func (h *Handler) readCommands(
 				Sequence:   message.Sequence,
 				ItemID:     message.ItemID,
 				InstanceID: message.InstanceID,
-				InstanceID: message.InstanceID,
 			})
 		case protocol.MessageCombatStyle:
 			rejectionCode = "combat_style_rejected"
@@ -323,9 +322,10 @@ func (h *Handler) readCommands(
 		case protocol.MessageDropItem:
 			rejectionCode = "drop_rejected"
 			err = h.world.QueueDropItem(simulation.DropItemCommand{
-				PlayerID: playerID,
-				Sequence: message.Sequence,
-				ItemID:   message.ItemID,
+				PlayerID:   playerID,
+				Sequence:   message.Sequence,
+				ItemID:     message.ItemID,
+				InstanceID: message.InstanceID,
 			})
 		case protocol.MessageMoveInventoryItem:
 			rejectionCode = "inventory_move_rejected"

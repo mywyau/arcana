@@ -160,7 +160,7 @@ func (store *Store) Load(
 	var state simulation.PersistentPlayerState
 	err := store.database.QueryRowContext(ctx, `
 		SELECT position_x, position_y, position_z, health,
-		       equipped_weapon, equipped_weapon_instance_id, combat_style, inventory_capacity
+		       equipped_weapon, COALESCE(equipped_weapon_instance_id, ''), combat_style, inventory_capacity
 		FROM characters WHERE player_id = $1`, playerID,
 	).Scan(
 		&state.Position.X, &state.Position.Y, &state.Position.Z, &state.Health,

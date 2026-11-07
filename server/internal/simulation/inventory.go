@@ -176,7 +176,7 @@ func (inventory *inventoryState) removeInstance(instanceID string) (InventoryIte
 
 func itemIsInstanced(itemID string) bool {
 	definition, exists := itemDefinition(itemID)
-	return exists && (definition.Kind == ItemKindWeapon || definition.Kind == ItemKindArmour || definition.Kind == ItemKindSpellbook)
+	return exists && (definition.Kind == ItemKindWeapon || definition.Kind == ItemKindArmour)
 }
 
 func newItemInstanceID() string {
@@ -303,6 +303,11 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 	if snapshot.Capacity <= 0 || snapshot.Capacity > MaxInventoryCapacity {
 		return inventoryState{}, fmt.Errorf("inventory capacity must be between 1 and %d", MaxInventoryCapacity)
 	}
+	expandedItems, err := expandLegacyEquipmentStacks(snapshot.Items, snapshot.Capacity)
+	if err != nil {
+		return inventoryState{}, err
+	}
+	snapshot.Items = expandedItems
 	if len(snapshot.Items) > snapshot.Capacity {
 		return inventoryState{}, fmt.Errorf("inventory has more items than its capacity")
 	}
@@ -346,4 +351,34 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
 	return inventoryState{capacity: snapshot.Capacity, items: items}, nil
+}
+
+func expandLegacyEquipmentStacks(items []InventoryItem, capacity int) ([]InventoryItem, error) {
+	expanded := append([]InventoryItem(nil), items...)
+	occupied := make(map[int]struct{}, len(expanded))
+	for _, item := range expanded {
+		occupied[item.Slot] = struct{}{}
+	}
+	for index := 0; index < len(expanded); index++ {
+		if !itemIsInstanced(expanded[index].ItemID) || expanded[index].Quantity <= 1 {
+			continue
+		}
+		extra := expanded[index].Quantity - 1
+		expanded[index].Quantity = 1
+		for count := 0; count < extra; count++ {
+			freeSlot := -1
+			for slot := 0; slot < capacity; slot++ {
+				if _, used := occupied[slot]; !used {
+					freeSlot = slot
+					break
+				}
+			}
+			if freeSlot < 0 {
+				return nil, fmt.Errorf("legacy equipment stack %q exceeds inventory capacity", expanded[index].ItemID)
+			}
+			occupied[freeSlot] = struct{}{}
+			expanded = append(expanded, InventoryItem{Slot: freeSlot, ItemID: expanded[index].ItemID, Quantity: 1})
+		}
+	}
+	return expanded, nil
 }

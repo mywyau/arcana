@@ -99,7 +99,7 @@ func send_disengage(sequence: int) -> bool:
 	return true
 
 
-func send_equip_item(sequence: int, item_id: String) -> bool:
+func send_equip_item(sequence: int, item_id: String, instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot equip while disconnected")
 		return false
@@ -109,6 +109,8 @@ func send_equip_item(sequence: int, item_id: String) -> bool:
 		"sequence": sequence,
 		"item_id": item_id,
 	}
+	if not instance_id.is_empty():
+		message["instance_id"] = instance_id
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not equip item: %s" % error_string(result))
@@ -116,7 +118,7 @@ func send_equip_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
-func send_unequip_item(sequence: int, item_id: String) -> bool:
+func send_unequip_item(sequence: int, item_id: String, instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot unequip while disconnected")
 		return false
@@ -126,6 +128,8 @@ func send_unequip_item(sequence: int, item_id: String) -> bool:
 		"sequence": sequence,
 		"item_id": item_id,
 	}
+	if not instance_id.is_empty():
+		message["instance_id"] = instance_id
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not unequip item: %s" % error_string(result))
@@ -133,7 +137,7 @@ func send_unequip_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
-func send_drop_item(sequence: int, item_id: String) -> bool:
+func send_drop_item(sequence: int, item_id: String, instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot drop items while disconnected")
 		return false
@@ -143,6 +147,8 @@ func send_drop_item(sequence: int, item_id: String) -> bool:
 		"sequence": sequence,
 		"item_id": item_id,
 	}
+	if not instance_id.is_empty():
+		message["instance_id"] = instance_id
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not drop item: %s" % error_string(result))
@@ -185,7 +191,7 @@ func send_consume_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
-func send_gather(sequence: int, spot_id: String, recipe_id: String = "") -> bool:
+func send_gather(sequence: int, spot_id: String, recipe_id: String = "", instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot gather while disconnected")
 		return false
@@ -197,6 +203,8 @@ func send_gather(sequence: int, spot_id: String, recipe_id: String = "") -> bool
 	}
 	if not recipe_id.is_empty():
 		message["recipe_id"] = recipe_id
+	if not instance_id.is_empty():
+		message["instance_id"] = instance_id
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not start gathering: %s" % error_string(result))

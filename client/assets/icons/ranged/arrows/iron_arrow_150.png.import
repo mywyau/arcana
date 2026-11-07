@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b5cb7hbelb62k"
-path="res://.godot/imported/coins.svg-c246c02557188f2183165aa890bdba9a.ctex"
+uid="uid://bffj1k3rdv55v"
+path="res://.godot/imported/iron_arrow_150.png-561ffb745ad654b746fe422c1ca5d36a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/items/coins.svg"
-dest_files=["res://.godot/imported/coins.svg-c246c02557188f2183165aa890bdba9a.ctex"]
+source_file="res://assets/icons/ranged/arrows/iron_arrow_150.png"
+dest_files=["res://.godot/imported/iron_arrow_150.png-561ffb745ad654b746fe422c1ca5d36a.ctex"]
 
 [params]
 
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

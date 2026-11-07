@@ -353,3 +353,33 @@ func TestAnvilRequiresAValidAffordableRecipe(t *testing.T) {
 		t.Fatal("QueueGather() error = nil without Bronze Bars")
 	}
 }
+
+func TestAnvilReinforcesOneEquipmentInstanceAndStops(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterAnvilID]
+	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(string(WeaponBronzeSword), 1)
+	player.inventory.add(ItemBronzeBar, 3)
+	player.skills[SkillSmithing] = SkillExperienceForLevel(2)
+	instanceID := player.inventory.items[0].InstanceID
+	recipe, _ := reinforcementRecipe("reinforce_bronze_sword")
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterAnvilID,
+		RecipeID: recipe.ID, InstanceID: instanceID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	item, exists := world.players["player-one"].inventory.itemByInstance(instanceID)
+	if !exists || item.Reinforcement != 1 || world.players["player-one"].inventory.quantity(ItemBronzeBar) != 0 {
+		t.Fatalf("inventory after reinforcement = %+v", world.players["player-one"].inventory.items)
+	}
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.GatheringSpot != "" || snapshot.GatheringResult != "reinforced_bronze_sword" {
+		t.Fatalf("gathering state after reinforcement = %+v", snapshot)
+	}
+}

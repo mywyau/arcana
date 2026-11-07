@@ -87,12 +87,20 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 			return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
 		}
 	}
-	if command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID {
+	if (command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID) ||
+		(command.InstanceID == "" && command.ItemID == string(player.equippedWeapon)) {
 		return fmt.Errorf("item %q is currently equipped", command.ItemID)
 	}
 	for _, instanceID := range player.equippedArmourInstances {
 		if command.InstanceID != "" && command.InstanceID == instanceID {
 			return fmt.Errorf("item %q is currently equipped", command.ItemID)
+		}
+	}
+	if command.InstanceID == "" {
+		for _, equippedItemID := range player.equippedArmour {
+			if command.ItemID == equippedItemID {
+				return fmt.Errorf("item %q is currently equipped", command.ItemID)
+			}
 		}
 	}
 	if command.ItemID == player.equippedSpellbook {
@@ -231,7 +239,8 @@ func (w *World) applyPendingItemDrops() {
 			continue
 		}
 		player.lastDropSequence = command.Sequence
-		if command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID {
+		if (command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID) ||
+			(command.InstanceID == "" && command.ItemID == string(player.equippedWeapon)) {
 			continue
 		}
 		equipped := false
@@ -239,6 +248,14 @@ func (w *World) applyPendingItemDrops() {
 			if command.InstanceID != "" && command.InstanceID == instanceID {
 				equipped = true
 				break
+			}
+		}
+		if command.InstanceID == "" {
+			for _, equippedItemID := range player.equippedArmour {
+				if command.ItemID == equippedItemID {
+					equipped = true
+					break
+				}
 			}
 		}
 		if command.ItemID == player.equippedSpellbook {

@@ -431,6 +431,15 @@ func (w *World) queueEquipment(command EquipCommand) error {
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
+	if itemIsInstanced(string(command.ItemID)) && command.InstanceID == "" {
+		if command.Unequip && item.Kind == ItemKindWeapon {
+			command.InstanceID = player.equippedWeaponInstanceID
+		} else if command.Unequip && item.Kind == ItemKindArmour {
+			command.InstanceID = player.equippedArmourInstances[item.Armour.Slot]
+		} else {
+			command.InstanceID = resolveOwnedInstanceID(player.inventory, string(command.ItemID), "")
+		}
+	}
 	ownedItem, ownsInstance := player.inventory.itemByInstance(command.InstanceID)
 	if command.InstanceID != "" && (!ownsInstance || ownedItem.ItemID != string(command.ItemID)) {
 		return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
@@ -447,6 +456,9 @@ func (w *World) queueEquipment(command EquipCommand) error {
 		}
 		if item.Kind == ItemKindArmour && player.equippedArmour[item.Armour.Slot] != string(command.ItemID) {
 			return fmt.Errorf("armour %q is not equipped", command.ItemID)
+		}
+		if item.Kind == ItemKindArmour && command.InstanceID != "" && player.equippedArmourInstances[item.Armour.Slot] != command.InstanceID {
+			return fmt.Errorf("armour instance %q is not equipped", command.InstanceID)
 		}
 		if item.Kind == ItemKindSpellbook && player.equippedSpellbook != string(command.ItemID) {
 			return fmt.Errorf("spellbook %q is not equipped", command.ItemID)
