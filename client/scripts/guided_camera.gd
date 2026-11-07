@@ -11,6 +11,8 @@ extends Node3D
 @export var focus_height: float = 0.8
 @export var follow_speed: float = 10.0
 @export var orbit_speed: float = 0.25
+@export var keyboard_yaw_speed_degrees: float = 90.0
+@export var keyboard_pitch_speed_degrees: float = 55.0
 @export var zoom_step: float = 1.5
 @export var collision_margin: float = 0.3
 @export var minimum_collision_distance: float = 1.0
@@ -42,6 +44,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_apply_keyboard_rotation(delta)
 	if is_instance_valid(_target):
 		var desired_focus: Vector3 = _target.global_position + Vector3.UP * focus_height
 		if not _has_follow_position:
@@ -60,6 +63,26 @@ func _process(delta: float) -> void:
 	)
 	var zoom_weight: float = 1.0 - exp(-10.0 * delta)
 	_current_distance = lerpf(_current_distance, _desired_distance, zoom_weight)
+
+
+func _apply_keyboard_rotation(delta: float) -> void:
+	var focused_control: Control = get_viewport().gui_get_focus_owner()
+	if focused_control is LineEdit or focused_control is SpinBox:
+		return
+	var yaw_direction: float = (
+		float(Input.is_key_pressed(KEY_LEFT))
+		- float(Input.is_key_pressed(KEY_RIGHT))
+	)
+	var pitch_direction: float = (
+		float(Input.is_key_pressed(KEY_DOWN))
+		- float(Input.is_key_pressed(KEY_UP))
+	)
+	_desired_yaw += deg_to_rad(yaw_direction * keyboard_yaw_speed_degrees * delta)
+	_desired_pitch = clampf(
+		_desired_pitch + pitch_direction * keyboard_pitch_speed_degrees * delta,
+		minimum_pitch_degrees,
+		maximum_pitch_degrees,
+	)
 
 
 func _physics_process(delta: float) -> void:

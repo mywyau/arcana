@@ -19,10 +19,10 @@ albedo_color = Color(0.24, 0.48, 0.29, 1)
 
 [sub_resource type="BoxMesh" id="GroundMesh"]
 material = SubResource("GroundMaterial")
-size = Vector3(40, 0.2, 40)
+size = Vector3(60, 0.2, 60)
 
 [sub_resource type="BoxShape3D" id="GroundShape"]
-size = Vector3(40, 0.2, 40)
+size = Vector3(60, 0.2, 60)
 
 [sub_resource type="StandardMaterial3D" id="UpperMaterial"]
 albedo_color = Color(0.28, 0.38, 0.55, 1)

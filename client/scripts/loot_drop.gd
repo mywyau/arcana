@@ -3,31 +3,56 @@ extends Node3D
 
 @onready var visual: Node3D = $Visual
 @onready var mesh: MeshInstance3D = $Visual/Mesh
+@onready var icon_sprite: Sprite3D = $Visual/IconSprite
 @onready var body: StaticBody3D = $Body
 @onready var item_label: Label3D = $ItemLabel
 
-var _phase: float = 0.0
-var _floats: bool = true
-
-func _process(delta: float) -> void:
-	if not _floats:
-		return
-	visual.rotation.y += delta * 1.8
-	_phase += delta * 2.5
-	visual.position.y = 0.35 + sin(_phase) * 0.08
-
+var _item_id: String = ""
+var _quantity: int = 0
 
 func set_drop_id(drop_id: String) -> void:
 	body.set_meta(&"drop_id", drop_id)
-	_phase = float(abs(drop_id.hash()) % 100) / 100.0 * TAU
+
+
+func set_stack_top(is_top: bool) -> void:
+	visual.visible = is_top
+	item_label.visible = is_top
 
 
 func set_item_id(item_id: String, quantity: int = 1) -> void:
-	item_label.text = "%s ×%d" % [item_id.capitalize(), quantity] if quantity > 1 else item_id.capitalize()
+	# Snapshots repeat unchanged drops frequently. A drop's item identity is
+	# immutable, so only its inexpensive quantity label needs a possible update.
+	# Rebuilding the visual here used to append coin/tool meshes every snapshot.
+	if item_id == _item_id:
+		if quantity != _quantity:
+			_quantity = quantity
+			_update_item_label()
+		return
+	_item_id = item_id
+	_quantity = quantity
+	_update_item_label()
+
+	_build_item_visual(item_id)
+
+
+func _update_item_label() -> void:
+	item_label.text = (
+		"%s ×%d" % [_item_id.capitalize(), _quantity]
+		if _quantity > 1
+		else _item_id.capitalize()
+	)
+
+
+func _build_item_visual(item_id: String) -> void:
+	visual.position = Vector3.ZERO
+	visual.rotation = Vector3.ZERO
+	mesh.position = Vector3.ZERO
+	mesh.rotation = Vector3.ZERO
+	mesh.scale = Vector3.ONE
+	mesh.visible = true
+	icon_sprite.visible = false
 	if item_id == "coins":
-		_floats = false
 		visual.position.y = 0.06
-		visual.rotation = Vector3.ZERO
 		var coin_mesh := CylinderMesh.new()
 		coin_mesh.top_radius = 0.18
 		coin_mesh.bottom_radius = 0.18
@@ -58,6 +83,7 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 			visual.add_child(coin)
 		return
 	if item_id in ["bronze_pickaxe", "bronze_axe"]:
+		mesh.position.y = 0.38
 		var handle_mesh := BoxMesh.new()
 		handle_mesh.size = Vector3(0.09, 0.9, 0.09)
 		var handle_material := StandardMaterial3D.new()
@@ -81,6 +107,7 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 		mesh.add_child(head)
 		return
 	if item_id in ["normal_logs", "oak_logs"]:
+		mesh.position.y = 0.19
 		var log_mesh := CylinderMesh.new()
 		log_mesh.top_radius = 0.18
 		log_mesh.bottom_radius = 0.18
@@ -94,6 +121,7 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 		mesh.rotation_degrees = Vector3(0.0, 0.0, 90.0)
 		return
 	if item_id in ["copper_ore", "tin_ore", "iron_ore", "coal", "mithril_ore"]:
+		mesh.position.y = 0.22
 		var ore_mesh := SphereMesh.new()
 		ore_mesh.radius = 0.27
 		ore_mesh.height = 0.46
@@ -112,7 +140,13 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 		mesh.mesh = ore_mesh
 		return
 	if item_id != "steel_sword":
+		var item_icon: Texture2D = IconCatalog.ITEMS.get(item_id) as Texture2D
+		if item_icon != null:
+			mesh.visible = false
+			icon_sprite.texture = item_icon
+			icon_sprite.visible = true
 		return
+	mesh.position.y = 0.42
 	var blade_mesh := BoxMesh.new()
 	blade_mesh.size = Vector3(0.14, 1.0, 0.08)
 	var blade_material := StandardMaterial3D.new()

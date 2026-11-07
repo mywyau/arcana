@@ -8,6 +8,10 @@ import (
 
 const (
 	starterFishingSpotID      = "starter_pond"
+	starterTroutSpotID        = "trout_pond"
+	starterSalmonSpotID       = "salmon_pond"
+	starterTunaSpotID         = "tuna_pond"
+	starterLobsterSpotID      = "lobster_pond"
 	starterCookingRangeID     = "starter_cooking_range"
 	starterFurnaceID          = "starter_furnace"
 	starterAnvilID            = "starter_anvil"
@@ -57,6 +61,7 @@ type GatheringSpotSnapshot struct {
 	CurrentAmount int
 	MaximumAmount int
 	Station       craftingStationID
+	RecipeID      string
 }
 
 type gatheringSpotDefinition struct {
@@ -91,14 +96,11 @@ type pendingGather struct {
 
 func newGatheringSpots() map[string]gatheringSpotDefinition {
 	return map[string]gatheringSpotDefinition{
-		starterFishingSpotID: {
-			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterFishingSpotID, Name: "Fishing Pond", Skill: SkillFishing,
-				Position: Position{X: -14, Z: 14}, Range: gatheringRange, RequiredLevel: 1,
-				Station: craftingStationFishing,
-			},
-			ActiveResult: "fishing",
-		},
+		starterFishingSpotID: fishingSpot(starterFishingSpotID, "Minnow Pond", Position{X: -14, Z: 14}, ItemRawMinnow),
+		starterTroutSpotID:   fishingSpot(starterTroutSpotID, "Trout Pond", Position{X: -23, Z: 18}, ItemRawTrout),
+		starterSalmonSpotID:  fishingSpot(starterSalmonSpotID, "Salmon Pond", Position{X: -25, Z: 8}, ItemRawSalmon),
+		starterTunaSpotID:    fishingSpot(starterTunaSpotID, "Tuna Fishing Spot", Position{X: -24, Z: -3}, ItemRawTuna),
+		starterLobsterSpotID: fishingSpot(starterLobsterSpotID, "Lobster Fishing Spot", Position{X: -24, Z: -14}, ItemRawLobster),
 		starterCookingRangeID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCookingRangeID, Name: "Cooking Range", Skill: SkillCooking,
@@ -148,6 +150,20 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			RewardXP: agilityObstacleExperience, Interval: agilityObstacleInterval,
 			ActiveResult: "balancing", RewardResult: "completed_agility_obstacle", TrainingOnly: true,
 		},
+	}
+}
+
+func fishingSpot(id, name string, position Position, recipeID string) gatheringSpotDefinition {
+	recipe, exists := fishingRecipes[recipeID]
+	if !exists {
+		panic(fmt.Sprintf("fishing spot %q uses unknown recipe %q", id, recipeID))
+	}
+	return gatheringSpotDefinition{
+		GatheringSpotSnapshot: GatheringSpotSnapshot{
+			ID: id, Name: name, Skill: SkillFishing, Position: position, Range: gatheringRange,
+			RequiredLevel: recipe.RequiredLevel, Station: craftingStationFishing, RecipeID: recipeID,
+		},
+		ActiveResult: "fishing",
 	}
 }
 
@@ -201,6 +217,12 @@ func (w *World) QueueGather(command GatherCommand) error {
 	}
 	if SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
 		return fmt.Errorf("%s level %d is required", spot.Skill, spot.RequiredLevel)
+	}
+	if spot.Station == craftingStationFishing {
+		if command.RecipeID != "" && command.RecipeID != spot.RecipeID {
+			return fmt.Errorf("fishing spot %q does not contain recipe %q", spot.ID, command.RecipeID)
+		}
+		command.RecipeID = spot.RecipeID
 	}
 	if spot.Station == craftingStationFishing || spot.Station == craftingStationCooking {
 		recipe, recipeExists := foodRecipe(spot.Station, command.RecipeID)

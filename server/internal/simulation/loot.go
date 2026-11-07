@@ -3,11 +3,13 @@ package simulation
 import (
 	"fmt"
 	"sort"
+	"time"
 )
 
 const (
 	pickupRange       = 3.0
 	trainingShardItem = "training_shard"
+	worldDropLifetime = 2 * time.Minute
 )
 
 type DropSnapshot struct {
@@ -45,7 +47,7 @@ func (w *World) AddWorldDrop(position Position, itemID string, quantity int) err
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.spawnDrop(position, itemID, quantity)
+	w.spawnPersistentDrop(position, itemID, quantity)
 	return nil
 }
 
@@ -216,6 +218,7 @@ func (w *World) applyPendingPickups() {
 		}
 		if added {
 			delete(w.drops, command.DropID)
+			delete(w.dropLifetimes, command.DropID)
 		}
 		delete(w.pendingPickups, id)
 		if player.autoPickingUp {
@@ -278,13 +281,37 @@ func (w *World) spawnInventoryItemDrop(position Position, item InventoryItem) {
 	w.nextDropID++
 	id := fmt.Sprintf("drop-%d", w.nextDropID)
 	w.drops[id] = DropSnapshot{ID: id, Position: position, ItemID: item.ItemID, Quantity: 1, InstanceID: item.InstanceID, Reinforcement: item.Reinforcement}
+	w.dropLifetimes[id] = worldDropLifetime
 }
 
 func (w *World) spawnDrop(position Position, itemID string, quantity int) {
+	w.spawnDropWithLifetime(position, itemID, quantity, worldDropLifetime)
+}
+
+func (w *World) spawnPersistentDrop(position Position, itemID string, quantity int) {
+	w.spawnDropWithLifetime(position, itemID, quantity, 0)
+}
+
+func (w *World) spawnDropWithLifetime(position Position, itemID string, quantity int, lifetime time.Duration) {
 	if itemID == "" || quantity <= 0 {
 		return
 	}
 	w.nextDropID++
 	id := fmt.Sprintf("drop-%d", w.nextDropID)
 	w.drops[id] = DropSnapshot{ID: id, Position: position, ItemID: itemID, Quantity: quantity}
+	if lifetime > 0 {
+		w.dropLifetimes[id] = lifetime
+	}
+}
+
+func (w *World) advanceDropLifetimes(elapsed time.Duration) {
+	for id, remaining := range w.dropLifetimes {
+		remaining -= elapsed
+		if remaining > 0 {
+			w.dropLifetimes[id] = remaining
+			continue
+		}
+		delete(w.dropLifetimes, id)
+		delete(w.drops, id)
+	}
 }

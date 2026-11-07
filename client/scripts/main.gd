@@ -24,6 +24,9 @@ const INVENTORY_TOTAL_SLOTS: int = 50
 const INVENTORY_PAGE_SIZE: int = 25
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
+const BANK_TAKE_ONE: int = 0
+const BANK_TAKE_X: int = 1
+const BANK_TAKE_ALL: int = 2
 const CRAFTING_RECIPES: Dictionary = {
 	"fishing": [
 		{"id": "raw_minnow", "name": "Minnow", "level": 1, "inputs": "Pond"},
@@ -394,9 +397,13 @@ var _pending_bank_chest_id: String = ""
 var _bank_withdraw_dialog: ConfirmationDialog
 var _bank_withdraw_amount: SpinBox
 var _pending_bank_withdraw_slot: int = -1
+var _bank_item_menu: PopupMenu
+var _bank_menu_slot: int = -1
+var _bank_menu_quantity: int = 0
 var _ammunition_pouch_items: Array = []
 var _ammunition_pouch_capacity: int = 10
 var _ammunition_pouch_unlocked: int = 2
+var _ammunition_pouch_signature: String = ""
 var _next_ammunition_sequence: int = 1
 var _ammunition_pouch_window: Window
 var _ammunition_pouch_grid: GridContainer
@@ -492,6 +499,10 @@ func _ready() -> void:
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
+	_bank_item_menu = PopupMenu.new()
+	_bank_item_menu.name = "BankItemMenu"
+	add_child(_bank_item_menu)
+	_bank_item_menu.id_pressed.connect(_on_bank_item_menu_action)
 	bank_close_button.pressed.connect(_close_bank)
 	_setup_bank_withdraw_dialog()
 	_setup_ammunition_pouch_window()
@@ -671,7 +682,9 @@ func _physics_process(_delta: float) -> void:
 			var spot_id: String = str(gathering_body.get_meta(&"gathering_spot_id"))
 			var spot_state: Dictionary = _gathering_states.get(spot_id, {}) as Dictionary
 			var station: String = str(spot_state.get("station", ""))
-			if CRAFTING_RECIPES.has(station):
+			if station == "fishing":
+				_request_gather(spot_id, gathering_body.global_position, str(spot_state.get("recipe_id", "")))
+			elif CRAFTING_RECIPES.has(station):
 				_open_crafting_menu(spot_id, gathering_body.global_position, station, _pending_click)
 			else:
 				_request_gather(spot_id, gathering_body.global_position)
@@ -686,7 +699,10 @@ func _physics_process(_delta: float) -> void:
 			return
 
 	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
-	query.collision_mask = _active_collision_mask()
+	# Movement clicks can intentionally target a different navigation layer.
+	# The authoritative pathfinder will route through the ramp when, for
+	# example, an upper-level player clicks visible ground below.
+	query.collision_mask = ALL_WORLD_COLLISION_MASK
 	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
 		return
@@ -779,6 +795,10 @@ func _close_bank() -> void:
 	_pending_bank_chest_id = ""
 	bank_hud.visible = false
 	_pending_bank_withdraw_slot = -1
+	_bank_menu_slot = -1
+	_bank_menu_quantity = 0
+	if _bank_item_menu != null:
+		_bank_item_menu.hide()
 	if _bank_withdraw_dialog != null:
 		_bank_withdraw_dialog.hide()
 	_update_inventory_hud()
@@ -932,11 +952,15 @@ func _context_loot_candidate_before(left: Dictionary, right: Dictionary) -> bool
 	var right_distance: float = float(right.get("screen_distance", INF))
 	if not is_equal_approx(left_distance, right_distance):
 		return left_distance < right_distance
+	var left_id: String = str(left.get("drop_id", ""))
+	var right_id: String = str(right.get("drop_id", ""))
+	if _drop_sequence(left_id) != _drop_sequence(right_id):
+		return _drop_sequence(left_id) > _drop_sequence(right_id)
 	var left_name: String = str(left.get("item_id", ""))
 	var right_name: String = str(right.get("item_id", ""))
 	if left_name != right_name:
 		return left_name < right_name
-	return str(left.get("drop_id", "")) < str(right.get("drop_id", ""))
+	return left_id > right_id
 
 
 func _on_world_context_action(menu_id: int) -> void:
@@ -976,7 +1000,7 @@ func _top_loot_hit(ray_origin: Vector3, ray_end: Vector3) -> Dictionary:
 		var distance_squared: float = ray_origin.distance_squared_to(hit_position)
 		var drop_id: String = str(body.get_meta(&"drop_id"))
 		if distance_squared < best_distance_squared or (
-			is_equal_approx(distance_squared, best_distance_squared) and drop_id < best_drop_id
+			is_equal_approx(distance_squared, best_distance_squared) and _drop_is_newer(drop_id, best_drop_id)
 		):
 			best_hit = hit
 			best_distance_squared = distance_squared
@@ -1570,6 +1594,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 	if typeof(drop_payloads) != TYPE_ARRAY:
 		return
 	var active_ids: Dictionary = {}
+	var stack_layout_changed: bool = false
 	for payload: Variant in drop_payloads:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
@@ -1585,6 +1610,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 			drops.add_child(view)
 			view.set_drop_id(drop_id)
 			_drop_views[drop_id] = view
+			stack_layout_changed = true
 		view.set_item_id(
 			str(drop_data.get("item_id", "")),
 			int(drop_data.get("quantity", 1)),
@@ -1605,6 +1631,48 @@ func _sync_drops(drop_payloads: Variant) -> void:
 		collected.queue_free()
 		_drop_views.erase(drop_id)
 		_drop_states.erase(drop_id)
+		stack_layout_changed = true
+	if stack_layout_changed:
+		_arrange_drop_stacks()
+
+
+func _arrange_drop_stacks() -> void:
+	var stacks: Dictionary = {}
+	for drop_id: String in _drop_views.keys():
+		var state: Dictionary = _drop_states.get(drop_id, {}) as Dictionary
+		var position_data: Variant = state.get("position", {})
+		if typeof(position_data) != TYPE_DICTIONARY:
+			continue
+		var coordinates := position_data as Dictionary
+		var key := "%.2f:%.2f:%.2f" % [
+			float(coordinates.get("x", 0.0)),
+			float(coordinates.get("y", 0.0)),
+			float(coordinates.get("z", 0.0)),
+		]
+		var stack: Array = stacks.get(key, []) as Array
+		stack.append(drop_id)
+		stacks[key] = stack
+	for stack_data: Variant in stacks.values():
+		var stack := stack_data as Array
+		stack.sort_custom(_drop_is_newer)
+		for index: int in range(stack.size()):
+			var view := _drop_views.get(str(stack[index])) as LootDrop
+			if view != null and is_instance_valid(view):
+				view.set_stack_top(index == 0)
+
+
+func _drop_is_newer(left_id: String, right_id: String) -> bool:
+	var left_sequence: int = _drop_sequence(left_id)
+	var right_sequence: int = _drop_sequence(right_id)
+	if left_sequence != right_sequence:
+		return left_sequence > right_sequence
+	return left_id > right_id
+
+
+func _drop_sequence(drop_id: String) -> int:
+	if not drop_id.begins_with("drop-"):
+		return -1
+	return int(drop_id.trim_prefix("drop-"))
 
 
 func _sync_gathering_spots(spot_payloads: Variant) -> void:
@@ -2803,10 +2871,18 @@ func _apply_bank_snapshot(bank: Dictionary) -> void:
 
 
 func _apply_ammunition_pouch_snapshot(pouch: Dictionary) -> void:
-	_ammunition_pouch_capacity = int(pouch.get("capacity", 10))
-	_ammunition_pouch_unlocked = int(pouch.get("unlocked_slots", 2))
+	var capacity: int = int(pouch.get("capacity", 10))
+	var unlocked: int = int(pouch.get("unlocked_slots", 2))
 	var items_data: Variant = pouch.get("items", [])
-	_ammunition_pouch_items = (items_data as Array).duplicate(true) if typeof(items_data) == TYPE_ARRAY else []
+	if typeof(items_data) != TYPE_ARRAY:
+		return
+	var signature := "%d:%d:%s" % [capacity, unlocked, JSON.stringify(items_data)]
+	if signature == _ammunition_pouch_signature:
+		return
+	_ammunition_pouch_signature = signature
+	_ammunition_pouch_capacity = capacity
+	_ammunition_pouch_unlocked = unlocked
+	_ammunition_pouch_items = (items_data as Array).duplicate(true)
 	_update_ammunition_pouch_window()
 	_update_equipment_hud()
 
@@ -2875,6 +2951,7 @@ func _update_ammunition_pouch_window() -> void:
 	if _ammunition_pouch_grid == null:
 		return
 	for child: Node in _ammunition_pouch_grid.get_children():
+		_ammunition_pouch_grid.remove_child(child)
 		child.queue_free()
 	var items_by_slot: Dictionary = {}
 	for payload: Variant in _ammunition_pouch_items:
@@ -2951,10 +3028,40 @@ func _setup_bank_withdraw_dialog() -> void:
 	add_child(_bank_withdraw_dialog)
 
 
-func _on_bank_item_pressed(bank_slot: int, available_quantity: int) -> void:
-	if available_quantity <= 1:
-		_request_bank_withdraw(bank_slot, 1)
+func _on_bank_item_pressed(bank_slot: int) -> void:
+	_request_bank_withdraw(bank_slot, 1)
+
+
+func _on_bank_item_input(event: InputEvent, bank_slot: int, available_quantity: int) -> void:
+	if not event is InputEventMouseButton:
 		return
+	var mouse_button := event as InputEventMouseButton
+	if not mouse_button.pressed or mouse_button.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	_bank_menu_slot = bank_slot
+	_bank_menu_quantity = available_quantity
+	_bank_item_menu.clear()
+	_bank_item_menu.add_item("Take 1", BANK_TAKE_ONE)
+	_bank_item_menu.add_item("Take X", BANK_TAKE_X)
+	_bank_item_menu.add_item("Take All", BANK_TAKE_ALL)
+	_bank_item_menu.position = Vector2i(mouse_button.global_position)
+	_bank_item_menu.popup()
+	get_viewport().set_input_as_handled()
+
+
+func _on_bank_item_menu_action(menu_id: int) -> void:
+	if _bank_menu_slot < 0 or _bank_menu_quantity < 1:
+		return
+	match menu_id:
+		BANK_TAKE_ONE:
+			_request_bank_withdraw(_bank_menu_slot, 1)
+		BANK_TAKE_X:
+			_open_bank_withdraw_dialog(_bank_menu_slot, _bank_menu_quantity)
+		BANK_TAKE_ALL:
+			_request_bank_withdraw(_bank_menu_slot, _bank_menu_quantity)
+
+
+func _open_bank_withdraw_dialog(bank_slot: int, available_quantity: int) -> void:
 	_pending_bank_withdraw_slot = bank_slot
 	_bank_withdraw_amount.max_value = available_quantity
 	_bank_withdraw_amount.value = mini(available_quantity, 10)
@@ -3002,13 +3109,13 @@ func _update_bank_hud() -> void:
 			slot_button.expand_icon = true
 			slot_button.set_stack_quantity(quantity)
 			slot_button.set_reinforcement(reinforcement)
-			slot_button.tooltip_text = "%s%s ×%d • %s" % [
+			slot_button.tooltip_text = "%s%s ×%d • left-click: take 1 • right-click: options" % [
 				item_id.capitalize(),
 				" +%d" % reinforcement if reinforcement > 0 else "",
 				quantity,
-				"click to choose amount" if quantity > 1 else "click to withdraw",
 			]
-			slot_button.pressed.connect(_on_bank_item_pressed.bind(slot, quantity))
+			slot_button.pressed.connect(_on_bank_item_pressed.bind(slot))
+			slot_button.gui_input.connect(_on_bank_item_input.bind(slot, quantity))
 		else:
 			slot_button.configure(slot, false, true)
 			slot_button.icon = EMPTY_SLOT_ICON

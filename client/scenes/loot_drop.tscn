@@ -23,11 +23,16 @@ radius = 0.42
 script = ExtResource("1_loot")
 
 [node name="Visual" type="Node3D" parent="."]
-position = Vector3(0, 0.35, 0)
-rotation_degrees = Vector3(0, 0, 18)
 
 [node name="Mesh" type="MeshInstance3D" parent="Visual"]
 mesh = SubResource("ShardMesh")
+
+[node name="IconSprite" type="Sprite3D" parent="Visual"]
+visible = false
+position = Vector3(0, 0.035, 0)
+rotation_degrees = Vector3(-90, 0, 0)
+pixel_size = 0.006
+cast_shadow = 0
 
 [node name="Body" type="StaticBody3D" parent="."]
 collision_layer = 16

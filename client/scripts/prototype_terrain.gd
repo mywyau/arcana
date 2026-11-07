@@ -1,8 +1,8 @@
 class_name PrototypeTerrain
 extends MeshInstance3D
 
-const MINIMUM_COORDINATE: float = -20.0
-const MAXIMUM_COORDINATE: float = 20.0
+const MINIMUM_COORDINATE: float = -30.0
+const MAXIMUM_COORDINATE: float = 30.0
 const CELL_SIZE: float = 0.5
 const HILL_CENTER: Vector2 = Vector2(-12.0, 10.0)
 const HILL_RADIUS: float = 4.0

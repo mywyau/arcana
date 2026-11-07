@@ -210,6 +210,7 @@ type World struct {
 	pendingBankTransfers       map[PlayerID]BankTransferCommand
 	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
 	drops                      map[string]DropSnapshot
+	dropLifetimes              map[string]time.Duration
 	nextDropID                 uint64
 	pathfinder                 Pathfinder
 	combat                     *combatState
@@ -250,6 +251,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
 		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
 		drops:                      make(map[string]DropSnapshot),
+		dropLifetimes:              make(map[string]time.Duration),
 		combat:                     newCombatState(),
 		rollSource:                 rollSource,
 		gatheringSpots:             newGatheringSpots(),
@@ -426,6 +428,7 @@ func (w *World) Step(elapsed time.Duration) {
 	if elapsed <= 0 {
 		return
 	}
+	w.advanceDropLifetimes(elapsed)
 
 	for id, player := range w.pendingJoins {
 		w.players[id] = player

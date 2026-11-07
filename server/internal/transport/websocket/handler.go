@@ -443,7 +443,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			Position: protocol.Position{X: spot.Position.X, Y: spot.Position.Y, Z: spot.Position.Z},
 			Range:    spot.Range, RequiredLevel: spot.RequiredLevel,
 			CurrentAmount: spot.CurrentAmount, MaximumAmount: spot.MaximumAmount,
-			Station: string(spot.Station),
+			Station: string(spot.Station), RecipeID: spot.RecipeID,
 		})
 	}
 	for _, chest := range snapshot.BankChests {

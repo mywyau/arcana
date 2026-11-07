@@ -71,7 +71,7 @@ func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
 
 func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	world := NewWorld()
-	pond := world.gatheringSpots[starterFishingSpotID]
+	pond := world.gatheringSpots[starterSalmonSpotID]
 	if err := world.AddPlayer("player-one", pond.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	player.skills[SkillFishing] = SkillExperienceForLevel(3)
 	player.skills[SkillCooking] = SkillExperienceForLevel(3)
 	if err := world.QueueGather(GatherCommand{
-		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID, RecipeID: ItemRawSalmon,
+		PlayerID: "player-one", Sequence: 1, SpotID: starterSalmonSpotID,
 	}); err != nil {
 		t.Fatalf("QueueGather(salmon) returned an unexpected error: %v", err)
 	}
@@ -100,6 +100,42 @@ func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	snapshot := mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemRawSalmon) != 0 || snapshot.Inventory.itemsQuantity(ItemCookedSalmon) != 1 {
 		t.Fatalf("inventory after selected cooking = %+v", snapshot.Inventory)
+	}
+}
+
+func TestFishingSpotOnlyAllowsItsConfiguredFish(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterFishingSpotID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].skills[SkillFishing] = SkillExperienceForLevel(5)
+
+	err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID, RecipeID: ItemRawLobster,
+	})
+	if err == nil {
+		t.Fatal("QueueGather() error = nil when requesting lobster from the minnow pond")
+	}
+}
+
+func TestEachFishingSpotContainsOneFishRecipe(t *testing.T) {
+	world := NewWorld()
+	want := map[string]string{
+		starterFishingSpotID: ItemRawMinnow,
+		starterTroutSpotID:   ItemRawTrout,
+		starterSalmonSpotID:  ItemRawSalmon,
+		starterTunaSpotID:    ItemRawTuna,
+		starterLobsterSpotID: ItemRawLobster,
+	}
+	for spotID, recipeID := range want {
+		spot, exists := world.gatheringSpots[spotID]
+		if !exists {
+			t.Fatalf("fishing spot %q is missing", spotID)
+		}
+		if spot.Station != craftingStationFishing || spot.RecipeID != recipeID {
+			t.Fatalf("fishing spot %q = %+v, want recipe %q", spotID, spot, recipeID)
+		}
 	}
 }
 

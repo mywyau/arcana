@@ -124,6 +124,7 @@ type GatheringSpotSnapshot struct {
 	CurrentAmount int      `json:"current_amount"`
 	MaximumAmount int      `json:"maximum_amount"`
 	Station       string   `json:"station,omitempty"`
+	RecipeID      string   `json:"recipe_id,omitempty"`
 }
 
 type BankChestSnapshot struct {

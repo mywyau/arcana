@@ -5,6 +5,33 @@ import (
 	"time"
 )
 
+func TestSpawnedDropExpiresAfterTwoMinutes(t *testing.T) {
+	world := NewWorld()
+	world.spawnDrop(Position{}, trainingShardItem, 1)
+
+	world.Step(worldDropLifetime - time.Millisecond)
+	if got := len(world.Snapshot().Drops); got != 1 {
+		t.Fatalf("drop count before lifetime elapsed = %d, want 1", got)
+	}
+
+	world.Step(time.Millisecond)
+	if got := len(world.Snapshot().Drops); got != 0 {
+		t.Fatalf("drop count after lifetime elapsed = %d, want 0", got)
+	}
+}
+
+func TestInitialWorldDropDoesNotExpire(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddWorldDrop(Position{}, string(WeaponSteelSword), 1); err != nil {
+		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
+	}
+
+	world.Step(worldDropLifetime + time.Minute)
+	if got := len(world.Snapshot().Drops); got != 1 {
+		t.Fatalf("initial world drop count after lifetime elapsed = %d, want 1", got)
+	}
+}
+
 func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddWorldDrop(Position{X: -2, Z: -5}, string(WeaponSteelSword), 1); err != nil {
