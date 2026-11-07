@@ -8,14 +8,29 @@ extends Node3D
 @export var correction_speed: float = 1.5
 
 @onready var visual_root: Node3D = $VisualRoot
-@onready var mesh: MeshInstance3D = $VisualRoot/Mesh
-@onready var sword_pivot: Node3D = $VisualRoot/SwordPivot
-@onready var blade: MeshInstance3D = $VisualRoot/SwordPivot/Blade
-@onready var hilt: MeshInstance3D = $VisualRoot/SwordPivot/Hilt
-@onready var bow_pivot: Node3D = $VisualRoot/BowPivot
-@onready var mace_pivot: Node3D = $VisualRoot/MacePivot
-@onready var battle_axe_pivot: Node3D = $VisualRoot/BattleAxePivot
-@onready var staff_pivot: Node3D = $VisualRoot/StaffPivot
+@onready var mesh: MeshInstance3D = $VisualRoot/Humanoid/Torso
+@onready var left_arm: Node3D = $VisualRoot/Humanoid/LeftArm
+@onready var right_arm: Node3D = $VisualRoot/Humanoid/RightArm
+@onready var left_leg: Node3D = $VisualRoot/Humanoid/LeftLeg
+@onready var right_leg: Node3D = $VisualRoot/Humanoid/RightLeg
+@onready var left_sleeve: MeshInstance3D = $VisualRoot/Humanoid/LeftArm/UpperArm
+@onready var right_sleeve: MeshInstance3D = $VisualRoot/Humanoid/RightArm/UpperArm
+@onready var hair_top: MeshInstance3D = $VisualRoot/Humanoid/HairTop
+@onready var hair_back: MeshInstance3D = $VisualRoot/Humanoid/HairBack
+@onready var training_plate: MeshInstance3D = $VisualRoot/Humanoid/TrainingPlate
+@onready var training_helm: Node3D = $VisualRoot/Humanoid/TrainingHelm
+@onready var swift_body: MeshInstance3D = $VisualRoot/Humanoid/SwiftBody
+@onready var swift_chest_trim: MeshInstance3D = $VisualRoot/Humanoid/SwiftChestTrim
+@onready var swift_helm: Node3D = $VisualRoot/Humanoid/SwiftHelm
+@onready var swift_boots: Node3D = $VisualRoot/Humanoid/SwiftBoots
+@onready var weapon_anchor: Node3D = $VisualRoot/WeaponAnchor
+@onready var sword_pivot: Node3D = $VisualRoot/WeaponAnchor/SwordPivot
+@onready var blade: MeshInstance3D = $VisualRoot/WeaponAnchor/SwordPivot/Blade
+@onready var hilt: MeshInstance3D = $VisualRoot/WeaponAnchor/SwordPivot/Hilt
+@onready var bow_pivot: Node3D = $VisualRoot/WeaponAnchor/BowPivot
+@onready var mace_pivot: Node3D = $VisualRoot/WeaponAnchor/MacePivot
+@onready var battle_axe_pivot: Node3D = $VisualRoot/WeaponAnchor/BattleAxePivot
+@onready var staff_pivot: Node3D = $VisualRoot/WeaponAnchor/StaffPivot
 @onready var damage_label: Label3D = $DamageLabel
 
 var _is_local: bool = false
@@ -32,15 +47,19 @@ var _rest_color: Color
 var _defeated: bool = false
 var _following_server_path: bool = false
 var _equipped_weapon: String = "sword"
+var _equipped_armour: Dictionary = {}
+var _walk_time: float = 0.0
 
 
 func _process(delta: float) -> void:
 	if not _has_position:
 		return
+	var previous_position: Vector3 = global_position
 
 	if not _is_local:
 		var weight: float = 1.0 - exp(-interpolation_speed * delta)
 		global_position = global_position.lerp(_remote_target, weight)
+		_update_movement_pose(delta, previous_position)
 		return
 
 	if not _predicted_path.is_empty():
@@ -55,6 +74,31 @@ func _process(delta: float) -> void:
 		var correction_step: Vector3 = _pending_correction.limit_length(correction_speed * delta)
 		global_position += correction_step
 		_pending_correction -= correction_step
+	_update_movement_pose(delta, previous_position)
+
+
+func _update_movement_pose(delta: float, previous_position: Vector3) -> void:
+	var motion: Vector3 = global_position - previous_position
+	motion.y = 0.0
+	var moving: bool = motion.length_squared() > 0.000001 and not _defeated
+	if moving:
+		visual_root.look_at(visual_root.global_position + motion, Vector3.UP, true)
+		_walk_time += delta * 10.0
+		var swing: float = sin(_walk_time) * 26.0
+		left_leg.rotation_degrees.x = swing
+		right_leg.rotation_degrees.x = -swing
+		left_arm.rotation_degrees.x = -swing * 0.65
+		right_arm.rotation_degrees.x = swing * 0.65
+		weapon_anchor.rotation_degrees.x = right_arm.rotation_degrees.x
+		visual_root.position.y = absf(sin(_walk_time)) * 0.025
+		return
+	var settle: float = clampf(delta * 10.0, 0.0, 1.0)
+	left_leg.rotation_degrees.x = lerpf(left_leg.rotation_degrees.x, 0.0, settle)
+	right_leg.rotation_degrees.x = lerpf(right_leg.rotation_degrees.x, 0.0, settle)
+	left_arm.rotation_degrees.x = lerpf(left_arm.rotation_degrees.x, 0.0, settle)
+	right_arm.rotation_degrees.x = lerpf(right_arm.rotation_degrees.x, 0.0, settle)
+	weapon_anchor.rotation_degrees.x = right_arm.rotation_degrees.x
+	visual_root.position.y = lerpf(visual_root.position.y, 0.0, settle)
 
 
 func predict_move(destination: Vector3) -> void:
@@ -149,12 +193,12 @@ func play_weapon_attack(target_position: Vector3) -> float:
 func _play_unarmed_attack() -> void:
 	if _attack_tween != null:
 		_attack_tween.kill()
-	mesh.rotation_degrees.z = 0.0
+	right_arm.rotation_degrees.x = 0.0
 	_attack_tween = create_tween()
 	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_attack_tween.tween_property(mesh, "rotation_degrees:z", -12.0, 0.1)
+	_attack_tween.tween_property(right_arm, "rotation_degrees:x", -82.0, 0.1)
 	_attack_tween.set_ease(Tween.EASE_IN_OUT)
-	_attack_tween.tween_property(mesh, "rotation_degrees:z", 0.0, 0.16)
+	_attack_tween.tween_property(right_arm, "rotation_degrees:x", 0.0, 0.16)
 
 
 func play_spell_attack(target_position: Vector3, _spell_id: String) -> float:
@@ -291,9 +335,28 @@ func set_weapon(weapon_id: String) -> void:
 	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
 
 
+func set_armour(equipped_armour: Dictionary) -> void:
+	if equipped_armour == _equipped_armour:
+		return
+	_equipped_armour = equipped_armour.duplicate(true)
+	var head_item: String = str(_equipped_armour.get("head", ""))
+	var body_item: String = str(_equipped_armour.get("body", ""))
+	var feet_item: String = str(_equipped_armour.get("feet", ""))
+	training_helm.visible = head_item == "training_helm" or head_item == "bronze_helm"
+	swift_helm.visible = head_item == "swift_helm"
+	var helmet_equipped: bool = training_helm.visible or swift_helm.visible
+	hair_top.visible = not helmet_equipped
+	hair_back.visible = not helmet_equipped
+	training_plate.visible = body_item == "training_plate"
+	swift_body.visible = body_item == "swift_body"
+	swift_chest_trim.visible = swift_body.visible
+	swift_boots.visible = feet_item == "swift_boots"
+
+
 func _update_weapon_visibility() -> void:
 	sword_pivot.visible = not _defeated and (
 		_equipped_weapon == "sword" or
+		_equipped_weapon == "bronze_sword" or
 		_equipped_weapon == "steel_sword" or
 		_equipped_weapon == "rune_sword" or
 		_equipped_weapon == "dagger"
@@ -358,3 +421,5 @@ func set_local_player(is_local: bool) -> void:
 	_body_material.albedo_color = _rest_color
 	_body_material.roughness = 0.8
 	mesh.material_override = _body_material
+	left_sleeve.material_override = _body_material
+	right_sleeve.material_override = _body_material

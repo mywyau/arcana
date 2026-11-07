@@ -39,6 +39,7 @@ type ClientMessage struct {
 	Destination *Position `json:"destination"`
 	TargetID    string    `json:"target_id,omitempty"`
 	ItemID      string    `json:"item_id,omitempty"`
+	InstanceID  string    `json:"instance_id,omitempty"`
 	DropID      string    `json:"drop_id,omitempty"`
 	FromSlot    int       `json:"from_slot,omitempty"`
 	ToSlot      int       `json:"to_slot,omitempty"`
@@ -46,6 +47,7 @@ type ClientMessage struct {
 	PrayerID    string    `json:"prayer_id,omitempty"`
 	SpellID     string    `json:"spell_id,omitempty"`
 	SpotID      string    `json:"spot_id,omitempty"`
+	RecipeID    string    `json:"recipe_id,omitempty"`
 	Active      bool      `json:"active,omitempty"`
 	GuestToken  string    `json:"guest_token,omitempty"`
 }
@@ -95,10 +97,12 @@ type TargetSnapshot struct {
 }
 
 type DropSnapshot struct {
-	ID       string   `json:"id"`
-	Position Position `json:"position"`
-	ItemID   string   `json:"item_id"`
-	Quantity int      `json:"quantity"`
+	ID            string   `json:"id"`
+	Position      Position `json:"position"`
+	ItemID        string   `json:"item_id"`
+	Quantity      int      `json:"quantity"`
+	InstanceID    string   `json:"instance_id,omitempty"`
+	Reinforcement int      `json:"reinforcement,omitempty"`
 }
 
 type GatheringSpotSnapshot struct {
@@ -108,53 +112,58 @@ type GatheringSpotSnapshot struct {
 	Position      Position `json:"position"`
 	Range         float64  `json:"range"`
 	RequiredLevel int      `json:"required_level"`
+	CurrentAmount int      `json:"current_amount"`
+	MaximumAmount int      `json:"maximum_amount"`
+	Station       string   `json:"station,omitempty"`
 }
 
 type PlayerSnapshot struct {
-	ID                      string              `json:"id"`
-	Position                Position            `json:"position"`
-	Destination             *Position           `json:"destination,omitempty"`
-	Path                    []Position          `json:"path"`
-	Speed                   float64             `json:"speed"`
-	LastCommandSequence     uint64              `json:"last_command_sequence"`
-	LastCommandTick         uint64              `json:"last_command_tick"`
-	NavigationLocation      NavigationLocation  `json:"navigation_location"`
-	LastActionSequence      uint64              `json:"last_action_sequence"`
-	LastActionPulse         uint64              `json:"last_action_pulse"`
-	LastActionResult        string              `json:"last_action_result"`
-	CombatTarget            string              `json:"combat_target"`
-	NextAttackPulse         uint64              `json:"next_attack_pulse"`
-	AutoApproaching         bool                `json:"auto_approaching"`
-	AutoPickingUp           bool                `json:"auto_picking_up"`
-	Health                  int                 `json:"health"`
-	MaximumHealth           int                 `json:"maximum_health"`
-	Prayer                  int                 `json:"prayer"`
-	MaximumPrayer           int                 `json:"maximum_prayer"`
-	Defeated                bool                `json:"defeated"`
-	RespawnAtPulse          uint64              `json:"respawn_at_pulse"`
-	EquippedWeapon          string              `json:"equipped_weapon"`
-	EquippedArmour          map[string]string   `json:"equipped_armour"`
-	EquippedSpellbook       string              `json:"equipped_spellbook"`
-	ActiveSpellbook         string              `json:"active_spellbook"`
-	LastEquipmentSequence   uint64              `json:"last_equipment_sequence"`
-	LastEquipmentPulse      uint64              `json:"last_equipment_pulse"`
-	CombatStyle             string              `json:"combat_style"`
-	LastCombatStyleSequence uint64              `json:"last_combat_style_sequence"`
-	ActivePrayers           []string            `json:"active_prayers"`
-	LastPrayerSequence      uint64              `json:"last_prayer_sequence"`
-	SelectedSpell           string              `json:"selected_spell"`
-	LastSpellSequence       uint64              `json:"last_spell_sequence"`
-	DodgeRate               float64             `json:"dodge_rate"`
-	CombatStats             CombatStatsSnapshot `json:"combat_stats"`
-	Inventory               InventorySnapshot   `json:"inventory"`
-	LastPickupSequence      uint64              `json:"last_pickup_sequence"`
-	LastConsumeSequence     uint64              `json:"last_consume_sequence"`
-	NextConsumePulse        uint64              `json:"next_consume_pulse"`
-	GatheringSpot           string              `json:"gathering_spot"`
-	GatheringResult         string              `json:"gathering_result"`
-	NextGatherPulse         uint64              `json:"next_gather_pulse"`
-	LastGatherSequence      uint64              `json:"last_gather_sequence"`
-	Skills                  []SkillSnapshot     `json:"skills"`
+	ID                       string              `json:"id"`
+	Position                 Position            `json:"position"`
+	Destination              *Position           `json:"destination,omitempty"`
+	Path                     []Position          `json:"path"`
+	Speed                    float64             `json:"speed"`
+	LastCommandSequence      uint64              `json:"last_command_sequence"`
+	LastCommandTick          uint64              `json:"last_command_tick"`
+	NavigationLocation       NavigationLocation  `json:"navigation_location"`
+	LastActionSequence       uint64              `json:"last_action_sequence"`
+	LastActionPulse          uint64              `json:"last_action_pulse"`
+	LastActionResult         string              `json:"last_action_result"`
+	CombatTarget             string              `json:"combat_target"`
+	NextAttackPulse          uint64              `json:"next_attack_pulse"`
+	AutoApproaching          bool                `json:"auto_approaching"`
+	AutoPickingUp            bool                `json:"auto_picking_up"`
+	Health                   int                 `json:"health"`
+	MaximumHealth            int                 `json:"maximum_health"`
+	Prayer                   int                 `json:"prayer"`
+	MaximumPrayer            int                 `json:"maximum_prayer"`
+	Defeated                 bool                `json:"defeated"`
+	RespawnAtPulse           uint64              `json:"respawn_at_pulse"`
+	EquippedWeapon           string              `json:"equipped_weapon"`
+	EquippedWeaponInstanceID string              `json:"equipped_weapon_instance_id,omitempty"`
+	EquippedArmour           map[string]string   `json:"equipped_armour"`
+	EquippedArmourInstances  map[string]string   `json:"equipped_armour_instances"`
+	EquippedSpellbook        string              `json:"equipped_spellbook"`
+	ActiveSpellbook          string              `json:"active_spellbook"`
+	LastEquipmentSequence    uint64              `json:"last_equipment_sequence"`
+	LastEquipmentPulse       uint64              `json:"last_equipment_pulse"`
+	CombatStyle              string              `json:"combat_style"`
+	LastCombatStyleSequence  uint64              `json:"last_combat_style_sequence"`
+	ActivePrayers            []string            `json:"active_prayers"`
+	LastPrayerSequence       uint64              `json:"last_prayer_sequence"`
+	SelectedSpell            string              `json:"selected_spell"`
+	LastSpellSequence        uint64              `json:"last_spell_sequence"`
+	DodgeRate                float64             `json:"dodge_rate"`
+	CombatStats              CombatStatsSnapshot `json:"combat_stats"`
+	Inventory                InventorySnapshot   `json:"inventory"`
+	LastPickupSequence       uint64              `json:"last_pickup_sequence"`
+	LastConsumeSequence      uint64              `json:"last_consume_sequence"`
+	NextConsumePulse         uint64              `json:"next_consume_pulse"`
+	GatheringSpot            string              `json:"gathering_spot"`
+	GatheringResult          string              `json:"gathering_result"`
+	NextGatherPulse          uint64              `json:"next_gather_pulse"`
+	LastGatherSequence       uint64              `json:"last_gather_sequence"`
+	Skills                   []SkillSnapshot     `json:"skills"`
 }
 
 type CombatStatsSnapshot struct {
@@ -206,9 +215,11 @@ type InventorySnapshot struct {
 }
 
 type InventoryItem struct {
-	Slot     int    `json:"slot"`
-	ItemID   string `json:"item_id"`
-	Quantity int    `json:"quantity"`
+	Slot          int    `json:"slot"`
+	ItemID        string `json:"item_id"`
+	Quantity      int    `json:"quantity"`
+	InstanceID    string `json:"instance_id,omitempty"`
+	Reinforcement int    `json:"reinforcement,omitempty"`
 }
 
 type NavigationLocation struct {

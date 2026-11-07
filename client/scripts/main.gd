@@ -22,6 +22,19 @@ const INVENTORY_TOTAL_SLOTS: int = 50
 const INVENTORY_PAGE_SIZE: int = 25
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
+const CRAFTING_RECIPES: Dictionary = {
+	"smelting": [
+		{"id": "copper_bar", "name": "Copper Bar", "level": 1, "inputs": "1 Copper Ore"},
+		{"id": "bronze_bar", "name": "Bronze Bar", "level": 1, "inputs": "1 Copper Ore + 1 Tin Ore"},
+		{"id": "iron_bar", "name": "Iron Bar", "level": 2, "inputs": "1 Iron Ore + 1 Coal"},
+		{"id": "mithril_bar", "name": "Mithril Bar", "level": 5, "inputs": "1 Mithril Ore + 2 Coal"},
+	],
+	"forging": [
+		{"id": "bronze_sword", "name": "Bronze Sword", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_helm", "name": "Bronze Helm", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "level": 1, "inputs": "3 Bronze Bars"},
+	],
+}
 
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Attack", "level": 1},
@@ -54,6 +67,8 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Agility": "agility",
 	"Fishing": "fishing",
 	"Cooking": "cooking",
+	"Mining": "mining",
+	"Smithing": "smithing",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -64,6 +79,8 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"agility": "Agility",
 	"fishing": "Fishing",
 	"cooking": "Cooking",
+	"mining": "Mining",
+	"smithing": "Smithing",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -91,6 +108,12 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"sword": [
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
+	],
+	"bronze_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
@@ -141,6 +164,7 @@ const COMBAT_STYLES: Dictionary = {
 }
 const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
+	"bronze_helm": "head",
 	"training_helm": "head",
 	"training_plate": "body",
 	"swift_helm": "head",
@@ -308,11 +332,14 @@ var _player_defeated: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "unarmed"
+var _equipped_weapon_instance_id: String = ""
 var _last_equipment_sequence: int = 0
 var _queued_item: String = ""
+var _queued_instance_id: String = ""
 var _queued_unequip: bool = false
 var _queued_drop_after_unequip: String = ""
 var _equipped_armour: Dictionary = {}
+var _equipped_armour_instances: Dictionary = {}
 var _equipped_spellbook: String = ""
 var _active_spellbook: String = ""
 var _combat_style: String = "crush"
@@ -332,6 +359,8 @@ var _skill_progress: Dictionary = {
 	"agility": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"fishing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"cooking": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"mining": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -344,6 +373,10 @@ var _has_pending_click: bool = false
 var _target_click_tween: Tween
 var _world_context_menu: PopupMenu
 var _context_menu_actions: Dictionary = {}
+var _crafting_menu: PopupMenu
+var _crafting_menu_actions: Dictionary = {}
+var _selected_station_id: String = ""
+var _selected_station_position: Vector3 = Vector3.ZERO
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
@@ -361,6 +394,10 @@ func _ready() -> void:
 	_world_context_menu.name = "WorldContextMenu"
 	add_child(_world_context_menu)
 	_world_context_menu.id_pressed.connect(_on_world_context_action)
+	_crafting_menu = PopupMenu.new()
+	_crafting_menu.name = "CraftingMenu"
+	add_child(_crafting_menu)
+	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
 	network.status_changed.connect(_on_status_changed)
 	network.welcome_received.connect(_on_welcome_received)
 	network.snapshot_received.connect(_on_snapshot_received)
@@ -520,10 +557,13 @@ func _physics_process(_delta: float) -> void:
 	if not gathering_result.is_empty():
 		var gathering_body := gathering_result.get("collider") as CollisionObject3D
 		if gathering_body != null and gathering_body.has_meta(&"gathering_spot_id"):
-			_request_gather(
-				str(gathering_body.get_meta(&"gathering_spot_id")),
-				gathering_body.global_position,
-			)
+			var spot_id: String = str(gathering_body.get_meta(&"gathering_spot_id"))
+			var spot_state: Dictionary = _gathering_states.get(spot_id, {}) as Dictionary
+			var station: String = str(spot_state.get("station", ""))
+			if CRAFTING_RECIPES.has(station):
+				_open_crafting_menu(spot_id, gathering_body.global_position, station, _pending_click)
+			else:
+				_request_gather(spot_id, gathering_body.global_position)
 			return
 
 	var loot_result: Dictionary = _top_loot_hit(ray_origin, ray_end)
@@ -584,16 +624,63 @@ func _request_pickup_drop(drop_id: String, drop_position: Vector3) -> void:
 		_play_target_click_feedback(drop_position)
 
 
-func _request_gather(spot_id: String, spot_position: Vector3) -> void:
+func _request_gather(spot_id: String, spot_position: Vector3, recipe_id: String = "", instance_id: String = "") -> void:
 	if spot_id.is_empty() or _player_defeated:
 		return
-	if network.send_gather(_next_gather_sequence, spot_id):
+	if network.send_gather(_next_gather_sequence, spot_id, recipe_id, instance_id):
 		_next_gather_sequence += 1
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.stop_prediction()
 		click_marker.visible = false
 		_play_target_click_feedback(spot_position)
+
+
+func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
+	_selected_station_id = spot_id
+	_selected_station_position = spot_position
+	_crafting_menu.clear()
+	_crafting_menu_actions.clear()
+	var recipes: Array = CRAFTING_RECIPES.get(station, []) as Array
+	for recipe_index: int in recipes.size():
+		var recipe: Dictionary = recipes[recipe_index]
+		_crafting_menu.add_item(
+			"%s  •  %s  •  Lv %d" % [recipe["name"], recipe["inputs"], recipe["level"]],
+			recipe_index,
+		)
+		_crafting_menu_actions[recipe_index] = {"recipe_id": str(recipe["id"]), "instance_id": ""}
+	var next_menu_id: int = recipes.size()
+	if station == "forging":
+		for payload: Variant in _inventory_items:
+			if typeof(payload) != TYPE_DICTIONARY:
+				continue
+			var item: Dictionary = payload as Dictionary
+			var item_id: String = str(item.get("item_id", ""))
+			var instance_id: String = str(item.get("instance_id", ""))
+			if instance_id.is_empty() or int(item.get("reinforcement", 0)) > 0 or not item_id in ["bronze_sword", "bronze_helm"]:
+				continue
+			var bar_cost: int = 3 if item_id == "bronze_sword" else 2
+			var slot_label: String = "slot %d" % (int(item.get("slot", 0)) + 1)
+			if _is_item_equipped(item_id, instance_id):
+				slot_label += ", equipped"
+			var label: String = "Reinforce %s (%s)  •  %d Bronze Bars  •  Lv 2" % [item_id.capitalize(), slot_label, bar_cost]
+			_crafting_menu.add_item(label, next_menu_id)
+			_crafting_menu_actions[next_menu_id] = {
+				"recipe_id": "reinforce_%s" % item_id,
+				"instance_id": instance_id,
+			}
+			next_menu_id += 1
+	_crafting_menu.position = Vector2i(screen_position)
+	_crafting_menu.popup()
+
+
+func _on_crafting_recipe_selected(menu_id: int) -> void:
+	var action: Dictionary = _crafting_menu_actions.get(menu_id, {}) as Dictionary
+	var recipe_id: String = str(action.get("recipe_id", ""))
+	var instance_id: String = str(action.get("instance_id", ""))
+	if recipe_id.is_empty() or _selected_station_id.is_empty():
+		return
+	_request_gather(_selected_station_id, _selected_station_position, recipe_id, instance_id)
 
 
 func _open_world_context_menu(screen_position: Vector2) -> void:
@@ -760,31 +847,33 @@ func _play_target_click_feedback(target_position: Vector3) -> void:
 	_target_click_tween.chain().tween_callback(target_click_pulse.hide)
 
 
-func _request_equip(item_id: String) -> void:
+func _request_equip(item_id: String, instance_id: String = "") -> void:
 	if _player_defeated:
 		return
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 	if equipment_pending:
 		return
-	if _is_item_equipped(item_id):
-		_request_unequip(item_id)
+	if _is_item_equipped(item_id, instance_id):
+		_request_unequip(item_id, instance_id)
 		return
-	if network.send_equip_item(_next_equipment_sequence, item_id):
+	if network.send_equip_item(_next_equipment_sequence, item_id, instance_id):
 		_queued_item = item_id
+		_queued_instance_id = instance_id
 		_queued_unequip = false
 		_next_equipment_sequence += 1
 		_update_combat_hud()
 		_update_inventory_hud()
 
 
-func _request_unequip(item_id: String) -> bool:
-	if _player_defeated or not _is_item_equipped(item_id):
+func _request_unequip(item_id: String, instance_id: String = "") -> bool:
+	if _player_defeated or not _is_item_equipped(item_id, instance_id):
 		return false
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 	if equipment_pending:
 		return false
-	if network.send_unequip_item(_next_equipment_sequence, item_id):
+	if network.send_unequip_item(_next_equipment_sequence, item_id, instance_id):
 		_queued_item = item_id
+		_queued_instance_id = instance_id
 		_queued_unequip = true
 		_next_equipment_sequence += 1
 		_update_combat_hud()
@@ -794,16 +883,18 @@ func _request_unequip(item_id: String) -> bool:
 	return false
 
 
-func _is_item_equipped(item_id: String) -> bool:
+func _is_item_equipped(item_id: String, instance_id: String = "") -> bool:
 	if item_id == _equipped_weapon:
-		return true
+		return instance_id.is_empty() or instance_id == _equipped_weapon_instance_id
 	if item_id == _equipped_spellbook:
 		return true
 	var armour_slot: String = str(ARMOUR_SLOTS.get(item_id, ""))
-	return not armour_slot.is_empty() and str(_equipped_armour.get(armour_slot, "")) == item_id
+	return not armour_slot.is_empty() and str(_equipped_armour.get(armour_slot, "")) == item_id and (
+		instance_id.is_empty() or instance_id == str(_equipped_armour_instances.get(armour_slot, ""))
+	)
 
 
-func _on_inventory_item_input(event: InputEvent, item_id: String) -> void:
+func _on_inventory_item_input(event: InputEvent, item_id: String, instance_id: String = "") -> void:
 	if _player_defeated:
 		return
 	if event is InputEventMouseButton:
@@ -812,20 +903,20 @@ func _on_inventory_item_input(event: InputEvent, item_id: String) -> void:
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 			if equipment_pending and _queued_item == item_id:
 				return
-			if _is_item_equipped(item_id):
+			if _is_item_equipped(item_id, instance_id):
 				if not SPELLBOOK_ITEMS.has(item_id):
 					return
-				if _request_unequip(item_id):
+				if _request_unequip(item_id, instance_id):
 					_queued_drop_after_unequip = item_id
 			else:
-				_request_drop_item(item_id)
+				_request_drop_item(item_id, instance_id)
 			get_viewport().set_input_as_handled()
 
 
-func _request_drop_item(item_id: String) -> void:
-	if item_id.is_empty() or _player_defeated or _is_item_equipped(item_id):
+func _request_drop_item(item_id: String, instance_id: String = "") -> void:
+	if item_id.is_empty() or _player_defeated or _is_item_equipped(item_id, instance_id):
 		return
-	if network.send_drop_item(_next_drop_sequence, item_id):
+	if network.send_drop_item(_next_drop_sequence, item_id, instance_id):
 		_next_drop_sequence += 1
 
 
@@ -994,6 +1085,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			server_driven_path,
 		)
 		view.set_weapon(str(player_data.get("equipped_weapon", "sword")))
+		var world_armour_data: Variant = player_data.get("equipped_armour", {})
+		if typeof(world_armour_data) == TYPE_DICTIONARY:
+			view.set_armour(world_armour_data as Dictionary)
 		view.set_defeated(bool(player_data.get("defeated", false)))
 		if id == _local_player_id:
 			var inventory_selection_changed: bool = false
@@ -1079,17 +1173,70 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Cooked a Minnow • Cooking continues…"
 					"missing_raw_minnow":
 						status_label.text = "Cooking stopped: no Raw Minnows"
+					"mining":
+						status_label.text = "Mining…"
+					"mined_copper_ore":
+						status_label.text = "Mined Copper Ore • Mining continues…"
+					"mined_tin_ore":
+						status_label.text = "Mined Tin Ore • Mining continues…"
+					"mined_iron_ore":
+						status_label.text = "Mined Iron Ore • Mining continues…"
+					"mined_coal":
+						status_label.text = "Mined Coal • Mining continues…"
+					"mined_mithril_ore":
+						status_label.text = "Mined Mithril Ore • Mining continues…"
+					"smelting":
+						status_label.text = "Smelting…"
+					"smelted_copper_bar":
+						status_label.text = "Smelted a Copper Bar • Smithing continues…"
+					"smelted_bronze_bar":
+						status_label.text = "Smelted a Bronze Bar • Smithing continues…"
+					"smelted_iron_bar":
+						status_label.text = "Smelted an Iron Bar • Smithing continues…"
+					"smelted_mithril_bar":
+						status_label.text = "Smelted a Mithril Bar • Smithing continues…"
+					"missing_smelting_inputs":
+						status_label.text = "Smithing stopped: required ores are missing"
+					"forging":
+						status_label.text = "Forging…"
+					"forged_bronze_sword":
+						status_label.text = "Forged a Bronze Sword • Smithing continues…"
+					"forged_bronze_helm":
+						status_label.text = "Forged a Bronze Helm • Smithing continues…"
+					"forged_bronze_pickaxe":
+						status_label.text = "Forged a Bronze Pickaxe • Smithing continues…"
+					"missing_forging_inputs":
+						status_label.text = "Smithing stopped: not enough Bronze Bars"
+					"reinforced_bronze_sword":
+						status_label.text = "Bronze Sword reinforced to +1"
+					"reinforced_bronze_helm":
+						status_label.text = "Bronze Helm reinforced to +1"
+					"reinforcement_failed":
+						status_label.text = "Reinforcement stopped: item or bars are unavailable"
+					"missing_bronze_pickaxe":
+						status_label.text = "Mining stopped: a Bronze Pickaxe is required"
+					"vein_depleted":
+						status_label.text = "Mining stopped: the vein is depleted"
 					"inventory_full":
 						status_label.text = "Gathering stopped: inventory is full"
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
-			if equipped_weapon != _equipped_weapon:
+			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))
+			if equipped_weapon != _equipped_weapon or equipped_weapon_instance_id != _equipped_weapon_instance_id:
 				_equipped_weapon = equipped_weapon
+				_equipped_weapon_instance_id = equipped_weapon_instance_id
 				_update_equipment_hud()
 				inventory_selection_changed = true
 				combat_style_changed = true
 			var equipped_armour_data: Variant = player_data.get("equipped_armour", {})
-			if typeof(equipped_armour_data) == TYPE_DICTIONARY and equipped_armour_data != _equipped_armour:
+			var equipped_armour_instances_data: Variant = player_data.get("equipped_armour_instances", {})
+			if typeof(equipped_armour_data) == TYPE_DICTIONARY and (
+				equipped_armour_data != _equipped_armour or equipped_armour_instances_data != _equipped_armour_instances
+			):
 				_equipped_armour = (equipped_armour_data as Dictionary).duplicate(true)
+				_equipped_armour_instances = (
+					(equipped_armour_instances_data as Dictionary).duplicate(true)
+					if typeof(equipped_armour_instances_data) == TYPE_DICTIONARY else {}
+				)
 				_update_equipment_hud()
 				inventory_selection_changed = true
 			var equipped_spellbook: String = str(player_data.get("equipped_spellbook", ""))
@@ -1109,6 +1256,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				var completed_item: String = _queued_item
 				var completed_unequip: bool = _queued_unequip
 				_queued_item = ""
+				_queued_instance_id = ""
 				_queued_unequip = false
 				inventory_selection_changed = true
 				if completed_unequip and _queued_drop_after_unequip == completed_item and not _is_item_equipped(completed_item):
@@ -1259,8 +1407,10 @@ func _sync_gathering_spots(spot_payloads: Variant) -> void:
 				spot_id,
 				str(spot_data.get("name", spot_id.capitalize())),
 				str(spot_data.get("skill", "gathering")),
+				str(spot_data.get("station", "")),
 			)
 			_gathering_views[spot_id] = view
+		view.set_amount(int(spot_data.get("current_amount", 0)), int(spot_data.get("maximum_amount", 0)))
 		var coordinates: Dictionary = position_data
 		view.position = Vector3(
 			float(coordinates.get("x", 0.0)),
@@ -1909,6 +2059,10 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successful catches grant Fishing XP"
 		"cooking":
 			training_description = "successful cooks grant Cooking XP"
+		"mining":
+			training_description = "successful mining actions grant Mining XP"
+		"smithing":
+			training_description = "successfully smelted bars grant Smithing XP"
 	if next_level_experience <= 0:
 		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
 			skill_name, level, level, experience, training_description,
@@ -1992,8 +2146,10 @@ func _update_prayer_hud() -> void:
 		prayer_button.disabled = prayer_id.is_empty() or _player_defeated or (
 			_player_prayer <= 0 and not _active_prayers.has(prayer_id)
 		)
-		prayer_button.icon = prayer.get("icon") as Texture2D
+		prayer_button.icon = IconCatalog.centered_icon(prayer.get("icon") as Texture2D)
 		prayer_button.expand_icon = true
+		prayer_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		prayer_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		if not prayer_id.is_empty():
 			var displayed_active: bool = _active_prayers.has(prayer_id)
 			if _queued_prayer_id == prayer_id:
@@ -2084,19 +2240,19 @@ func _update_equipment_hud() -> void:
 	# head, legs, and feet aligned down the centre of the body.
 	var equipment_slots: Array = [
 		{"spacer": true},
-		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", ""))},
+		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", "")), "instance": str(_equipped_armour_instances.get("head", ""))},
 		{"spacer": true},
 		{"slot": "cape", "name": "Cape", "item": ""},
 		{"slot": "neck", "name": "Neck", "item": ""},
 		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
-		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon},
-		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", ""))},
+		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon, "instance": _equipped_weapon_instance_id},
+		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", "")), "instance": str(_equipped_armour_instances.get("body", ""))},
 		{"slot": "left_hand", "name": "Left Hand", "item": ""},
 		{"spacer": true},
 		{"slot": "legs", "name": "Legs", "item": ""},
 		{"slot": "ring", "name": "Ring", "item": ""},
 		{"spacer": true},
-		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", ""))},
+		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", "")), "instance": str(_equipped_armour_instances.get("feet", ""))},
 		{"spacer": true},
 	]
 	for slot_data: Variant in equipment_slots:
@@ -2108,6 +2264,7 @@ func _update_equipment_hud() -> void:
 			equipment_grid.add_child(spacer)
 			continue
 		var item_id: String = str(slot.get("item", ""))
+		var instance_id: String = str(slot.get("instance", ""))
 		var slot_id: String = str(slot.get("slot", ""))
 		var slot_panel := Button.new()
 		slot_panel.custom_minimum_size = Vector2(168, 82)
@@ -2116,6 +2273,7 @@ func _update_equipment_hud() -> void:
 			not item_id.is_empty()
 			and _queued_unequip
 			and _queued_item == item_id
+			and (_queued_instance_id.is_empty() or _queued_instance_id == instance_id)
 		)
 		slot_panel.tooltip_text = "%s: %s" % [
 			slot.get("name", "Equipment"),
@@ -2164,7 +2322,7 @@ func _update_equipment_hud() -> void:
 		slot_panel.add_theme_constant_override("icon_max_width", 56)
 		if not item_id.is_empty():
 			slot_panel.disabled = unequip_pending or _player_defeated
-			slot_panel.pressed.connect(_request_unequip.bind(item_id))
+			slot_panel.pressed.connect(_request_unequip.bind(item_id, instance_id))
 		else:
 			slot_panel.disabled = true
 			slot_panel.add_theme_stylebox_override("disabled", slot_style)
@@ -2402,13 +2560,18 @@ func _update_inventory_hud() -> void:
 			var item: Dictionary = items_by_slot[slot]
 			var item_id: String = str(item.get("item_id", ""))
 			var quantity: int = int(item.get("quantity", 1))
+			var instance_id: String = str(item.get("instance_id", ""))
+			var reinforcement: int = int(item.get("reinforcement", 0))
 			slot_button.set_stack_quantity(quantity)
+			slot_button.set_reinforcement(reinforcement)
 			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id)
 			var is_food: bool = FOOD_ITEMS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-			var is_queued: bool = equipment_pending and _queued_item == item_id
+			var is_queued: bool = equipment_pending and _queued_item == item_id and (
+				_queued_instance_id.is_empty() or _queued_instance_id == instance_id
+			)
 			var is_consume_queued: bool = _queued_consume_item == item_id
-			var is_equipped: bool = _is_item_equipped(item_id)
+			var is_equipped: bool = _is_item_equipped(item_id, instance_id)
 			slot_button.toggle_mode = is_equipable
 			var displayed_equipped: bool = not _queued_unequip if is_queued else is_equipped
 			slot_button.set_pressed_no_signal(displayed_equipped)
@@ -2422,9 +2585,10 @@ func _update_inventory_hud() -> void:
 			elif is_equipped:
 				item_status = "Equipped"
 			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
+			var reinforcement_text: String = " +%d" % reinforcement if reinforcement > 0 else ""
 			var status_text: String = " • %s" % item_status if not item_status.is_empty() else ""
 			var equip_action: String = "left-click to unequip" if is_equipped else "left-click to equip"
-			var interaction_text: String = "right-click to drop all"
+			var interaction_text: String = "right-click to drop" if not instance_id.is_empty() else "right-click to drop all"
 			if is_equipable:
 				interaction_text = "%s • %s" % [equip_action, interaction_text]
 			elif is_food:
@@ -2436,8 +2600,8 @@ func _update_inventory_hud() -> void:
 				]
 			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
 				interaction_text = "left-click to unequip • right-click to unequip and drop"
-			slot_button.tooltip_text = "%s%s%s • slot %d%s" % [
-				item_id.capitalize(), quantity_text, status_text,
+			slot_button.tooltip_text = "%s%s%s%s • slot %d%s" % [
+				item_id.capitalize(), reinforcement_text, quantity_text, status_text,
 				slot + 1,
 				" — %s" % interaction_text,
 			]
@@ -2457,10 +2621,10 @@ func _update_inventory_hud() -> void:
 				slot_button.add_theme_stylebox_override("pressed", selection_style)
 				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
 			if is_equipable:
-				slot_button.pressed.connect(_request_equip.bind(item_id))
+				slot_button.pressed.connect(_request_equip.bind(item_id, instance_id))
 			elif is_food:
 				slot_button.pressed.connect(_request_consume_item.bind(item_id))
-			slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id))
+			slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id, instance_id))
 		else:
 			slot_button.configure(slot, false, true)
 			slot_button.icon = EMPTY_SLOT_ICON

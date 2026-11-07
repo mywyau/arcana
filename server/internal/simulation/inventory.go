@@ -1,6 +1,8 @@
 package simulation
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sort"
 )
@@ -18,9 +20,11 @@ type ItemCost struct {
 
 // InventoryItem is one occupied slot in a player's authoritative inventory.
 type InventoryItem struct {
-	Slot     int
-	ItemID   string
-	Quantity int
+	Slot          int
+	ItemID        string
+	Quantity      int
+	InstanceID    string
+	Reinforcement int
 }
 
 // InventorySnapshot is a detached view of a player's inventory.
@@ -63,6 +67,9 @@ func (inventory inventoryState) canAdd(itemID string, quantity int) bool {
 	if itemID == "" || quantity <= 0 {
 		return false
 	}
+	if itemIsInstanced(itemID) {
+		return len(inventory.items)+quantity <= inventory.capacity
+	}
 	stackLimit := itemStackLimit(itemID)
 	if stackLimit == 0 {
 		return inventory.contains(itemID) || len(inventory.items) < inventory.capacity
@@ -81,6 +88,14 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 		return false
 	}
 	stackLimit := itemStackLimit(itemID)
+	if itemIsInstanced(itemID) {
+		for count := 0; count < quantity; count++ {
+			if !inventory.addInventoryItem(InventoryItem{ItemID: itemID, Quantity: 1, InstanceID: newItemInstanceID()}) {
+				return false
+			}
+		}
+		return true
+	}
 	for index := range inventory.items {
 		if inventory.items[index].ItemID != itemID {
 			continue
@@ -117,6 +132,59 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 		}
 	}
 	return false
+}
+
+func (inventory *inventoryState) addInventoryItem(item InventoryItem) bool {
+	if item.ItemID == "" || item.Quantity <= 0 || len(inventory.items) >= inventory.capacity {
+		return false
+	}
+	occupied := make(map[int]struct{}, len(inventory.items))
+	for _, existing := range inventory.items {
+		occupied[existing.Slot] = struct{}{}
+	}
+	for slot := 0; slot < inventory.capacity; slot++ {
+		if _, exists := occupied[slot]; exists {
+			continue
+		}
+		item.Slot = slot
+		inventory.items = append(inventory.items, item)
+		sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+		return true
+	}
+	return false
+}
+
+func (inventory inventoryState) itemByInstance(instanceID string) (InventoryItem, bool) {
+	for _, item := range inventory.items {
+		if item.InstanceID == instanceID && instanceID != "" {
+			return item, true
+		}
+	}
+	return InventoryItem{}, false
+}
+
+func (inventory *inventoryState) removeInstance(instanceID string) (InventoryItem, bool) {
+	for index, item := range inventory.items {
+		if item.InstanceID != instanceID || instanceID == "" {
+			continue
+		}
+		inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
+		return item, true
+	}
+	return InventoryItem{}, false
+}
+
+func itemIsInstanced(itemID string) bool {
+	definition, exists := itemDefinition(itemID)
+	return exists && (definition.Kind == ItemKindWeapon || definition.Kind == ItemKindArmour)
+}
+
+func newItemInstanceID() string {
+	var value [16]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		panic(fmt.Sprintf("generate item instance ID: %v", err))
+	}
+	return hex.EncodeToString(value[:])
 }
 
 func (inventory *inventoryState) remove(itemID string, quantity int) bool {
@@ -235,14 +303,20 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 	if snapshot.Capacity <= 0 || snapshot.Capacity > MaxInventoryCapacity {
 		return inventoryState{}, fmt.Errorf("inventory capacity must be between 1 and %d", MaxInventoryCapacity)
 	}
+	expandedItems, err := expandLegacyEquipmentStacks(snapshot.Items, snapshot.Capacity)
+	if err != nil {
+		return inventoryState{}, err
+	}
+	snapshot.Items = expandedItems
 	if len(snapshot.Items) > snapshot.Capacity {
 		return inventoryState{}, fmt.Errorf("inventory has more items than its capacity")
 	}
 
 	items := append([]InventoryItem(nil), snapshot.Items...)
 	occupiedSlots := make(map[int]struct{}, len(items))
-	itemIDs := make(map[string]struct{}, len(items))
-	for _, item := range items {
+	instanceIDs := make(map[string]struct{}, len(items))
+	for index := range items {
+		item := &items[index]
 		if item.Slot < 0 || item.Slot >= snapshot.Capacity {
 			return inventoryState{}, fmt.Errorf("inventory slot %d is outside its capacity", item.Slot)
 		}
@@ -253,18 +327,58 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 		if !exists || definition.Virtual {
 			return inventoryState{}, fmt.Errorf("inventory slot %d contains unknown item %q", item.Slot, item.ItemID)
 		}
+		if itemIsInstanced(item.ItemID) {
+			if item.Quantity != 1 {
+				return inventoryState{}, fmt.Errorf("instanced inventory item %q must have quantity 1", item.ItemID)
+			}
+			if item.InstanceID == "" {
+				item.InstanceID = newItemInstanceID()
+			}
+			if _, duplicate := instanceIDs[item.InstanceID]; duplicate {
+				return inventoryState{}, fmt.Errorf("inventory instance %q is duplicated", item.InstanceID)
+			}
+			instanceIDs[item.InstanceID] = struct{}{}
+		} else if item.InstanceID != "" || item.Reinforcement != 0 {
+			return inventoryState{}, fmt.Errorf("stacked item %q cannot have equipment metadata", item.ItemID)
+		}
 		if definition.StackLimit > 0 && item.Quantity > definition.StackLimit {
 			return inventoryState{}, fmt.Errorf("inventory slot %d exceeds the stack limit for %q", item.Slot, item.ItemID)
 		}
 		if _, exists := occupiedSlots[item.Slot]; exists {
 			return inventoryState{}, fmt.Errorf("inventory slot %d is duplicated", item.Slot)
 		}
-		if _, duplicate := itemIDs[item.ItemID]; duplicate && definition.StackLimit == 0 {
-			return inventoryState{}, fmt.Errorf("inventory item %q is duplicated", item.ItemID)
-		}
 		occupiedSlots[item.Slot] = struct{}{}
-		itemIDs[item.ItemID] = struct{}{}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
 	return inventoryState{capacity: snapshot.Capacity, items: items}, nil
+}
+
+func expandLegacyEquipmentStacks(items []InventoryItem, capacity int) ([]InventoryItem, error) {
+	expanded := append([]InventoryItem(nil), items...)
+	occupied := make(map[int]struct{}, len(expanded))
+	for _, item := range expanded {
+		occupied[item.Slot] = struct{}{}
+	}
+	for index := 0; index < len(expanded); index++ {
+		if !itemIsInstanced(expanded[index].ItemID) || expanded[index].Quantity <= 1 {
+			continue
+		}
+		extra := expanded[index].Quantity - 1
+		expanded[index].Quantity = 1
+		for count := 0; count < extra; count++ {
+			freeSlot := -1
+			for slot := 0; slot < capacity; slot++ {
+				if _, used := occupied[slot]; !used {
+					freeSlot = slot
+					break
+				}
+			}
+			if freeSlot < 0 {
+				return nil, fmt.Errorf("legacy equipment stack %q exceeds inventory capacity", expanded[index].ItemID)
+			}
+			occupied[freeSlot] = struct{}{}
+			expanded = append(expanded, InventoryItem{Slot: freeSlot, ItemID: expanded[index].ItemID, Quantity: 1})
+		}
+	}
+	return expanded, nil
 }

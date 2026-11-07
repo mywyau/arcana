@@ -1,0 +1,52 @@
+package simulation
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestForgingRecipesCreateExpectedBronzeEquipment(t *testing.T) {
+	tests := []struct {
+		id     ForgingRecipeID
+		bars   int
+		output string
+	}{
+		{ForgingBronzeSword, 2, string(WeaponBronzeSword)},
+		{ForgingBronzeHelm, 2, ItemBronzeHelm},
+		{ForgingBronzePickaxe, 3, ItemBronzePickaxe},
+	}
+	for _, test := range tests {
+		recipe, exists := forgingRecipe(test.id)
+		if !exists || recipe.RequiredLevel != 1 || recipe.RewardItem != test.output ||
+			len(recipe.Costs) != 1 || recipe.Costs[0] != (ItemCost{ItemID: ItemBronzeBar, Quantity: test.bars}) {
+			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
+		}
+	}
+}
+
+func TestApplyForgingRecipeAtomicallyConsumesBarsAndGrantsXP(t *testing.T) {
+	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	player.inventory.add(ItemBronzeBar, 2)
+	recipe, _ := forgingRecipe(ForgingBronzeHelm)
+	if err := applyForgingRecipe(player, recipe); err != nil {
+		t.Fatalf("applyForgingRecipe() returned an unexpected error: %v", err)
+	}
+	if player.inventory.quantity(ItemBronzeBar) != 0 || player.inventory.quantity(ItemBronzeHelm) != 1 {
+		t.Fatalf("inventory after forging = %+v", player.inventory)
+	}
+	if got := player.skills[SkillSmithing]; got != recipe.RewardXP {
+		t.Fatalf("Smithing XP = %d, want %d", got, recipe.RewardXP)
+	}
+}
+
+func TestApplyForgingRecipeDoesNotConsumePartialInputs(t *testing.T) {
+	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	player.inventory.add(ItemBronzeBar, 1)
+	recipe, _ := forgingRecipe(ForgingBronzePickaxe)
+	if err := applyForgingRecipe(player, recipe); err == nil || !strings.Contains(err.Error(), "inputs") {
+		t.Fatalf("applyForgingRecipe() error = %v, want missing inputs", err)
+	}
+	if player.inventory.quantity(ItemBronzeBar) != 1 {
+		t.Fatalf("failed forge consumed bars: %+v", player.inventory)
+	}
+}

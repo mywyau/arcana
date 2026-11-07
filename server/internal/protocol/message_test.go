@@ -76,11 +76,11 @@ func TestDecodeConsumeItemMessage(t *testing.T) {
 }
 
 func TestDecodeGatherMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"willowbrook_pond"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"willowbrook_furnace","recipe_id":"bronze_bar"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
-	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "willowbrook_pond" {
+	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "willowbrook_furnace" || message.RecipeID != "bronze_bar" {
 		t.Fatalf("decoded gather message = %+v", message)
 	}
 }

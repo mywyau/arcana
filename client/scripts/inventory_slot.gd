@@ -7,6 +7,7 @@ var slot_index: int = -1
 var contains_item: bool = false
 var unlocked: bool = false
 var _quantity_label: Label
+var _reinforcement_label: Label
 
 
 func configure(index: int, has_item: bool, is_unlocked: bool) -> void:
@@ -34,6 +35,21 @@ func set_stack_quantity(quantity: int) -> void:
 		add_child(_quantity_label)
 	_quantity_label.text = _compact_quantity(quantity)
 	_quantity_label.visible = quantity > 1
+
+
+func set_reinforcement(level: int) -> void:
+	if level <= 0:
+		return
+	if _reinforcement_label == null:
+		_reinforcement_label = Label.new()
+		_reinforcement_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_reinforcement_label.position = Vector2(7, 4)
+		_reinforcement_label.add_theme_font_size_override("font_size", 17)
+		_reinforcement_label.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+		_reinforcement_label.add_theme_color_override("font_outline_color", Color(0.02, 0.025, 0.03, 1.0))
+		_reinforcement_label.add_theme_constant_override("outline_size", 4)
+		add_child(_reinforcement_label)
+	_reinforcement_label.text = "+%d" % level
 
 
 func _compact_quantity(quantity: int) -> String:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/gathering_spot.gd" id="1_spot"]
 
@@ -56,6 +56,29 @@ bottom_radius = 0.46
 height = 0.06
 radial_segments = 24
 
+[sub_resource type="StandardMaterial3D" id="RockMaterial"]
+albedo_color = Color(0.25, 0.23, 0.21, 1)
+roughness = 0.95
+
+[sub_resource type="SphereMesh" id="RockMesh"]
+material = SubResource("RockMaterial")
+radius = 0.72
+height = 1.1
+radial_segments = 8
+rings = 4
+
+[sub_resource type="StandardMaterial3D" id="CopperMaterial"]
+albedo_color = Color(0.74, 0.31, 0.12, 1)
+metallic = 0.55
+roughness = 0.4
+
+[sub_resource type="SphereMesh" id="CopperMesh"]
+material = SubResource("CopperMaterial")
+radius = 0.13
+height = 0.22
+radial_segments = 7
+rings = 3
+
 [node name="GatheringSpot" type="Node3D"]
 script = ExtResource("1_spot")
 
@@ -83,6 +106,65 @@ mesh = SubResource("RangeTopMesh")
 [node name="Heat" type="MeshInstance3D" parent="RangeVisual"]
 position = Vector3(0, 1.08, -0.12)
 mesh = SubResource("RangeHeatMesh")
+
+[node name="MineVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="RockA" type="MeshInstance3D" parent="MineVisual"]
+position = Vector3(-0.38, 0.48, 0.08)
+rotation_degrees = Vector3(0, 18, -12)
+mesh = SubResource("RockMesh")
+
+[node name="RockB" type="MeshInstance3D" parent="MineVisual"]
+position = Vector3(0.42, 0.38, -0.12)
+rotation_degrees = Vector3(8, -22, 18)
+scale = Vector3(0.75, 0.72, 0.8)
+mesh = SubResource("RockMesh")
+
+[node name="CopperA" type="MeshInstance3D" parent="MineVisual"]
+position = Vector3(-0.46, 0.68, -0.49)
+mesh = SubResource("CopperMesh")
+
+[node name="CopperB" type="MeshInstance3D" parent="MineVisual"]
+position = Vector3(0.46, 0.53, -0.43)
+mesh = SubResource("CopperMesh")
+
+[node name="FurnaceVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="Base" type="MeshInstance3D" parent="FurnaceVisual"]
+position = Vector3(0, 0.55, 0)
+scale = Vector3(0.9, 1.25, 0.9)
+mesh = SubResource("RangeBaseMesh")
+
+[node name="Chimney" type="MeshInstance3D" parent="FurnaceVisual"]
+position = Vector3(0, 1.65, 0.55)
+scale = Vector3(0.45, 0.9, 0.8)
+mesh = SubResource("RangeBackMesh")
+
+[node name="Opening" type="MeshInstance3D" parent="FurnaceVisual"]
+position = Vector3(0, 0.58, -0.83)
+rotation_degrees = Vector3(90, 0, 0)
+mesh = SubResource("RangeHeatMesh")
+
+[node name="AnvilVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="Pedestal" type="MeshInstance3D" parent="AnvilVisual"]
+position = Vector3(0, 0.42, 0)
+scale = Vector3(0.28, 0.5, 0.38)
+mesh = SubResource("RangeBackMesh")
+
+[node name="Face" type="MeshInstance3D" parent="AnvilVisual"]
+position = Vector3(0, 0.87, 0)
+scale = Vector3(0.58, 1.3, 0.34)
+mesh = SubResource("RangeTopMesh")
+
+[node name="Horn" type="MeshInstance3D" parent="AnvilVisual"]
+position = Vector3(0.82, 0.87, 0)
+rotation_degrees = Vector3(0, 0, -10)
+scale = Vector3(0.28, 0.75, 0.18)
+mesh = SubResource("RangeTopMesh")
 
 [node name="Body" type="StaticBody3D" parent="."]
 collision_layer = 32

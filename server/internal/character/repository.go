@@ -52,5 +52,10 @@ func cloneState(state simulation.PersistentPlayerState) simulation.PersistentPla
 		armour[slot] = itemID
 	}
 	state.EquippedArmour = armour
+	armourInstances := make(map[simulation.ArmourSlot]string, len(state.EquippedArmourInstances))
+	for slot, instanceID := range state.EquippedArmourInstances {
+		armourInstances[slot] = instanceID
+	}
+	state.EquippedArmourInstances = armourInstances
 	return state
 }
