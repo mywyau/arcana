@@ -160,7 +160,7 @@ const ITEMS: Dictionary = {
 	"mace": MACE,
 	"battle_axe": BATTLE_AXE,
 	"staff": STAFF,
-	"air_rune": preload("res://assets/icons/spells/breeze.svg"),
+	"air_rune": preload("res://assets/icons/runes/air_rune.png"),
 	"iron_arrow": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
 	"cooked_minnow": preload("res://assets/icons/items/cooked_minnow.svg"),
 	"raw_minnow": preload("res://assets/icons/items/raw_minnow.svg"),

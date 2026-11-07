@@ -1,5 +1,8 @@
 # Godot editor-generated state and imported resources.
 client/.godot/
 
+# Finder metadata is not a game asset.
+.DS_Store
+
 # Local environment variables may contain deployment credentials.
 .env

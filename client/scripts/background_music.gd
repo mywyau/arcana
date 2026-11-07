@@ -2,9 +2,9 @@ class_name BackgroundMusic
 extends AudioStreamPlayer
 
 const TRACKS: Array[AudioStream] = [
-	preload("res://assets/icons/music/A_Life_Begins_Revised_Adventure_Godot.ogg"),
-	preload("res://assets/icons/music/First_Steps_in_Willowbrook_Godot.ogg"),
-	preload("res://assets/icons/music/Wanderers_Glade_Godot.ogg"),
+	preload("res://assets/audio/music/a_life_begins_revised_adventure.ogg"),
+	preload("res://assets/audio/music/first_steps_in_willowbrook.ogg"),
+	preload("res://assets/audio/music/wanderers_glade.ogg"),
 ]
 
 var _track_index: int = -1
