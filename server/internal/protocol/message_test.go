@@ -65,6 +65,16 @@ func TestDecodeUnequipItemMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeConsumeItemMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"consume_item","sequence":6,"item_id":"cooked_minnow"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageConsumeItem || message.Sequence != 6 || message.ItemID != "cooked_minnow" {
+		t.Fatalf("decoded consume message = %+v", message)
+	}
+}
+
 func TestDecodeCombatStyleMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"set_combat_style","sequence":6,"combat_style":"rapid"}`))
 	if err != nil {

@@ -50,25 +50,50 @@ func (inventory inventoryState) contains(itemID string) bool {
 }
 
 func (inventory inventoryState) quantity(itemID string) int {
+	total := 0
 	for _, item := range inventory.items {
 		if item.ItemID == itemID && item.Quantity > 0 {
-			return item.Quantity
+			total += item.Quantity
 		}
 	}
-	return 0
+	return total
 }
 
-func (inventory inventoryState) canAdd(itemID string) bool {
-	return inventory.contains(itemID) || len(inventory.items) < inventory.capacity
+func (inventory inventoryState) canAdd(itemID string, quantity int) bool {
+	if itemID == "" || quantity <= 0 {
+		return false
+	}
+	stackLimit := itemStackLimit(itemID)
+	if stackLimit == 0 {
+		return inventory.contains(itemID) || len(inventory.items) < inventory.capacity
+	}
+	available := (inventory.capacity - len(inventory.items)) * stackLimit
+	for _, item := range inventory.items {
+		if item.ItemID == itemID && item.Quantity < stackLimit {
+			available += stackLimit - item.Quantity
+		}
+	}
+	return available >= quantity
 }
 
 func (inventory *inventoryState) add(itemID string, quantity int) bool {
-	if itemID == "" || quantity <= 0 || !inventory.canAdd(itemID) {
+	if !inventory.canAdd(itemID, quantity) {
 		return false
 	}
+	stackLimit := itemStackLimit(itemID)
 	for index := range inventory.items {
-		if inventory.items[index].ItemID == itemID {
+		if inventory.items[index].ItemID != itemID {
+			continue
+		}
+		if stackLimit == 0 {
 			inventory.items[index].Quantity += quantity
+			return true
+		}
+		space := stackLimit - inventory.items[index].Quantity
+		added := min(space, quantity)
+		inventory.items[index].Quantity += added
+		quantity -= added
+		if quantity == 0 {
 			return true
 		}
 	}
@@ -80,9 +105,16 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 		if _, exists := occupied[slot]; exists {
 			continue
 		}
-		inventory.items = append(inventory.items, InventoryItem{Slot: slot, ItemID: itemID, Quantity: quantity})
-		sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
-		return true
+		stackQuantity := quantity
+		if stackLimit > 0 {
+			stackQuantity = min(stackLimit, quantity)
+		}
+		inventory.items = append(inventory.items, InventoryItem{Slot: slot, ItemID: itemID, Quantity: stackQuantity})
+		quantity -= stackQuantity
+		if quantity == 0 {
+			sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+			return true
+		}
 	}
 	return false
 }
@@ -91,17 +123,24 @@ func (inventory *inventoryState) remove(itemID string, quantity int) bool {
 	if itemID == "" || quantity <= 0 {
 		return false
 	}
-	for index := range inventory.items {
-		if inventory.items[index].ItemID != itemID || inventory.items[index].Quantity < quantity {
+	if inventory.quantity(itemID) < quantity {
+		return false
+	}
+	for index := 0; index < len(inventory.items) && quantity > 0; {
+		if inventory.items[index].ItemID != itemID {
+			index++
 			continue
 		}
-		inventory.items[index].Quantity -= quantity
+		removed := min(inventory.items[index].Quantity, quantity)
+		inventory.items[index].Quantity -= removed
+		quantity -= removed
 		if inventory.items[index].Quantity == 0 {
 			inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
+			continue
 		}
-		return true
+		index++
 	}
-	return false
+	return true
 }
 
 func (inventory *inventoryState) swapSlots(fromSlot, toSlot int) bool {
@@ -210,13 +249,17 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 		if item.ItemID == "" || item.Quantity <= 0 {
 			return inventoryState{}, fmt.Errorf("inventory slot %d has an invalid item", item.Slot)
 		}
-		if definition, exists := itemDefinition(item.ItemID); !exists || definition.Virtual {
+		definition, exists := itemDefinition(item.ItemID)
+		if !exists || definition.Virtual {
 			return inventoryState{}, fmt.Errorf("inventory slot %d contains unknown item %q", item.Slot, item.ItemID)
+		}
+		if definition.StackLimit > 0 && item.Quantity > definition.StackLimit {
+			return inventoryState{}, fmt.Errorf("inventory slot %d exceeds the stack limit for %q", item.Slot, item.ItemID)
 		}
 		if _, exists := occupiedSlots[item.Slot]; exists {
 			return inventoryState{}, fmt.Errorf("inventory slot %d is duplicated", item.Slot)
 		}
-		if _, exists := itemIDs[item.ItemID]; exists {
+		if _, duplicate := itemIDs[item.ItemID]; duplicate && definition.StackLimit == 0 {
 			return inventoryState{}, fmt.Errorf("inventory item %q is duplicated", item.ItemID)
 		}
 		occupiedSlots[item.Slot] = struct{}{}

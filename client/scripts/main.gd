@@ -144,6 +144,9 @@ const ARMOUR_SLOTS: Dictionary = {
 const SPELLBOOK_ITEMS: Dictionary = {
 	"standard_spellbook": "standard",
 }
+const FOOD_ITEMS: Dictionary = {
+	"cooked_minnow": {"healing": 8, "stack_limit": 10},
+}
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
 const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
@@ -259,12 +262,16 @@ var _next_equipment_sequence: int = 1
 var _next_pickup_sequence: int = 1
 var _next_drop_sequence: int = 1
 var _next_inventory_move_sequence: int = 1
+var _next_consume_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
 var _next_attack_pulse: int = 0
 var _auto_approaching: bool = false
 var _action_pulse: int = 0
+var _last_consume_sequence: int = 0
+var _next_consume_pulse: int = 0
+var _queued_consume_item: String = ""
 var _target_views: Dictionary = {}
 var _target_states: Dictionary = {}
 var _drop_views: Dictionary = {}
@@ -782,6 +789,21 @@ func _request_drop_item(item_id: String) -> void:
 		_next_drop_sequence += 1
 
 
+func _request_consume_item(item_id: String) -> void:
+	if _player_defeated or not FOOD_ITEMS.has(item_id) or not _queued_consume_item.is_empty():
+		return
+	if _player_health >= _player_maximum_health:
+		status_label.text = "You are already at full health"
+		return
+	if _action_pulse < _next_consume_pulse:
+		status_label.text = "Food cooldown: %d pulse(s) remaining" % (_next_consume_pulse - _action_pulse)
+		return
+	if network.send_consume_item(_next_consume_sequence, item_id):
+		_queued_consume_item = item_id
+		_next_consume_sequence += 1
+		_update_inventory_hud()
+
+
 func _request_inventory_swap(from_slot: int, to_slot: int) -> void:
 	if _player_defeated or from_slot == to_slot:
 		return
@@ -985,6 +1007,12 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var inventory_data: Variant = player_data.get("inventory", {})
 			if typeof(inventory_data) == TYPE_DICTIONARY:
 				_apply_inventory_snapshot(inventory_data as Dictionary)
+			_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
+			_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
+			_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
+			if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
+				_queued_consume_item = ""
+				inventory_selection_changed = true
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			if equipped_weapon != _equipped_weapon:
 				_equipped_weapon = equipped_weapon
@@ -1247,6 +1275,10 @@ func _on_server_error(code: String, message: String) -> void:
 		_queued_unequip = false
 		_update_inventory_hud()
 		_update_equipment_hud()
+	if code == "consume_rejected":
+		_next_consume_sequence = _last_consume_sequence + 1
+		_queued_consume_item = ""
+		_update_inventory_hud()
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -2189,13 +2221,14 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 
 
 func _inventory_quantity(item_id: String) -> int:
+	var total: int = 0
 	for payload: Variant in _inventory_items:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
 		var item: Dictionary = payload
 		if str(item.get("item_id", "")) == item_id:
-			return int(item.get("quantity", 0))
-	return 0
+			total += int(item.get("quantity", 0))
+	return total
 
 
 func _change_inventory_page(direction: int) -> void:
@@ -2253,9 +2286,12 @@ func _update_inventory_hud() -> void:
 			var item: Dictionary = items_by_slot[slot]
 			var item_id: String = str(item.get("item_id", ""))
 			var quantity: int = int(item.get("quantity", 1))
+			slot_button.set_stack_quantity(quantity)
 			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id)
+			var is_food: bool = FOOD_ITEMS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 			var is_queued: bool = equipment_pending and _queued_item == item_id
+			var is_consume_queued: bool = _queued_consume_item == item_id
 			var is_equipped: bool = _is_item_equipped(item_id)
 			slot_button.toggle_mode = is_equipable
 			var displayed_equipped: bool = not _queued_unequip if is_queued else is_equipped
@@ -2265,6 +2301,8 @@ func _update_inventory_hud() -> void:
 			var item_status: String = ""
 			if is_queued:
 				item_status = "Queued"
+			elif is_consume_queued:
+				item_status = "Eating"
 			elif is_equipped:
 				item_status = "Equipped"
 			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
@@ -2273,6 +2311,13 @@ func _update_inventory_hud() -> void:
 			var interaction_text: String = "right-click to drop all"
 			if is_equipable:
 				interaction_text = "%s • %s" % [equip_action, interaction_text]
+			elif is_food:
+				var food: Dictionary = FOOD_ITEMS[item_id] as Dictionary
+				interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
+					int(food.get("healing", 0)),
+					int(food.get("stack_limit", 1)),
+					interaction_text,
+				]
 			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
 				interaction_text = "left-click to unequip • right-click to unequip and drop"
 			slot_button.tooltip_text = "%s%s%s • slot %d%s" % [
@@ -2281,14 +2326,14 @@ func _update_inventory_hud() -> void:
 				" — %s" % interaction_text,
 			]
 			slot_button.disabled = _player_defeated and is_equipable
-			if is_equipped or is_queued:
+			if is_equipped or is_queued or is_consume_queued:
 				var selection_style := StyleBoxFlat.new()
 				selection_style.bg_color = Color(0.06, 0.09, 0.12, 0.96)
 				selection_style.border_width_left = 4
 				selection_style.border_width_top = 4
 				selection_style.border_width_right = 4
 				selection_style.border_width_bottom = 4
-				selection_style.border_color = Color(0.35, 0.7, 1.0) if is_queued else Color(0.95, 0.72, 0.2)
+				selection_style.border_color = Color(0.35, 0.7, 1.0) if is_queued or is_consume_queued else Color(0.95, 0.72, 0.2)
 				selection_style.corner_radius_top_left = 6
 				selection_style.corner_radius_top_right = 6
 				selection_style.corner_radius_bottom_left = 6
@@ -2297,6 +2342,8 @@ func _update_inventory_hud() -> void:
 				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
 			if is_equipable:
 				slot_button.pressed.connect(_request_equip.bind(item_id))
+			elif is_food:
+				slot_button.pressed.connect(_request_consume_item.bind(item_id))
 			slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id))
 		else:
 			slot_button.configure(slot, false, true)

@@ -332,6 +332,13 @@ func (h *Handler) readCommands(
 				FromSlot: message.FromSlot,
 				ToSlot:   message.ToSlot,
 			})
+		case protocol.MessageConsumeItem:
+			rejectionCode = "consume_rejected"
+			err = h.world.QueueConsumeItem(simulation.ConsumeItemCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				ItemID:   message.ItemID,
+			})
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
@@ -468,9 +475,11 @@ func snapshotMessage(snapshot simulation.Snapshot) *protocol.WorldSnapshot {
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 			},
-			LastPickupSequence: player.LastPickupSequence,
-			Skills:             make([]protocol.SkillSnapshot, 0, len(player.Skills)),
-			Path:               make([]protocol.Position, 0, len(player.Path)),
+			LastPickupSequence:  player.LastPickupSequence,
+			LastConsumeSequence: player.LastConsumeSequence,
+			NextConsumePulse:    player.NextConsumePulse,
+			Skills:              make([]protocol.SkillSnapshot, 0, len(player.Skills)),
+			Path:                make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, prayerID := range player.ActivePrayers {
 			playerMessage.ActivePrayers = append(playerMessage.ActivePrayers, string(prayerID))

@@ -20,6 +20,7 @@ const (
 	MessagePickupItem        = "pickup_item"
 	MessageDropItem          = "drop_item"
 	MessageMoveInventoryItem = "move_inventory_item"
+	MessageConsumeItem       = "consume_item"
 	MessageWelcome           = "welcome"
 	MessageSnapshot          = "snapshot"
 	MessageError             = "error"
@@ -135,6 +136,8 @@ type PlayerSnapshot struct {
 	CombatStats             CombatStatsSnapshot `json:"combat_stats"`
 	Inventory               InventorySnapshot   `json:"inventory"`
 	LastPickupSequence      uint64              `json:"last_pickup_sequence"`
+	LastConsumeSequence     uint64              `json:"last_consume_sequence"`
+	NextConsumePulse        uint64              `json:"next_consume_pulse"`
 	Skills                  []SkillSnapshot     `json:"skills"`
 }
 
@@ -218,7 +221,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
-		message.Type != MessageSetPrayer && message.Type != MessageSetSpell {
+		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
+		message.Type != MessageConsumeItem {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -230,7 +234,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type == MessageEngageTarget && message.TargetID == "" {
 		return ClientMessage{}, fmt.Errorf("target ID is required")
 	}
-	if (message.Type == MessageEquipItem || message.Type == MessageUnequipItem) && message.ItemID == "" {
+	if (message.Type == MessageEquipItem || message.Type == MessageUnequipItem ||
+		message.Type == MessageConsumeItem) && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {

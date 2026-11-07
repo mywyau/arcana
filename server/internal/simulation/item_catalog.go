@@ -5,26 +5,35 @@ import "fmt"
 type ItemKind string
 
 const (
-	ItemKindWeapon    ItemKind = "weapon"
-	ItemKindArmour    ItemKind = "armour"
-	ItemKindSpellbook ItemKind = "spellbook"
-	ItemKindResource  ItemKind = "resource"
+	ItemKindWeapon     ItemKind = "weapon"
+	ItemKindArmour     ItemKind = "armour"
+	ItemKindSpellbook  ItemKind = "spellbook"
+	ItemKindConsumable ItemKind = "consumable"
+	ItemKindResource   ItemKind = "resource"
 
 	ItemStandardSpellbook = "standard_spellbook"
 	ItemIronArrow         = "iron_arrow"
+	ItemCookedMinnow      = "cooked_minnow"
 )
+
+type ConsumableDefinition struct {
+	Healing        int
+	CooldownPulses uint64
+}
 
 // ItemDefinition is the authoritative gameplay definition for one stable item
 // ID. Definitions are currently declared in Go; the registry boundary allows
 // them to move to validated data files without changing combat or inventory.
 type ItemDefinition struct {
-	ID        string
-	Name      string
-	Kind      ItemKind
-	Virtual   bool
-	Weapon    WeaponDefinition
-	Armour    ArmourDefinition
-	Spellbook SpellbookID
+	ID         string
+	Name       string
+	Kind       ItemKind
+	Virtual    bool
+	StackLimit int
+	Weapon     WeaponDefinition
+	Armour     ArmourDefinition
+	Spellbook  SpellbookID
+	Consumable ConsumableDefinition
 }
 
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
@@ -90,6 +99,11 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
 	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource},
+	{
+		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
+		StackLimit: 10,
+		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2},
+	},
 	{ID: trainingShardItem, Name: "Training Shard", Kind: ItemKindResource},
 })
 
@@ -107,6 +121,9 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		}
 		if _, exists := catalog[definition.ID]; exists {
 			return nil, fmt.Errorf("item ID %q is duplicated", definition.ID)
+		}
+		if definition.StackLimit < 0 {
+			return nil, fmt.Errorf("item %q has a negative stack limit", definition.ID)
 		}
 		switch definition.Kind {
 		case ItemKindWeapon:
@@ -129,6 +146,10 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		case ItemKindSpellbook:
 			if definition.Spellbook == "" {
 				return nil, fmt.Errorf("spellbook item %q requires a spellbook ID", definition.ID)
+			}
+		case ItemKindConsumable:
+			if definition.StackLimit == 0 || definition.Consumable.Healing <= 0 || definition.Consumable.CooldownPulses == 0 {
+				return nil, fmt.Errorf("consumable %q requires a stack limit, positive healing, and cooldown", definition.ID)
 			}
 		case ItemKindResource:
 		default:
@@ -196,4 +217,12 @@ func mustBuildItemCatalog(definitions []ItemDefinition) map[string]ItemDefinitio
 func itemDefinition(itemID string) (ItemDefinition, bool) {
 	definition, exists := itemCatalog[itemID]
 	return definition, exists
+}
+
+func itemStackLimit(itemID string) int {
+	definition, exists := itemDefinition(itemID)
+	if !exists {
+		return 0
+	}
+	return definition.StackLimit
 }

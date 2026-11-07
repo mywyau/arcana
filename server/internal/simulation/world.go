@@ -105,6 +105,8 @@ type PlayerSnapshot struct {
 	CombatStats             CombatStatsSnapshot
 	Inventory               InventorySnapshot
 	LastPickupSequence      uint64
+	LastConsumeSequence     uint64
+	NextConsumePulse        uint64
 	Skills                  []SkillSnapshot
 }
 
@@ -158,6 +160,8 @@ type playerState struct {
 	lastPickupSequence        uint64
 	lastDropSequence          uint64
 	lastInventoryMoveSequence uint64
+	lastConsumeSequence       uint64
+	nextConsumePulse          uint64
 	skills                    skillState
 }
 
@@ -172,6 +176,7 @@ type World struct {
 	pendingPickups        map[PlayerID]pendingPickup
 	pendingItemDrops      map[PlayerID]DropItemCommand
 	pendingInventoryMoves map[PlayerID]MoveInventoryItemCommand
+	pendingConsumables    map[PlayerID]ConsumeItemCommand
 	drops                 map[string]DropSnapshot
 	nextDropID            uint64
 	pathfinder            Pathfinder
@@ -207,6 +212,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingPickups:        make(map[PlayerID]pendingPickup),
 		pendingItemDrops:      make(map[PlayerID]DropItemCommand),
 		pendingInventoryMoves: make(map[PlayerID]MoveInventoryItemCommand),
+		pendingConsumables:    make(map[PlayerID]ConsumeItemCommand),
 		drops:                 make(map[string]DropSnapshot),
 		combat:                newCombatState(),
 		rollSource:            rollSource,
@@ -300,6 +306,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingPickups, id)
 	delete(w.pendingItemDrops, id)
 	delete(w.pendingInventoryMoves, id)
+	delete(w.pendingConsumables, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -412,6 +419,7 @@ func (w *World) Step(elapsed time.Duration) {
 	w.moveRoamingEnemies(seconds)
 	w.applyPendingInventoryMoves()
 	w.applyPendingPickups()
+	w.applyPendingConsumables()
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
 
@@ -573,6 +581,8 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		CombatStats:             derivedCombatStats(player),
 		Inventory:               snapshotInventory(player.inventory),
 		LastPickupSequence:      player.lastPickupSequence,
+		LastConsumeSequence:     player.lastConsumeSequence,
+		NextConsumePulse:        player.nextConsumePulse,
 		Skills:                  snapshotSkills(player.skills),
 	}
 	if player.destination != nil {

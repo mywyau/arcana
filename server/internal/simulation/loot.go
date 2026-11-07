@@ -120,7 +120,7 @@ func (w *World) QueuePickup(command PickupCommand) error {
 	if !exists {
 		return fmt.Errorf("drop %q does not exist", command.DropID)
 	}
-	if !player.inventory.canAdd(drop.ItemID) {
+	if !player.inventory.canAdd(drop.ItemID, drop.Quantity) {
 		return fmt.Errorf("inventory is full")
 	}
 	path := []Position{drop.Position}
@@ -178,7 +178,7 @@ func (w *World) applyPendingPickups() {
 			continue
 		}
 		drop, exists := w.drops[command.DropID]
-		if !exists || !player.inventory.canAdd(drop.ItemID) {
+		if !exists || !player.inventory.canAdd(drop.ItemID, drop.Quantity) {
 			delete(w.pendingPickups, id)
 			if player.autoPickingUp {
 				stopPlayer(player)

@@ -27,6 +27,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemStandardSpellbook, ItemKindSpellbook},
 		{ItemAirRune, ItemKindResource},
 		{ItemIronArrow, ItemKindResource},
+		{ItemCookedMinnow, ItemKindConsumable},
 		{trainingShardItem, ItemKindResource},
 	}
 	if got, want := len(itemCatalog), len(tests); got != want {
@@ -72,6 +73,10 @@ func TestBuildItemCatalogRejectsMalformedEquipment(t *testing.T) {
 		{
 			name:       "spellbook item without book",
 			definition: ItemDefinition{ID: "broken_book", Name: "Broken Book", Kind: ItemKindSpellbook},
+		},
+		{
+			name:       "consumable without healing",
+			definition: ItemDefinition{ID: "broken_food", Name: "Broken Food", Kind: ItemKindConsumable},
 		},
 		{
 			name: "armour with unknown set",
