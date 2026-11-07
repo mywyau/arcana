@@ -38,8 +38,10 @@ static func centered_icon(texture: Texture2D) -> Texture2D:
 	return result
 
 # Equipment and item icons.
-const SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/sword.svg")
+const SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/iron_sword.png")
 const BRONZE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/bronze_sword.png")
+const STEEL_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/steel_sword.png")
+const RUNE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/sword.svg")
 const DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/dagger.svg")
 const BOW: Texture2D = preload("res://assets/icons/equipment/weapons/bow.svg")
 const MACE: Texture2D = preload("res://assets/icons/equipment/weapons/mace.svg")
@@ -55,15 +57,15 @@ const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
 const COINS: Texture2D = preload("res://assets/icons/items/coins.png")
 const BRONZE_PICKAXE: Texture2D = preload("res://assets/icons/items/bronze_pickaxe.svg")
-const COPPER_ORE: Texture2D = preload("res://assets/icons/items/copper_ore.svg")
-const TIN_ORE: Texture2D = preload("res://assets/icons/items/tin_ore.svg")
-const IRON_ORE: Texture2D = preload("res://assets/icons/items/iron_ore.svg")
-const COAL: Texture2D = preload("res://assets/icons/items/coal.svg")
-const MITHRIL_ORE: Texture2D = preload("res://assets/icons/items/mithril_ore.svg")
+const COPPER_ORE: Texture2D = preload("res://assets/icons/ore/Pixel-Art Copper Ore Cluster-1.png")
+const TIN_ORE: Texture2D = preload("res://assets/icons/ore/Stylized Tin Ore Pile Icon-2.png")
+const IRON_ORE: Texture2D = preload("res://assets/icons/ore/OSRS-Style Iron Ore Cluster-3.png")
+const COAL: Texture2D = preload("res://assets/icons/ore/Pixel-Art Coal Ore Cluster-4.png")
+const MITHRIL_ORE: Texture2D = preload("res://assets/icons/ore/OSRS-Style Mithril Rock Cluster-5.png")
 const COPPER_BAR: Texture2D = preload("res://assets/icons/items/copper_bar.svg")
-const BRONZE_BAR: Texture2D = preload("res://assets/icons/items/bronze_bar.svg")
-const IRON_BAR: Texture2D = preload("res://assets/icons/items/iron_bar.svg")
-const MITHRIL_BAR: Texture2D = preload("res://assets/icons/items/mithril_bar.svg")
+const BRONZE_BAR: Texture2D = preload("res://assets/icons/bars/Bronze Ingot Stack Icon-1.png")
+const IRON_BAR: Texture2D = preload("res://assets/icons/bars/Stacked Iron Ingots-2.png")
+const MITHRIL_BAR: Texture2D = preload("res://assets/icons/bars/Mithril Ingot Stack Icon-4.png")
 const STANDARD_SPELLBOOK: Texture2D = preload("res://assets/icons/navigation/tab_magic.svg")
 
 const EQUIPMENT_SLOTS: Dictionary = {
@@ -139,8 +141,8 @@ const PRAYERS: Array = [
 const WEAPONS: Dictionary = {
 	"sword": SWORD,
 	"bronze_sword": BRONZE_SWORD,
-	"steel_sword": SWORD,
-	"rune_sword": SWORD,
+	"steel_sword": STEEL_SWORD,
+	"rune_sword": RUNE_SWORD,
 	"dagger": DAGGER,
 	"bow": BOW,
 	"mace": MACE,
@@ -151,15 +153,15 @@ const WEAPONS: Dictionary = {
 const ITEMS: Dictionary = {
 	"sword": SWORD,
 	"bronze_sword": BRONZE_SWORD,
-	"steel_sword": SWORD,
-	"rune_sword": SWORD,
+	"steel_sword": STEEL_SWORD,
+	"rune_sword": RUNE_SWORD,
 	"dagger": DAGGER,
 	"bow": BOW,
 	"mace": MACE,
 	"battle_axe": BATTLE_AXE,
 	"staff": STAFF,
 	"air_rune": preload("res://assets/icons/spells/breeze.svg"),
-	"iron_arrow": preload("res://assets/icons/items/iron_arrow.svg"),
+	"iron_arrow": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
 	"cooked_minnow": preload("res://assets/icons/items/cooked_minnow.svg"),
 	"raw_minnow": preload("res://assets/icons/items/raw_minnow.svg"),
 	"training_shard": TRAINING_SHARD,
