@@ -22,6 +22,19 @@ const INVENTORY_TOTAL_SLOTS: int = 50
 const INVENTORY_PAGE_SIZE: int = 25
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
+const CRAFTING_RECIPES: Dictionary = {
+	"smelting": [
+		{"id": "copper_bar", "name": "Copper Bar", "level": 1, "inputs": "1 Copper Ore"},
+		{"id": "bronze_bar", "name": "Bronze Bar", "level": 1, "inputs": "1 Copper Ore + 1 Tin Ore"},
+		{"id": "iron_bar", "name": "Iron Bar", "level": 2, "inputs": "1 Iron Ore + 1 Coal"},
+		{"id": "mithril_bar", "name": "Mithril Bar", "level": 5, "inputs": "1 Mithril Ore + 2 Coal"},
+	],
+	"forging": [
+		{"id": "bronze_sword", "name": "Bronze Sword", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_helm", "name": "Bronze Helm", "level": 1, "inputs": "2 Bronze Bars"},
+		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "level": 1, "inputs": "3 Bronze Bars"},
+	],
+}
 
 const PLACEHOLDER_SKILLS: Array = [
 	{"name": "Attack", "level": 1},
@@ -54,6 +67,8 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Agility": "agility",
 	"Fishing": "fishing",
 	"Cooking": "cooking",
+	"Mining": "mining",
+	"Smithing": "smithing",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -64,6 +79,8 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"agility": "Agility",
 	"fishing": "Fishing",
 	"cooking": "Cooking",
+	"mining": "Mining",
+	"smithing": "Smithing",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -91,6 +108,12 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"sword": [
+		{"id": "stab", "name": "Stab", "training": "Attack"},
+		{"id": "slash", "name": "Slash", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "unfocused", "name": "Unfocused", "training": ""},
+	],
+	"bronze_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
@@ -141,6 +164,7 @@ const COMBAT_STYLES: Dictionary = {
 }
 const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
+	"bronze_helm": "head",
 	"training_helm": "head",
 	"training_plate": "body",
 	"swift_helm": "head",
@@ -332,6 +356,8 @@ var _skill_progress: Dictionary = {
 	"agility": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"fishing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"cooking": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"mining": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -344,6 +370,10 @@ var _has_pending_click: bool = false
 var _target_click_tween: Tween
 var _world_context_menu: PopupMenu
 var _context_menu_actions: Dictionary = {}
+var _crafting_menu: PopupMenu
+var _crafting_menu_actions: Dictionary = {}
+var _selected_station_id: String = ""
+var _selected_station_position: Vector3 = Vector3.ZERO
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
@@ -361,6 +391,10 @@ func _ready() -> void:
 	_world_context_menu.name = "WorldContextMenu"
 	add_child(_world_context_menu)
 	_world_context_menu.id_pressed.connect(_on_world_context_action)
+	_crafting_menu = PopupMenu.new()
+	_crafting_menu.name = "CraftingMenu"
+	add_child(_crafting_menu)
+	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
 	network.status_changed.connect(_on_status_changed)
 	network.welcome_received.connect(_on_welcome_received)
 	network.snapshot_received.connect(_on_snapshot_received)
@@ -520,10 +554,13 @@ func _physics_process(_delta: float) -> void:
 	if not gathering_result.is_empty():
 		var gathering_body := gathering_result.get("collider") as CollisionObject3D
 		if gathering_body != null and gathering_body.has_meta(&"gathering_spot_id"):
-			_request_gather(
-				str(gathering_body.get_meta(&"gathering_spot_id")),
-				gathering_body.global_position,
-			)
+			var spot_id: String = str(gathering_body.get_meta(&"gathering_spot_id"))
+			var spot_state: Dictionary = _gathering_states.get(spot_id, {}) as Dictionary
+			var station: String = str(spot_state.get("station", ""))
+			if CRAFTING_RECIPES.has(station):
+				_open_crafting_menu(spot_id, gathering_body.global_position, station, _pending_click)
+			else:
+				_request_gather(spot_id, gathering_body.global_position)
 			return
 
 	var loot_result: Dictionary = _top_loot_hit(ray_origin, ray_end)
@@ -584,16 +621,40 @@ func _request_pickup_drop(drop_id: String, drop_position: Vector3) -> void:
 		_play_target_click_feedback(drop_position)
 
 
-func _request_gather(spot_id: String, spot_position: Vector3) -> void:
+func _request_gather(spot_id: String, spot_position: Vector3, recipe_id: String = "") -> void:
 	if spot_id.is_empty() or _player_defeated:
 		return
-	if network.send_gather(_next_gather_sequence, spot_id):
+	if network.send_gather(_next_gather_sequence, spot_id, recipe_id):
 		_next_gather_sequence += 1
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.stop_prediction()
 		click_marker.visible = false
 		_play_target_click_feedback(spot_position)
+
+
+func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
+	_selected_station_id = spot_id
+	_selected_station_position = spot_position
+	_crafting_menu.clear()
+	_crafting_menu_actions.clear()
+	var recipes: Array = CRAFTING_RECIPES.get(station, []) as Array
+	for recipe_index: int in recipes.size():
+		var recipe: Dictionary = recipes[recipe_index]
+		_crafting_menu.add_item(
+			"%s  •  %s  •  Lv %d" % [recipe["name"], recipe["inputs"], recipe["level"]],
+			recipe_index,
+		)
+		_crafting_menu_actions[recipe_index] = str(recipe["id"])
+	_crafting_menu.position = Vector2i(screen_position)
+	_crafting_menu.popup()
+
+
+func _on_crafting_recipe_selected(menu_id: int) -> void:
+	var recipe_id: String = str(_crafting_menu_actions.get(menu_id, ""))
+	if recipe_id.is_empty() or _selected_station_id.is_empty():
+		return
+	_request_gather(_selected_station_id, _selected_station_position, recipe_id)
 
 
 func _open_world_context_menu(screen_position: Vector2) -> void:
@@ -994,6 +1055,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			server_driven_path,
 		)
 		view.set_weapon(str(player_data.get("equipped_weapon", "sword")))
+		var world_armour_data: Variant = player_data.get("equipped_armour", {})
+		if typeof(world_armour_data) == TYPE_DICTIONARY:
+			view.set_armour(world_armour_data as Dictionary)
 		view.set_defeated(bool(player_data.get("defeated", false)))
 		if id == _local_player_id:
 			var inventory_selection_changed: bool = false
@@ -1079,6 +1143,44 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Cooked a Minnow • Cooking continues…"
 					"missing_raw_minnow":
 						status_label.text = "Cooking stopped: no Raw Minnows"
+					"mining":
+						status_label.text = "Mining…"
+					"mined_copper_ore":
+						status_label.text = "Mined Copper Ore • Mining continues…"
+					"mined_tin_ore":
+						status_label.text = "Mined Tin Ore • Mining continues…"
+					"mined_iron_ore":
+						status_label.text = "Mined Iron Ore • Mining continues…"
+					"mined_coal":
+						status_label.text = "Mined Coal • Mining continues…"
+					"mined_mithril_ore":
+						status_label.text = "Mined Mithril Ore • Mining continues…"
+					"smelting":
+						status_label.text = "Smelting…"
+					"smelted_copper_bar":
+						status_label.text = "Smelted a Copper Bar • Smithing continues…"
+					"smelted_bronze_bar":
+						status_label.text = "Smelted a Bronze Bar • Smithing continues…"
+					"smelted_iron_bar":
+						status_label.text = "Smelted an Iron Bar • Smithing continues…"
+					"smelted_mithril_bar":
+						status_label.text = "Smelted a Mithril Bar • Smithing continues…"
+					"missing_smelting_inputs":
+						status_label.text = "Smithing stopped: required ores are missing"
+					"forging":
+						status_label.text = "Forging…"
+					"forged_bronze_sword":
+						status_label.text = "Forged a Bronze Sword • Smithing continues…"
+					"forged_bronze_helm":
+						status_label.text = "Forged a Bronze Helm • Smithing continues…"
+					"forged_bronze_pickaxe":
+						status_label.text = "Forged a Bronze Pickaxe • Smithing continues…"
+					"missing_forging_inputs":
+						status_label.text = "Smithing stopped: not enough Bronze Bars"
+					"missing_bronze_pickaxe":
+						status_label.text = "Mining stopped: a Bronze Pickaxe is required"
+					"vein_depleted":
+						status_label.text = "Mining stopped: the vein is depleted"
 					"inventory_full":
 						status_label.text = "Gathering stopped: inventory is full"
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
@@ -1259,8 +1361,10 @@ func _sync_gathering_spots(spot_payloads: Variant) -> void:
 				spot_id,
 				str(spot_data.get("name", spot_id.capitalize())),
 				str(spot_data.get("skill", "gathering")),
+				str(spot_data.get("station", "")),
 			)
 			_gathering_views[spot_id] = view
+		view.set_amount(int(spot_data.get("current_amount", 0)), int(spot_data.get("maximum_amount", 0)))
 		var coordinates: Dictionary = position_data
 		view.position = Vector3(
 			float(coordinates.get("x", 0.0)),
@@ -1909,6 +2013,10 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successful catches grant Fishing XP"
 		"cooking":
 			training_description = "successful cooks grant Cooking XP"
+		"mining":
+			training_description = "successful mining actions grant Mining XP"
+		"smithing":
+			training_description = "successfully smelted bars grant Smithing XP"
 	if next_level_experience <= 0:
 		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
 			skill_name, level, level, experience, training_description,
@@ -1992,8 +2100,10 @@ func _update_prayer_hud() -> void:
 		prayer_button.disabled = prayer_id.is_empty() or _player_defeated or (
 			_player_prayer <= 0 and not _active_prayers.has(prayer_id)
 		)
-		prayer_button.icon = prayer.get("icon") as Texture2D
+		prayer_button.icon = IconCatalog.centered_icon(prayer.get("icon") as Texture2D)
 		prayer_button.expand_icon = true
+		prayer_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		prayer_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		if not prayer_id.is_empty():
 			var displayed_active: bool = _active_prayers.has(prayer_id)
 			if _queued_prayer_id == prayer_id:

@@ -11,6 +11,7 @@ const (
 	ArmourSlotFeet ArmourSlot = "feet"
 
 	ItemTrainingHelm  = "training_helm"
+	ItemBronzeHelm    = "bronze_helm"
 	ItemTrainingPlate = "training_plate"
 	ItemSwiftHelm     = "swift_helm"
 	ItemSwiftBody     = "swift_body"
@@ -73,6 +74,22 @@ func equippedDefenceBonuses(equipped map[ArmourSlot]string) DefenceBonuses {
 	return total
 }
 
+func equippedDefenceBonusesForPlayer(player *playerState) DefenceBonuses {
+	if player == nil {
+		return DefenceBonuses{}
+	}
+	total := equippedDefenceBonuses(player.equippedArmour)
+	for slot, instanceID := range player.equippedArmourInstances {
+		if equippedReinforcement(player, instanceID) <= 0 || player.equippedArmour[slot] != ItemBronzeHelm {
+			continue
+		}
+		total.Stab++
+		total.Slash++
+		total.Crush++
+	}
+	return total
+}
+
 func equippedAttackIntervalModifier(equipped map[ArmourSlot]string) int {
 	setPieces := make(map[ArmourSetID]int)
 	for _, itemID := range equipped {
@@ -103,6 +120,14 @@ func cloneEquippedArmour(equipped map[ArmourSlot]string) map[ArmourSlot]string {
 	clone := make(map[ArmourSlot]string, len(equipped))
 	for slot, itemID := range equipped {
 		clone[slot] = itemID
+	}
+	return clone
+}
+
+func cloneEquippedArmourInstances(equipped map[ArmourSlot]string) map[ArmourSlot]string {
+	clone := make(map[ArmourSlot]string, len(equipped))
+	for slot, instanceID := range equipped {
+		clone[slot] = instanceID
 	}
 	return clone
 }

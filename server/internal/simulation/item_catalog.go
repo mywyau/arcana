@@ -13,6 +13,17 @@ const (
 
 	ItemStandardSpellbook = "standard_spellbook"
 	ItemIronArrow         = "iron_arrow"
+	ItemCoins             = "coins"
+	ItemBronzePickaxe     = "bronze_pickaxe"
+	ItemCopperOre         = "copper_ore"
+	ItemTinOre            = "tin_ore"
+	ItemIronOre           = "iron_ore"
+	ItemCoal              = "coal"
+	ItemMithrilOre        = "mithril_ore"
+	ItemCopperBar         = "copper_bar"
+	ItemBronzeBar         = "bronze_bar"
+	ItemIronBar           = "iron_bar"
+	ItemMithrilBar        = "mithril_bar"
 	ItemCookedMinnow      = "cooked_minnow"
 	ItemRawMinnow         = "raw_minnow"
 )
@@ -47,6 +58,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
 	{
+		ID: string(WeaponBronzeSword), Name: "Bronze Sword", Kind: ItemKindWeapon,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 7, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+	},
+	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
 	},
@@ -79,6 +94,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 2, Slash: 3, Crush: 2, Ranged: 1}},
 	},
 	{
+		ID: ItemBronzeHelm, Name: "Bronze Helm", Kind: ItemKindArmour,
+		Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 3, Ranged: 1, Magic: -1}},
+	},
+	{
 		ID: ItemTrainingPlate, Name: "Training Plate", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotBody, Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2}},
 	},
@@ -100,6 +119,17 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
 	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource},
+	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
+	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
+	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource},
+	{ID: ItemTinOre, Name: "Tin Ore", Kind: ItemKindResource},
+	{ID: ItemIronOre, Name: "Iron Ore", Kind: ItemKindResource},
+	{ID: ItemCoal, Name: "Coal", Kind: ItemKindResource},
+	{ID: ItemMithrilOre, Name: "Mithril Ore", Kind: ItemKindResource},
+	{ID: ItemCopperBar, Name: "Copper Bar", Kind: ItemKindResource},
+	{ID: ItemBronzeBar, Name: "Bronze Bar", Kind: ItemKindResource},
+	{ID: ItemIronBar, Name: "Iron Bar", Kind: ItemKindResource},
+	{ID: ItemMithrilBar, Name: "Mithril Bar", Kind: ItemKindResource},
 	{
 		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
 		StackLimit: 10,

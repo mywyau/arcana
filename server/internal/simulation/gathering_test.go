@@ -166,3 +166,190 @@ func TestCookingCanReplaceLastRawMinnowInFullInventory(t *testing.T) {
 		t.Fatalf("inventory after cooking in the full slot = %+v", player.Inventory)
 	}
 }
+
+func TestCopperVeinRequiresPickaxeAndConsumesSharedCapacity(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterCopperVeinID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	command := GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterCopperVeinID}
+	if err := world.QueueGather(command); err == nil {
+		t.Fatal("QueueGather() error = nil without a Bronze Pickaxe")
+	}
+	if !world.players["player-one"].inventory.add(ItemBronzePickaxe, 1) {
+		t.Fatal("failed to add Bronze Pickaxe")
+	}
+	if err := world.QueueGather(command); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(miningInterval * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(ItemCopperOre) != 1 || mustSkill(t, player, SkillMining).Experience != miningExperience {
+		t.Fatalf("player after mining = %+v", player)
+	}
+	if got := world.gatheringSpots[starterCopperVeinID].CurrentAmount; got != copperVeinCapacity-1 {
+		t.Fatalf("vein amount = %d, want %d", got, copperVeinCapacity-1)
+	}
+}
+
+func TestCopperVeinDepletesAndGraduallyRecharges(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterCopperVeinID]
+	spot.CurrentAmount = 1
+	world.gatheringSpots[starterCopperVeinID] = spot
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemBronzePickaxe, 1)
+	if err := world.QueueGather(GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterCopperVeinID}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(miningInterval * actionPulseInterval)
+	if got := world.gatheringSpots[starterCopperVeinID].CurrentAmount; got != 0 {
+		t.Fatalf("depleted vein amount = %d, want 0", got)
+	}
+	world.Step(copperRechargePulses * actionPulseInterval)
+	if got := world.gatheringSpots[starterCopperVeinID].CurrentAmount; got != 1 {
+		t.Fatalf("recharged vein amount = %d, want 1", got)
+	}
+}
+
+func TestMiningVeinProgressionDefinitions(t *testing.T) {
+	tests := []struct {
+		id       string
+		level    int
+		reward   string
+		capacity int
+	}{
+		{starterCopperVeinID, 1, ItemCopperOre, copperVeinCapacity},
+		{starterTinVeinID, 1, ItemTinOre, tinVeinCapacity},
+		{starterIronVeinID, 2, ItemIronOre, ironVeinCapacity},
+		{starterCoalVeinID, 3, ItemCoal, coalVeinCapacity},
+		{starterMithrilVeinID, 5, ItemMithrilOre, mithrilVeinCapacity},
+	}
+	spots := newGatheringSpots()
+	for _, test := range tests {
+		spot := spots[test.id]
+		if spot.RequiredLevel != test.level || spot.RewardItem != test.reward || spot.CurrentAmount != test.capacity || spot.MaximumAmount != test.capacity {
+			t.Errorf("mining vein %q = %+v", test.id, spot)
+		}
+	}
+}
+
+func TestFurnaceRepeatedlySmeltsSelectedRecipe(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterFurnaceID]
+	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemCopperOre, 2)
+	player.inventory.add(ItemTinOre, 2)
+	recipe, _ := smeltingRecipe(SmeltingBronzeBar)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID, RecipeID: string(SmeltingBronzeBar),
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	started := mustPlayer(t, world, "player-one")
+	if started.GatheringSpot != starterFurnaceID || started.GatheringResult != "smelting" {
+		t.Fatalf("started smelting state = %+v", started)
+	}
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	playerSnapshot := mustPlayer(t, world, "player-one")
+	if playerSnapshot.Inventory.itemsQuantity(ItemBronzeBar) != 1 ||
+		playerSnapshot.Inventory.itemsQuantity(ItemCopperOre) != 1 ||
+		playerSnapshot.Inventory.itemsQuantity(ItemTinOre) != 1 {
+		t.Fatalf("inventory after first smelt = %+v", playerSnapshot.Inventory)
+	}
+	if smithing := mustSkill(t, playerSnapshot, SkillSmithing); smithing.Experience != recipe.RewardXP {
+		t.Fatalf("Smithing after first smelt = %+v", smithing)
+	}
+	if playerSnapshot.GatheringResult != "smelted_bronze_bar" {
+		t.Fatalf("gathering result = %q", playerSnapshot.GatheringResult)
+	}
+
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	playerSnapshot = mustPlayer(t, world, "player-one")
+	if playerSnapshot.Inventory.itemsQuantity(ItemBronzeBar) != 2 || playerSnapshot.GatheringSpot != "" ||
+		playerSnapshot.GatheringResult != "missing_smelting_inputs" {
+		t.Fatalf("player after exhausting smelting inputs = %+v", playerSnapshot)
+	}
+}
+
+func TestFurnaceRequiresAValidAffordableRecipe(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterFurnaceID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID,
+	}); err == nil {
+		t.Fatal("QueueGather() error = nil without a recipe")
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID, RecipeID: string(SmeltingCopperBar),
+	}); err == nil {
+		t.Fatal("QueueGather() error = nil without recipe inputs")
+	}
+}
+
+func TestAnvilRepeatedlyForgesSelectedRecipe(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterAnvilID]
+	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemBronzeBar, 4)
+	recipe, _ := forgingRecipe(ForgingBronzeSword)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterAnvilID, RecipeID: string(ForgingBronzeSword),
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	started := mustPlayer(t, world, "player-one")
+	if started.GatheringSpot != starterAnvilID || started.GatheringResult != "forging" {
+		t.Fatalf("started forging state = %+v", started)
+	}
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(string(WeaponBronzeSword)) != 1 || player.Inventory.itemsQuantity(ItemBronzeBar) != 2 ||
+		mustSkill(t, player, SkillSmithing).Experience != recipe.RewardXP {
+		t.Fatalf("player after first forge = %+v", player)
+	}
+
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	player = mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(string(WeaponBronzeSword)) != 2 || player.GatheringSpot != "" ||
+		player.GatheringResult != "missing_forging_inputs" {
+		t.Fatalf("player after exhausting forging inputs = %+v", player)
+	}
+}
+
+func TestAnvilRequiresAValidAffordableRecipe(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterAnvilID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterAnvilID,
+	}); err == nil {
+		t.Fatal("QueueGather() error = nil without a recipe")
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterAnvilID, RecipeID: string(ForgingBronzeHelm),
+	}); err == nil {
+		t.Fatal("QueueGather() error = nil without Bronze Bars")
+	}
+}

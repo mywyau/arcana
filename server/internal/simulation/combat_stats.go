@@ -33,7 +33,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 	if player == nil {
 		return CombatStatsSnapshot{}
 	}
-	weapon, exists := weaponDefinitionForStyle(player.equippedWeapon, player.combatStyle)
+	weapon, exists := equippedWeaponDefinitionForStyle(player)
 	if !exists {
 		return CombatStatsSnapshot{}
 	}
@@ -69,7 +69,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			MinimumDamage:         minimumDamage,
 			MaximumDamage:         maximumDamage,
 			DefenceLevel:          SkillLevelForExperience(player.skills[SkillDefence]),
-			DefenceBonuses:        equippedDefenceBonuses(player.equippedArmour),
+			DefenceBonuses:        equippedDefenceBonusesForPlayer(player),
 		}
 	}
 
@@ -111,6 +111,6 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		MinimumDamage:          minimumDamage,
 		MaximumDamage:          maximumDamage,
 		DefenceLevel:           SkillLevelForExperience(player.skills[SkillDefence]),
-		DefenceBonuses:         equippedDefenceBonuses(player.equippedArmour),
+		DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
 	}
 }

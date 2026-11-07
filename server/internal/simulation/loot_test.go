@@ -181,6 +181,7 @@ func TestResourceDropAndPickupMovesEntireStack(t *testing.T) {
 	}{
 		{itemID: ItemAirRune, quantity: 50},
 		{itemID: trainingShardItem, quantity: 7},
+		{itemID: ItemCoins, quantity: 1250},
 	}
 	for _, test := range tests {
 		t.Run(test.itemID, func(t *testing.T) {

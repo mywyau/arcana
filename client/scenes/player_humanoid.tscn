@@ -1,0 +1,317 @@
+[gd_scene load_steps=31 format=3]
+
+[sub_resource type="StandardMaterial3D" id="SkinMaterial"]
+albedo_color = Color(0.72, 0.47, 0.31, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="HairMaterial"]
+albedo_color = Color(0.12, 0.065, 0.035, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="EyeMaterial"]
+albedo_color = Color(0.025, 0.03, 0.035, 1)
+roughness = 0.75
+
+[sub_resource type="StandardMaterial3D" id="TrousersMaterial"]
+albedo_color = Color(0.13, 0.17, 0.2, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="BootMaterial"]
+albedo_color = Color(0.16, 0.095, 0.05, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="BeltMaterial"]
+albedo_color = Color(0.22, 0.12, 0.055, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="TrainingMetalMaterial"]
+albedo_color = Color(0.42, 0.47, 0.5, 1)
+metallic = 0.7
+roughness = 0.32
+
+[sub_resource type="StandardMaterial3D" id="TrainingDarkMaterial"]
+albedo_color = Color(0.16, 0.19, 0.21, 1)
+metallic = 0.45
+roughness = 0.48
+
+[sub_resource type="StandardMaterial3D" id="SwiftClothMaterial"]
+albedo_color = Color(0.08, 0.29, 0.27, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="SwiftTrimMaterial"]
+albedo_color = Color(0.46, 0.78, 0.57, 1)
+roughness = 0.65
+
+[sub_resource type="CylinderMesh" id="TorsoMesh"]
+top_radius = 0.34
+bottom_radius = 0.27
+height = 0.58
+radial_segments = 6
+rings = 1
+
+[sub_resource type="CylinderMesh" id="NeckMesh"]
+material = SubResource("SkinMaterial")
+top_radius = 0.09
+bottom_radius = 0.1
+height = 0.13
+radial_segments = 7
+
+[sub_resource type="SphereMesh" id="HeadMesh"]
+material = SubResource("SkinMaterial")
+radius = 0.26
+height = 0.49
+radial_segments = 8
+rings = 4
+
+[sub_resource type="BoxMesh" id="HairTopMesh"]
+material = SubResource("HairMaterial")
+size = Vector3(0.43, 0.12, 0.43)
+
+[sub_resource type="BoxMesh" id="HairBackMesh"]
+material = SubResource("HairMaterial")
+size = Vector3(0.42, 0.25, 0.1)
+
+[sub_resource type="BoxMesh" id="EyeMesh"]
+material = SubResource("EyeMaterial")
+size = Vector3(0.052, 0.06, 0.025)
+
+[sub_resource type="BoxMesh" id="NoseMesh"]
+material = SubResource("SkinMaterial")
+size = Vector3(0.07, 0.09, 0.09)
+
+[sub_resource type="CylinderMesh" id="UpperArmMesh"]
+top_radius = 0.105
+bottom_radius = 0.09
+height = 0.35
+radial_segments = 6
+
+[sub_resource type="CylinderMesh" id="ForearmMesh"]
+material = SubResource("SkinMaterial")
+top_radius = 0.085
+bottom_radius = 0.07
+height = 0.3
+radial_segments = 6
+
+[sub_resource type="SphereMesh" id="HandMesh"]
+material = SubResource("SkinMaterial")
+radius = 0.095
+height = 0.17
+radial_segments = 6
+rings = 3
+
+[sub_resource type="CylinderMesh" id="UpperLegMesh"]
+material = SubResource("TrousersMaterial")
+top_radius = 0.145
+bottom_radius = 0.12
+height = 0.42
+radial_segments = 6
+
+[sub_resource type="CylinderMesh" id="LowerLegMesh"]
+material = SubResource("TrousersMaterial")
+top_radius = 0.115
+bottom_radius = 0.095
+height = 0.38
+radial_segments = 6
+
+[sub_resource type="BoxMesh" id="ShoeMesh"]
+material = SubResource("BootMaterial")
+size = Vector3(0.24, 0.16, 0.37)
+
+[sub_resource type="BoxMesh" id="BeltMesh"]
+material = SubResource("BeltMaterial")
+size = Vector3(0.56, 0.1, 0.48)
+
+[sub_resource type="CylinderMesh" id="TrainingPlateMesh"]
+material = SubResource("TrainingMetalMaterial")
+top_radius = 0.365
+bottom_radius = 0.295
+height = 0.6
+radial_segments = 6
+
+[sub_resource type="CylinderMesh" id="TrainingHelmMesh"]
+material = SubResource("TrainingMetalMaterial")
+top_radius = 0.245
+bottom_radius = 0.275
+height = 0.17
+radial_segments = 7
+
+[sub_resource type="BoxMesh" id="HelmGuardMesh"]
+material = SubResource("TrainingDarkMaterial")
+size = Vector3(0.07, 0.25, 0.09)
+
+[sub_resource type="CylinderMesh" id="SwiftBodyMesh"]
+material = SubResource("SwiftClothMaterial")
+top_radius = 0.36
+bottom_radius = 0.29
+height = 0.6
+radial_segments = 6
+
+[sub_resource type="CylinderMesh" id="SwiftHelmMesh"]
+material = SubResource("SwiftClothMaterial")
+top_radius = 0.25
+bottom_radius = 0.29
+height = 0.18
+radial_segments = 7
+
+[sub_resource type="BoxMesh" id="SwiftBootMesh"]
+material = SubResource("SwiftTrimMaterial")
+size = Vector3(0.26, 0.19, 0.39)
+
+[node name="Humanoid" type="Node3D"]
+
+[node name="Torso" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.18, 0)
+mesh = SubResource("TorsoMesh")
+
+[node name="Belt" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.88, 0)
+mesh = SubResource("BeltMesh")
+
+[node name="Neck" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.51, 0)
+mesh = SubResource("NeckMesh")
+
+[node name="Head" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.73, 0)
+mesh = SubResource("HeadMesh")
+
+[node name="HairTop" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.94, -0.015)
+mesh = SubResource("HairTopMesh")
+
+[node name="HairBack" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.79, -0.22)
+mesh = SubResource("HairBackMesh")
+
+[node name="LeftEye" type="MeshInstance3D" parent="."]
+position = Vector3(-0.095, 1.76, 0.235)
+mesh = SubResource("EyeMesh")
+
+[node name="RightEye" type="MeshInstance3D" parent="."]
+position = Vector3(0.095, 1.76, 0.235)
+mesh = SubResource("EyeMesh")
+
+[node name="Nose" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.68, 0.26)
+mesh = SubResource("NoseMesh")
+
+[node name="LeftArm" type="Node3D" parent="."]
+position = Vector3(-0.41, 1.4, 0)
+rotation_degrees = Vector3(0, 0, -7)
+
+[node name="UpperArm" type="MeshInstance3D" parent="LeftArm"]
+position = Vector3(0, -0.17, 0)
+mesh = SubResource("UpperArmMesh")
+
+[node name="Forearm" type="MeshInstance3D" parent="LeftArm"]
+position = Vector3(0, -0.48, 0)
+mesh = SubResource("ForearmMesh")
+
+[node name="Hand" type="MeshInstance3D" parent="LeftArm"]
+position = Vector3(0, -0.68, 0)
+mesh = SubResource("HandMesh")
+
+[node name="RightArm" type="Node3D" parent="."]
+position = Vector3(0.41, 1.4, 0)
+rotation_degrees = Vector3(0, 0, 7)
+
+[node name="UpperArm" type="MeshInstance3D" parent="RightArm"]
+position = Vector3(0, -0.17, 0)
+mesh = SubResource("UpperArmMesh")
+
+[node name="Forearm" type="MeshInstance3D" parent="RightArm"]
+position = Vector3(0, -0.48, 0)
+mesh = SubResource("ForearmMesh")
+
+[node name="Hand" type="MeshInstance3D" parent="RightArm"]
+position = Vector3(0, -0.68, 0)
+mesh = SubResource("HandMesh")
+
+[node name="LeftLeg" type="Node3D" parent="."]
+position = Vector3(-0.16, 0.87, 0)
+
+[node name="UpperLeg" type="MeshInstance3D" parent="LeftLeg"]
+position = Vector3(0, -0.2, 0)
+mesh = SubResource("UpperLegMesh")
+
+[node name="LowerLeg" type="MeshInstance3D" parent="LeftLeg"]
+position = Vector3(0, -0.59, 0)
+mesh = SubResource("LowerLegMesh")
+
+[node name="Shoe" type="MeshInstance3D" parent="LeftLeg"]
+position = Vector3(0, -0.82, 0.065)
+mesh = SubResource("ShoeMesh")
+
+[node name="RightLeg" type="Node3D" parent="."]
+position = Vector3(0.16, 0.87, 0)
+
+[node name="UpperLeg" type="MeshInstance3D" parent="RightLeg"]
+position = Vector3(0, -0.2, 0)
+mesh = SubResource("UpperLegMesh")
+
+[node name="LowerLeg" type="MeshInstance3D" parent="RightLeg"]
+position = Vector3(0, -0.59, 0)
+mesh = SubResource("LowerLegMesh")
+
+[node name="Shoe" type="MeshInstance3D" parent="RightLeg"]
+position = Vector3(0, -0.82, 0.065)
+mesh = SubResource("ShoeMesh")
+
+[node name="TrainingPlate" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.18, 0)
+visible = false
+mesh = SubResource("TrainingPlateMesh")
+
+[node name="TrainingHelm" type="Node3D" parent="."]
+visible = false
+
+[node name="Crown" type="MeshInstance3D" parent="TrainingHelm"]
+position = Vector3(0, 1.92, 0)
+mesh = SubResource("TrainingHelmMesh")
+
+[node name="LeftGuard" type="MeshInstance3D" parent="TrainingHelm"]
+position = Vector3(-0.245, 1.7, -0.01)
+mesh = SubResource("HelmGuardMesh")
+
+[node name="RightGuard" type="MeshInstance3D" parent="TrainingHelm"]
+position = Vector3(0.245, 1.7, -0.01)
+mesh = SubResource("HelmGuardMesh")
+
+[node name="SwiftBody" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.18, 0)
+visible = false
+mesh = SubResource("SwiftBodyMesh")
+
+[node name="SwiftChestTrim" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.33, 0.292)
+visible = false
+mesh = SubResource("SwiftBootMesh")
+scale = Vector3(1.65, 0.32, 0.18)
+
+[node name="SwiftHelm" type="Node3D" parent="."]
+visible = false
+
+[node name="Crown" type="MeshInstance3D" parent="SwiftHelm"]
+position = Vector3(0, 1.92, -0.01)
+mesh = SubResource("SwiftHelmMesh")
+
+[node name="LeftGuard" type="MeshInstance3D" parent="SwiftHelm"]
+position = Vector3(-0.245, 1.71, -0.01)
+scale = Vector3(0.28, 1.25, 0.23)
+mesh = SubResource("SwiftBootMesh")
+
+[node name="RightGuard" type="MeshInstance3D" parent="SwiftHelm"]
+position = Vector3(0.245, 1.71, -0.01)
+scale = Vector3(0.28, 1.25, 0.23)
+mesh = SubResource("SwiftBootMesh")
+
+[node name="SwiftBoots" type="Node3D" parent="."]
+visible = false
+
+[node name="Left" type="MeshInstance3D" parent="SwiftBoots"]
+position = Vector3(-0.16, 0.05, 0.065)
+mesh = SubResource("SwiftBootMesh")
+
+[node name="Right" type="MeshInstance3D" parent="SwiftBoots"]
+position = Vector3(0.16, 0.05, 0.065)
+mesh = SubResource("SwiftBootMesh")

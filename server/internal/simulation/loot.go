@@ -11,10 +11,12 @@ const (
 )
 
 type DropSnapshot struct {
-	ID       string
-	Position Position
-	ItemID   string
-	Quantity int
+	ID            string
+	Position      Position
+	ItemID        string
+	Quantity      int
+	InstanceID    string
+	Reinforcement int
 }
 
 type PickupCommand struct {
@@ -24,9 +26,10 @@ type PickupCommand struct {
 }
 
 type DropItemCommand struct {
-	PlayerID PlayerID
-	Sequence uint64
-	ItemID   string
+	PlayerID   PlayerID
+	Sequence   uint64
+	ItemID     string
+	InstanceID string
 }
 
 // AddWorldDrop places initial world loot before the simulation starts.
@@ -78,11 +81,17 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 	if !player.inventory.contains(command.ItemID) {
 		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
 	}
-	if command.ItemID == string(player.equippedWeapon) {
+	if command.InstanceID != "" {
+		item, exists := player.inventory.itemByInstance(command.InstanceID)
+		if !exists || item.ItemID != command.ItemID {
+			return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
+		}
+	}
+	if command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID {
 		return fmt.Errorf("item %q is currently equipped", command.ItemID)
 	}
-	for _, equippedItemID := range player.equippedArmour {
-		if command.ItemID == equippedItemID {
+	for _, instanceID := range player.equippedArmourInstances {
+		if command.InstanceID != "" && command.InstanceID == instanceID {
 			return fmt.Errorf("item %q is currently equipped", command.ItemID)
 		}
 	}
@@ -191,7 +200,13 @@ func (w *World) applyPendingPickups() {
 		if distance(player.position, drop.Position) > pickupRange {
 			continue
 		}
-		if player.inventory.add(drop.ItemID, drop.Quantity) {
+		added := false
+		if drop.InstanceID != "" {
+			added = player.inventory.addInventoryItem(InventoryItem{ItemID: drop.ItemID, Quantity: 1, InstanceID: drop.InstanceID, Reinforcement: drop.Reinforcement})
+		} else {
+			added = player.inventory.add(drop.ItemID, drop.Quantity)
+		}
+		if added {
 			delete(w.drops, command.DropID)
 		}
 		delete(w.pendingPickups, id)
@@ -216,12 +231,12 @@ func (w *World) applyPendingItemDrops() {
 			continue
 		}
 		player.lastDropSequence = command.Sequence
-		if command.ItemID == string(player.equippedWeapon) {
+		if command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID {
 			continue
 		}
 		equipped := false
-		for _, equippedItemID := range player.equippedArmour {
-			if command.ItemID == equippedItemID {
+		for _, instanceID := range player.equippedArmourInstances {
+			if command.InstanceID != "" && command.InstanceID == instanceID {
 				equipped = true
 				break
 			}
@@ -229,11 +244,23 @@ func (w *World) applyPendingItemDrops() {
 		if command.ItemID == player.equippedSpellbook {
 			equipped = true
 		}
+		if !equipped && command.InstanceID != "" {
+			if item, removed := player.inventory.removeInstance(command.InstanceID); removed {
+				w.spawnInventoryItemDrop(player.position, item)
+			}
+			continue
+		}
 		quantity := player.inventory.quantity(command.ItemID)
 		if !equipped && quantity > 0 && player.inventory.remove(command.ItemID, quantity) {
 			w.spawnDrop(player.position, command.ItemID, quantity)
 		}
 	}
+}
+
+func (w *World) spawnInventoryItemDrop(position Position, item InventoryItem) {
+	w.nextDropID++
+	id := fmt.Sprintf("drop-%d", w.nextDropID)
+	w.drops[id] = DropSnapshot{ID: id, Position: position, ItemID: item.ItemID, Quantity: 1, InstanceID: item.InstanceID, Reinforcement: item.Reinforcement}
 }
 
 func (w *World) spawnDrop(position Position, itemID string, quantity int) {

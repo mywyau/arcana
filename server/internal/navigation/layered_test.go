@@ -38,17 +38,24 @@ func TestStarterFishingSpotCanBeApproachedOnPrototypeMap(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	spots := world.Snapshot().GatheringSpots
-	if len(spots) == 0 {
+	var fishingSpot simulation.GatheringSpotSnapshot
+	for _, spot := range spots {
+		if spot.Skill == simulation.SkillFishing {
+			fishingSpot = spot
+			break
+		}
+	}
+	if fishingSpot.ID == "" {
 		t.Fatal("starter gathering spot is missing")
 	}
 	if err := world.QueueGather(simulation.GatherCommand{
-		PlayerID: "player-one", Sequence: 1, SpotID: spots[0].ID,
+		PlayerID: "player-one", Sequence: 1, SpotID: fishingSpot.ID,
 	}); err != nil {
 		t.Fatalf("QueueGather() returned an unexpected pathfinding error: %v", err)
 	}
 	world.Step(50 * time.Millisecond)
 	player, _ := world.Player("player-one")
-	if player.GatheringSpot != spots[0].ID || player.Destination == nil {
+	if player.GatheringSpot != fishingSpot.ID || player.Destination == nil {
 		t.Fatalf("fishing approach did not start: %+v", player)
 	}
 }

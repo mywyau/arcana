@@ -71,15 +71,16 @@ const (
 type WeaponID string
 
 const (
-	WeaponSword      WeaponID = "sword"
-	WeaponUnarmed    WeaponID = "unarmed"
-	WeaponSteelSword WeaponID = "steel_sword"
-	WeaponRuneSword  WeaponID = "rune_sword"
-	WeaponDagger     WeaponID = "dagger"
-	WeaponBow        WeaponID = "bow"
-	WeaponMace       WeaponID = "mace"
-	WeaponBattleAxe  WeaponID = "battle_axe"
-	WeaponStaff      WeaponID = "staff"
+	WeaponSword       WeaponID = "sword"
+	WeaponBronzeSword WeaponID = "bronze_sword"
+	WeaponUnarmed     WeaponID = "unarmed"
+	WeaponSteelSword  WeaponID = "steel_sword"
+	WeaponRuneSword   WeaponID = "rune_sword"
+	WeaponDagger      WeaponID = "dagger"
+	WeaponBow         WeaponID = "bow"
+	WeaponMace        WeaponID = "mace"
+	WeaponBattleAxe   WeaponID = "battle_axe"
+	WeaponStaff       WeaponID = "staff"
 )
 
 type CombatStyleID string
@@ -159,6 +160,27 @@ func weaponDefinitionForStyle(id WeaponID, style CombatStyleID) (WeaponDefinitio
 	return weapon, true
 }
 
+func equippedWeaponDefinitionForStyle(player *playerState) (WeaponDefinition, bool) {
+	if player == nil {
+		return WeaponDefinition{}, false
+	}
+	weapon, exists := weaponDefinitionForStyle(player.equippedWeapon, player.combatStyle)
+	if !exists {
+		return WeaponDefinition{}, false
+	}
+	if equippedReinforcement(player, player.equippedWeaponInstanceID) > 0 {
+		weapon.AccuracyBonus++
+		if weapon.MeleeStrength > 0 {
+			weapon.MeleeStrength++
+		} else if weapon.RangedStrength > 0 {
+			weapon.RangedStrength++
+		} else if weapon.MagicStrength > 0 {
+			weapon.MagicStrength++
+		}
+	}
+	return weapon, true
+}
+
 type CombatEventType string
 
 const (
@@ -184,16 +206,18 @@ type TargetCommand struct {
 }
 
 type EquipCommand struct {
-	PlayerID PlayerID
-	Sequence uint64
-	ItemID   WeaponID
-	Unequip  bool
+	PlayerID   PlayerID
+	Sequence   uint64
+	ItemID     WeaponID
+	InstanceID string
+	Unequip    bool
 }
 
 type UnequipCommand struct {
-	PlayerID PlayerID
-	Sequence uint64
-	ItemID   string
+	PlayerID   PlayerID
+	Sequence   uint64
+	ItemID     string
+	InstanceID string
 }
 
 type CombatStyleCommand struct {
@@ -373,10 +397,11 @@ func (w *World) QueueEquip(command EquipCommand) error {
 // Weapons transition to the innate Unarmed profile; other equipment clears its slot.
 func (w *World) QueueUnequip(command UnequipCommand) error {
 	return w.queueEquipment(EquipCommand{
-		PlayerID: command.PlayerID,
-		Sequence: command.Sequence,
-		ItemID:   WeaponID(command.ItemID),
-		Unequip:  true,
+		PlayerID:   command.PlayerID,
+		Sequence:   command.Sequence,
+		ItemID:     WeaponID(command.ItemID),
+		InstanceID: command.InstanceID,
+		Unequip:    true,
 	})
 }
 
@@ -406,12 +431,19 @@ func (w *World) queueEquipment(command EquipCommand) error {
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
-	if !player.inventory.contains(string(command.ItemID)) {
+	ownedItem, ownsInstance := player.inventory.itemByInstance(command.InstanceID)
+	if command.InstanceID != "" && (!ownsInstance || ownedItem.ItemID != string(command.ItemID)) {
+		return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
+	}
+	if command.InstanceID == "" && !player.inventory.contains(string(command.ItemID)) {
 		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
 	}
 	if command.Unequip {
 		if item.Kind == ItemKindWeapon && player.equippedWeapon != command.ItemID {
 			return fmt.Errorf("weapon %q is not equipped", command.ItemID)
+		}
+		if item.Kind == ItemKindWeapon && command.InstanceID != "" && player.equippedWeaponInstanceID != command.InstanceID {
+			return fmt.Errorf("weapon instance %q is not equipped", command.InstanceID)
 		}
 		if item.Kind == ItemKindArmour && player.equippedArmour[item.Armour.Slot] != string(command.ItemID) {
 			return fmt.Errorf("armour %q is not equipped", command.ItemID)
@@ -514,8 +546,10 @@ func (w *World) applyEquipmentCommands() {
 					player.selectedSpell = ""
 				} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
 					delete(player.equippedArmour, slot)
+					delete(player.equippedArmourInstances, slot)
 				} else {
 					player.equippedWeapon = WeaponUnarmed
+					player.equippedWeaponInstanceID = ""
 					player.combatStyle = defaultCombatStyle(WeaponUnarmed)
 				}
 			} else if item.Kind == ItemKindSpellbook {
@@ -525,8 +559,10 @@ func (w *World) applyEquipmentCommands() {
 				}
 			} else if slot, armourExists := armourSlot(string(command.ItemID)); armourExists {
 				player.equippedArmour[slot] = string(command.ItemID)
+				player.equippedArmourInstances[slot] = command.InstanceID
 			} else {
 				player.equippedWeapon = command.ItemID
+				player.equippedWeaponInstanceID = command.InstanceID
 				player.combatStyle = defaultCombatStyle(command.ItemID)
 			}
 			player.lastEquipmentSequence = command.Sequence
@@ -635,7 +671,7 @@ func (w *World) resolveAutoAttacks() {
 			w.clearPlayerTarget(player, "target_defeated")
 			continue
 		}
-		weapon, _ := weaponDefinitionForStyle(player.equippedWeapon, player.combatStyle)
+		weapon, _ := equippedWeaponDefinitionForStyle(player)
 		spell, castingSpell := spellDefinition(player.selectedSpell)
 		attackRange := weapon.Range
 		approachRange := weapon.ApproachRange

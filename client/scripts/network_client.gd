@@ -185,7 +185,7 @@ func send_consume_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
-func send_gather(sequence: int, spot_id: String) -> bool:
+func send_gather(sequence: int, spot_id: String, recipe_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot gather while disconnected")
 		return false
@@ -195,6 +195,8 @@ func send_gather(sequence: int, spot_id: String) -> bool:
 		"sequence": sequence,
 		"spot_id": spot_id,
 	}
+	if not recipe_id.is_empty():
+		message["recipe_id"] = recipe_id
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not start gathering: %s" % error_string(result))

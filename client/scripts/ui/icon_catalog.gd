@@ -1,20 +1,69 @@
 class_name IconCatalog
 extends RefCounted
 
+static var _centered_icon_cache: Dictionary = {}
+
+
+# Some source icons have asymmetric transparent padding. Keep their original
+# canvas size and visible scale, but move the painted pixels to its centre.
+static func centered_icon(texture: Texture2D) -> Texture2D:
+	if texture == null:
+		return texture
+	var cache_key: String = texture.resource_path
+	if cache_key.is_empty():
+		cache_key = str(texture.get_instance_id())
+	if _centered_icon_cache.has(cache_key):
+		return _centered_icon_cache[cache_key] as Texture2D
+	var source: Image = texture.get_image()
+	if source == null or source.is_empty():
+		return texture
+	source.convert(Image.FORMAT_RGBA8)
+	var used_rect: Rect2i = source.get_used_rect()
+	if used_rect.size.x <= 0 or used_rect.size.y <= 0:
+		return texture
+	var centered := Image.create(
+		source.get_width(),
+		source.get_height(),
+		false,
+		Image.FORMAT_RGBA8,
+	)
+	centered.fill(Color.TRANSPARENT)
+	var destination := Vector2i(
+		(source.get_width() - used_rect.size.x) / 2,
+		(source.get_height() - used_rect.size.y) / 2,
+	)
+	centered.blit_rect(source, used_rect, destination)
+	var result := ImageTexture.create_from_image(centered)
+	_centered_icon_cache[cache_key] = result
+	return result
+
 # Equipment and item icons.
 const SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/sword.svg")
+const BRONZE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/bronze_sword.png")
 const DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/dagger.svg")
 const BOW: Texture2D = preload("res://assets/icons/equipment/weapons/bow.svg")
 const MACE: Texture2D = preload("res://assets/icons/equipment/weapons/mace.svg")
 const BATTLE_AXE: Texture2D = preload("res://assets/icons/equipment/weapons/battle_axe.svg")
 const STAFF: Texture2D = preload("res://assets/icons/equipment/weapons/staff.svg")
 const TRAINING_HELM: Texture2D = preload("res://assets/icons/equipment/armour/training_helm.svg")
+const BRONZE_HELM: Texture2D = preload("res://assets/icons/equipment/armour/bronze_helm.svg")
 const TRAINING_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/training_plate.svg")
 const SWIFT_HELM: Texture2D = preload("res://assets/icons/equipment/armour/swift_helm.svg")
 const SWIFT_BODY: Texture2D = preload("res://assets/icons/equipment/armour/swift_body.svg")
 const SWIFT_BOOTS: Texture2D = preload("res://assets/icons/equipment/armour/swift_boots.svg")
 const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
+const COINS: Texture2D = preload("res://assets/icons/items/coins.svg")
+const BRONZE_PICKAXE: Texture2D = preload("res://assets/icons/items/bronze_pickaxe.svg")
+const COPPER_ORE: Texture2D = preload("res://assets/icons/items/copper_ore.svg")
+const TIN_ORE: Texture2D = preload("res://assets/icons/items/tin_ore.svg")
+const IRON_ORE: Texture2D = preload("res://assets/icons/items/iron_ore.svg")
+const COAL: Texture2D = preload("res://assets/icons/items/coal.svg")
+const MITHRIL_ORE: Texture2D = preload("res://assets/icons/items/mithril_ore.svg")
+const COPPER_BAR: Texture2D = preload("res://assets/icons/items/copper_bar.svg")
+const BRONZE_BAR: Texture2D = preload("res://assets/icons/items/bronze_bar.svg")
+const IRON_BAR: Texture2D = preload("res://assets/icons/items/iron_bar.svg")
+const MITHRIL_BAR: Texture2D = preload("res://assets/icons/items/mithril_bar.svg")
 const STANDARD_SPELLBOOK: Texture2D = preload("res://assets/icons/navigation/tab_magic.svg")
 
 const EQUIPMENT_SLOTS: Dictionary = {
@@ -89,6 +138,7 @@ const PRAYERS: Array = [
 
 const WEAPONS: Dictionary = {
 	"sword": SWORD,
+	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": SWORD,
 	"rune_sword": SWORD,
 	"dagger": DAGGER,
@@ -100,6 +150,7 @@ const WEAPONS: Dictionary = {
 
 const ITEMS: Dictionary = {
 	"sword": SWORD,
+	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": SWORD,
 	"rune_sword": SWORD,
 	"dagger": DAGGER,
@@ -112,7 +163,19 @@ const ITEMS: Dictionary = {
 	"cooked_minnow": preload("res://assets/icons/items/cooked_minnow.svg"),
 	"raw_minnow": preload("res://assets/icons/items/raw_minnow.svg"),
 	"training_shard": TRAINING_SHARD,
+	"coins": COINS,
+	"bronze_pickaxe": BRONZE_PICKAXE,
+	"copper_ore": COPPER_ORE,
+	"tin_ore": TIN_ORE,
+	"iron_ore": IRON_ORE,
+	"coal": COAL,
+	"mithril_ore": MITHRIL_ORE,
+	"copper_bar": COPPER_BAR,
+	"bronze_bar": BRONZE_BAR,
+	"iron_bar": IRON_BAR,
+	"mithril_bar": MITHRIL_BAR,
 	"training_helm": TRAINING_HELM,
+	"bronze_helm": BRONZE_HELM,
 	"training_plate": TRAINING_PLATE,
 	"swift_helm": SWIFT_HELM,
 	"swift_body": SWIFT_BODY,
