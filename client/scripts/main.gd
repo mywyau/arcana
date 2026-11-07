@@ -585,6 +585,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if _ammunition_pouch_window != null and _ammunition_pouch_window.visible:
+						_close_ammunition_pouch()
+						get_viewport().set_input_as_handled()
+						return
 					if combat_stats_hud.visible:
 						_hide_detailed_combat_stats()
 						get_viewport().set_input_as_handled()
@@ -2812,6 +2816,7 @@ func _setup_ammunition_pouch_window() -> void:
 	_ammunition_pouch_window.title = "Ammunition Pouch"
 	_ammunition_pouch_window.min_size = Vector2i(570, 300)
 	_ammunition_pouch_window.size = Vector2i(570, 300)
+	_ammunition_pouch_window.visible = false
 	_ammunition_pouch_window.close_requested.connect(_close_ammunition_pouch)
 	add_child(_ammunition_pouch_window)
 	var margin := MarginContainer.new()
@@ -2822,8 +2827,16 @@ func _setup_ammunition_pouch_window() -> void:
 	_ammunition_pouch_window.add_child(margin)
 	var layout := VBoxContainer.new()
 	margin.add_child(layout)
+	var header := HBoxContainer.new()
+	layout.add_child(header)
 	_ammunition_pouch_summary = Label.new()
-	layout.add_child(_ammunition_pouch_summary)
+	_ammunition_pouch_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_ammunition_pouch_summary)
+	var close_button := Button.new()
+	close_button.text = "Close"
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.pressed.connect(_close_ammunition_pouch)
+	header.add_child(close_button)
 	_ammunition_pouch_grid = GridContainer.new()
 	_ammunition_pouch_grid.columns = 5
 	_ammunition_pouch_grid.add_theme_constant_override("h_separation", 8)
