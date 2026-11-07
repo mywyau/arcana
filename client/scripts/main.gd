@@ -53,6 +53,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Magic": "magic",
 	"Agility": "agility",
 	"Fishing": "fishing",
+	"Cooking": "cooking",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -62,6 +63,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"magic": "Magic",
 	"agility": "Agility",
 	"fishing": "Fishing",
+	"cooking": "Cooking",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -329,6 +331,7 @@ var _skill_progress: Dictionary = {
 	"magic": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"agility": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"fishing": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"cooking": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -1063,15 +1066,21 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				match _gathering_result:
 					"":
 						if not previous_gathering_result.is_empty():
-							status_label.text = "Fishing stopped"
+							status_label.text = "Gathering stopped"
 					"approaching":
-						status_label.text = "Walking to the fishing spot…"
+						status_label.text = "Walking to the resource…"
 					"fishing":
 						status_label.text = "Fishing…"
 					"caught_raw_minnow":
 						status_label.text = "Caught a Raw Minnow • Fishing continues…"
+					"cooking":
+						status_label.text = "Cooking…"
+					"cooked_minnow":
+						status_label.text = "Cooked a Minnow • Cooking continues…"
+					"missing_raw_minnow":
+						status_label.text = "Cooking stopped: no Raw Minnows"
 					"inventory_full":
-						status_label.text = "Fishing stopped: inventory is full"
+						status_label.text = "Gathering stopped: inventory is full"
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			if equipped_weapon != _equipped_weapon:
 				_equipped_weapon = equipped_weapon
@@ -1898,6 +1907,8 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "Agility affects dodge chance • training is not active yet"
 		"fishing":
 			training_description = "successful catches grant Fishing XP"
+		"cooking":
+			training_description = "successful cooks grant Cooking XP"
 	if next_level_experience <= 0:
 		tile.tooltip_text = "%s • Level %d/%d • %d XP • Maximum level • %s" % [
 			skill_name, level, level, experience, training_description,

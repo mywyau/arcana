@@ -6,10 +6,13 @@ import (
 )
 
 const (
-	starterFishingSpotID = "willowbrook_pond"
-	gatheringRange       = 2.5
-	fishingInterval      = 4
-	fishingExperience    = 10
+	starterFishingSpotID  = "willowbrook_pond"
+	starterCookingRangeID = "willowbrook_range"
+	gatheringRange        = 2.5
+	fishingInterval       = 4
+	fishingExperience     = 10
+	cookingInterval       = 4
+	cookingExperience     = 10
 )
 
 type GatheringSpotSnapshot struct {
@@ -27,6 +30,10 @@ type gatheringSpotDefinition struct {
 	RewardQuantity int
 	RewardXP       int64
 	Interval       uint64
+	Costs          []ItemCost
+	ActiveResult   string
+	RewardResult   string
+	MissingResult  string
 }
 
 type GatherCommand struct {
@@ -48,7 +55,16 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: -14, Z: 14}, Range: gatheringRange, RequiredLevel: 1,
 			},
 			RewardItem: ItemRawMinnow, RewardQuantity: 1, RewardXP: fishingExperience,
-			Interval: fishingInterval,
+			Interval: fishingInterval, ActiveResult: "fishing", RewardResult: "caught_raw_minnow",
+		},
+		starterCookingRangeID: {
+			GatheringSpotSnapshot: GatheringSpotSnapshot{
+				ID: starterCookingRangeID, Name: "Willowbrook Cooking Range", Skill: SkillCooking,
+				Position: Position{X: -8, Z: -8}, Range: gatheringRange, RequiredLevel: 1,
+			},
+			RewardItem: ItemCookedMinnow, RewardQuantity: 1, RewardXP: cookingExperience,
+			Interval: cookingInterval, Costs: []ItemCost{{ItemID: ItemRawMinnow, Quantity: 1}},
+			ActiveResult: "cooking", RewardResult: "cooked_minnow", MissingResult: "missing_raw_minnow",
 		},
 	}
 }
@@ -80,7 +96,10 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
 		return fmt.Errorf("%s level %d is required", spot.Skill, spot.RequiredLevel)
 	}
-	if !player.inventory.canAdd(spot.RewardItem, spot.RewardQuantity) {
+	if !canCompleteGatheringAction(player.inventory, spot) {
+		if !canPayItemCosts(player.inventory, spot.Costs) {
+			return fmt.Errorf("required items are missing")
+		}
 		return fmt.Errorf("inventory is full")
 	}
 
@@ -126,7 +145,7 @@ func (w *World) startPendingGathering() {
 			player.gatheringResult = "approaching"
 		} else {
 			stopPlayer(player)
-			player.gatheringResult = "fishing"
+			player.gatheringResult = spot.ActiveResult
 		}
 		delete(w.pendingGathering, id)
 	}
@@ -162,16 +181,34 @@ func (w *World) resolveGatheringActions() {
 			stopPlayer(player)
 		}
 		if w.combat.pulse < player.nextGatherPulse {
-			player.gatheringResult = "fishing"
+			player.gatheringResult = spot.ActiveResult
 			continue
 		}
-		if !player.inventory.add(spot.RewardItem, spot.RewardQuantity) {
+		candidate := cloneInventory(player.inventory)
+		if !payItemCosts(&candidate, spot.Costs) {
+			clearGathering(player, spot.MissingResult)
+			continue
+		}
+		if !candidate.add(spot.RewardItem, spot.RewardQuantity) {
 			clearGathering(player, "inventory_full")
 			continue
 		}
+		player.inventory = candidate
 		grantSkillExperience(player, spot.Skill, spot.RewardXP)
-		player.gatheringResult = "caught_" + spot.RewardItem
+		player.gatheringResult = spot.RewardResult
 		player.nextGatherPulse = w.combat.pulse + spot.Interval
+	}
+}
+
+func canCompleteGatheringAction(inventory inventoryState, spot gatheringSpotDefinition) bool {
+	candidate := cloneInventory(inventory)
+	return payItemCosts(&candidate, spot.Costs) && candidate.add(spot.RewardItem, spot.RewardQuantity)
+}
+
+func cloneInventory(inventory inventoryState) inventoryState {
+	return inventoryState{
+		capacity: inventory.capacity,
+		items:    append([]InventoryItem(nil), inventory.items...),
 	}
 }
 
