@@ -58,8 +58,8 @@ const SPELLS: Array = [
 	{"name": "Light", "icon": preload("res://assets/icons/spells/light.png")},
 	{"name": "Shine", "icon": preload("res://assets/icons/spells/shine.png")},
 	{"name": "Divine", "icon": preload("res://assets/icons/spells/divine.png")},
-	{"name": "Luce", "icon": preload("res://assets/icons/spells/luce.png")},
 	{"name": "Aura", "icon": preload("res://assets/icons/spells/aura.png")},
+	{"name": "Luce", "icon": preload("res://assets/icons/spells/luce.png")},
 	{"name": "Bio", "icon": preload("res://assets/icons/spells/bio.png")},
 	{"name": "Acid", "icon": preload("res://assets/icons/spells/acid.png")},
 	{"name": "Miasma", "icon": preload("res://assets/icons/spells/miasma.png")},
@@ -67,12 +67,13 @@ const SPELLS: Array = [
 ]
 
 const PRAYERS: Array = [
-	{"id": "evasion", "name": "Evasion", "description": "+5% dodge chance\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/01_prayer.png")},
-	{"name": "Protection", "icon": preload("res://assets/icons/prayers/02_protection.png")},
+	{"id": "accuracy", "name": "Accuracy", "description": "+5 melee accuracy score\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/18_accuracy.png")},
 	{"id": "strength", "name": "Strength", "description": "+10% melee damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/03_strength.png")},
-	{"name": "Agility", "icon": preload("res://assets/icons/prayers/04_agility.png")},
-	{"name": "Vision", "icon": preload("res://assets/icons/prayers/05_vision.png")},
+	{"id": "defence", "name": "Defence", "description": "10% incoming damage reduction\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
+	{"id": "evasion", "name": "Evasion", "description": "+5% dodge chance\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/04_agility.png")},
 	{"name": "Wisdom", "icon": preload("res://assets/icons/prayers/06_wisdom.png")},
+	{"name": "Protection", "icon": preload("res://assets/icons/prayers/02_protection.png")},
+	{"name": "Vision", "icon": preload("res://assets/icons/prayers/05_vision.png")},
 	{"name": "Melee", "icon": preload("res://assets/icons/prayers/07_melee.png")},
 	{"name": "Ranged", "icon": preload("res://assets/icons/prayers/08_ranged.png")},
 	{"name": "Magic", "icon": preload("res://assets/icons/prayers/09_magic.png")},
@@ -80,11 +81,9 @@ const PRAYERS: Array = [
 	{"name": "Vitality", "icon": preload("res://assets/icons/prayers/11_vitality.png")},
 	{"name": "Holy Light", "icon": preload("res://assets/icons/prayers/12_holy_light.png")},
 	{"name": "Melee Boost", "icon": preload("res://assets/icons/prayers/13_melee_boost.png")},
-	{"id": "defence", "name": "Defence", "description": "10% incoming damage reduction\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
 	{"name": "Strength Boost", "icon": preload("res://assets/icons/prayers/15_strength_boost.png")},
 	{"name": "Ranged Boost", "icon": preload("res://assets/icons/prayers/16_ranged_boost.png")},
 	{"name": "Magic Boost", "icon": preload("res://assets/icons/prayers/17_magic_boost.png")},
-	{"id": "accuracy", "name": "Accuracy", "description": "+5 melee accuracy score\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/18_accuracy.png")},
 	{"name": "Wrath", "icon": preload("res://assets/icons/prayers/19_wrath.png")},
 ]
 
@@ -134,7 +133,7 @@ const SKILLS: Dictionary = {
 	"Smithing": preload("res://assets/icons/skills/smithing.png"),
 	"Crafting": preload("res://assets/icons/skills/crafting.png"),
 	"Woodcutting": preload("res://assets/icons/skills/woodcutting.png"),
-	"Runecrafting": preload("res://assets/icons/spells/placeholders/spell_frost.svg"),
+	"Runecrafting": preload("res://assets/icons/skills/runecrafting.png"),
 	"Herblore": preload("res://assets/icons/skills/herblore.png"),
 	"Fletching": preload("res://assets/icons/skills/fletching.png"),
 	"Fishing": preload("res://assets/icons/skills/fishing.png"),
