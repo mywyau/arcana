@@ -343,15 +343,8 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var network: NetworkClient = $NetworkClient
 @onready var sound_effects: SoundEffects = $SoundEffects
 @onready var smithing_window: Window = $SmithingWindow
-@onready var smithing_close_button: Button = $SmithingWindow/Panel/Margin/VBox/Header/Close
-@onready var smithing_tabs: TabContainer = $SmithingWindow/Panel/Margin/VBox/Tabs
 @onready var smelting_window: Window = $SmeltingWindow
-@onready var smelting_close_button: Button = $SmeltingWindow/Panel/Margin/VBox/Header/Close
-@onready var smelting_grid: GridContainer = $SmeltingWindow/Panel/Margin/VBox/RecipeScroll/Grid
 @onready var cooking_window: Window = $CookingWindow
-@onready var cooking_close_button: Button = $CookingWindow/Panel/Margin/VBox/Header/Close
-@onready var cooking_ingredients_toggle: Button = $CookingWindow/Panel/Margin/VBox/IngredientsToggle
-@onready var cooking_grid: GridContainer = $CookingWindow/Panel/Margin/VBox/RecipeScroll/Grid
 @onready var brewing_window: Window = $BrewingWindow
 @onready var brewing_close_button: Button = $BrewingWindow/Panel/Margin/VBox/Header/Close
 @onready var brewing_slots: Array[Button] = [
@@ -733,17 +726,13 @@ var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
 var _fletch_quantity_dialog: ConfirmationDialog
 var _fletch_quantity_input: SpinBox
-var _production_action_menu: PopupMenu
-var _production_batch_action: Dictionary = {}
-var _production_quantity_dialog: ConfirmationDialog
-var _production_quantity_input: SpinBox
+var _production_windows: ProductionWindows
 var _production_recipes: Dictionary = {}
 var _spellbooks: Dictionary = {}
 var _spellbook_items: Dictionary = {}
 var _spells: Array[Dictionary] = []
 var _prayers: Array[Dictionary] = []
 var _prayer_sets: Dictionary = {}
-var _cooking_details_visible: bool = false
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
@@ -779,23 +768,20 @@ func _ready() -> void:
 			str(ProjectSettings.get_setting("application/config/name", "Game")),
 			profile_name,
 		])
-	for interface_window: Window in [
-		smithing_window, smelting_window, cooking_window, brewing_window, fletching_window,
-	]:
+	for interface_window: Window in [brewing_window, fletching_window]:
 		_style_interface_window(interface_window)
-	for close_button: Button in [
-		smithing_close_button,
-		smelting_close_button,
-		cooking_close_button,
-		brewing_close_button,
-		fletching_close_button,
-	]:
+	for close_button: Button in [brewing_close_button, fletching_close_button]:
 		_style_interface_close_button(close_button)
-	smithing_close_button.pressed.connect(smithing_window.hide)
-	smelting_close_button.pressed.connect(smelting_window.hide)
-	cooking_close_button.pressed.connect(cooking_window.hide)
 	brewing_close_button.pressed.connect(brewing_window.hide)
 	fletching_close_button.pressed.connect(fletching_window.hide)
+	_production_windows = ProductionWindows.new()
+	add_child(_production_windows)
+	_production_windows.configure(
+		smithing_window, smelting_window, cooking_window,
+		ITEM_ICONS, ITEM_DISPLAY_NAMES, EMPTY_SLOT_ICON,
+		REINFORCEMENT_TIERS, ARMOUR_SLOTS, EQUIPMENT_ICONS,
+	)
+	_production_windows.production_requested.connect(_on_production_requested)
 	_world_context_menu = PopupPanel.new()
 	_world_context_menu.name = "WorldContextMenu"
 	var context_panel_style := StyleBoxFlat.new()
@@ -815,14 +801,6 @@ func _ready() -> void:
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
-	_setup_production_batch_controls()
-	smithing_window.close_requested.connect(smithing_window.hide)
-	smithing_window.window_input.connect(_on_crafting_window_input.bind(smithing_window))
-	smelting_window.close_requested.connect(smelting_window.hide)
-	smelting_window.window_input.connect(_on_crafting_window_input.bind(smelting_window))
-	cooking_window.close_requested.connect(cooking_window.hide)
-	cooking_window.window_input.connect(_on_cooking_window_input)
-	cooking_ingredients_toggle.toggled.connect(_on_cooking_ingredients_toggled)
 	brewing_window.close_requested.connect(brewing_window.hide)
 	for slot_index: int in range(brewing_slots.size()):
 		brewing_slots[slot_index].pressed.connect(_remove_brewing_ingredient.bind(slot_index))
@@ -992,12 +970,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					return
 			match key_event.keycode:
 				KEY_ESCAPE:
-					if _production_action_menu != null and _production_action_menu.visible:
-						_production_action_menu.hide()
-						get_viewport().set_input_as_handled()
-						return
-					if _production_quantity_dialog != null and _production_quantity_dialog.visible:
-						_production_quantity_dialog.hide()
+					if _production_windows != null and _production_windows.close_overlays():
 						get_viewport().set_input_as_handled()
 						return
 					if _hud_edit_mode:
@@ -1086,22 +1059,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	_pending_click = mouse_event.position
 	_has_pending_click = true
-
-
-func _on_cooking_window_input(event: InputEvent) -> void:
-	if event is InputEventKey:
-		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
-			cooking_window.hide()
-			cooking_window.set_input_as_handled()
-
-
-func _on_crafting_window_input(event: InputEvent, crafting_window: Window) -> void:
-	if event is InputEventKey:
-		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
-			crafting_window.hide()
-			crafting_window.set_input_as_handled()
 
 
 func _setup_debug_skill_interface() -> void:
@@ -1635,9 +1592,30 @@ func _update_crafting_station_proximity(player_position: Vector3) -> void:
 
 
 func _open_cooking_window() -> void:
-	cooking_ingredients_toggle.set_pressed_no_signal(_cooking_details_visible)
-	_refresh_cooking_grid()
-	cooking_window.popup_centered()
+	_sync_production_windows()
+	_production_windows.show_station("cooking")
+
+
+func _open_smelting_window() -> void:
+	_sync_production_windows()
+	_production_windows.show_station("smelting")
+
+
+func _open_smithing_window() -> void:
+	_sync_production_windows()
+	_production_windows.show_station("forging")
+
+
+func _sync_production_windows() -> void:
+	var recipes := _production_recipes.duplicate(true)
+	for station: String in ["cooking", "smelting", "forging"]:
+		if not recipes.has(station):
+			recipes[station] = _recipes_for_station(station)
+	_production_windows.update_data(recipes, _skill_progress, _inventory_items)
+
+
+func _on_production_requested(_station: String, recipe_id: String, instance_id: String, quantity: int) -> void:
+	_request_gather(_selected_station_id, _selected_station_position, recipe_id, instance_id, quantity)
 
 
 func _recipes_for_station(station: String) -> Array:
@@ -1681,328 +1659,6 @@ func _maximum_production_batches(costs: Array) -> int:
 			return 0
 		maximum = mini(maximum, floori(float(_inventory_quantity(item_id)) / float(quantity)))
 	return maximum
-
-
-func _refresh_cooking_grid() -> void:
-	for child: Node in cooking_grid.get_children():
-		cooking_grid.remove_child(child)
-		child.queue_free()
-	var cooking_level: int = int((_skill_progress.get("cooking", {}) as Dictionary).get("level", 1))
-	var recipes: Array = _recipes_for_station("cooking")
-	for recipe_data: Variant in recipes:
-		var recipe := recipe_data as Dictionary
-		var recipe_id: String = str(recipe.get("id", ""))
-		var reward_item: String = str(recipe.get("reward_item", recipe_id))
-		var costs: Array = recipe.get("costs", []) as Array
-		var required_level: int = int(recipe.get("required_level", 1))
-		var available: int = _maximum_production_batches(costs)
-		var input_text: String = _format_recipe_costs(costs, " + ")
-		var recipe_button := Button.new()
-		recipe_button.custom_minimum_size = Vector2(260, 116 if _cooking_details_visible else 92)
-		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		recipe_button.focus_mode = Control.FOCUS_NONE
-		recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		recipe_button.text = "%s\nLv %d" % [
-			recipe.get("name", recipe_id.capitalize()), required_level,
-		]
-		if _cooking_details_visible:
-			recipe_button.text += "\n%s" % input_text
-		recipe_button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
-		recipe_button.expand_icon = true
-		recipe_button.add_theme_constant_override("icon_max_width", 62)
-		recipe_button.disabled = cooking_level < required_level or available < 1
-		if cooking_level < required_level:
-			recipe_button.tooltip_text = "Requires Cooking level %d" % required_level
-		elif available < 1:
-			recipe_button.tooltip_text = "Requires %s" % input_text
-		else:
-			recipe_button.tooltip_text = "Cook %s until you run out" % recipe.get("name", recipe_id.capitalize())
-		recipe_button.pressed.connect(_select_cooking_recipe.bind(recipe_id))
-		recipe_button.gui_input.connect(_on_cooking_recipe_input.bind(recipe_id))
-		cooking_grid.add_child(recipe_button)
-
-
-func _on_cooking_ingredients_toggled(show_details: bool) -> void:
-	_cooking_details_visible = show_details
-	_refresh_cooking_grid()
-
-
-func _open_smelting_window() -> void:
-	for child: Node in smelting_grid.get_children():
-		smelting_grid.remove_child(child)
-		child.queue_free()
-	var smithing_level: int = int((_skill_progress.get("smithing", {}) as Dictionary).get("level", 1))
-	for recipe_data: Variant in _recipes_for_station("smelting"):
-		var recipe := recipe_data as Dictionary
-		var recipe_id: String = str(recipe.get("id", ""))
-		var reward_item: String = str(recipe.get("reward_item", recipe_id))
-		var required_level: int = int(recipe.get("required_level", 1))
-		var input_lines: String = _format_recipe_costs(recipe.get("costs", []) as Array, "\n")
-		var required_tool: String = str(recipe.get("required_tool", ""))
-		var has_required_tool: bool = required_tool.is_empty() or _inventory_quantity(required_tool) > 0
-		var required_tool_name: String = str(ITEM_DISPLAY_NAMES.get(
-			required_tool,
-			required_tool.replace("_", " ").capitalize(),
-		))
-		if not required_tool.is_empty():
-			input_lines += "\nTool: %s" % required_tool_name
-		var recipe_button := Button.new()
-		recipe_button.custom_minimum_size = Vector2(260, 132)
-		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		recipe_button.focus_mode = Control.FOCUS_NONE
-		recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		recipe_button.text = "%s\n%s\nSmithing %d" % [
-			recipe.get("name", recipe_id.capitalize()), input_lines, required_level,
-		]
-		recipe_button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
-		recipe_button.expand_icon = true
-		recipe_button.add_theme_constant_override("icon_max_width", 62)
-		recipe_button.disabled = smithing_level < required_level or not has_required_tool
-		recipe_button.tooltip_text = (
-			"Requires Smithing level %d" % required_level
-			if smithing_level < required_level
-			else "Requires a %s" % required_tool_name
-			if not has_required_tool
-			else "%s %s until materials run out" % [
-				"Craft" if str(recipe.get("group", "")) == "jewellery" else "Smelt",
-				recipe.get("name", recipe_id.capitalize()),
-			]
-		)
-		recipe_button.pressed.connect(_select_smelting_recipe.bind(recipe_id))
-		recipe_button.gui_input.connect(_on_smelting_recipe_input.bind(recipe_id))
-		smelting_grid.add_child(recipe_button)
-	smelting_window.popup_centered()
-
-
-func _select_smelting_recipe(recipe_id: String, quantity: int = 0) -> void:
-	smelting_window.hide()
-	_request_gather(_selected_station_id, _selected_station_position, recipe_id, "", quantity)
-
-
-func _on_smelting_recipe_input(event: InputEvent, recipe_id: String) -> void:
-	var mouse_event := event as InputEventMouseButton
-	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_RIGHT:
-		return
-	_production_batch_action = {
-		"station": "smelting",
-		"spot_id": _selected_station_id,
-		"position": _selected_station_position,
-		"recipe_id": recipe_id,
-	}
-	_production_action_menu.position = Vector2i(get_viewport().get_mouse_position())
-	_production_action_menu.popup()
-	get_viewport().set_input_as_handled()
-
-
-func _select_cooking_recipe(recipe_id: String, quantity: int = 0) -> void:
-	cooking_window.hide()
-	_request_gather(_selected_station_id, _selected_station_position, recipe_id, "", quantity)
-
-
-func _setup_production_batch_controls() -> void:
-	_production_action_menu = PopupMenu.new()
-	_production_action_menu.name = "ProductionActionMenu"
-	var menu_panel_style := StyleBoxFlat.new()
-	menu_panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
-	_production_action_menu.add_theme_stylebox_override("panel", menu_panel_style)
-	_production_action_menu.add_item("Make 1", 0)
-	_production_action_menu.add_item("Make X", 1)
-	_production_action_menu.add_item("Make All", 2)
-	_production_action_menu.id_pressed.connect(_on_production_action_selected)
-	add_child(_production_action_menu)
-
-	_production_quantity_dialog = ConfirmationDialog.new()
-	_style_interface_window(_production_quantity_dialog)
-	_production_quantity_dialog.title = "Make X"
-	_production_quantity_dialog.dialog_text = "Choose how many to make:"
-	_production_quantity_dialog.min_size = Vector2i(360, 180)
-	_production_quantity_dialog.get_ok_button().text = "Start"
-	_production_quantity_input = SpinBox.new()
-	_production_quantity_input.min_value = 1
-	_production_quantity_input.max_value = 10_000
-	_production_quantity_input.step = 1
-	_production_quantity_input.value = 5
-	_production_quantity_input.custom_minimum_size = Vector2(280, 44)
-	_production_quantity_input.position = Vector2(40, 74)
-	_production_quantity_dialog.add_child(_production_quantity_input)
-	_production_quantity_dialog.confirmed.connect(_confirm_production_quantity)
-	add_child(_production_quantity_dialog)
-
-
-func _on_cooking_recipe_input(event: InputEvent, recipe_id: String) -> void:
-	var mouse_event := event as InputEventMouseButton
-	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_RIGHT:
-		return
-	_production_batch_action = {
-		"station": "cooking",
-		"spot_id": _selected_station_id,
-		"position": _selected_station_position,
-		"recipe_id": recipe_id,
-	}
-	_production_action_menu.position = Vector2i(get_viewport().get_mouse_position())
-	_production_action_menu.popup()
-	get_viewport().set_input_as_handled()
-
-
-func _on_production_action_selected(action_id: int) -> void:
-	match action_id:
-		0:
-			_start_production_batch(1)
-		1:
-			_open_production_quantity_dialog()
-		2:
-			_start_production_batch(0)
-
-
-func _open_production_quantity_dialog() -> void:
-	if _production_batch_action.is_empty():
-		return
-	var station: String = str(_production_batch_action.get("station", "production"))
-	match station:
-		"cooking": _production_quantity_dialog.title = "Cook X"
-		"smelting": _production_quantity_dialog.title = "Smelt X"
-		_: _production_quantity_dialog.title = "Craft X"
-	_production_quantity_input.value = 5
-	_production_quantity_dialog.popup_centered()
-	_production_quantity_input.grab_focus()
-	_production_quantity_input.get_line_edit().select_all()
-
-
-func _confirm_production_quantity() -> void:
-	_start_production_batch(int(_production_quantity_input.value))
-
-
-func _start_production_batch(quantity: int) -> void:
-	if _production_batch_action.is_empty():
-		return
-	var station: String = str(_production_batch_action.get("station", ""))
-	if station == "cooking":
-		cooking_window.hide()
-	elif station == "smelting":
-		smelting_window.hide()
-	_request_gather(
-		str(_production_batch_action.get("spot_id", "")),
-		_production_batch_action.get("position", Vector3.ZERO) as Vector3,
-		str(_production_batch_action.get("recipe_id", "")),
-		"",
-		quantity,
-	)
-
-
-func _open_smithing_window() -> void:
-	for child: Node in smithing_tabs.get_children():
-		smithing_tabs.remove_child(child)
-		child.queue_free()
-	var smithing_progress: Dictionary = _skill_progress.get("smithing", {}) as Dictionary
-	var smithing_level: int = int(smithing_progress.get("level", 1))
-	var recipes: Array = _recipes_for_station("forging")
-	# Gold jewellery belongs at a future jeweller's bench, not the anvil.
-	for tier: String in ["bronze", "iron", "mithril"]:
-		var tier_scroll := ScrollContainer.new()
-		tier_scroll.name = tier.capitalize()
-		tier_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		var tier_grid := GridContainer.new()
-		tier_grid.columns = 2
-		tier_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tier_grid.add_theme_constant_override("h_separation", 10)
-		tier_grid.add_theme_constant_override("v_separation", 10)
-		tier_scroll.add_child(tier_grid)
-		smithing_tabs.add_child(tier_scroll)
-		for recipe_data: Variant in recipes:
-			var recipe := recipe_data as Dictionary
-			if str(recipe.get("group", "")) != tier:
-				continue
-			var recipe_id: String = str(recipe.get("id", ""))
-			var required_level: int = int(recipe.get("required_level", 1))
-			var input_text: String = _format_recipe_costs(recipe.get("costs", []) as Array, " + ")
-			var recipe_button := Button.new()
-			recipe_button.custom_minimum_size = Vector2(300, 78)
-			recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			recipe_button.focus_mode = Control.FOCUS_NONE
-			recipe_button.text = "%s\n%s  •  Lv %d" % [
-				recipe.get("name", recipe_id.capitalize()), input_text, required_level,
-			]
-			recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			var icon_id: String = str(recipe.get("reward_item", recipe_id))
-			recipe_button.icon = ITEM_ICONS.get(icon_id, EMPTY_SLOT_ICON) as Texture2D
-			recipe_button.expand_icon = true
-			recipe_button.add_theme_constant_override("icon_max_width", 50)
-			recipe_button.disabled = smithing_level < required_level
-			recipe_button.tooltip_text = (
-				"Requires Smithing level %d" % required_level
-				if recipe_button.disabled
-				else "Forge %s" % recipe.get("name", recipe_id.capitalize())
-			)
-			recipe_button.pressed.connect(_select_smithing_recipe.bind(recipe_id, ""))
-			tier_grid.add_child(recipe_button)
-	_add_reinforcement_smithing_tab()
-	smithing_window.popup_centered()
-
-
-func _add_reinforcement_smithing_tab() -> void:
-	var reinforce_scroll := ScrollContainer.new()
-	reinforce_scroll.name = "Upgrade"
-	reinforce_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	var reinforce_list := VBoxContainer.new()
-	reinforce_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	reinforce_list.add_theme_constant_override("separation", 10)
-	reinforce_scroll.add_child(reinforce_list)
-	smithing_tabs.add_child(reinforce_scroll)
-	var candidates: int = 0
-	var smithing_level: int = int((_skill_progress.get("smithing", {}) as Dictionary).get("level", 1))
-	for payload: Variant in _inventory_items:
-		if typeof(payload) != TYPE_DICTIONARY:
-			continue
-		var item := payload as Dictionary
-		var item_id: String = str(item.get("item_id", ""))
-		var instance_id: String = str(item.get("instance_id", ""))
-		var reinforcement: int = int(item.get("reinforcement", 0))
-		var reinforcement_data := _reinforcement_data(item_id)
-		if instance_id.is_empty() or reinforcement >= MAXIMUM_REINFORCEMENT or reinforcement_data.is_empty():
-			continue
-		var bar_cost: int = int(reinforcement_data.get("cost", 0))
-		var required_level: int = int(reinforcement_data.get("level", 1))
-		var recipe_button := Button.new()
-		recipe_button.custom_minimum_size = Vector2(0, 72)
-		recipe_button.text = "Upgrade %s to +%d\n%d %s  •  Lv %d  •  slot %d" % [
-			item_id.capitalize(), reinforcement + 1, bar_cost, reinforcement_data.get("bar_name", "Bars"),
-			required_level, int(item.get("slot", 0)) + 1,
-		]
-		recipe_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
-		recipe_button.expand_icon = true
-		recipe_button.add_theme_constant_override("icon_max_width", 48)
-		recipe_button.disabled = smithing_level < required_level
-		recipe_button.pressed.connect(_select_smithing_recipe.bind("reinforce_%s" % item_id, instance_id))
-		reinforce_list.add_child(recipe_button)
-		candidates += 1
-	if candidates == 0:
-		var empty_label := Label.new()
-		empty_label.text = "No eligible equipment to upgrade."
-		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.custom_minimum_size = Vector2(0, 80)
-		reinforce_list.add_child(empty_label)
-
-
-func _reinforcement_data(item_id: String) -> Dictionary:
-	for tier_data_value: Variant in REINFORCEMENT_TIERS.values():
-		var tier_data := tier_data_value as Dictionary
-		if not item_id in (tier_data.get("items", []) as Array):
-			continue
-		var result := tier_data.duplicate()
-		var slot: String = str(ARMOUR_SLOTS.get(item_id, ""))
-		var cost := 3 if EQUIPMENT_ICONS.has(item_id) else 2
-		if slot == "body":
-			cost = 4
-		elif slot in ["legs", "left_hand"]:
-			cost = 3
-		result["cost"] = cost
-		return result
-	return {}
-
-
-func _select_smithing_recipe(recipe_id: String, instance_id: String) -> void:
-	smithing_window.hide()
-	_request_gather(_selected_station_id, _selected_station_position, recipe_id, instance_id)
 
 
 func _open_brewing_window(starting_item_id: String = "") -> void:
@@ -2212,7 +1868,7 @@ func _rebuild_fletching_recipes() -> void:
 		var reward_item: String = str(recipe.get("reward_item", ""))
 		button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
 		button.expand_icon = true
-		button.icon_max_width = 52
+		button.add_theme_constant_override("icon_max_width", 52)
 		button.pressed.connect(_select_fletching_recipe.bind(recipe_id))
 		fletching_recipe_grid.add_child(button)
 		_fletching_recipe_buttons[recipe_id] = button
@@ -2673,12 +2329,14 @@ func _on_world_context_action(menu_id: int) -> void:
 				str(action.get("recipe_id", "")),
 			)
 		"production_batch":
-			_production_batch_action = action.duplicate()
+			_selected_station_id = str(action.get("spot_id", ""))
+			_selected_station_position = action.get("position", Vector3.ZERO) as Vector3
 			var quantity: int = int(action.get("quantity", 0))
-			if quantity < 0:
-				_open_production_quantity_dialog()
-			else:
-				_start_production_batch(quantity)
+			_production_windows.request_batch(
+				str(action.get("station", "")),
+				str(action.get("recipe_id", "")),
+				quantity,
+			)
 		"attack":
 			var target_id: String = str(action.get("target_id", ""))
 			var target_view := _target_views.get(target_id) as TargetDummy
@@ -3101,10 +2759,7 @@ func _on_production_recipes_received(recipes: Array) -> void:
 		grouped[station] = station_recipes
 	_production_recipes = grouped
 	_rebuild_fletching_recipes()
-	if cooking_window.visible:
-		_refresh_cooking_grid()
-	if smelting_window.visible:
-		_open_smelting_window()
+	_sync_production_windows()
 
 
 func _on_spell_catalog_received(books: Array, spells: Array) -> void:
@@ -5163,6 +4818,7 @@ func _apply_skills_snapshot(skills: Array) -> void:
 	if latest_gain > 0:
 		_show_xp_gain(latest_gain_skill, latest_gain, latest_skill_total)
 	if changed:
+		_sync_production_windows()
 		_update_active_skills_hud()
 		_update_magic_hud()
 		_update_prayer_hud()
@@ -5612,12 +5268,10 @@ func _update_equipment_hud() -> void:
 func _show_detailed_combat_stats() -> void:
 	_update_detailed_combat_stats()
 	combat_stats_hud.visible = true
-	combat_stats_close_button.grab_focus()
 
 
 func _hide_detailed_combat_stats() -> void:
 	combat_stats_hud.visible = false
-	detailed_stats_button.grab_focus()
 
 
 func _show_combat_stats_page(page: String) -> void:
@@ -5764,6 +5418,7 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_signature = signature
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
+	_sync_production_windows()
 	if brewing_window.visible:
 		_refresh_brewing_window()
 	_update_inventory_hud()
