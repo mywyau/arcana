@@ -6,3 +6,4 @@ client/.godot/
 
 # Local environment variables may contain deployment credentials.
 .env
+.env.client

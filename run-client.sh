@@ -4,6 +4,16 @@ set -euo pipefail
 
 REPOSITORY_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROFILE_NAME="${1:-}"
+CLIENT_ENV_FILE="${ARCANA_CLIENT_ENV_FILE:-${REPOSITORY_DIR}/.env.client}"
+
+# Keep the hosted client address out of project files while allowing an
+# explicitly supplied shell value to take precedence for one-off runs.
+if [[ -z "${ARCANA_SERVER_URL:-}" && -f "${CLIENT_ENV_FILE}" ]]; then
+	set -a
+	# shellcheck source=/dev/null
+	source "${CLIENT_ENV_FILE}"
+	set +a
+fi
 
 if [[ $# -gt 1 ]]; then
 	echo "Usage: ./run-client.sh [profile-name]" >&2

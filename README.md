@@ -119,6 +119,31 @@ also be overridden for staging tests without editing the project:
 ARCANA_SERVER_URL=wss://arcana-beta-server.onrender.com/ws ./run-client.sh beta
 ```
 
+For a persistent local setting, copy `.env.client.example` to `.env.client`
+and set `ARCANA_SERVER_URL` there. `run-client.sh` loads that file automatically,
+and `.env.client` is ignored by Git:
+
+```sh
+cp .env.client.example .env.client
+./run-client.sh player-one
+```
+
+To connect to a server running locally without changing `.env.client`, use the
+local wrapper instead:
+
+```sh
+./run-server.sh
+./run-client-local.sh player-one
+```
+
+The health endpoint uses HTTPS (`/ready`), while the game client connects to
+the WebSocket endpoint using WSS (`/ws`).
+
+Guest identities are stored per profile and per server URL. The same profile
+name can therefore connect to localhost and the hosted beta without presenting
+one server's guest token to the other. Existing profile tokens are migrated as
+localhost identities the first time that profile connects locally.
+
 An exported build can use the project setting or a user argument such as
 `-- --server-url=wss://arcana-beta-server.onrender.com/ws`. Public deployments
 must use `wss://`, not `ws://`.

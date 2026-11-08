@@ -16,10 +16,12 @@ var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
 var _guest_token: String = ""
 var _retry_without_guest_token: bool = false
 var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg")
+var _guest_identity_section: String = ""
 
 
 func _ready() -> void:
 	_configure_server_url()
+	_guest_identity_section = ClientProfile.server_identity_section(server_url)
 	_load_guest_token()
 	_connect_to_server.call_deferred()
 
@@ -629,12 +631,29 @@ func _load_guest_token() -> void:
 	var config := ConfigFile.new()
 	if config.load(_guest_identity_path) != OK:
 		return
-	_guest_token = str(config.get_value("identity", "guest_token", ""))
+	_guest_token = str(config.get_value(_guest_identity_section, "guest_token", ""))
+	if (
+		_guest_token.is_empty()
+		and ClientProfile.is_local_server(server_url)
+		and config.has_section_key(ClientProfile.LEGACY_IDENTITY_SECTION, "guest_token")
+	):
+		# Guest tokens previously belonged implicitly to localhost. Migrate that
+		# value only for local connections so it is never presented to a host.
+		_guest_token = str(
+			config.get_value(ClientProfile.LEGACY_IDENTITY_SECTION, "guest_token", "")
+		)
+		if not _guest_token.is_empty():
+			_save_guest_token()
 
 
 func _save_guest_token() -> void:
 	var config := ConfigFile.new()
-	config.set_value("identity", "guest_token", _guest_token)
+	var load_result: Error = config.load(_guest_identity_path)
+	if load_result != OK and load_result != ERR_FILE_NOT_FOUND:
+		status_changed.emit("Could not read guest identities: %s" % error_string(load_result))
+		return
+	config.set_value(_guest_identity_section, "server_url", server_url)
+	config.set_value(_guest_identity_section, "guest_token", _guest_token)
 	var result: Error = config.save(_guest_identity_path)
 	if result != OK:
 		status_changed.emit("Could not save guest identity: %s" % error_string(result))
