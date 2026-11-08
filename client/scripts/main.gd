@@ -43,9 +43,6 @@ const GATHERING_PROGRESS_RESULTS: Dictionary = {
 }
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
 const CONTEXT_LOOT_ITEM_LIMIT: int = 8
-const BANK_TAKE_ONE: int = 0
-const BANK_TAKE_X: int = 1
-const BANK_TAKE_ALL: int = 2
 const TEST_SUPPLY_CHEST_PREFIX: String = "test_"
 const UNCUT_GEMS: Dictionary = {
 	"uncut_sapphire": "Sapphire", "uncut_emerald": "Emerald",
@@ -346,25 +343,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var smelting_window: Window = $SmeltingWindow
 @onready var cooking_window: Window = $CookingWindow
 @onready var brewing_window: Window = $BrewingWindow
-@onready var brewing_close_button: Button = $BrewingWindow/Panel/Margin/VBox/Header/Close
-@onready var brewing_slots: Array[Button] = [
-	$BrewingWindow/Panel/Margin/VBox/Selected/Slot1,
-	$BrewingWindow/Panel/Margin/VBox/Selected/Slot2,
-	$BrewingWindow/Panel/Margin/VBox/Selected/Slot3,
-]
-@onready var brewing_result: Label = $BrewingWindow/Panel/Margin/VBox/Result
-@onready var brewing_grid: GridContainer = $BrewingWindow/Panel/Margin/VBox/IngredientScroll/Grid
-@onready var brewing_clear_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/Clear
-@onready var brewing_brew_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/Brew
-@onready var brewing_make_x_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeX
-@onready var brewing_make_all_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeAll
 @onready var fletching_window: Window = $FletchingWindow
-@onready var fletching_close_button: Button = $FletchingWindow/Panel/Margin/VBox/Header/Close
-@onready var fletching_recipe_grid: GridContainer = $FletchingWindow/Panel/Margin/VBox/RecipeScroll/Recipes
-@onready var fletching_selection: Label = $FletchingWindow/Panel/Margin/VBox/Selection
-@onready var fletching_make_one_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/Make1
-@onready var fletching_make_x_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/MakeX
-@onready var fletching_make_all_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/MakeAll
 @onready var players: Node3D = $Players
 @onready var targets: Node3D = $Targets
 @onready var drops: Node3D = $Drops
@@ -564,16 +543,12 @@ var _bank_signature: String = ""
 var _test_supply_signature: String = ""
 var _active_bank_chest_id: String = ""
 var _pending_bank_chest_id: String = ""
-var _bank_withdraw_dialog: ConfirmationDialog
-var _bank_withdraw_amount: SpinBox
-var _pending_bank_withdraw_slot: int = -1
+var _bank_withdraw_controls: BankWithdrawControls
+var _bank_window: BankWindow
 var _bank_dragging: bool = false
 var _bank_drag_pointer_start: Vector2 = Vector2.ZERO
 var _bank_drag_position_start: Vector2 = Vector2.ZERO
 var _bank_has_user_position: bool = false
-var _bank_item_menu: PopupMenu
-var _bank_menu_slot: int = -1
-var _bank_menu_quantity: int = 0
 var _ammunition_pouch_items: Array = []
 var _ammunition_pouch_capacity: int = 10
 var _ammunition_pouch_unlocked: int = 2
@@ -706,26 +681,20 @@ var _pending_crafting_station_id: String = ""
 var _pending_crafting_station: String = ""
 var _pending_crafting_position: Vector3 = Vector3.ZERO
 var _pending_crafting_range: float = 0.0
-var _brewing_selection: Array[String] = []
 var _next_brew_sequence: int = 1
 var _brew_pending: bool = false
 var _brew_remaining: int = 0
 var _next_brew_pulse: int = 0
 var _last_brew_sequence: int = 0
 var _brewing_result_text: String = ""
-var _brew_quantity_dialog: ConfirmationDialog
-var _brew_quantity_input: SpinBox
-var _selected_fletching_recipe: String = "arrow_shafts"
-var _fletching_recipes: Dictionary = {}
-var _fletching_recipe_buttons: Dictionary = {}
+var _brewing_ui: BrewingWindow
 var _next_fletch_sequence: int = 1
 var _last_fletch_sequence: int = 0
 var _fletch_pending: bool = false
 var _fletch_remaining: int = 0
 var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
-var _fletch_quantity_dialog: ConfirmationDialog
-var _fletch_quantity_input: SpinBox
+var _fletching_ui: FletchingWindow
 var _production_windows: ProductionWindows
 var _production_recipes: Dictionary = {}
 var _spellbooks: Dictionary = {}
@@ -768,12 +737,6 @@ func _ready() -> void:
 			str(ProjectSettings.get_setting("application/config/name", "Game")),
 			profile_name,
 		])
-	for interface_window: Window in [brewing_window, fletching_window]:
-		_style_interface_window(interface_window)
-	for close_button: Button in [brewing_close_button, fletching_close_button]:
-		_style_interface_close_button(close_button)
-	brewing_close_button.pressed.connect(brewing_window.hide)
-	fletching_close_button.pressed.connect(fletching_window.hide)
 	_production_windows = ProductionWindows.new()
 	add_child(_production_windows)
 	_production_windows.configure(
@@ -801,37 +764,35 @@ func _ready() -> void:
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
-	brewing_window.close_requested.connect(brewing_window.hide)
-	for slot_index: int in range(brewing_slots.size()):
-		brewing_slots[slot_index].pressed.connect(_remove_brewing_ingredient.bind(slot_index))
-	brewing_clear_button.pressed.connect(_clear_brewing_selection)
-	brewing_brew_button.pressed.connect(_request_brew)
-	brewing_make_x_button.pressed.connect(_open_brew_quantity_dialog)
-	brewing_make_all_button.pressed.connect(_request_brew.bind(0))
-	_setup_brew_quantity_dialog()
-	fletching_window.close_requested.connect(fletching_window.hide)
-	fletching_make_one_button.pressed.connect(_request_fletch)
-	fletching_make_x_button.pressed.connect(_open_fletch_quantity_dialog)
-	fletching_make_all_button.pressed.connect(_request_fletch.bind(0))
-	_setup_fletch_quantity_dialog()
-	_bank_item_menu = PopupMenu.new()
-	_bank_item_menu.name = "BankItemMenu"
-	_bank_item_menu.min_size = Vector2i(190, 0)
-	_bank_item_menu.add_theme_font_size_override("font_size", 18)
-	_bank_item_menu.add_theme_constant_override("item_start_padding", 18)
-	_bank_item_menu.add_theme_constant_override("item_end_padding", 22)
-	_bank_item_menu.add_theme_constant_override("v_separation", 8)
-	add_child(_bank_item_menu)
-	_bank_item_menu.id_pressed.connect(_on_bank_item_menu_action)
+	_brewing_ui = BrewingWindow.new()
+	add_child(_brewing_ui)
+	_brewing_ui.configure(
+		brewing_window, BREWING_INGREDIENTS, KNOWN_BREWS, ITEM_ICONS, EMPTY_SLOT_ICON,
+	)
+	_brewing_ui.brewing_requested.connect(_request_brew)
+	_fletching_ui = FletchingWindow.new()
+	add_child(_fletching_ui)
+	_fletching_ui.configure(fletching_window, ITEM_ICONS, ITEM_DISPLAY_NAMES, EMPTY_SLOT_ICON)
+	_fletching_ui.fletching_requested.connect(_request_fletch)
+	_bank_withdraw_controls = BankWithdrawControls.new()
+	add_child(_bank_withdraw_controls)
+	_bank_withdraw_controls.withdrawal_requested.connect(_request_bank_withdraw)
+	_bank_window = BankWindow.new()
+	add_child(_bank_window)
+	_bank_window.configure(
+		bank_hud, bank_title, bank_hint, bank_summary, bank_expand_button, bank_grid,
+		ITEM_ICONS, EMPTY_SLOT_ICON,
+	)
+	_bank_window.withdrawal_requested.connect(_request_bank_withdraw)
+	_bank_window.item_context_requested.connect(_bank_withdraw_controls.open_context_menu)
+	_bank_window.expansion_requested.connect(_request_bank_expansion)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
 	bank_header.gui_input.connect(_on_bank_header_input)
 	bank_header.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
-	bank_expand_button.pressed.connect(_request_bank_expansion)
 	merchant_window.sell_requested.connect(_request_merchant_sale)
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
-	_setup_bank_withdraw_dialog()
 	_setup_ammunition_pouch_window()
 	_setup_ring_rack_window()
 	_setup_rune_pouch_window()
@@ -977,16 +938,13 @@ func _unhandled_input(event: InputEvent) -> void:
 						_set_hud_edit_mode(false)
 						get_viewport().set_input_as_handled()
 						return
-					if _bank_withdraw_dialog != null and _bank_withdraw_dialog.visible:
-						_bank_withdraw_dialog.hide()
+					if _bank_withdraw_controls != null and _bank_withdraw_controls.close_overlays():
 						get_viewport().set_input_as_handled()
 						return
-					if _brew_quantity_dialog != null and _brew_quantity_dialog.visible:
-						_brew_quantity_dialog.hide()
+					if _brewing_ui != null and _brewing_ui.close_overlays():
 						get_viewport().set_input_as_handled()
 						return
-					if _fletch_quantity_dialog != null and _fletch_quantity_dialog.visible:
-						_fletch_quantity_dialog.hide()
+					if _fletching_ui != null and _fletching_ui.close_overlays():
 						get_viewport().set_input_as_handled()
 						return
 					if cooking_window.visible:
@@ -1332,12 +1290,10 @@ func _open_bank(chest_id: String) -> void:
 		status_label.text = "Test supply chest opened"
 		return
 	_show_inventory_tab()
-	bank_title.text = "Personal Bank"
-	bank_hint.text = "Click an inventory item to deposit one • click a bank item to withdraw one"
-	bank_hud.visible = true
+	_bank_window.show_personal(
+		_bank_items, _bank_capacity, _bank_next_expansion_cost, _inventory_quantity("coins"),
+	)
 	_position_bank_beside_inventory()
-	bank_expand_button.visible = true
-	_update_bank_hud()
 	_update_inventory_hud()
 	status_label.text = "Bank opened"
 
@@ -1351,7 +1307,8 @@ func _close_bank() -> void:
 	_pending_bank_chest_id = ""
 	bank_hud.visible = false
 	camera_rig.set_zoom_blocked(false)
-	_pending_bank_withdraw_slot = -1
+	if _bank_withdraw_controls != null:
+		_bank_withdraw_controls.dismiss()
 	_bank_dragging = false
 
 
@@ -1365,12 +1322,8 @@ func _on_bank_header_input(event: InputEvent) -> void:
 	_bank_has_user_position = true
 	_bank_drag_pointer_start = get_viewport().get_mouse_position()
 	_bank_drag_position_start = bank_hud.global_position
-	_bank_menu_slot = -1
-	_bank_menu_quantity = 0
-	if _bank_item_menu != null:
-		_bank_item_menu.hide()
-	if _bank_withdraw_dialog != null:
-		_bank_withdraw_dialog.hide()
+	if _bank_withdraw_controls != null:
+		_bank_withdraw_controls.dismiss()
 	bank_header.accept_event()
 
 
@@ -1662,245 +1615,49 @@ func _maximum_production_batches(costs: Array) -> int:
 
 
 func _open_brewing_window(starting_item_id: String = "") -> void:
-	if not brewing_window.visible:
-		_brewing_selection.clear()
-	if not starting_item_id.is_empty():
-		_add_brewing_ingredient(starting_item_id)
-	_refresh_brewing_window()
-	brewing_window.popup_centered()
+	_sync_brewing_ui()
+	_brewing_ui.show_for_item(starting_item_id)
 
 
-func _add_brewing_ingredient(item_id: String) -> void:
-	if _brew_pending or _brewing_selection.size() >= 3 or not BREWING_INGREDIENTS.has(item_id):
-		return
-	var selected_count: int = _brewing_selection.count(item_id)
-	if selected_count >= _inventory_quantity(item_id):
-		return
-	_brewing_selection.append(item_id)
-	_refresh_brewing_window()
+func _sync_brewing_ui() -> void:
+	if _brewing_ui != null:
+		_brewing_ui.update_data(_inventory_items, _brew_pending, _brew_remaining)
 
 
-func _remove_brewing_ingredient(slot_index: int) -> void:
-	if _brew_pending or slot_index < 0 or slot_index >= _brewing_selection.size():
-		return
-	_brewing_selection.remove_at(slot_index)
-	_refresh_brewing_window()
-
-
-func _clear_brewing_selection() -> void:
+func _request_brew(item_ids: Array[String], quantity: int, maximum_available: int) -> void:
 	if _brew_pending:
 		return
-	_brewing_selection.clear()
-	_refresh_brewing_window()
-
-
-func _refresh_brewing_window() -> void:
-	for slot_index: int in range(brewing_slots.size()):
-		var slot_button := brewing_slots[slot_index]
-		if slot_index < _brewing_selection.size():
-			var item_id: String = _brewing_selection[slot_index]
-			slot_button.text = str(BREWING_INGREDIENTS[item_id].get("name", item_id.capitalize()))
-			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
-			slot_button.expand_icon = true
-			slot_button.tooltip_text = "Click to remove"
-		else:
-			slot_button.text = "+ Optional" if slot_index == 2 else "+ Ingredient"
-			slot_button.icon = null
-			slot_button.tooltip_text = ""
-	for child: Node in brewing_grid.get_children():
-		brewing_grid.remove_child(child)
-		child.queue_free()
-	for item_id: String in BREWING_INGREDIENTS.keys():
-		var quantity: int = _inventory_quantity(item_id)
-		if quantity <= 0:
-			continue
-		var ingredient: Dictionary = BREWING_INGREDIENTS[item_id] as Dictionary
-		var ingredient_button := Button.new()
-		ingredient_button.custom_minimum_size = Vector2(158, 96)
-		ingredient_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		ingredient_button.text = "%s\n%s ×%d" % [ingredient.get("name", item_id.capitalize()), ingredient.get("role", "Ingredient"), quantity]
-		ingredient_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
-		ingredient_button.expand_icon = true
-		ingredient_button.add_theme_constant_override("icon_max_width", 48)
-		ingredient_button.disabled = _brew_pending or _brewing_selection.size() >= 3 or _brewing_selection.count(item_id) >= quantity
-		ingredient_button.pressed.connect(_add_brewing_ingredient.bind(item_id))
-		brewing_grid.add_child(ingredient_button)
-	var valid_roles := _brewing_selection.size() >= 2 and _brewing_selection.size() <= 3
-	valid_roles = valid_roles and _brewing_selection.count("vial_of_water") == 1
-	var has_herb: bool = _brewing_selection.has("sunleaf") or _brewing_selection.has("moonleaf")
-	valid_roles = valid_roles and has_herb
-	if valid_roles:
-		var key_items := _brewing_selection.duplicate()
-		key_items.sort()
-		var mixture_key := "+".join(key_items)
-		brewing_result.text = "Known result: %s" % KNOWN_BREWS[mixture_key] if KNOWN_BREWS.has(mixture_key) else "Unknown mixture: experimentation may create a Murky Brew"
-	else:
-		brewing_result.text = "Requires exactly one Vial of Water and at least one herb"
-	if _brew_pending:
-		brewing_result.text = "Brewing one potion every 600 ms • %d remaining" % _brew_remaining
-	brewing_brew_button.disabled = not valid_roles or _brew_pending
-	brewing_brew_button.text = "Brewing…" if _brew_pending else "Make 1"
-	brewing_make_x_button.disabled = not valid_roles or _brew_pending
-	brewing_make_all_button.disabled = not valid_roles or _brew_pending
-	brewing_clear_button.disabled = _brew_pending or _brewing_selection.is_empty()
-
-
-func _maximum_selected_brews() -> int:
-	if _brewing_selection.is_empty():
-		return 0
-	var costs: Dictionary = {}
-	for item_id: String in _brewing_selection:
-		costs[item_id] = int(costs.get(item_id, 0)) + 1
-	var maximum: int = 2_147_483_647
-	for item_id: String in costs.keys():
-		maximum = mini(maximum, floori(float(_inventory_quantity(item_id)) / float(int(costs[item_id]))))
-	return 0 if maximum == 2_147_483_647 else maximum
-
-
-func _setup_brew_quantity_dialog() -> void:
-	_brew_quantity_dialog = ConfirmationDialog.new()
-	_style_interface_window(_brew_quantity_dialog)
-	_brew_quantity_dialog.title = "Make X potions"
-	_brew_quantity_dialog.dialog_text = "Choose how many potions to brew:"
-	_brew_quantity_dialog.min_size = Vector2i(360, 180)
-	_brew_quantity_dialog.get_ok_button().text = "Start brewing"
-	_brew_quantity_input = SpinBox.new()
-	_brew_quantity_input.min_value = 1
-	_brew_quantity_input.step = 1
-	_brew_quantity_input.custom_minimum_size = Vector2(280, 44)
-	_brew_quantity_input.position = Vector2(40, 74)
-	_brew_quantity_dialog.add_child(_brew_quantity_input)
-	_brew_quantity_dialog.confirmed.connect(_confirm_brew_quantity)
-	add_child(_brew_quantity_dialog)
-
-
-func _open_brew_quantity_dialog() -> void:
-	var maximum := _maximum_selected_brews()
-	if maximum < 1 or _brew_pending:
-		return
-	_brew_quantity_input.max_value = maximum
-	_brew_quantity_input.value = mini(maximum, 5)
-	_brew_quantity_dialog.popup_centered()
-	_brew_quantity_input.grab_focus()
-	_brew_quantity_input.get_line_edit().select_all()
-
-
-func _confirm_brew_quantity() -> void:
-	_request_brew(int(_brew_quantity_input.value))
-
-
-func _request_brew(quantity: int = 1) -> void:
-	if _brew_pending or _brewing_selection.size() < 2 or _brewing_selection.size() > 3:
-		return
-	if network.send_brew(_next_brew_sequence, _brewing_selection, quantity):
+	if network.send_brew(_next_brew_sequence, item_ids, quantity):
 		_next_brew_sequence += 1
 		_brew_pending = true
-		_brew_remaining = _maximum_selected_brews() if quantity == 0 else quantity
-		_refresh_brewing_window()
+		_brew_remaining = maximum_available if quantity == 0 else quantity
+		_sync_brewing_ui()
 
 
 func _open_fletching_window(starting_item_id: String = "") -> void:
-	var matching_recipe: String = _fletching_recipe_for_item(starting_item_id)
-	if not matching_recipe.is_empty():
-		_selected_fletching_recipe = matching_recipe
-	_refresh_fletching_window()
-	fletching_window.popup_centered()
-
-
-func _select_fletching_recipe(recipe_id: String) -> void:
-	if _fletch_pending or not _fletching_recipes.has(recipe_id):
-		return
-	_selected_fletching_recipe = recipe_id
-	_refresh_fletching_window()
-
-
-func _fletching_recipe_for_item(item_id: String) -> String:
-	if item_id.is_empty():
-		return ""
-	for recipe_id_value: Variant in _fletching_recipes:
-		var recipe_id: String = str(recipe_id_value)
-		var recipe := _fletching_recipes[recipe_id] as Dictionary
-		if str(recipe.get("required_tool", "")) == item_id:
-			return recipe_id
-		for cost_data: Variant in recipe.get("costs", []) as Array:
-			if typeof(cost_data) == TYPE_DICTIONARY and str((cost_data as Dictionary).get("item_id", "")) == item_id:
-				return recipe_id
-	return ""
+	_sync_fletching_ui()
+	_fletching_ui.show_for_item(starting_item_id)
 
 
 func _is_fletching_input(item_id: String) -> bool:
-	return not _fletching_recipe_for_item(item_id).is_empty()
+	return _fletching_ui != null and _fletching_ui.is_item_input(item_id)
 
 
-func _maximum_fletch_batches() -> int:
-	var recipe: Dictionary = _fletching_recipes.get(_selected_fletching_recipe, {}) as Dictionary
-	if recipe.is_empty():
-		return 0
+func _sync_fletching_ui() -> void:
+	if _fletching_ui == null:
+		return
 	var fletching_level: int = int((_skill_progress.get("fletching", {}) as Dictionary).get("level", 1))
-	if fletching_level < int(recipe.get("required_level", 1)):
-		return 0
-	var tool_id: String = str(recipe.get("required_tool", ""))
-	if not tool_id.is_empty() and _inventory_quantity(tool_id) < 1:
-		return 0
-	return _maximum_production_batches(recipe.get("costs", []) as Array)
-
-
-func _rebuild_fletching_recipes() -> void:
-	_fletching_recipes.clear()
-	for child: Node in fletching_recipe_grid.get_children():
-		child.queue_free()
-	_fletching_recipe_buttons.clear()
-	var recipes: Array = _recipes_for_station("fletching")
-	for payload: Variant in recipes:
-		if typeof(payload) != TYPE_DICTIONARY:
-			continue
-		var recipe := (payload as Dictionary).duplicate(true)
-		var recipe_id: String = str(recipe.get("id", ""))
-		if recipe_id.is_empty():
-			continue
-		_fletching_recipes[recipe_id] = recipe
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(280, 130)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.toggle_mode = true
-		button.focus_mode = Control.FOCUS_NONE
-		button.text = _fletching_recipe_button_text(recipe)
-		var reward_item: String = str(recipe.get("reward_item", ""))
-		button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
-		button.expand_icon = true
-		button.add_theme_constant_override("icon_max_width", 52)
-		button.pressed.connect(_select_fletching_recipe.bind(recipe_id))
-		fletching_recipe_grid.add_child(button)
-		_fletching_recipe_buttons[recipe_id] = button
-	if not _fletching_recipes.has(_selected_fletching_recipe):
-		_selected_fletching_recipe = str(_fletching_recipes.keys()[0]) if not _fletching_recipes.is_empty() else ""
-
-
-func _fletching_recipe_button_text(recipe: Dictionary) -> String:
-	var costs: String = _format_recipe_costs(recipe.get("costs", []) as Array, " + ")
-	var tool_id: String = str(recipe.get("required_tool", ""))
-	var tool_text := ""
-	if not tool_id.is_empty():
-		tool_text = "\nTool: %s" % str(ITEM_DISPLAY_NAMES.get(tool_id, tool_id.replace("_", " ").capitalize()))
-	return "%s\nLv %d • %d XP\n%s%s" % [
-		str(recipe.get("name", "Recipe")),
-		int(recipe.get("required_level", 1)),
-		int(recipe.get("reward_xp", 0)),
-		costs,
-		tool_text,
-	]
-
-
-func _fletching_recipe_for_reward(item_id: String) -> Dictionary:
-	for recipe_id_value: Variant in _fletching_recipes:
-		var recipe := _fletching_recipes[str(recipe_id_value)] as Dictionary
-		if str(recipe.get("reward_item", "")) == item_id:
-			return recipe
-	return {}
+	_fletching_ui.update_data(
+		_recipes_for_station("fletching"),
+		_inventory_items,
+		fletching_level,
+		_fletch_pending,
+		_fletch_remaining,
+	)
 
 
 func _play_fletching_completion_feedback(item_id: String) -> String:
-	var recipe: Dictionary = _fletching_recipe_for_reward(item_id)
+	var recipe: Dictionary = _fletching_ui.recipe_for_reward(item_id)
 	if recipe.is_empty():
 		return ""
 	var quantity: int = int(recipe.get("reward_quantity", 1))
@@ -1909,77 +1666,14 @@ func _play_fletching_completion_feedback(item_id: String) -> String:
 	return "Produced %d %s" % [quantity, item_name]
 
 
-func _refresh_fletching_window() -> void:
-	var maximum := _maximum_fletch_batches()
-	var recipe: Dictionary = _fletching_recipes.get(_selected_fletching_recipe, {}) as Dictionary
-	var recipe_name: String = str(recipe.get("name", "Select a recipe"))
-	var experience: int = int(recipe.get("reward_xp", 0))
-	var interval: int = int(recipe.get("interval", 1))
-	for recipe_id_value: Variant in _fletching_recipe_buttons:
-		var recipe_id: String = str(recipe_id_value)
-		var button := _fletching_recipe_buttons[recipe_id] as Button
-		button.set_pressed_no_signal(recipe_id == _selected_fletching_recipe)
-		button.disabled = _fletch_pending
+func _request_fletch(recipe_id: String, quantity: int, maximum_available: int) -> void:
 	if _fletch_pending:
-		fletching_selection.text = "Making %s every %.1f s • %d batch%s remaining" % [
-			recipe_name, float(interval) * 0.6, _fletch_remaining, "" if _fletch_remaining == 1 else "es",
-		]
-	else:
-		var required_level: int = int(recipe.get("required_level", 1))
-		var current_level: int = int((_skill_progress.get("fletching", {}) as Dictionary).get("level", 1))
-		if not recipe.is_empty() and current_level < required_level:
-			fletching_selection.text = "%s • Requires Fletching level %d" % [recipe_name, required_level]
-		else:
-			fletching_selection.text = "%s • %d XP per batch • materials for %d batch%s" % [
-				recipe_name, experience, maximum, "" if maximum == 1 else "es",
-			]
-	var unavailable := maximum < 1 or _fletch_pending
-	fletching_make_one_button.disabled = unavailable
-	fletching_make_x_button.disabled = unavailable
-	fletching_make_all_button.disabled = unavailable
-	fletching_make_one_button.text = "Fletching…" if _fletch_pending else "Make 1"
-
-
-func _setup_fletch_quantity_dialog() -> void:
-	_fletch_quantity_dialog = ConfirmationDialog.new()
-	_style_interface_window(_fletch_quantity_dialog)
-	_fletch_quantity_dialog.title = "Fletch X batches"
-	_fletch_quantity_dialog.dialog_text = "Choose how many batches to make:"
-	_fletch_quantity_dialog.min_size = Vector2i(380, 180)
-	_fletch_quantity_dialog.get_ok_button().text = "Start fletching"
-	_fletch_quantity_input = SpinBox.new()
-	_fletch_quantity_input.min_value = 1
-	_fletch_quantity_input.step = 1
-	_fletch_quantity_input.custom_minimum_size = Vector2(300, 44)
-	_fletch_quantity_input.position = Vector2(40, 74)
-	_fletch_quantity_dialog.add_child(_fletch_quantity_input)
-	_fletch_quantity_dialog.confirmed.connect(_confirm_fletch_quantity)
-	add_child(_fletch_quantity_dialog)
-
-
-func _open_fletch_quantity_dialog() -> void:
-	var maximum := _maximum_fletch_batches()
-	if maximum < 1 or _fletch_pending:
 		return
-	_fletch_quantity_input.max_value = maximum
-	_fletch_quantity_input.value = mini(maximum, 5)
-	_fletch_quantity_dialog.popup_centered()
-	_fletch_quantity_input.grab_focus()
-	_fletch_quantity_input.get_line_edit().select_all()
-
-
-func _confirm_fletch_quantity() -> void:
-	_request_fletch(int(_fletch_quantity_input.value))
-
-
-func _request_fletch(quantity: int = 1) -> void:
-	if _fletch_pending or _maximum_fletch_batches() < 1:
-		return
-	if network.send_fletch(_next_fletch_sequence, _selected_fletching_recipe, quantity):
+	if network.send_fletch(_next_fletch_sequence, recipe_id, quantity):
 		_next_fletch_sequence += 1
 		_fletch_pending = true
-		_fletch_remaining = _maximum_fletch_batches() if quantity == 0 else quantity
-		_refresh_fletching_window()
+		_fletch_remaining = maximum_available if quantity == 0 else quantity
+		_sync_fletching_ui()
 
 
 func _on_crafting_recipe_selected(menu_id: int) -> void:
@@ -2758,7 +2452,7 @@ func _on_production_recipes_received(recipes: Array) -> void:
 		station_recipes.append(recipe)
 		grouped[station] = station_recipes
 	_production_recipes = grouped
-	_rebuild_fletching_recipes()
+	_sync_fletching_ui()
 	_sync_production_windows()
 
 
@@ -3034,13 +2728,15 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					_append_game_message(status_label.text)
 			_last_brew_sequence = int(player_data.get("last_brew_sequence", 0))
 			_next_brew_sequence = maxi(_next_brew_sequence, _last_brew_sequence + 1)
+			var previous_brew_pending: bool = _brew_pending
 			var previous_brew_remaining: int = _brew_remaining
 			_brew_remaining = int(player_data.get("brew_remaining", 0))
 			_next_brew_pulse = int(player_data.get("next_brew_pulse", 0))
 			var brewing_result_text: String = str(player_data.get("brewing_result", ""))
 			if _brew_pending and _brew_remaining <= 0 and _last_brew_sequence >= _next_brew_sequence - 1:
 				_brew_pending = false
-				_brewing_selection.clear()
+				_sync_brewing_ui()
+				_brewing_ui.clear_selection()
 				status_label.text = "Brewing complete • Herblore XP gained"
 				_append_game_message(status_label.text)
 			elif _brew_remaining > 0:
@@ -3050,10 +2746,11 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						_brew_remaining, "" if _brew_remaining == 1 else "s",
 					]
 			_brewing_result_text = brewing_result_text
-			if brewing_window.visible:
-				_refresh_brewing_window()
+			if previous_brew_pending != _brew_pending or previous_brew_remaining != _brew_remaining:
+				_sync_brewing_ui()
 			_last_fletch_sequence = int(player_data.get("last_fletch_sequence", 0))
 			_next_fletch_sequence = maxi(_next_fletch_sequence, _last_fletch_sequence + 1)
+			var previous_fletch_pending: bool = _fletch_pending
 			var previous_fletch_remaining: int = _fletch_remaining
 			_fletch_remaining = int(player_data.get("fletch_remaining", 0))
 			_next_fletch_pulse = int(player_data.get("next_fletch_pulse", 0))
@@ -3071,8 +2768,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					var progress_text := "%d batch%s remaining" % [_fletch_remaining, "" if _fletch_remaining == 1 else "es"]
 					status_label.text = "%s • %s" % [fletching_batch_message, progress_text] if not fletching_batch_message.is_empty() else "Fletching… %s" % progress_text
 			_fletching_result_text = fletching_result_text
-			if fletching_window.visible:
-				_refresh_fletching_window()
+			if previous_fletch_pending != _fletch_pending or previous_fletch_remaining != _fletch_remaining:
+				_sync_fletching_ui()
 			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
 			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
 			var previous_gathering_spot: String = _gathering_spot
@@ -3790,15 +3487,13 @@ func _on_server_error(code: String, message: String) -> void:
 		_brew_remaining = 0
 		_next_brew_sequence = _last_brew_sequence + 1
 		status_label.text = "Brewing failed: %s" % message
-		if brewing_window.visible:
-			_refresh_brewing_window()
+		_sync_brewing_ui()
 	if code == "fletch_rejected":
 		_fletch_pending = false
 		_fletch_remaining = 0
 		_next_fletch_sequence = _last_fletch_sequence + 1
 		status_label.text = "Fletching failed: %s" % message
-		if fletching_window.visible:
-			_refresh_fletching_window()
+		_sync_fletching_ui()
 	if code == "gather_rejected":
 		_next_gather_sequence = _last_gather_sequence + 1
 	if code == "merchant_rejected":
@@ -4819,6 +4514,7 @@ func _apply_skills_snapshot(skills: Array) -> void:
 		_show_xp_gain(latest_gain_skill, latest_gain, latest_skill_total)
 	if changed:
 		_sync_production_windows()
+		_sync_fletching_ui()
 		_update_active_skills_hud()
 		_update_magic_hud()
 		_update_prayer_hud()
@@ -5419,12 +5115,12 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
 	_sync_production_windows()
-	if brewing_window.visible:
-		_refresh_brewing_window()
+	_sync_fletching_ui()
+	_sync_brewing_ui()
 	_update_inventory_hud()
 	_update_magic_hud()
 	if bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id):
-		_update_bank_hud()
+		_sync_bank_window()
 	if merchant_window.visible:
 		merchant_window.show_inventory(_inventory_items)
 
@@ -5442,7 +5138,7 @@ func _apply_bank_snapshot(bank: Dictionary) -> void:
 	_bank_capacity = capacity
 	_bank_next_expansion_cost = next_expansion_cost
 	_bank_items = (items_data as Array).duplicate(true)
-	_update_bank_hud()
+	_sync_bank_window()
 
 
 func _apply_ammunition_pouch_snapshot(pouch: Dictionary) -> void:
@@ -5843,132 +5539,12 @@ func _request_bank_expansion() -> void:
 		status_label.text = "Purchasing 50 bank slots…"
 
 
-func _setup_bank_withdraw_dialog() -> void:
-	_bank_withdraw_dialog = ConfirmationDialog.new()
-	_style_interface_window(_bank_withdraw_dialog)
-	_bank_withdraw_dialog.title = "Withdraw items"
-	_bank_withdraw_dialog.dialog_text = "Choose an amount to withdraw:"
-	_bank_withdraw_dialog.min_size = Vector2i(360, 180)
-	_bank_withdraw_dialog.get_ok_button().text = "Withdraw"
-	_bank_withdraw_amount = SpinBox.new()
-	_bank_withdraw_amount.min_value = 1
-	_bank_withdraw_amount.step = 1
-	_bank_withdraw_amount.custom_minimum_size = Vector2(280, 44)
-	_bank_withdraw_amount.position = Vector2(40, 74)
-	_bank_withdraw_dialog.add_child(_bank_withdraw_amount)
-	_bank_withdraw_dialog.confirmed.connect(_confirm_bank_withdraw)
-	add_child(_bank_withdraw_dialog)
-
-
-func _on_bank_item_pressed(bank_slot: int) -> void:
-	_request_bank_withdraw(bank_slot, 1)
-
-
-func _on_bank_item_input(event: InputEvent, bank_slot: int, available_quantity: int) -> void:
-	if not event is InputEventMouseButton:
+func _sync_bank_window() -> void:
+	if _bank_window == null or not bank_hud.visible or _is_test_supply_chest(_active_bank_chest_id):
 		return
-	var mouse_button := event as InputEventMouseButton
-	if not mouse_button.pressed or mouse_button.button_index != MOUSE_BUTTON_RIGHT:
-		return
-	_bank_menu_slot = bank_slot
-	_bank_menu_quantity = available_quantity
-	_bank_item_menu.clear()
-	_bank_item_menu.add_item("Take 1", BANK_TAKE_ONE)
-	_bank_item_menu.add_item("Take X", BANK_TAKE_X)
-	_bank_item_menu.add_item("Take All", BANK_TAKE_ALL)
-	_bank_item_menu.position = Vector2i(mouse_button.global_position)
-	_bank_item_menu.popup()
-	get_viewport().set_input_as_handled()
-
-
-func _on_bank_item_menu_action(menu_id: int) -> void:
-	if _bank_menu_slot < 0 or _bank_menu_quantity < 1:
-		return
-	match menu_id:
-		BANK_TAKE_ONE:
-			_request_bank_withdraw(_bank_menu_slot, 1)
-		BANK_TAKE_X:
-			_open_bank_withdraw_dialog(_bank_menu_slot, _bank_menu_quantity)
-		BANK_TAKE_ALL:
-			_request_bank_withdraw(_bank_menu_slot, _bank_menu_quantity)
-
-
-func _open_bank_withdraw_dialog(bank_slot: int, available_quantity: int) -> void:
-	_pending_bank_withdraw_slot = bank_slot
-	_bank_withdraw_amount.max_value = available_quantity
-	_bank_withdraw_amount.value = mini(available_quantity, 10)
-	_bank_withdraw_dialog.popup_centered()
-	_bank_withdraw_amount.grab_focus()
-	_bank_withdraw_amount.get_line_edit().select_all()
-
-
-func _confirm_bank_withdraw() -> void:
-	if _pending_bank_withdraw_slot < 0:
-		return
-	var bank_slot: int = _pending_bank_withdraw_slot
-	_pending_bank_withdraw_slot = -1
-	_request_bank_withdraw(bank_slot, int(_bank_withdraw_amount.value))
-
-
-func _update_bank_hud() -> void:
-	if bank_grid == null:
-		return
-	for child: Node in bank_grid.get_children():
-		bank_grid.remove_child(child)
-		child.queue_free()
-	var items_by_slot: Dictionary = {}
-	for payload: Variant in _bank_items:
-		if typeof(payload) != TYPE_DICTIONARY:
-			continue
-		var item: Dictionary = payload
-		var slot: int = int(item.get("slot", -1))
-		if slot >= 0 and slot < _bank_capacity:
-			items_by_slot[slot] = item
-	bank_summary.text = "%d/%d slots used" % [items_by_slot.size(), _bank_capacity]
-	if _bank_next_expansion_cost <= 0:
-		bank_expand_button.text = "Maximum bank capacity reached"
-		bank_expand_button.disabled = true
-	else:
-		bank_expand_button.text = "Buy +50 bank slots • %d coins" % _bank_next_expansion_cost
-		bank_expand_button.disabled = _inventory_quantity("coins") + _bank_item_quantity("coins") < _bank_next_expansion_cost
-	for slot: int in range(_bank_capacity):
-		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
-		slot_button.custom_minimum_size = Vector2(112, 86)
-		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		slot_button.focus_mode = Control.FOCUS_NONE
-		slot_button.text = ""
-		if items_by_slot.has(slot):
-			var item: Dictionary = items_by_slot[slot]
-			var item_id: String = str(item.get("item_id", ""))
-			var quantity: int = int(item.get("quantity", 1))
-			var reinforcement: int = int(item.get("reinforcement", 0))
-			slot_button.configure(slot, true, true)
-			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
-			slot_button.expand_icon = true
-			slot_button.set_stack_quantity(quantity)
-			slot_button.set_reinforcement(reinforcement)
-			slot_button.tooltip_text = "%s%s ×%d • left-click: take 1 • right-click: options" % [
-				item_id.capitalize(),
-				" +%d" % reinforcement if reinforcement > 0 else "",
-				quantity,
-			]
-			slot_button.pressed.connect(_on_bank_item_pressed.bind(slot))
-			slot_button.gui_input.connect(_on_bank_item_input.bind(slot, quantity))
-		else:
-			slot_button.configure(slot, false, true)
-			slot_button.icon = EMPTY_SLOT_ICON
-			slot_button.expand_icon = true
-			slot_button.disabled = true
-			slot_button.modulate = Color(0.6, 0.64, 0.68)
-		bank_grid.add_child(slot_button)
-
-
-func _bank_item_quantity(item_id: String) -> int:
-	var total: int = 0
-	for payload: Variant in _bank_items:
-		if typeof(payload) == TYPE_DICTIONARY and str((payload as Dictionary).get("item_id", "")) == item_id:
-			total += int((payload as Dictionary).get("quantity", 0))
-	return total
+	_bank_window.render_personal(
+		_bank_items, _bank_capacity, _bank_next_expansion_cost, _inventory_quantity("coins"),
+	)
 
 
 func _inventory_quantity(item_id: String) -> int:
