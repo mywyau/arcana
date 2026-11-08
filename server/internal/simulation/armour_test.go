@@ -38,6 +38,40 @@ func TestSwiftSetDefinitionsUseDistinctArmourSlots(t *testing.T) {
 	}
 }
 
+func TestMetalArmourProgressionCoversEveryImplementedSlot(t *testing.T) {
+	tiers := [][]string{
+		{ItemBronzeHelm, ItemBronzePlate, ItemBronzeShield, ItemBronzeLegs, ItemBronzeGloves, ItemBronzeBoots},
+		{ItemIronHelm, ItemIronPlate, ItemIronShield, ItemIronLegs, ItemIronGloves, ItemIronBoots},
+		{ItemMithrilHelm, ItemMithrilPlate, ItemMithrilShield, ItemMithrilLegs, ItemMithrilGloves, ItemMithrilBoots},
+	}
+	wantSlots := []ArmourSlot{ArmourSlotHead, ArmourSlotBody, ArmourSlotLeftHand, ArmourSlotLegs, ArmourSlotHands, ArmourSlotFeet}
+	for _, tier := range tiers {
+		for index, itemID := range tier {
+			definition, exists := armourDefinition(itemID)
+			if !exists || definition.Slot != wantSlots[index] {
+				t.Errorf("armourDefinition(%q) = %+v, %t; want slot %q", itemID, definition, exists, wantSlots[index])
+			}
+		}
+	}
+}
+
+func TestNoviceCombatSetsProvideFocusedOffence(t *testing.T) {
+	magic := equippedOffenceBonuses(map[ArmourSlot]string{
+		ArmourSlotHead: ItemNoviceRobeHood, ArmourSlotBody: ItemNoviceRobeTop,
+		ArmourSlotHands: ItemNoviceRobeGloves, ArmourSlotLegs: ItemNoviceRobeBottoms, ArmourSlotFeet: ItemNoviceRobeBoots,
+	})
+	if magic.MagicAccuracy != 9 || magic.MagicStrength != 5 || magic.RangedAccuracy != 0 {
+		t.Fatalf("novice magic set offence = %+v", magic)
+	}
+	ranged := equippedOffenceBonuses(map[ArmourSlot]string{
+		ArmourSlotHead: ItemNoviceRangerHood, ArmourSlotBody: ItemNoviceRangerBody,
+		ArmourSlotHands: ItemNoviceRangerGloves, ArmourSlotLegs: ItemNoviceRangerLegs, ArmourSlotFeet: ItemNoviceRangerBoots,
+	})
+	if ranged.RangedAccuracy != 9 || ranged.RangedStrength != 5 || ranged.MagicAccuracy != 0 {
+		t.Fatalf("novice ranged set offence = %+v", ranged)
+	}
+}
+
 func TestMetalArmourUsesHeadAndBodySlots(t *testing.T) {
 	tests := []struct {
 		itemID string

@@ -17,13 +17,25 @@ const (
 	ForgingBronzeHelm    ForgingRecipeID = "bronze_helm"
 	ForgingBronzePlate   ForgingRecipeID = "bronze_platebody"
 	ForgingBronzePickaxe ForgingRecipeID = "bronze_pickaxe"
+	ForgingBronzeShield  ForgingRecipeID = "bronze_shield"
+	ForgingBronzeLegs    ForgingRecipeID = "bronze_legs"
+	ForgingBronzeGloves  ForgingRecipeID = "bronze_gloves"
+	ForgingBronzeBoots   ForgingRecipeID = "bronze_boots"
 	ForgingIronSword     ForgingRecipeID = "iron_sword"
 	ForgingIronArrowTips ForgingRecipeID = "iron_arrow_tips"
 	ForgingIronHelm      ForgingRecipeID = "iron_helm"
 	ForgingIronPlate     ForgingRecipeID = "iron_platebody"
+	ForgingIronShield    ForgingRecipeID = "iron_shield"
+	ForgingIronLegs      ForgingRecipeID = "iron_legs"
+	ForgingIronGloves    ForgingRecipeID = "iron_gloves"
+	ForgingIronBoots     ForgingRecipeID = "iron_boots"
 	ForgingMithrilSword  ForgingRecipeID = "mithril_sword"
 	ForgingMithrilHelm   ForgingRecipeID = "mithril_helm"
 	ForgingMithrilPlate  ForgingRecipeID = "mithril_platebody"
+	ForgingMithrilShield ForgingRecipeID = "mithril_shield"
+	ForgingMithrilLegs   ForgingRecipeID = "mithril_legs"
+	ForgingMithrilGloves ForgingRecipeID = "mithril_gloves"
+	ForgingMithrilBoots  ForgingRecipeID = "mithril_boots"
 )
 
 type forgingRecipeDefinition struct {
@@ -58,6 +70,10 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}},
 		RewardItem: ItemBronzePickaxe, RewardQuantity: 1, RewardXP: 30, Interval: 5,
 	},
+	{ID: ForgingBronzeShield, Name: "Bronze Shield", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}}, RewardItem: ItemBronzeShield, RewardQuantity: 1, RewardXP: 30, Interval: 5},
+	{ID: ForgingBronzeLegs, Name: "Bronze Legs", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 4}}, RewardItem: ItemBronzeLegs, RewardQuantity: 1, RewardXP: 40, Interval: 5},
+	{ID: ForgingBronzeGloves, Name: "Bronze Gloves", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}}, RewardItem: ItemBronzeGloves, RewardQuantity: 1, RewardXP: 10, Interval: 3},
+	{ID: ForgingBronzeBoots, Name: "Bronze Boots", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}}, RewardItem: ItemBronzeBoots, RewardQuantity: 1, RewardXP: 20, Interval: 4},
 	{
 		ID: ForgingIronArrowTips, Name: "20 Iron Arrow Tips", RequiredLevel: 2,
 		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 1}},
@@ -78,6 +94,10 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 5}},
 		RewardItem: ItemIronPlate, RewardQuantity: 1, RewardXP: 90, Interval: 7,
 	},
+	{ID: ForgingIronShield, Name: "Iron Shield", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 3}}, RewardItem: ItemIronShield, RewardQuantity: 1, RewardXP: 54, Interval: 5},
+	{ID: ForgingIronLegs, Name: "Iron Legs", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 4}}, RewardItem: ItemIronLegs, RewardQuantity: 1, RewardXP: 72, Interval: 6},
+	{ID: ForgingIronGloves, Name: "Iron Gloves", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 1}}, RewardItem: ItemIronGloves, RewardQuantity: 1, RewardXP: 18, Interval: 3},
+	{ID: ForgingIronBoots, Name: "Iron Boots", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 2}}, RewardItem: ItemIronBoots, RewardQuantity: 1, RewardXP: 36, Interval: 4},
 	{
 		ID: ForgingMithrilSword, Name: "Mithril Sword", RequiredLevel: 6,
 		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},
@@ -93,6 +113,10 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 6}},
 		RewardItem: ItemMithrilPlate, RewardQuantity: 1, RewardXP: 180, Interval: 8,
 	},
+	{ID: ForgingMithrilShield, Name: "Mithril Shield", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 4}}, RewardItem: ItemMithrilShield, RewardQuantity: 1, RewardXP: 120, Interval: 6},
+	{ID: ForgingMithrilLegs, Name: "Mithril Legs", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 5}}, RewardItem: ItemMithrilLegs, RewardQuantity: 1, RewardXP: 150, Interval: 7},
+	{ID: ForgingMithrilGloves, Name: "Mithril Gloves", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 2}}, RewardItem: ItemMithrilGloves, RewardQuantity: 1, RewardXP: 60, Interval: 4},
+	{ID: ForgingMithrilBoots, Name: "Mithril Boots", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}}, RewardItem: ItemMithrilBoots, RewardQuantity: 1, RewardXP: 90, Interval: 5},
 })
 
 func buildForgingRecipes(definitions []forgingRecipeDefinition) (map[ForgingRecipeID]forgingRecipeDefinition, error) {

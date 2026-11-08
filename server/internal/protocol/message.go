@@ -106,6 +106,7 @@ type TargetSnapshot struct {
 	DodgeRate       float64  `json:"dodge_rate"`
 	Accuracy        int      `json:"accuracy"`
 	Evasion         int      `json:"evasion"`
+	AttackType      string   `json:"attack_type"`
 }
 
 type DropSnapshot struct {

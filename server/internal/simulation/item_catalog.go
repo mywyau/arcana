@@ -13,6 +13,7 @@ const (
 
 	ItemStandardSpellbook  = "standard_spellbook"
 	ItemIronArrow          = "iron_arrow"
+	ItemBones              = "bones"
 	ItemCoins              = "coins"
 	ItemBronzePickaxe      = "bronze_pickaxe"
 	ItemBronzeAxe          = "bronze_axe"
@@ -147,6 +148,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		ID: ItemBronzePlate, Name: "Bronze Platebody", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 6, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 3, Magic: -2}},
 	},
+	{ID: ItemBronzeShield, Name: "Bronze Shield", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 6, Ranged: 4, Magic: -2}}},
+	{ID: ItemBronzeLegs, Name: "Bronze Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 3, Ranged: 2, Magic: -1}}},
+	{ID: ItemBronzeGloves, Name: "Bronze Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Slash: 2, Crush: 2, Ranged: 1}}},
+	{ID: ItemBronzeBoots, Name: "Bronze Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 1, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 1}}},
 	{
 		ID: ItemIronHelm, Name: "Iron Helm", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
@@ -157,6 +162,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 10, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 9, Ranged: 7, Magic: -3}},
 	},
+	{ID: ItemIronShield, Name: "Iron Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 9, Crush: 11, Ranged: 7, Magic: -3}}},
+	{ID: ItemIronLegs, Name: "Iron Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 7, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 6, Ranged: 5, Magic: -2}}},
+	{ID: ItemIronGloves, Name: "Iron Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 3, Crush: 4, Ranged: 2, Magic: -1}}},
+	{ID: ItemIronBoots, Name: "Iron Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 4, Crush: 3, Ranged: 2, Magic: -1}}},
 	{
 		ID: ItemMithrilHelm, Name: "Mithril Helm", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}},
@@ -167,6 +176,10 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 15, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 11, Magic: -5}},
 	},
+	{ID: ItemMithrilShield, Name: "Mithril Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 8, Defence: DefenceBonuses{Stab: 13, Slash: 15, Crush: 17, Ranged: 11, Magic: -5}}},
+	{ID: ItemMithrilLegs, Name: "Mithril Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 10, Defence: DefenceBonuses{Stab: 11, Slash: 13, Crush: 10, Ranged: 8, Magic: -3}}},
+	{ID: ItemMithrilGloves, Name: "Mithril Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 6, Ranged: 4, Magic: -1}}},
+	{ID: ItemMithrilBoots, Name: "Mithril Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 5, Ranged: 4, Magic: -1}}},
 	{
 		ID: ItemTrainingPlate, Name: "Training Plate", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2}},
@@ -186,6 +199,16 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetSwift, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1, Ranged: 2}},
 	},
+	{ID: ItemNoviceRobeHood, Name: "Novice Robe Hood", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Magic: 3}, Offence: OffenceBonuses{MagicAccuracy: 2, MagicStrength: 1}}},
+	{ID: ItemNoviceRobeTop, Name: "Novice Robe Top", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 2, Defence: DefenceBonuses{Magic: 5}, Offence: OffenceBonuses{MagicAccuracy: 3, MagicStrength: 2}}},
+	{ID: ItemNoviceRobeGloves, Name: "Novice Robe Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 1}}},
+	{ID: ItemNoviceRobeBottoms, Name: "Novice Robe Bottoms", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 1, Defence: DefenceBonuses{Magic: 3}, Offence: OffenceBonuses{MagicAccuracy: 2, MagicStrength: 1}}},
+	{ID: ItemNoviceRobeBoots, Name: "Novice Robe Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 1, MagicStrength: 1}}},
+	{ID: ItemNoviceRangerHood, Name: "Novice Ranger Hood", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHead, Defence: DefenceBonuses{Stab: 1, Ranged: 2, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemNoviceRangerBody, Name: "Novice Ranger Body", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 1, Ranged: 4, Magic: 2}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemNoviceRangerGloves, Name: "Novice Ranger Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1}}},
+	{ID: ItemNoviceRangerLegs, Name: "Novice Ranger Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 3, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemNoviceRangerBoots, Name: "Novice Ranger Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1, RangedStrength: 1}}},
 	{
 		ID: ItemAmuletFerocity, Name: "Amulet of Ferocity", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
@@ -215,6 +238,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
 	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true},
+	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
 	{ID: ItemBronzeAxe, Name: "Bronze Axe", Kind: ItemKindResource},

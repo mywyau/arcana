@@ -6,26 +6,51 @@ type ArmourSlot string
 type ArmourSetID string
 
 const (
-	ArmourSlotHead ArmourSlot = "head"
-	ArmourSlotBody ArmourSlot = "body"
-	ArmourSlotFeet ArmourSlot = "feet"
-	ArmourSlotNeck ArmourSlot = "neck"
+	ArmourSlotHead     ArmourSlot = "head"
+	ArmourSlotBody     ArmourSlot = "body"
+	ArmourSlotFeet     ArmourSlot = "feet"
+	ArmourSlotNeck     ArmourSlot = "neck"
+	ArmourSlotHands    ArmourSlot = "hands"
+	ArmourSlotLegs     ArmourSlot = "legs"
+	ArmourSlotLeftHand ArmourSlot = "left_hand"
 
-	ItemTrainingHelm   = "training_helm"
-	ItemBronzeHelm     = "bronze_helm"
-	ItemBronzePlate    = "bronze_platebody"
-	ItemIronHelm       = "iron_helm"
-	ItemIronPlate      = "iron_platebody"
-	ItemMithrilHelm    = "mithril_helm"
-	ItemMithrilPlate   = "mithril_platebody"
-	ItemTrainingPlate  = "training_plate"
-	ItemSwiftHelm      = "swift_helm"
-	ItemSwiftBody      = "swift_body"
-	ItemSwiftBoots     = "swift_boots"
-	ItemAmuletFerocity = "amulet_ferocity"
-	ItemAmuletHawk     = "amulet_hawk"
-	ItemAmuletEmbers   = "amulet_embers"
-	ItemAmuletFury     = "amulet_fury"
+	ItemTrainingHelm       = "training_helm"
+	ItemBronzeHelm         = "bronze_helm"
+	ItemBronzePlate        = "bronze_platebody"
+	ItemBronzeShield       = "bronze_shield"
+	ItemBronzeLegs         = "bronze_legs"
+	ItemBronzeGloves       = "bronze_gloves"
+	ItemBronzeBoots        = "bronze_boots"
+	ItemIronHelm           = "iron_helm"
+	ItemIronPlate          = "iron_platebody"
+	ItemIronShield         = "iron_shield"
+	ItemIronLegs           = "iron_legs"
+	ItemIronGloves         = "iron_gloves"
+	ItemIronBoots          = "iron_boots"
+	ItemMithrilHelm        = "mithril_helm"
+	ItemMithrilPlate       = "mithril_platebody"
+	ItemMithrilShield      = "mithril_shield"
+	ItemMithrilLegs        = "mithril_legs"
+	ItemMithrilGloves      = "mithril_gloves"
+	ItemMithrilBoots       = "mithril_boots"
+	ItemTrainingPlate      = "training_plate"
+	ItemSwiftHelm          = "swift_helm"
+	ItemSwiftBody          = "swift_body"
+	ItemSwiftBoots         = "swift_boots"
+	ItemNoviceRobeHood     = "novice_robe_hood"
+	ItemNoviceRobeTop      = "novice_robe_top"
+	ItemNoviceRobeGloves   = "novice_robe_gloves"
+	ItemNoviceRobeBottoms  = "novice_robe_bottoms"
+	ItemNoviceRobeBoots    = "novice_robe_boots"
+	ItemNoviceRangerHood   = "novice_ranger_hood"
+	ItemNoviceRangerBody   = "novice_ranger_body"
+	ItemNoviceRangerGloves = "novice_ranger_gloves"
+	ItemNoviceRangerLegs   = "novice_ranger_legs"
+	ItemNoviceRangerBoots  = "novice_ranger_boots"
+	ItemAmuletFerocity     = "amulet_ferocity"
+	ItemAmuletHawk         = "amulet_hawk"
+	ItemAmuletEmbers       = "amulet_embers"
+	ItemAmuletFury         = "amulet_fury"
 
 	armourSetSwift ArmourSetID = "swift"
 
@@ -101,12 +126,26 @@ func equippedDefenceBonusesForPlayer(player *playerState) DefenceBonuses {
 	}
 	total := equippedDefenceBonuses(player.equippedArmour)
 	for slot, instanceID := range player.equippedArmourInstances {
-		if equippedReinforcement(player, instanceID) <= 0 || player.equippedArmour[slot] != ItemBronzeHelm {
+		reinforcement := equippedReinforcement(player, instanceID)
+		definition, exists := armourDefinition(player.equippedArmour[slot])
+		if reinforcement <= 0 || !exists {
 			continue
 		}
-		total.Stab++
-		total.Slash++
-		total.Crush++
+		if definition.Defence.Stab > 0 {
+			total.Stab += reinforcement
+		}
+		if definition.Defence.Slash > 0 {
+			total.Slash += reinforcement
+		}
+		if definition.Defence.Crush > 0 {
+			total.Crush += reinforcement
+		}
+		if definition.Defence.Ranged > 0 {
+			total.Ranged += reinforcement
+		}
+		if definition.Defence.Magic > 0 {
+			total.Magic += reinforcement
+		}
 	}
 	return total
 }

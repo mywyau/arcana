@@ -19,6 +19,7 @@ const (
 	SkillWoodcutting SkillID = "woodcutting"
 	SkillHerblore    SkillID = "herblore"
 	SkillFletching   SkillID = "fletching"
+	SkillPrayer      SkillID = "prayer"
 
 	MaximumSkillLevel               = 100
 	skillLevelExperienceScale int64 = 100
@@ -48,7 +49,7 @@ type skillState map[SkillID]int64
 func newDefaultSkills() skillState {
 	return skillState{
 		SkillAttack: 0, SkillAgility: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
-		SkillFishing: 0, SkillCooking: 0, SkillMining: 0, SkillSmithing: 0, SkillWoodcutting: 0, SkillHerblore: 0, SkillFletching: 0,
+		SkillFishing: 0, SkillCooking: 0, SkillMining: 0, SkillSmithing: 0, SkillWoodcutting: 0, SkillHerblore: 0, SkillFletching: 0, SkillPrayer: 0,
 	}
 }
 
@@ -149,7 +150,7 @@ func movementSpeedForAgility(baseSpeed float64, agilityLevel int) float64 {
 func skillIDValid(skill SkillID) bool {
 	return skill == SkillAttack || skill == SkillAgility || skill == SkillStrength || skill == SkillDefence ||
 		skill == SkillRange || skill == SkillMagic || skill == SkillFishing || skill == SkillCooking || skill == SkillMining ||
-		skill == SkillSmithing || skill == SkillWoodcutting || skill == SkillHerblore || skill == SkillFletching
+		skill == SkillSmithing || skill == SkillWoodcutting || skill == SkillHerblore || skill == SkillFletching || skill == SkillPrayer
 }
 
 func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {

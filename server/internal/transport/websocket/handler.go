@@ -658,5 +658,6 @@ func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnap
 		DodgeRate:       target.DodgeRate,
 		Accuracy:        target.Accuracy,
 		Evasion:         target.Evasion,
+		AttackType:      string(target.AttackType),
 	}
 }

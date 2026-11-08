@@ -110,6 +110,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		if state.EquippedWeaponInstanceID == "" {
 			return fmt.Errorf("equipped weapon %q has no owned instance", state.EquippedWeapon)
 		}
+		if state.EquippedWeaponReinforcement < 0 || state.EquippedWeaponReinforcement > maximumReinforcementLevel {
+			return fmt.Errorf("equipped weapon has invalid reinforcement +%d", state.EquippedWeaponReinforcement)
+		}
 	}
 	if state.EquippedArmourReinforcements == nil {
 		state.EquippedArmourReinforcements = make(map[ArmourSlot]int)
@@ -127,6 +130,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		)
 		if instanceID == "" {
 			return fmt.Errorf("restore equipment: armour %q has no owned instance", itemID)
+		}
+		if reinforcement < 0 || reinforcement > maximumReinforcementLevel {
+			return fmt.Errorf("restore equipment: armour %q has invalid reinforcement +%d", itemID, reinforcement)
 		}
 		state.EquippedArmourInstances[slot] = instanceID
 		state.EquippedArmourReinforcements[slot] = reinforcement

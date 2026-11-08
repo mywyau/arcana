@@ -45,18 +45,60 @@ func TestReinforcedEquippedBronzeSwordImprovesCombatStats(t *testing.T) {
 	}
 }
 
-func TestReinforcedEquipmentCannotBeReinforcedTwice(t *testing.T) {
+func TestEquipmentCanReachPlusFiveButNoHigher(t *testing.T) {
 	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
 	player.inventory.add(ItemBronzeHelm, 1)
-	player.inventory.add(ItemBronzeBar, 4)
-	player.inventory.items[0].Reinforcement = 1
+	player.inventory.add(ItemBronzeBar, 12)
+	player.inventory.items[0].Reinforcement = 4
 	player.skills[SkillSmithing] = SkillExperienceForLevel(2)
 	recipe, _ := reinforcementRecipe("reinforce_bronze_helm")
-	if err := applyReinforcement(player, recipe, player.inventory.items[0].InstanceID); err == nil {
-		t.Fatal("applyReinforcement() error = nil for already reinforced equipment")
+	if err := applyReinforcement(player, recipe, player.inventory.items[0].InstanceID); err != nil {
+		t.Fatalf("applyReinforcement(+5) returned an unexpected error: %v", err)
 	}
-	if player.inventory.quantity(ItemBronzeBar) != 4 {
+	if player.inventory.items[0].Reinforcement != maximumReinforcementLevel {
+		t.Fatalf("reinforcement = %d, want +%d", player.inventory.items[0].Reinforcement, maximumReinforcementLevel)
+	}
+	remainingBars := player.inventory.quantity(ItemBronzeBar)
+	if err := applyReinforcement(player, recipe, player.inventory.items[0].InstanceID); err == nil {
+		t.Fatal("applyReinforcement() error = nil above +5")
+	}
+	if player.inventory.quantity(ItemBronzeBar) != remainingBars {
 		t.Fatal("failed reinforcement consumed bars")
+	}
+}
+
+func TestArrowsCannotBeReinforced(t *testing.T) {
+	if _, exists := reinforcementRecipe("reinforce_iron_arrow"); exists {
+		t.Fatal("iron arrows unexpectedly have a reinforcement recipe")
+	}
+	if _, exists := reinforcementRecipe("reinforce_iron_arrow_tips"); exists {
+		t.Fatal("iron arrow tips unexpectedly have a reinforcement recipe")
+	}
+	for _, itemID := range []string{ItemNoviceRobeTop, ItemNoviceRangerBody} {
+		if _, exists := reinforcementRecipe("reinforce_" + itemID); exists {
+			t.Fatalf("non-metal starter armour %q unexpectedly has a reinforcement recipe", itemID)
+		}
+	}
+}
+
+func TestPlusFiveEquipmentAppliesAllFiveStatPoints(t *testing.T) {
+	player := &playerState{
+		equippedWeapon: WeaponMithrilSword, combatStyle: CombatStyleStab,
+		equippedWeaponInstanceID: "weapon-instance", equippedWeaponReinforcement: 5,
+		equippedArmour:               map[ArmourSlot]string{ArmourSlotLeftHand: ItemMithrilShield},
+		equippedArmourInstances:      map[ArmourSlot]string{ArmourSlotLeftHand: "shield-instance"},
+		equippedArmourReinforcements: map[ArmourSlot]int{ArmourSlotLeftHand: 5},
+		skills:                       newDefaultSkills(),
+	}
+	weapon, _ := equippedWeaponDefinitionForStyle(player)
+	baseWeapon, _ := weaponDefinitionForStyle(WeaponMithrilSword, CombatStyleStab)
+	if weapon.AccuracyBonus != baseWeapon.AccuracyBonus+5 || weapon.MeleeStrength != baseWeapon.MeleeStrength+5 {
+		t.Fatalf("+5 weapon = %+v, base = %+v", weapon, baseWeapon)
+	}
+	baseShield, _ := armourDefinition(ItemMithrilShield)
+	defence := equippedDefenceBonusesForPlayer(player)
+	if defence.Stab != baseShield.Defence.Stab+5 || defence.Ranged != baseShield.Defence.Ranged+5 || defence.Magic != baseShield.Defence.Magic {
+		t.Fatalf("+5 shield defence = %+v, base = %+v", defence, baseShield.Defence)
 	}
 }
 

@@ -94,3 +94,20 @@ func TestForgingRecipesCoverMetalEquipmentProgression(t *testing.T) {
 		}
 	}
 }
+
+func TestForgingRecipesCoverCompleteMetalArmourProgression(t *testing.T) {
+	tests := []struct {
+		id     ForgingRecipeID
+		output string
+	}{
+		{ForgingBronzeShield, ItemBronzeShield}, {ForgingBronzeLegs, ItemBronzeLegs}, {ForgingBronzeGloves, ItemBronzeGloves}, {ForgingBronzeBoots, ItemBronzeBoots},
+		{ForgingIronShield, ItemIronShield}, {ForgingIronLegs, ItemIronLegs}, {ForgingIronGloves, ItemIronGloves}, {ForgingIronBoots, ItemIronBoots},
+		{ForgingMithrilShield, ItemMithrilShield}, {ForgingMithrilLegs, ItemMithrilLegs}, {ForgingMithrilGloves, ItemMithrilGloves}, {ForgingMithrilBoots, ItemMithrilBoots},
+	}
+	for _, test := range tests {
+		recipe, exists := forgingRecipe(test.id)
+		if !exists || recipe.RewardItem != test.output || recipe.RewardQuantity != 1 {
+			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
+		}
+	}
+}

@@ -1,6 +1,11 @@
 package simulation
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+const maximumReinforcementLevel = 5
 
 type reinforcementRecipeDefinition struct {
 	ID            string
@@ -12,20 +17,62 @@ type reinforcementRecipeDefinition struct {
 	Interval      uint64
 }
 
-var reinforcementRecipes = map[string]reinforcementRecipeDefinition{
-	"reinforce_bronze_sword": {
-		ID: "reinforce_bronze_sword", Name: "Reinforce Bronze Sword", RequiredLevel: 2,
-		TargetItem: string(WeaponBronzeSword), Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}}, RewardXP: 30, Interval: 5,
-	},
-	"reinforce_bronze_helm": {
-		ID: "reinforce_bronze_helm", Name: "Reinforce Bronze Helm", RequiredLevel: 2,
-		TargetItem: ItemBronzeHelm, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}}, RewardXP: 24, Interval: 5,
-	},
+type reinforcementTier struct {
+	Bar           string
+	RequiredLevel int
+	XPPerBar      int64
+}
+
+var bronzeReinforcement = reinforcementTier{Bar: ItemBronzeBar, RequiredLevel: 2, XPPerBar: 10}
+var ironReinforcement = reinforcementTier{Bar: ItemIronBar, RequiredLevel: 5, XPPerBar: 18}
+var mithrilReinforcement = reinforcementTier{Bar: ItemMithrilBar, RequiredLevel: 8, XPPerBar: 30}
+
+var reinforcementTiers = map[string]reinforcementTier{
+	string(WeaponBronzeSword): bronzeReinforcement,
+	ItemBronzeHelm:            bronzeReinforcement, ItemBronzePlate: bronzeReinforcement,
+	ItemBronzeShield: bronzeReinforcement, ItemBronzeLegs: bronzeReinforcement,
+	ItemBronzeGloves: bronzeReinforcement, ItemBronzeBoots: bronzeReinforcement,
+	string(WeaponSword): ironReinforcement,
+	ItemIronHelm:        ironReinforcement, ItemIronPlate: ironReinforcement,
+	ItemIronShield: ironReinforcement, ItemIronLegs: ironReinforcement,
+	ItemIronGloves: ironReinforcement, ItemIronBoots: ironReinforcement,
+	string(WeaponMithrilSword): mithrilReinforcement,
+	ItemMithrilHelm:            mithrilReinforcement, ItemMithrilPlate: mithrilReinforcement,
+	ItemMithrilShield: mithrilReinforcement, ItemMithrilLegs: mithrilReinforcement,
+	ItemMithrilGloves: mithrilReinforcement, ItemMithrilBoots: mithrilReinforcement,
 }
 
 func reinforcementRecipe(id string) (reinforcementRecipeDefinition, bool) {
-	recipe, exists := reinforcementRecipes[id]
-	return recipe, exists
+	const prefix = "reinforce_"
+	if !strings.HasPrefix(id, prefix) {
+		return reinforcementRecipeDefinition{}, false
+	}
+	itemID := strings.TrimPrefix(id, prefix)
+	tier, exists := reinforcementTiers[itemID]
+	definition, defined := itemDefinition(itemID)
+	if !exists || !defined || (definition.Kind != ItemKindWeapon && definition.Kind != ItemKindArmour) {
+		return reinforcementRecipeDefinition{}, false
+	}
+	barCost := reinforcementBarCost(definition)
+	return reinforcementRecipeDefinition{
+		ID: id, Name: "Reinforce " + definition.Name, RequiredLevel: tier.RequiredLevel,
+		TargetItem: itemID, Costs: []ItemCost{{ItemID: tier.Bar, Quantity: barCost}},
+		RewardXP: tier.XPPerBar * int64(barCost), Interval: uint64(3 + barCost/2),
+	}, true
+}
+
+func reinforcementBarCost(definition ItemDefinition) int {
+	if definition.Kind == ItemKindWeapon {
+		return 3
+	}
+	switch definition.Armour.Slot {
+	case ArmourSlotBody:
+		return 4
+	case ArmourSlotLegs, ArmourSlotLeftHand:
+		return 3
+	default:
+		return 2
+	}
 }
 
 func validateReinforcement(player *playerState, recipe reinforcementRecipeDefinition, instanceID string) error {
@@ -39,8 +86,12 @@ func validateReinforcement(player *playerState, recipe reinforcementRecipeDefini
 	if !exists || item.ItemID != recipe.TargetItem {
 		return fmt.Errorf("target equipment instance is missing")
 	}
-	if item.Reinforcement >= 1 {
-		return fmt.Errorf("equipment is already reinforced")
+	definition, exists := itemDefinition(item.ItemID)
+	if !exists || (definition.Kind != ItemKindWeapon && definition.Kind != ItemKindArmour) {
+		return fmt.Errorf("only weapons and armour can be reinforced")
+	}
+	if item.Reinforcement >= maximumReinforcementLevel {
+		return fmt.Errorf("equipment is already at +%d", maximumReinforcementLevel)
 	}
 	candidate := cloneInventory(player.inventory)
 	if !payItemCosts(&candidate, recipe.Costs) {
@@ -58,7 +109,7 @@ func applyReinforcement(player *playerState, recipe reinforcementRecipeDefinitio
 	}
 	for index := range player.inventory.items {
 		if player.inventory.items[index].InstanceID == instanceID {
-			player.inventory.items[index].Reinforcement = 1
+			player.inventory.items[index].Reinforcement++
 			grantSkillExperience(player, SkillSmithing, recipe.RewardXP)
 			return nil
 		}

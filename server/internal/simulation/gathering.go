@@ -41,6 +41,9 @@ const (
 	oakTreeCapacity           = 8
 	agilityObstacleExperience = 25
 	agilityObstacleInterval   = 2
+	prayerBoneExperience      = 10
+	prayerRestoreRecipeID     = "restore_prayer"
+	prayerSacrificeBonesID    = "sacrifice_bones"
 )
 
 type craftingStationID string
@@ -154,7 +157,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		},
 		starterPrayerAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterPrayerAltarID, Name: "Prayer Altar", Skill: SkillID("prayer"),
+				ID: starterPrayerAltarID, Name: "Prayer Altar", Skill: SkillPrayer,
 				Position: Position{X: -8, Z: -14}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationPrayer,
 			},
@@ -284,6 +287,18 @@ func (w *World) QueueGather(command GatherCommand) error {
 			if _, err := forgingInventoryAfter(player.inventory, recipe); err != nil {
 				return err
 			}
+		}
+	}
+	if spot.Station == craftingStationPrayer {
+		switch command.RecipeID {
+		case "", prayerRestoreRecipeID:
+			command.RecipeID = prayerRestoreRecipeID
+		case prayerSacrificeBonesID:
+			if !player.inventory.contains(ItemBones) {
+				return fmt.Errorf("bones are required")
+			}
+		default:
+			return fmt.Errorf("prayer altar recipe %q does not exist", command.RecipeID)
 		}
 	}
 	if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
@@ -453,7 +468,11 @@ func (w *World) resolveGatheringActions() {
 					clearGathering(player, "reinforcement_failed")
 					continue
 				}
-				clearGathering(player, "reinforced_"+reinforcement.TargetItem)
+				level := 0
+				if item, exists := player.inventory.itemByInstance(player.gatheringInstanceID); exists {
+					level = item.Reinforcement
+				}
+				clearGathering(player, fmt.Sprintf("reinforced_%s_to_%d", reinforcement.TargetItem, level))
 				continue
 			}
 			if err := applyForgingRecipe(player, recipe); err != nil {
@@ -469,6 +488,20 @@ func (w *World) resolveGatheringActions() {
 			continue
 		}
 		if spot.Station == craftingStationPrayer {
+			if player.gatheringRecipe == prayerSacrificeBonesID {
+				if !player.inventory.remove(ItemBones, 1) {
+					clearGathering(player, "missing_bones")
+					continue
+				}
+				grantSkillExperience(player, SkillPrayer, prayerBoneExperience)
+				if !player.inventory.contains(ItemBones) {
+					clearGathering(player, "sacrificed_all_bones")
+					continue
+				}
+				player.gatheringResult = "sacrificed_bone"
+				player.nextGatherPulse = w.combat.pulse + 1
+				continue
+			}
 			player.prayer = player.maximumPrayer
 			clearGathering(player, spot.RewardResult)
 			continue

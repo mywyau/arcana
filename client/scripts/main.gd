@@ -54,13 +54,29 @@ const CRAFTING_RECIPES: Dictionary = {
 		{"id": "bronze_helm", "name": "Bronze Helm", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
 		{"id": "bronze_platebody", "name": "Bronze Platebody", "tier": "bronze", "level": 2, "inputs": "5 Bronze Bars"},
 		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "tier": "bronze", "level": 1, "inputs": "3 Bronze Bars"},
+		{"id": "bronze_shield", "name": "Bronze Shield", "tier": "bronze", "level": 2, "inputs": "3 Bronze Bars"},
+		{"id": "bronze_legs", "name": "Bronze Legs", "tier": "bronze", "level": 2, "inputs": "4 Bronze Bars"},
+		{"id": "bronze_gloves", "name": "Bronze Gloves", "tier": "bronze", "level": 1, "inputs": "1 Bronze Bar"},
+		{"id": "bronze_boots", "name": "Bronze Boots", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
 		{"id": "iron_sword", "name": "Iron Sword", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
 		{"id": "iron_arrow_tips", "name": "20 Iron Arrow Tips", "tier": "iron", "level": 2, "inputs": "1 Iron Bar"},
 		{"id": "iron_helm", "name": "Iron Helm", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
 		{"id": "iron_platebody", "name": "Iron Platebody", "tier": "iron", "level": 4, "inputs": "5 Iron Bars"},
+		{"id": "iron_shield", "name": "Iron Shield", "tier": "iron", "level": 4, "inputs": "3 Iron Bars"},
+		{"id": "iron_legs", "name": "Iron Legs", "tier": "iron", "level": 4, "inputs": "4 Iron Bars"},
+		{"id": "iron_gloves", "name": "Iron Gloves", "tier": "iron", "level": 3, "inputs": "1 Iron Bar"},
+		{"id": "iron_boots", "name": "Iron Boots", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
 		{"id": "mithril_sword", "name": "Mithril Sword", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
 		{"id": "mithril_helm", "name": "Mithril Helm", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
 		{"id": "mithril_platebody", "name": "Mithril Platebody", "tier": "mithril", "level": 7, "inputs": "6 Mithril Bars"},
+		{"id": "mithril_shield", "name": "Mithril Shield", "tier": "mithril", "level": 7, "inputs": "4 Mithril Bars"},
+		{"id": "mithril_legs", "name": "Mithril Legs", "tier": "mithril", "level": 7, "inputs": "5 Mithril Bars"},
+		{"id": "mithril_gloves", "name": "Mithril Gloves", "tier": "mithril", "level": 6, "inputs": "2 Mithril Bars"},
+		{"id": "mithril_boots", "name": "Mithril Boots", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
+	],
+	"prayer_altar": [
+		{"id": "restore_prayer", "name": "Restore Prayer", "level": 1, "inputs": "Restore all prayer points"},
+		{"id": "sacrifice_bones", "name": "Sacrifice All Bones", "level": 1, "inputs": "1 bone every 600 ms • 10 Prayer XP each"},
 	],
 }
 
@@ -100,6 +116,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Woodcutting": "woodcutting",
 	"Herblore": "herblore",
 	"Fletching": "fletching",
+	"Prayer": "prayer",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -115,6 +132,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"woodcutting": "Woodcutting",
 	"herblore": "Herblore",
 	"fletching": "Fletching",
+	"prayer": "Prayer",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -207,20 +225,31 @@ const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
 	"bronze_helm": "head",
 	"bronze_platebody": "body",
+	"bronze_shield": "left_hand", "bronze_legs": "legs", "bronze_gloves": "hands", "bronze_boots": "feet",
 	"iron_helm": "head",
 	"iron_platebody": "body",
+	"iron_shield": "left_hand", "iron_legs": "legs", "iron_gloves": "hands", "iron_boots": "feet",
 	"mithril_helm": "head",
 	"mithril_platebody": "body",
+	"mithril_shield": "left_hand", "mithril_legs": "legs", "mithril_gloves": "hands", "mithril_boots": "feet",
 	"training_helm": "head",
 	"training_plate": "body",
 	"swift_helm": "head",
 	"swift_body": "body",
 	"swift_boots": "feet",
+	"novice_robe_hood": "head", "novice_robe_top": "body", "novice_robe_gloves": "hands", "novice_robe_bottoms": "legs", "novice_robe_boots": "feet",
+	"novice_ranger_hood": "head", "novice_ranger_body": "body", "novice_ranger_gloves": "hands", "novice_ranger_legs": "legs", "novice_ranger_boots": "feet",
 	"amulet_ferocity": "neck",
 	"amulet_hawk": "neck",
 	"amulet_embers": "neck",
 	"amulet_fury": "neck",
 }
+const REINFORCEMENT_TIERS: Dictionary = {
+	"bronze": {"bar": "bronze_bar", "bar_name": "Bronze Bars", "level": 2, "items": ["bronze_sword", "bronze_helm", "bronze_platebody", "bronze_shield", "bronze_legs", "bronze_gloves", "bronze_boots"]},
+	"iron": {"bar": "iron_bar", "bar_name": "Iron Bars", "level": 5, "items": ["sword", "iron_helm", "iron_platebody", "iron_shield", "iron_legs", "iron_gloves", "iron_boots"]},
+	"mithril": {"bar": "mithril_bar", "bar_name": "Mithril Bars", "level": 8, "items": ["mithril_sword", "mithril_helm", "mithril_platebody", "mithril_shield", "mithril_legs", "mithril_gloves", "mithril_boots"]},
+}
+const MAXIMUM_REINFORCEMENT: int = 5
 const AMMUNITION_ITEMS: Dictionary = {"iron_arrow": true}
 const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_ferocity": "+5 melee accuracy • +5 melee strength",
@@ -236,8 +265,10 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"battle_axe": "Attack level 10",
 	"iron_helm": "Defence level 5",
 	"iron_platebody": "Defence level 5",
+	"iron_shield": "Defence level 5", "iron_legs": "Defence level 5", "iron_gloves": "Defence level 5", "iron_boots": "Defence level 5",
 	"mithril_helm": "Defence level 10",
 	"mithril_platebody": "Defence level 10",
+	"mithril_shield": "Defence level 10", "mithril_legs": "Defence level 10", "mithril_gloves": "Defence level 10", "mithril_boots": "Defence level 10",
 	"swift_helm": "Defence level 5",
 	"swift_body": "Defence level 5",
 	"swift_boots": "Defence level 5",
@@ -539,6 +570,7 @@ var _skill_progress: Dictionary = {
 	"woodcutting": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"herblore": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"fletching": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"prayer": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -720,6 +752,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if _hud_edit_mode:
+						_set_hud_edit_mode(false)
+						get_viewport().set_input_as_handled()
+						return
 					if fletching_window.visible:
 						fletching_window.hide()
 						get_viewport().set_input_as_handled()
@@ -1075,27 +1111,6 @@ func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: Strin
 			recipe_index,
 		)
 		_crafting_menu_actions[recipe_index] = {"recipe_id": str(recipe["id"]), "instance_id": ""}
-	var next_menu_id: int = recipes.size()
-	if station == "forging":
-		for payload: Variant in _inventory_items:
-			if typeof(payload) != TYPE_DICTIONARY:
-				continue
-			var item: Dictionary = payload as Dictionary
-			var item_id: String = str(item.get("item_id", ""))
-			var instance_id: String = str(item.get("instance_id", ""))
-			if instance_id.is_empty() or int(item.get("reinforcement", 0)) > 0 or not item_id in ["bronze_sword", "bronze_helm"]:
-				continue
-			var bar_cost: int = 3 if item_id == "bronze_sword" else 2
-			var slot_label: String = "slot %d" % (int(item.get("slot", 0)) + 1)
-			if _is_item_equipped(item_id, instance_id):
-				slot_label += ", equipped"
-			var label: String = "Reinforce %s (%s)  •  %d Bronze Bars  •  Lv 2" % [item_id.capitalize(), slot_label, bar_cost]
-			_crafting_menu.add_item(label, next_menu_id)
-			_crafting_menu_actions[next_menu_id] = {
-				"recipe_id": "reinforce_%s" % item_id,
-				"instance_id": instance_id,
-			}
-			next_menu_id += 1
 	_crafting_menu.position = Vector2i(screen_position)
 	_crafting_menu.popup()
 
@@ -1158,23 +1173,29 @@ func _add_reinforcement_smithing_tab() -> void:
 	reinforce_scroll.add_child(reinforce_list)
 	smithing_tabs.add_child(reinforce_scroll)
 	var candidates: int = 0
+	var smithing_level: int = int((_skill_progress.get("smithing", {}) as Dictionary).get("level", 1))
 	for payload: Variant in _inventory_items:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
 		var item := payload as Dictionary
 		var item_id: String = str(item.get("item_id", ""))
 		var instance_id: String = str(item.get("instance_id", ""))
-		if instance_id.is_empty() or int(item.get("reinforcement", 0)) > 0 or not item_id in ["bronze_sword", "bronze_helm"]:
+		var reinforcement: int = int(item.get("reinforcement", 0))
+		var reinforcement_data := _reinforcement_data(item_id)
+		if instance_id.is_empty() or reinforcement >= MAXIMUM_REINFORCEMENT or reinforcement_data.is_empty():
 			continue
-		var bar_cost: int = 3 if item_id == "bronze_sword" else 2
+		var bar_cost: int = int(reinforcement_data.get("cost", 0))
+		var required_level: int = int(reinforcement_data.get("level", 1))
 		var recipe_button := Button.new()
 		recipe_button.custom_minimum_size = Vector2(0, 90)
-		recipe_button.text = "Reinforce %s\n%d Bronze Bars  •  Smithing 2  •  inventory slot %d" % [
-			item_id.capitalize(), bar_cost, int(item.get("slot", 0)) + 1,
+		recipe_button.text = "Reinforce %s to +%d\n%d %s  •  Smithing %d  •  inventory slot %d" % [
+			item_id.capitalize(), reinforcement + 1, bar_cost, reinforcement_data.get("bar_name", "Bars"),
+			required_level, int(item.get("slot", 0)) + 1,
 		]
 		recipe_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
 		recipe_button.add_theme_constant_override("icon_max_width", 56)
+		recipe_button.disabled = smithing_level < required_level
 		recipe_button.pressed.connect(_select_smithing_recipe.bind("reinforce_%s" % item_id, instance_id))
 		reinforce_list.add_child(recipe_button)
 		candidates += 1
@@ -1184,6 +1205,23 @@ func _add_reinforcement_smithing_tab() -> void:
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.custom_minimum_size = Vector2(0, 80)
 		reinforce_list.add_child(empty_label)
+
+
+func _reinforcement_data(item_id: String) -> Dictionary:
+	for tier_data_value: Variant in REINFORCEMENT_TIERS.values():
+		var tier_data := tier_data_value as Dictionary
+		if not item_id in (tier_data.get("items", []) as Array):
+			continue
+		var result := tier_data.duplicate()
+		var slot: String = str(ARMOUR_SLOTS.get(item_id, ""))
+		var cost := 3 if EQUIPMENT_ICONS.has(item_id) else 2
+		if slot == "body":
+			cost = 4
+		elif slot in ["legs", "left_hand"]:
+			cost = 3
+		result["cost"] = cost
+		return result
+	return {}
 
 
 func _select_smithing_recipe(recipe_id: String, instance_id: String) -> void:
@@ -1984,6 +2022,12 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Praying at the altar…"
 					"prayer_restored":
 						status_label.text = "Prayer points fully restored"
+					"sacrificed_bone":
+						status_label.text = "Sacrificing bones… • 10 Prayer XP"
+					"missing_bones":
+						status_label.text = "All bones sacrificed"
+					"sacrificed_all_bones":
+						status_label.text = "All bones sacrificed • Prayer XP gained"
 					"fishing":
 						status_label.text = "Fishing…"
 					"missing_fishing_rod":
@@ -2042,10 +2086,6 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Forged 20 Iron Arrow Tips • Smithing continues…"
 					"missing_forging_inputs":
 						status_label.text = "Smithing stopped: required bars are missing"
-					"reinforced_bronze_sword":
-						status_label.text = "Bronze Sword reinforced to +1"
-					"reinforced_bronze_helm":
-						status_label.text = "Bronze Helm reinforced to +1"
 					"reinforcement_failed":
 						status_label.text = "Reinforcement stopped: item or bars are unavailable"
 					"missing_bronze_pickaxe":
@@ -2067,6 +2107,12 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						elif _gathering_result.begins_with("forged_"):
 							var forged_name: String = _gathering_result.trim_prefix("forged_").replace("_", " ").capitalize()
 							status_label.text = "Forged a %s • Smithing continues…" % forged_name
+						elif _gathering_result.begins_with("reinforced_"):
+							var reinforcement_result := _gathering_result.trim_prefix("reinforced_")
+							var result_parts := reinforcement_result.rsplit("_to_", true, 1)
+							var reinforced_name: String = str(result_parts[0]).replace("_", " ").capitalize()
+							var reinforced_level: String = str(result_parts[1]) if result_parts.size() > 1 else ""
+							status_label.text = "%s reinforced to +%s" % [reinforced_name, reinforced_level]
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))
 			var equipped_weapon_reinforcement: int = int(player_data.get("equipped_weapon_reinforcement", 0))
@@ -3101,6 +3147,8 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "brewing mixtures grants Herblore XP • click to open Experimental Brewing"
 		"fletching":
 			training_description = "making shafts and arrows grants Fletching XP • click to open Fletching"
+		"prayer":
+			training_description = "sacrificing bones at a Prayer Altar grants Prayer XP"
 		"agility":
 			training_description = "completing Agility obstacles grants Agility XP and increases movement speed"
 	if next_level_experience <= 0:
@@ -3330,11 +3378,11 @@ func _update_equipment_hud() -> void:
 		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
 		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon, "instance": _equipped_weapon_instance_id, "reinforcement": _equipped_weapon_reinforcement},
 		{"slot": "body", "name": "Body", "item": str(_equipped_armour.get("body", "")), "instance": str(_equipped_armour_instances.get("body", "")), "reinforcement": int(_equipped_armour_reinforcements.get("body", 0))},
-		{"slot": "left_hand", "name": "Left Hand", "item": ""},
-		{"slot": "ammunition", "name": "Ammunition Pouch", "item": ""},
-		{"slot": "legs", "name": "Legs", "item": ""},
+		{"slot": "left_hand", "name": "Left Hand", "item": str(_equipped_armour.get("left_hand", "")), "instance": str(_equipped_armour_instances.get("left_hand", "")), "reinforcement": int(_equipped_armour_reinforcements.get("left_hand", 0))},
+		{"slot": "hands", "name": "Hands", "item": str(_equipped_armour.get("hands", "")), "instance": str(_equipped_armour_instances.get("hands", "")), "reinforcement": int(_equipped_armour_reinforcements.get("hands", 0))},
+		{"slot": "legs", "name": "Legs", "item": str(_equipped_armour.get("legs", "")), "instance": str(_equipped_armour_instances.get("legs", "")), "reinforcement": int(_equipped_armour_reinforcements.get("legs", 0))},
 		{"slot": "ring", "name": "Ring", "item": ""},
-		{"spacer": true},
+		{"slot": "ammunition", "name": "Ammunition Pouch", "item": ""},
 		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", "")), "instance": str(_equipped_armour_instances.get("feet", "")), "reinforcement": int(_equipped_armour_reinforcements.get("feet", 0))},
 		{"spacer": true},
 	]
@@ -3569,6 +3617,9 @@ func _detailed_effects_text() -> String:
 		+"Neck: %s\n" % _equipment_item_name("neck")
 		+"Head: %s\n" % _equipment_item_name("head")
 		+"Body: %s\n" % _equipment_item_name("body")
+		+"Left hand: %s\n" % _equipment_item_name("left_hand")
+		+"Hands: %s\n" % _equipment_item_name("hands")
+		+"Legs: %s\n" % _equipment_item_name("legs")
 		+"Feet: %s\n\n" % _equipment_item_name("feet")
 		+"SET EFFECTS\n"
 		+"Swift set: %s (%d/3 pieces)\n" % [swift_status, swift_pieces]
@@ -4073,12 +4124,13 @@ func _update_combat_hud() -> void:
 	var displayed_respawn_pulse: int = int(displayed_target.get("respawn_at_pulse", 0))
 	var displayed_target_id: String = str(displayed_target.get("target_id", ""))
 	var target_name: String = str(displayed_target.get("name", "No Target"))
+	var target_attack_type: String = str(displayed_target.get("attack_type", "crush")).capitalize()
 	target_health_bar.max_value = maxi(1, displayed_maximum_health)
 	target_health_bar.value = displayed_health
 	target_health_label.text = "%s  %d/%d" % [target_name, displayed_health, displayed_maximum_health]
 
 	var has_aggro: bool = displayed_target_id == _local_player_id
-	aggro_label.text = "ENEMY AGGRO" if has_aggro else "No aggro"
+	aggro_label.text = "%s • ENEMY AGGRO" % target_attack_type if has_aggro else "%s attacks • No aggro" % target_attack_type
 	aggro_label.modulate = Color(1.0, 0.42, 0.32) if has_aggro else Color(0.65, 0.72, 0.78)
 	if _player_defeated:
 		combat_state_label.text = "Defeated — %s" % state

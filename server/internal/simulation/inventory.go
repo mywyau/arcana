@@ -334,6 +334,9 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 			if item.InstanceID == "" {
 				item.InstanceID = newItemInstanceID()
 			}
+			if item.Reinforcement < 0 || item.Reinforcement > maximumReinforcementLevel {
+				return inventoryState{}, fmt.Errorf("instanced inventory item %q has invalid reinforcement +%d", item.ItemID, item.Reinforcement)
+			}
 			if _, duplicate := instanceIDs[item.InstanceID]; duplicate {
 				return inventoryState{}, fmt.Errorf("inventory instance %q is duplicated", item.InstanceID)
 			}

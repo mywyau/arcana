@@ -95,6 +95,49 @@ func TestPrayerAltarRestoresPrayerToMaximum(t *testing.T) {
 	}
 }
 
+func TestPrayerAltarSacrificesAllBonesOnePerPulseAndGrantsXP(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterPrayerAltarID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemBones, 10)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterPrayerAltarID, RecipeID: prayerSacrificeBonesID,
+	}); err != nil {
+		t.Fatalf("QueueGather(sacrifice bones) returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(actionPulseInterval)
+	first := mustPlayer(t, world, "player-one")
+	if first.Inventory.itemsQuantity(ItemBones) != 9 || mustSkill(t, first, SkillPrayer).Experience != prayerBoneExperience ||
+		first.GatheringResult != "sacrificed_bone" {
+		t.Fatalf("first bone sacrifice = %+v", first)
+	}
+
+	world.Step(9 * actionPulseInterval)
+	finished := mustPlayer(t, world, "player-one")
+	prayer := mustSkill(t, finished, SkillPrayer)
+	if finished.Inventory.itemsQuantity(ItemBones) != 0 || prayer.Experience != 100 || prayer.Level != 2 ||
+		finished.GatheringSpot != "" || finished.GatheringResult != "sacrificed_all_bones" {
+		t.Fatalf("completed bone sacrifice = %+v", finished)
+	}
+}
+
+func TestPrayerAltarRejectsBoneSacrificeWithoutBones(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterPrayerAltarID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterPrayerAltarID, RecipeID: prayerSacrificeBonesID,
+	}); err == nil {
+		t.Fatal("QueueGather(sacrifice bones) error = nil without bones")
+	}
+}
+
 func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	world := NewWorld()
 	pond := world.gatheringSpots[starterSalmonSpotID]
@@ -650,7 +693,7 @@ func TestAnvilReinforcesOneEquipmentInstanceAndStops(t *testing.T) {
 		t.Fatalf("inventory after reinforcement = %+v", world.players["player-one"].inventory.items)
 	}
 	snapshot := mustPlayer(t, world, "player-one")
-	if snapshot.GatheringSpot != "" || snapshot.GatheringResult != "reinforced_bronze_sword" {
+	if snapshot.GatheringSpot != "" || snapshot.GatheringResult != "reinforced_bronze_sword_to_1" {
 		t.Fatalf("gathering state after reinforcement = %+v", snapshot)
 	}
 }

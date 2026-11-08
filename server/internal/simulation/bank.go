@@ -87,7 +87,7 @@ func bankFromSnapshot(snapshot BankSnapshot) (bankState, error) {
 		}
 		occupied[item.Slot] = struct{}{}
 		if itemIsInstanced(item.ItemID) {
-			if item.Quantity != 1 || item.InstanceID == "" {
+			if item.Quantity != 1 || item.InstanceID == "" || item.Reinforcement < 0 || item.Reinforcement > maximumReinforcementLevel {
 				return bankState{}, fmt.Errorf("bank equipment %q requires one instance", item.ItemID)
 			}
 			if _, duplicate := instances[item.InstanceID]; duplicate {

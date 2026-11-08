@@ -54,8 +54,6 @@ const (
 	dummyAttackRange              = 1.55
 	dummyLeashRange               = 6.0
 	roamingEnemySpeed             = 3.0
-	roamingDetectionRange         = 5.0
-	roamingLeashRange             = 8.0
 	roamingRepathPulses           = 1
 	respawnDelayPulses            = 5
 	dummyTargetID                 = "dummy"
@@ -173,14 +171,14 @@ func equippedWeaponDefinitionForStyle(player *playerState) (WeaponDefinition, bo
 	if !exists {
 		return WeaponDefinition{}, false
 	}
-	if equippedReinforcement(player, player.equippedWeaponInstanceID) > 0 {
-		weapon.AccuracyBonus++
+	if reinforcement := equippedReinforcement(player, player.equippedWeaponInstanceID); reinforcement > 0 {
+		weapon.AccuracyBonus += reinforcement
 		if weapon.MeleeStrength > 0 {
-			weapon.MeleeStrength++
+			weapon.MeleeStrength += reinforcement
 		} else if weapon.RangedStrength > 0 {
-			weapon.RangedStrength++
+			weapon.RangedStrength += reinforcement
 		} else if weapon.MagicStrength > 0 {
-			weapon.MagicStrength++
+			weapon.MagicStrength += reinforcement
 		}
 	}
 	return weapon, true
@@ -245,6 +243,7 @@ type TargetSnapshot struct {
 	DodgeRate       float64
 	Accuracy        int
 	Evasion         int
+	AttackType      DamageType
 }
 
 type combatState struct {
@@ -305,6 +304,7 @@ func newCombatState() *combatState {
 		DodgeRate:     dummyDodgeRate,
 		Accuracy:      dummyAccuracyScore,
 		Evasion:       dummyEvasionScore,
+		AttackType:    combatProfileForEnemy(hillWardenTargetID).DamageType,
 	}
 	wildFowl := &TargetSnapshot{
 		ID:            wildFowlTargetID,
@@ -316,6 +316,7 @@ func newCombatState() *combatState {
 		DodgeRate:     0.05,
 		Accuracy:      5,
 		Evasion:       1,
+		AttackType:    combatProfileForEnemy(wildFowlTargetID).DamageType,
 	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
@@ -329,6 +330,7 @@ func newCombatState() *combatState {
 				DodgeRate:     dummyDodgeRate,
 				Accuracy:      dummyAccuracyScore,
 				Evasion:       dummyEvasionScore,
+				AttackType:    DamageTypeCrush,
 			},
 			upperDummyTargetID: {
 				ID:            upperDummyTargetID,
@@ -340,6 +342,7 @@ func newCombatState() *combatState {
 				DodgeRate:     dummyDodgeRate,
 				Accuracy:      dummyAccuracyScore,
 				Evasion:       dummyEvasionScore,
+				AttackType:    DamageTypeCrush,
 			},
 			overlookDummyTargetID: {
 				ID:            overlookDummyTargetID,
@@ -351,6 +354,7 @@ func newCombatState() *combatState {
 				DodgeRate:     dummyDodgeRate,
 				Accuracy:      dummyAccuracyScore,
 				Evasion:       dummyEvasionScore,
+				AttackType:    DamageTypeCrush,
 			},
 			hillWardenTargetID: hillWarden,
 			wildFowlTargetID:   wildFowl,
@@ -909,8 +913,9 @@ func (w *World) resolveAutoAttacks() {
 			SpellID:  player.selectedSpell,
 		})
 		if target.TargetID == "" {
+			profile := combatProfileForEnemy(player.combatTarget)
 			target.TargetID = player.id
-			target.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+			target.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 		}
 		if target.Health == 0 {
 			w.defeatDummy(player.combatTarget, target)
@@ -979,28 +984,29 @@ func (w *World) updateRoamingEnemies() {
 	sort.Strings(ids)
 	for _, id := range ids {
 		enemy := w.combat.roamingEnemies[id]
+		profile := combatProfileForEnemy(id)
 		if enemy.target.Defeated {
 			continue
 		}
 
 		hadTarget := enemy.target.TargetID != ""
 		player, hasTarget := w.players[enemy.target.TargetID]
-		if hadTarget && (!hasTarget || player.defeated || distance(player.position, enemy.home) > roamingLeashRange) {
+		if hadTarget && (!hasTarget || player.defeated || distance(player.position, enemy.home) > profile.LeashRange) {
 			clearDummyTarget(enemy.target)
 			enemy.path = nil
 			hasTarget = false
 		}
 		if !hasTarget {
-			player = w.nearestDetectablePlayer(enemy)
+			player = w.nearestDetectablePlayer(id, enemy)
 			if player != nil {
 				enemy.target.TargetID = player.id
-				enemy.target.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+				enemy.target.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 				hasTarget = true
 			}
 		}
 
 		if hasTarget {
-			if distance(enemy.target.Position, player.position) <= dummyAttackRange {
+			if distance(enemy.target.Position, player.position) <= profile.AttackRange {
 				enemy.path = nil
 				continue
 			}
@@ -1020,15 +1026,16 @@ func (w *World) updateRoamingEnemies() {
 	}
 }
 
-func (w *World) nearestDetectablePlayer(enemy *roamingEnemyState) *playerState {
+func (w *World) nearestDetectablePlayer(enemyID string, enemy *roamingEnemyState) *playerState {
+	profile := combatProfileForEnemy(enemyID)
 	var nearest *playerState
 	nearestDistance := math.Inf(1)
 	for _, player := range w.players {
-		if player.defeated || distance(player.position, enemy.home) > roamingLeashRange {
+		if player.defeated || distance(player.position, enemy.home) > profile.LeashRange {
 			continue
 		}
 		candidateDistance := distance(enemy.target.Position, player.position)
-		if candidateDistance > roamingDetectionRange {
+		if candidateDistance > profile.DetectionRange {
 			continue
 		}
 		if candidateDistance < nearestDistance ||
@@ -1073,17 +1080,18 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 	distanceToPlayer := distance(dummy.Position, player.position)
+	profile := combatProfileForEnemy(dummyID)
 	_, roaming := w.combat.roamingEnemies[dummyID]
-	if (!roaming && distanceToPlayer > dummyLeashRange) ||
-		(roaming && distance(player.position, w.combat.roamingEnemies[dummyID].home) > roamingLeashRange) {
+	if (!roaming && distanceToPlayer > profile.LeashRange) ||
+		(roaming && distance(player.position, w.combat.roamingEnemies[dummyID].home) > profile.LeashRange) {
 		clearDummyTarget(dummy)
 		return
 	}
-	if distanceToPlayer > dummyAttackRange || w.combat.pulse < dummy.NextAttackPulse {
+	if distanceToPlayer > profile.AttackRange || w.combat.pulse < dummy.NextAttackPulse {
 		return
 	}
 
-	dummy.NextAttackPulse = w.combat.pulse + dummyAttackIntervalPulses
+	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 	if w.rollSource.Float64() < playerDodgeChance(dummy.Accuracy, player) {
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
@@ -1094,11 +1102,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
-	attackDamage := dummyAttackDamage
-	if dummyID == wildFowlTargetID {
-		attackDamage = wildFowlAttackDamage
-	}
-	damageDealt := reduceIncomingDamage(player, attackDamage, DamageTypeCrush)
+	damageDealt := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType)
 	player.health = max(0, player.health-damageDealt)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,

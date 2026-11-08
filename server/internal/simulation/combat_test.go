@@ -92,6 +92,7 @@ func TestRoamingEnemyDetectsAndChasesNearbyPlayer(t *testing.T) {
 
 func TestRoamingEnemyAttacksAfterDetectionCadence(t *testing.T) {
 	world := newCombatTestWorld()
+	profile := combatProfileForEnemy(hillWardenTargetID)
 	home := world.combat.roamingEnemies[hillWardenTargetID].home
 	mustAddPlayer(t, world, "player-one", Position{X: home.X + 1, Y: home.Y, Z: home.Z}, 4)
 
@@ -99,8 +100,8 @@ func TestRoamingEnemyAttacksAfterDetectionCadence(t *testing.T) {
 	if got := mustPlayer(t, world, "player-one").Health; got != playerMaximumHealth {
 		t.Fatalf("player health on detection pulse = %d, want %d", got, playerMaximumHealth)
 	}
-	world.Step(dummyAttackIntervalPulses * actionPulseInterval)
-	if got, want := mustPlayer(t, world, "player-one").Health, playerMaximumHealth-dummyAttackDamage; got != want {
+	world.Step(time.Duration(profile.AttackInterval) * actionPulseInterval)
+	if got, want := mustPlayer(t, world, "player-one").Health, playerMaximumHealth-profile.AttackDamage; got != want {
 		t.Fatalf("player health after roaming attack = %d, want %d", got, want)
 	}
 }
@@ -116,7 +117,11 @@ func TestRoamingEnemyLeashesAndReturnsHome(t *testing.T) {
 	if got := mustTarget(t, world.Snapshot(), hillWardenTargetID).Position; got == home {
 		t.Fatal("roaming enemy did not leave home before leash test")
 	}
-	world.players["player-one"].position = Position{X: home.X + roamingLeashRange + 1, Y: home.Y, Z: home.Z}
+	world.players["player-one"].position = Position{
+		X: home.X + combatProfileForEnemy(hillWardenTargetID).LeashRange + 1,
+		Y: home.Y,
+		Z: home.Z,
+	}
 	world.Step(actionPulseInterval)
 	if got := mustTarget(t, world.Snapshot(), hillWardenTargetID).TargetID; got != "" {
 		t.Fatalf("roaming enemy retained target outside leash: %q", got)

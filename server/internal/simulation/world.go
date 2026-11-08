@@ -504,12 +504,12 @@ func (w *World) Step(elapsed time.Duration) {
 }
 
 func (w *World) moveRoamingEnemies(seconds float64) {
-	for _, enemy := range w.combat.roamingEnemies {
+	for id, enemy := range w.combat.roamingEnemies {
 		if enemy.target.Defeated || len(enemy.path) == 0 {
 			continue
 		}
 		if player, exists := w.players[enemy.target.TargetID]; exists &&
-			distance(enemy.target.Position, player.position) <= dummyAttackRange {
+			distance(enemy.target.Position, player.position) <= combatProfileForEnemy(id).AttackRange {
 			enemy.path = nil
 			continue
 		}

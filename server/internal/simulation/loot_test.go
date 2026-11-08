@@ -368,7 +368,8 @@ func TestHillWardenAlwaysDropsAirRunesInConfiguredRange(t *testing.T) {
 	target := world.combat.targets[hillWardenTargetID]
 	world.defeatDummy(hillWardenTargetID, target)
 	drops := world.Snapshot().Drops
-	if len(drops) != 1 || drops[0].ItemID != ItemAirRune || drops[0].Quantity != 8 || drops[0].Position != target.Position {
+	if len(drops) != 2 || drops[0].ItemID != ItemBones || drops[0].Quantity != 1 ||
+		drops[1].ItemID != ItemAirRune || drops[1].Quantity != 8 || drops[1].Position != target.Position {
 		t.Fatalf("Hill Warden common drops = %+v, want 8 air runes", drops)
 	}
 }
@@ -378,8 +379,8 @@ func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
 	target := world.combat.targets[hillWardenTargetID]
 	world.defeatDummy(hillWardenTargetID, target)
 	drops := world.Snapshot().Drops
-	if len(drops) != 2 || drops[0].ItemID != ItemAirRune || drops[0].Quantity != 5 ||
-		drops[1].ItemID != ItemTrainingPlate || drops[1].Quantity != 1 {
+	if len(drops) != 3 || drops[0].ItemID != ItemBones || drops[1].ItemID != ItemAirRune || drops[1].Quantity != 5 ||
+		drops[2].ItemID != ItemTrainingPlate || drops[2].Quantity != 1 {
 		t.Fatalf("Hill Warden rare drops = %+v", drops)
 	}
 }
@@ -389,7 +390,8 @@ func TestWildFowlDropsFeathersInConfiguredRange(t *testing.T) {
 	target := world.combat.targets[wildFowlTargetID]
 	world.defeatDummy(wildFowlTargetID, target)
 	drops := world.Snapshot().Drops
-	if len(drops) != 1 || drops[0].ItemID != ItemFeathers || drops[0].Quantity != 13 || drops[0].Position != target.Position {
+	if len(drops) != 2 || drops[0].ItemID != ItemBones || drops[0].Quantity != 1 ||
+		drops[1].ItemID != ItemFeathers || drops[1].Quantity != 13 || drops[1].Position != target.Position {
 		t.Fatalf("Wild Fowl drops = %+v, want 13 feathers", drops)
 	}
 }
