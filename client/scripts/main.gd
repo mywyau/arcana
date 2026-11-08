@@ -781,10 +781,10 @@ var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
 var _fletch_quantity_dialog: ConfirmationDialog
 var _fletch_quantity_input: SpinBox
-var _smelting_action_menu: PopupMenu
-var _smelting_menu_recipe_id: String = ""
-var _smelting_quantity_dialog: ConfirmationDialog
-var _smelting_quantity_input: SpinBox
+var _production_action_menu: PopupMenu
+var _production_batch_action: Dictionary = {}
+var _production_quantity_dialog: ConfirmationDialog
+var _production_quantity_input: SpinBox
 var _cooking_details_visible: bool = false
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
@@ -849,8 +849,7 @@ func _ready() -> void:
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
-	_setup_smelting_action_menu()
-	_setup_smelting_quantity_dialog()
+	_setup_production_batch_controls()
 	smithing_window.close_requested.connect(smithing_window.hide)
 	smithing_window.window_input.connect(_on_crafting_window_input.bind(smithing_window))
 	smelting_window.close_requested.connect(smelting_window.hide)
@@ -1026,12 +1025,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					return
 			match key_event.keycode:
 				KEY_ESCAPE:
-					if _smelting_action_menu != null and _smelting_action_menu.visible:
-						_smelting_action_menu.hide()
+					if _production_action_menu != null and _production_action_menu.visible:
+						_production_action_menu.hide()
 						get_viewport().set_input_as_handled()
 						return
-					if _smelting_quantity_dialog != null and _smelting_quantity_dialog.visible:
-						_smelting_quantity_dialog.hide()
+					if _production_quantity_dialog != null and _production_quantity_dialog.visible:
+						_production_quantity_dialog.hide()
 						get_viewport().set_input_as_handled()
 						return
 					if _hud_edit_mode:
@@ -1657,6 +1656,7 @@ func _refresh_cooking_grid() -> void:
 		else:
 			recipe_button.tooltip_text = "Cook %s until you run out" % recipe.get("name", recipe_id.capitalize())
 		recipe_button.pressed.connect(_select_cooking_recipe.bind(recipe_id))
+		recipe_button.gui_input.connect(_on_cooking_recipe_input.bind(recipe_id))
 		cooking_grid.add_child(recipe_button)
 
 
@@ -1703,69 +1703,114 @@ func _select_smelting_recipe(recipe_id: String, quantity: int = 0) -> void:
 	_request_gather(_selected_station_id, _selected_station_position, recipe_id, "", quantity)
 
 
-func _setup_smelting_action_menu() -> void:
-	_smelting_action_menu = PopupMenu.new()
-	_smelting_action_menu.name = "SmeltingActionMenu"
-	var menu_panel_style := StyleBoxFlat.new()
-	menu_panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
-	_smelting_action_menu.add_theme_stylebox_override("panel", menu_panel_style)
-	_smelting_action_menu.add_item("Make 1", 0)
-	_smelting_action_menu.add_item("Make X", 1)
-	_smelting_action_menu.add_item("Make All", 2)
-	_smelting_action_menu.id_pressed.connect(_on_smelting_action_selected)
-	add_child(_smelting_action_menu)
-
-
-func _setup_smelting_quantity_dialog() -> void:
-	_smelting_quantity_dialog = ConfirmationDialog.new()
-	_style_interface_window(_smelting_quantity_dialog)
-	_smelting_quantity_dialog.title = "Make X bars"
-	_smelting_quantity_dialog.dialog_text = "Choose how many bars to smelt:"
-	_smelting_quantity_dialog.min_size = Vector2i(360, 180)
-	_smelting_quantity_dialog.get_ok_button().text = "Start smelting"
-	_smelting_quantity_input = SpinBox.new()
-	_smelting_quantity_input.min_value = 1
-	_smelting_quantity_input.max_value = 10_000
-	_smelting_quantity_input.step = 1
-	_smelting_quantity_input.value = 5
-	_smelting_quantity_input.custom_minimum_size = Vector2(280, 44)
-	_smelting_quantity_input.position = Vector2(40, 74)
-	_smelting_quantity_dialog.add_child(_smelting_quantity_input)
-	_smelting_quantity_dialog.confirmed.connect(_confirm_smelting_quantity)
-	add_child(_smelting_quantity_dialog)
-
-
 func _on_smelting_recipe_input(event: InputEvent, recipe_id: String) -> void:
 	var mouse_event := event as InputEventMouseButton
 	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_RIGHT:
 		return
-	_smelting_menu_recipe_id = recipe_id
-	_smelting_action_menu.position = Vector2i(get_viewport().get_mouse_position())
-	_smelting_action_menu.popup()
+	_production_batch_action = {
+		"station": "smelting",
+		"spot_id": _selected_station_id,
+		"position": _selected_station_position,
+		"recipe_id": recipe_id,
+	}
+	_production_action_menu.position = Vector2i(get_viewport().get_mouse_position())
+	_production_action_menu.popup()
 	get_viewport().set_input_as_handled()
 
 
-func _on_smelting_action_selected(action_id: int) -> void:
-	if _smelting_menu_recipe_id.is_empty():
+func _select_cooking_recipe(recipe_id: String, quantity: int = 0) -> void:
+	cooking_window.hide()
+	_request_gather(_selected_station_id, _selected_station_position, recipe_id, "", quantity)
+
+
+func _setup_production_batch_controls() -> void:
+	_production_action_menu = PopupMenu.new()
+	_production_action_menu.name = "ProductionActionMenu"
+	var menu_panel_style := StyleBoxFlat.new()
+	menu_panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
+	_production_action_menu.add_theme_stylebox_override("panel", menu_panel_style)
+	_production_action_menu.add_item("Make 1", 0)
+	_production_action_menu.add_item("Make X", 1)
+	_production_action_menu.add_item("Make All", 2)
+	_production_action_menu.id_pressed.connect(_on_production_action_selected)
+	add_child(_production_action_menu)
+
+	_production_quantity_dialog = ConfirmationDialog.new()
+	_style_interface_window(_production_quantity_dialog)
+	_production_quantity_dialog.title = "Make X"
+	_production_quantity_dialog.dialog_text = "Choose how many to make:"
+	_production_quantity_dialog.min_size = Vector2i(360, 180)
+	_production_quantity_dialog.get_ok_button().text = "Start"
+	_production_quantity_input = SpinBox.new()
+	_production_quantity_input.min_value = 1
+	_production_quantity_input.max_value = 10_000
+	_production_quantity_input.step = 1
+	_production_quantity_input.value = 5
+	_production_quantity_input.custom_minimum_size = Vector2(280, 44)
+	_production_quantity_input.position = Vector2(40, 74)
+	_production_quantity_dialog.add_child(_production_quantity_input)
+	_production_quantity_dialog.confirmed.connect(_confirm_production_quantity)
+	add_child(_production_quantity_dialog)
+
+
+func _on_cooking_recipe_input(event: InputEvent, recipe_id: String) -> void:
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_RIGHT:
 		return
+	_production_batch_action = {
+		"station": "cooking",
+		"spot_id": _selected_station_id,
+		"position": _selected_station_position,
+		"recipe_id": recipe_id,
+	}
+	_production_action_menu.position = Vector2i(get_viewport().get_mouse_position())
+	_production_action_menu.popup()
+	get_viewport().set_input_as_handled()
+
+
+func _on_production_action_selected(action_id: int) -> void:
 	match action_id:
 		0:
-			_select_smelting_recipe(_smelting_menu_recipe_id, 1)
+			_start_production_batch(1)
 		1:
-			_smelting_quantity_dialog.popup_centered()
-			_smelting_quantity_input.grab_focus()
-			_smelting_quantity_input.get_line_edit().select_all()
+			_open_production_quantity_dialog()
 		2:
-			_select_smelting_recipe(_smelting_menu_recipe_id, 0)
+			_start_production_batch(0)
 
 
-func _confirm_smelting_quantity() -> void:
-	_select_smelting_recipe(_smelting_menu_recipe_id, int(_smelting_quantity_input.value))
+func _open_production_quantity_dialog() -> void:
+	if _production_batch_action.is_empty():
+		return
+	var station: String = str(_production_batch_action.get("station", "production"))
+	match station:
+		"cooking": _production_quantity_dialog.title = "Cook X"
+		"smelting": _production_quantity_dialog.title = "Smelt X"
+		_: _production_quantity_dialog.title = "Craft X"
+	_production_quantity_input.value = 5
+	_production_quantity_dialog.popup_centered()
+	_production_quantity_input.grab_focus()
+	_production_quantity_input.get_line_edit().select_all()
 
 
-func _select_cooking_recipe(recipe_id: String) -> void:
-	cooking_window.hide()
-	_request_gather(_selected_station_id, _selected_station_position, recipe_id)
+func _confirm_production_quantity() -> void:
+	_start_production_batch(int(_production_quantity_input.value))
+
+
+func _start_production_batch(quantity: int) -> void:
+	if _production_batch_action.is_empty():
+		return
+	var station: String = str(_production_batch_action.get("station", ""))
+	if station == "cooking":
+		cooking_window.hide()
+	elif station == "smelting":
+		smelting_window.hide()
+	_request_gather(
+		str(_production_batch_action.get("spot_id", "")),
+		_production_batch_action.get("position", Vector3.ZERO) as Vector3,
+		str(_production_batch_action.get("recipe_id", "")),
+		"",
+		quantity,
+	)
 
 
 func _open_smithing_window() -> void:
@@ -2189,30 +2234,47 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 		var spot_name: String = str(gathering_hit.get("name", "Resource"))
 		var skill: String = str(gathering_hit.get("skill", ""))
 		var station: String = str(gathering_hit.get("station", ""))
-		var action_verb: String
-		var action_target: String
-		match station:
-			"smelting": action_verb = "Smelt"; action_target = spot_name
-			"forging": action_verb = "Smith"; action_target = spot_name
-			"cooking": action_verb = "Cook"; action_target = spot_name
-			"fishing": action_verb = "Fish"; action_target = spot_name
-			"runecrafting": action_verb = "Craft"; action_target = "Air Runes"
-			_:
-				match skill:
-					"mining": action_verb = "Mine"; action_target = spot_name
-					"woodcutting": action_verb = "Chop down"; action_target = spot_name
-					"agility": action_verb = "Cross"; action_target = spot_name
-					_: action_verb = "Use"; action_target = spot_name
-		_add_world_context_action(action_verb, action_target, next_menu_id)
-		_context_menu_actions[next_menu_id] = {
-			"type": "station" if CRAFTING_RECIPES.has(station) and station != "fishing" else "gather",
-			"spot_id": str(gathering_hit.get("spot_id", "")),
-			"position": gathering_hit.get("position", Vector3.ZERO),
-			"station": station,
-			"recipe_id": str(gathering_hit.get("recipe_id", "")),
-			"screen_position": screen_position,
-		}
-		next_menu_id += 1
+		if station == "runecrafting":
+			var batch_options: Array[Dictionary] = [
+				{"verb": "Craft 1", "quantity": 1},
+				{"verb": "Craft X", "quantity": -1},
+				{"verb": "Craft All", "quantity": 0},
+			]
+			for option: Dictionary in batch_options:
+				_add_world_context_action(str(option["verb"]), "Air Runes", next_menu_id)
+				_context_menu_actions[next_menu_id] = {
+					"type": "production_batch",
+					"station": station,
+					"spot_id": str(gathering_hit.get("spot_id", "")),
+					"position": gathering_hit.get("position", Vector3.ZERO),
+					"recipe_id": str(gathering_hit.get("recipe_id", "")),
+					"quantity": int(option["quantity"]),
+				}
+				next_menu_id += 1
+		else:
+			var action_verb: String
+			var action_target: String
+			match station:
+				"smelting": action_verb = "Smelt"; action_target = spot_name
+				"forging": action_verb = "Smith"; action_target = spot_name
+				"cooking": action_verb = "Cook"; action_target = spot_name
+				"fishing": action_verb = "Fish"; action_target = spot_name
+				_:
+					match skill:
+						"mining": action_verb = "Mine"; action_target = spot_name
+						"woodcutting": action_verb = "Chop down"; action_target = spot_name
+						"agility": action_verb = "Cross"; action_target = spot_name
+						_: action_verb = "Use"; action_target = spot_name
+			_add_world_context_action(action_verb, action_target, next_menu_id)
+			_context_menu_actions[next_menu_id] = {
+				"type": "station" if CRAFTING_RECIPES.has(station) and station != "fishing" else "gather",
+				"spot_id": str(gathering_hit.get("spot_id", "")),
+				"position": gathering_hit.get("position", Vector3.ZERO),
+				"station": station,
+				"recipe_id": str(gathering_hit.get("recipe_id", "")),
+				"screen_position": screen_position,
+			}
+			next_menu_id += 1
 
 	var target_id: String = _target_id_at_screen_position(screen_position)
 	if not target_id.is_empty():
@@ -2447,6 +2509,13 @@ func _on_world_context_action(menu_id: int) -> void:
 				action.get("position", Vector3.ZERO) as Vector3,
 				str(action.get("recipe_id", "")),
 			)
+		"production_batch":
+			_production_batch_action = action.duplicate()
+			var quantity: int = int(action.get("quantity", 0))
+			if quantity < 0:
+				_open_production_quantity_dialog()
+			else:
+				_start_production_batch(quantity)
 		"attack":
 			var target_id: String = str(action.get("target_id", ""))
 			var target_view := _target_views.get(target_id) as TargetDummy
@@ -3071,6 +3140,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_refresh_fletching_window()
 			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
 			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
+			var previous_gathering_spot: String = _gathering_spot
 			_gathering_spot = str(player_data.get("gathering_spot", ""))
 			_next_gather_pulse = int(player_data.get("next_gather_pulse", 0))
 			var gathering_result_text: String = str(player_data.get("gathering_result", ""))
@@ -3113,7 +3183,11 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"cooking":
 						status_label.text = "Cooking…"
 					"cooked_minnow":
-						status_label.text = "Cooked a Minnow • Cooking continues…"
+						status_label.text = (
+							"Cooking batch complete • Cooked a Minnow"
+							if _gathering_spot.is_empty()
+							else "Cooked a Minnow • Cooking continues…"
+						)
 					"missing_raw_minnow":
 						status_label.text = "Cooking stopped: no Raw Minnows"
 					"mining":
@@ -3141,11 +3215,23 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"smelting":
 						status_label.text = "Smelting…"
 					"smelted_bronze_bar":
-						status_label.text = "Smelted a Bronze Bar • Smithing continues…"
+						status_label.text = (
+							"Smelting batch complete • Smelted a Bronze Bar"
+							if _gathering_spot.is_empty()
+							else "Smelted a Bronze Bar • Smithing continues…"
+						)
 					"smelted_iron_bar":
-						status_label.text = "Smelted an Iron Bar • Smithing continues…"
+						status_label.text = (
+							"Smelting batch complete • Smelted an Iron Bar"
+							if _gathering_spot.is_empty()
+							else "Smelted an Iron Bar • Smithing continues…"
+						)
 					"smelted_mithril_bar":
-						status_label.text = "Smelted a Mithril Bar • Smithing continues…"
+						status_label.text = (
+							"Smelting batch complete • Smelted a Mithril Bar"
+							if _gathering_spot.is_empty()
+							else "Smelted a Mithril Bar • Smithing continues…"
+						)
 					"missing_smelting_inputs":
 						status_label.text = "Smithing stopped: required ores are missing"
 					"forging":
@@ -3171,7 +3257,11 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"runecrafting":
 						status_label.text = "Binding air runes…"
 					"crafted_air_runes":
-						status_label.text = "Crafted 5 Air Runes • Runecrafting continues…"
+						status_label.text = (
+							"Runecrafting batch complete • Crafted 5 Air Runes"
+							if _gathering_spot.is_empty()
+							else "Crafted 5 Air Runes • Runecrafting continues…"
+						)
 					"missing_blank_runes":
 						status_label.text = "Runecrafting stopped: no Blank Runes"
 					_:
@@ -3187,10 +3277,21 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							status_label.text = "Caught a %s • Fishing continues…" % caught_name
 						elif _gathering_result.begins_with("cooked_"):
 							var cooked_name: String = _gathering_result.trim_prefix("cooked_").replace("_", " ").capitalize()
-							status_label.text = "Cooked a %s • Cooking continues…" % cooked_name
+							status_label.text = (
+								"Cooking batch complete • Cooked a %s" % cooked_name
+								if _gathering_spot.is_empty()
+								else "Cooked a %s • Cooking continues…" % cooked_name
+							)
 						elif _gathering_result.begins_with("missing_raw_"):
 							var missing_name: String = _gathering_result.trim_prefix("missing_").replace("_", " ").capitalize()
 							status_label.text = "Cooking stopped: no %s" % missing_name
+						elif _gathering_result.begins_with("smelted_"):
+							var smelted_name: String = _gathering_result.trim_prefix("smelted_").replace("_", " ").capitalize()
+							status_label.text = (
+								"Smelting batch complete • Smelted a %s" % smelted_name
+								if _gathering_spot.is_empty()
+								else "Smelted a %s • Smithing continues…" % smelted_name
+							)
 						elif _gathering_result.begins_with("forged_"):
 							var forged_name: String = _gathering_result.trim_prefix("forged_").replace("_", " ").capitalize()
 							status_label.text = "Forged a %s • Smithing continues…" % forged_name
@@ -3201,6 +3302,16 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							var reinforced_level: String = str(result_parts[1]) if result_parts.size() > 1 else ""
 							status_label.text = "%s upgraded to +%s" % [reinforced_name, reinforced_level]
 				if not GATHERING_PROGRESS_RESULTS.has(_gathering_result):
+					_append_game_message(status_label.text)
+			elif not previous_gathering_spot.is_empty() and _gathering_spot.is_empty():
+				if _gathering_result.begins_with("cooked_"):
+					status_label.text = "Cooking batch complete"
+					_append_game_message(status_label.text)
+				elif _gathering_result.begins_with("smelted_"):
+					status_label.text = "Smelting batch complete"
+					_append_game_message(status_label.text)
+				elif _gathering_result == "crafted_air_runes":
+					status_label.text = "Runecrafting batch complete"
 					_append_game_message(status_label.text)
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))

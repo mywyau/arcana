@@ -25,5 +25,7 @@ func (batch *productionBatch) completeStep() bool {
 }
 
 func usesProductionBatch(station craftingStationID) bool {
-	return station == craftingStationCooking || station == craftingStationRunecrafting
+	return station == craftingStationCooking ||
+		station == craftingStationSmelting ||
+		station == craftingStationRunecrafting
 }

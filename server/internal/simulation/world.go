@@ -228,7 +228,6 @@ type playerState struct {
 	gatheringSpot                string
 	gatheringRecipe              string
 	gatheringInstanceID          string
-	gatheringRemaining           int
 	productionBatch              productionBatch
 	gatheringResult              string
 	gatheringInteractionPosition Position

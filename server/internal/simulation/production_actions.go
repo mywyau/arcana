@@ -99,15 +99,7 @@ func (w *World) resolveSmeltingAction(player *playerState) {
 		}
 		return
 	}
-	player.gatheringResult = "smelted_" + recipe.RewardItem
-	if player.gatheringRemaining > 0 {
-		player.gatheringRemaining--
-		if player.gatheringRemaining == 0 {
-			clearGathering(player, "smelted_"+recipe.RewardItem)
-			return
-		}
-	}
-	player.nextGatherPulse = w.combat.pulse + recipe.Interval
+	w.finishProductionStep(player, "smelted_"+recipe.RewardItem, recipe.Interval)
 }
 
 func (w *World) resolveForgingAction(player *playerState) {
