@@ -120,7 +120,7 @@ func TestQueueEquipEnforcesAndThenAcceptsSkillRequirement(t *testing.T) {
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponSteelSword}); err == nil {
 		t.Fatal("QueueEquip() error = nil below the Attack requirement")
 	}
-	player.skills[SkillAttack] = SkillExperienceForLevel(5)
+	player.skills[SkillAttack] = SkillExperienceForLevel(10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponSteelSword}); err != nil {
 		t.Fatalf("QueueEquip() at the Attack requirement returned an unexpected error: %v", err)
 	}

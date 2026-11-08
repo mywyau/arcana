@@ -117,6 +117,27 @@ func TestForgeIronArrowTipsCreatesTwentyFromOneBar(t *testing.T) {
 	}
 }
 
+func TestForgingCoversMetalArrowTipsAndBolts(t *testing.T) {
+	for _, test := range []struct {
+		tips, bolts ForgingRecipeID
+		level       int
+		bar         string
+	}{
+		{ForgingBronzeArrowTips, ForgingBronzeBolts, 1, ItemBronzeBar},
+		{ForgingIronArrowTips, ForgingIronBolts, 2, ItemIronBar},
+		{ForgingSteelArrowTips, ForgingSteelBolts, 4, ItemSteelBar},
+		{ForgingMithrilArrowTips, ForgingMithrilBolts, 6, ItemMithrilBar},
+		{ForgingAdamantiteArrowTips, ForgingAdamantiteBolts, 8, ItemAdamantiteBar},
+	} {
+		for _, recipeID := range []ForgingRecipeID{test.tips, test.bolts} {
+			recipe, exists := forgingRecipe(recipeID)
+			if !exists || recipe.RequiredLevel != test.level || recipe.Costs[0].ItemID != test.bar || recipe.RewardQuantity != 20 {
+				t.Errorf("forging recipe %q = %+v, %t", recipeID, recipe, exists)
+			}
+		}
+	}
+}
+
 func TestApplyForgingRecipeDoesNotConsumePartialInputs(t *testing.T) {
 	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
 	player.inventory.add(ItemBronzeBar, 1)

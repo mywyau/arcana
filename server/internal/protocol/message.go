@@ -16,6 +16,7 @@ const (
 	MessageUnequipItem        = "unequip_item"
 	MessageCombatStyle        = "set_combat_style"
 	MessageExperienceLock     = "set_experience_lock"
+	MessageDebugSetSkill      = "debug_set_skill"
 	MessageSetPrayer          = "set_prayer"
 	MessageSetSpell           = "set_spell"
 	MessagePickupItem         = "pickup_item"
@@ -71,6 +72,10 @@ type ClientMessage struct {
 	RuneSlot       int       `json:"rune_slot,omitempty"`
 	Quantity       int       `json:"quantity,omitempty"`
 	Active         bool      `json:"active,omitempty"`
+	SkillID        string    `json:"skill_id,omitempty"`
+	Level          int       `json:"level,omitempty"`
+	Experience     int64     `json:"experience,omitempty"`
+	SetExperience  bool      `json:"set_experience,omitempty"`
 	GuestToken     string    `json:"guest_token,omitempty"`
 }
 
@@ -143,6 +148,7 @@ type ProductionRecipeSnapshot struct {
 	Costs          []ItemCost `json:"costs"`
 	RewardItem     string     `json:"reward_item"`
 	RewardQuantity int        `json:"reward_quantity"`
+	RewardXP       int64      `json:"reward_xp,omitempty"`
 	Interval       uint64     `json:"interval"`
 	RequiredTool   string     `json:"required_tool,omitempty"`
 }
@@ -317,37 +323,38 @@ type ActiveCombatBoost struct {
 }
 
 type CombatStatsSnapshot struct {
-	Weapon                 string         `json:"weapon"`
-	Style                  string         `json:"style"`
-	Spell                  string         `json:"spell"`
-	AccuracySkill          string         `json:"accuracy_skill"`
-	AccuracyLevel          int            `json:"accuracy_level"`
-	WeaponAccuracyBonus    int            `json:"weapon_accuracy_bonus"`
-	EquipmentAccuracyBonus int            `json:"equipment_accuracy_bonus"`
-	StyleAccuracyBonus     int            `json:"style_accuracy_bonus"`
-	SpellAccuracyBonus     int            `json:"spell_accuracy_bonus"`
-	PrayerHitChanceBonus   float64        `json:"prayer_hit_chance_bonus"`
-	TotalAccuracy          int            `json:"total_accuracy"`
-	DamageSkill            string         `json:"damage_skill"`
-	DamageLevel            int            `json:"damage_level"`
-	StrengthBonus          int            `json:"strength_bonus"`
-	EquipmentStrengthBonus int            `json:"equipment_strength_bonus"`
-	SpellPower             int            `json:"spell_power"`
-	SkillDamageBonus       float64        `json:"skill_damage_bonus"`
-	PrayerDamageBonus      float64        `json:"prayer_damage_bonus"`
-	PrayerDamageReduction  float64        `json:"prayer_damage_reduction"`
-	BaseAttackInterval     uint64         `json:"base_attack_interval"`
-	AttackInterval         uint64         `json:"attack_interval"`
-	AttackIntervalModifier int            `json:"attack_interval_modifier"`
-	MinimumDamage          int            `json:"minimum_damage"`
-	MaximumDamage          int            `json:"maximum_damage"`
-	DefenceLevel           int            `json:"defence_level"`
-	DefenceBonuses         DefenceBonuses `json:"defence_bonuses"`
-	AgilityLevel           int            `json:"agility_level"`
-	EquipmentEvasionBonus  int            `json:"equipment_evasion_bonus"`
-	TotalEvasion           int            `json:"total_evasion"`
-	ArmourDamageReduction  float64        `json:"armour_damage_reduction"`
-	MaximumHealthBonus     int            `json:"maximum_health_bonus"`
+	Weapon                  string         `json:"weapon"`
+	Style                   string         `json:"style"`
+	Spell                   string         `json:"spell"`
+	AccuracySkill           string         `json:"accuracy_skill"`
+	AccuracyLevel           int            `json:"accuracy_level"`
+	WeaponAccuracyBonus     int            `json:"weapon_accuracy_bonus"`
+	EquipmentAccuracyBonus  int            `json:"equipment_accuracy_bonus"`
+	StyleAccuracyBonus      int            `json:"style_accuracy_bonus"`
+	SpellAccuracyBonus      int            `json:"spell_accuracy_bonus"`
+	PrayerHitChanceBonus    float64        `json:"prayer_hit_chance_bonus"`
+	TotalAccuracy           int            `json:"total_accuracy"`
+	DamageSkill             string         `json:"damage_skill"`
+	DamageLevel             int            `json:"damage_level"`
+	StrengthBonus           int            `json:"strength_bonus"`
+	EquipmentStrengthBonus  int            `json:"equipment_strength_bonus"`
+	AmmunitionStrengthBonus int            `json:"ammunition_strength_bonus"`
+	SpellPower              int            `json:"spell_power"`
+	SkillDamageBonus        float64        `json:"skill_damage_bonus"`
+	PrayerDamageBonus       float64        `json:"prayer_damage_bonus"`
+	PrayerDamageReduction   float64        `json:"prayer_damage_reduction"`
+	BaseAttackInterval      uint64         `json:"base_attack_interval"`
+	AttackInterval          uint64         `json:"attack_interval"`
+	AttackIntervalModifier  int            `json:"attack_interval_modifier"`
+	MinimumDamage           int            `json:"minimum_damage"`
+	MaximumDamage           int            `json:"maximum_damage"`
+	DefenceLevel            int            `json:"defence_level"`
+	DefenceBonuses          DefenceBonuses `json:"defence_bonuses"`
+	AgilityLevel            int            `json:"agility_level"`
+	EquipmentEvasionBonus   int            `json:"equipment_evasion_bonus"`
+	TotalEvasion            int            `json:"total_evasion"`
+	ArmourDamageReduction   float64        `json:"armour_damage_reduction"`
+	MaximumHealthBonus      int            `json:"maximum_health_bonus"`
 }
 
 type CombatMatchupSnapshot struct {
@@ -436,7 +443,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
-		message.Type != MessageExperienceLock &&
+		message.Type != MessageExperienceLock && message.Type != MessageDebugSetSkill &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
 		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
 		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand && message.Type != MessageMerchantSell &&
@@ -475,6 +482,15 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageSetPrayer && message.PrayerID == "" {
 		return ClientMessage{}, fmt.Errorf("prayer ID is required")
+	}
+	if message.Type == MessageDebugSetSkill && message.SkillID == "" {
+		return ClientMessage{}, fmt.Errorf("skill ID is required")
+	}
+	if message.Type == MessageDebugSetSkill && !message.SetExperience && (message.Level < 1 || message.Level > 100) {
+		return ClientMessage{}, fmt.Errorf("skill level must be between 1 and 100")
+	}
+	if message.Type == MessageDebugSetSkill && message.SetExperience && message.Experience < 0 {
+		return ClientMessage{}, fmt.Errorf("skill experience cannot be negative")
 	}
 	if message.Type == MessageGather && message.SpotID == "" {
 		return ClientMessage{}, fmt.Errorf("gathering spot ID is required")

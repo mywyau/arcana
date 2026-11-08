@@ -4,7 +4,7 @@ import "testing"
 
 func TestProductionRecipeCatalogIsOrderedAndDetached(t *testing.T) {
 	first := ProductionRecipeCatalog()
-	wantCount := len(cookingRecipes) + len(smeltingRecipes) + len(forgingRecipes)
+	wantCount := len(cookingRecipes) + len(smeltingRecipes) + len(forgingRecipes) + len(fletchingRecipes)
 	if len(first) != wantCount {
 		t.Fatalf("catalog recipe count = %d, want %d", len(first), wantCount)
 	}
@@ -28,6 +28,9 @@ func TestProductionRecipeCatalogIsOrderedAndDetached(t *testing.T) {
 		}
 	}
 	for _, recipe := range first {
+		if recipe.Station == "fletching" && recipe.RewardXP < 1 {
+			t.Fatalf("fletching recipe %q has no XP reward", recipe.ID)
+		}
 		if recipe.ID == string(ForgingSapphireRing) {
 			if recipe.Station != string(craftingStationSmelting) || recipe.Group != "jewellery" || recipe.RequiredTool != ItemRingMould {
 				t.Fatalf("ring catalogue recipe = %+v", recipe)

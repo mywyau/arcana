@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"fmt"
+	"math"
 	"sort"
 )
 
@@ -22,10 +23,9 @@ const (
 	SkillPrayer       SkillID = "prayer"
 	SkillRunecrafting SkillID = "runecrafting"
 
-	MaximumSkillLevel               = 100
-	skillLevelExperienceScale int64 = 100
-	agilitySpeedPerLevel            = 0.0025
-	maximumAgilitySpeedBonus        = 0.25
+	MaximumSkillLevel        = 100
+	agilitySpeedPerLevel     = 0.0025
+	maximumAgilitySpeedBonus = 0.25
 )
 
 type SkillID string
@@ -42,6 +42,17 @@ type ExperienceLockCommand struct {
 	PlayerID PlayerID
 	Sequence uint64
 	Locked   bool
+}
+
+// DebugSetSkillCommand is intentionally tied to the in-world test shrine. It
+// must not be exposed by production worlds without an equivalent debug gate.
+type DebugSetSkillCommand struct {
+	PlayerID      PlayerID
+	Sequence      uint64
+	Skill         SkillID
+	Level         int
+	Experience    int64
+	SetExperience bool
 }
 
 // PersistentSkillState stores only total experience. Levels are derived so a
@@ -113,8 +124,8 @@ func snapshotSkills(skills skillState) []SkillSnapshot {
 	return snapshots
 }
 
-// SkillExperienceForLevel uses a deliberately simple prototype curve:
-// level N starts at 100 × (N-1)² total XP.
+// SkillExperienceForLevel follows the familiar accelerating RuneScape-style
+// curve at half of its normal total XP thresholds.
 func SkillExperienceForLevel(level int) int64 {
 	if level <= 1 {
 		return 0
@@ -122,8 +133,13 @@ func SkillExperienceForLevel(level int) int64 {
 	if level > MaximumSkillLevel {
 		level = MaximumSkillLevel
 	}
-	offset := int64(level - 1)
-	return skillLevelExperienceScale * offset * offset
+	var points int64
+	for currentLevel := 1; currentLevel < level; currentLevel++ {
+		points += int64(math.Floor(
+			float64(currentLevel) + 300.0*math.Pow(2.0, float64(currentLevel)/7.0),
+		))
+	}
+	return points / 8
 }
 
 func SkillLevelForExperience(experience int64) int {
@@ -183,6 +199,60 @@ func (w *World) applyPendingExperienceLocks() {
 	}
 }
 
+func (w *World) QueueDebugSetSkill(command DebugSetSkillCommand) error {
+	if command.Sequence == 0 {
+		return fmt.Errorf("debug skill sequence must be positive")
+	}
+	if !skillIDValid(command.Skill) {
+		return fmt.Errorf("unknown skill %q", command.Skill)
+	}
+	if !command.SetExperience && (command.Level < 1 || command.Level > MaximumSkillLevel) {
+		return fmt.Errorf("skill level must be between 1 and %d", MaximumSkillLevel)
+	}
+	if command.SetExperience && (command.Experience < 0 || command.Experience > SkillExperienceForLevel(MaximumSkillLevel)) {
+		return fmt.Errorf("skill experience must be between 0 and %d", SkillExperienceForLevel(MaximumSkillLevel))
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	player, exists := w.players[command.PlayerID]
+	if !exists {
+		player, exists = w.pendingJoins[command.PlayerID]
+	}
+	if !exists {
+		return fmt.Errorf("player %q does not exist", command.PlayerID)
+	}
+	shrine := w.gatheringSpots[debugSkillShrineID]
+	if distance(player.position, shrine.Position) > shrine.Range {
+		return fmt.Errorf("move closer to the test skill shrine")
+	}
+	if command.Sequence <= player.lastDebugSkillSequence {
+		return fmt.Errorf("debug skill sequence %d is not newer than %d", command.Sequence, player.lastDebugSkillSequence)
+	}
+	if pending, exists := w.pendingDebugSkills[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
+		return fmt.Errorf("debug skill sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	}
+	w.pendingDebugSkills[command.PlayerID] = command
+	return nil
+}
+
+func (w *World) applyPendingDebugSkills() {
+	for id, command := range w.pendingDebugSkills {
+		player, exists := w.players[id]
+		if exists {
+			experience := SkillExperienceForLevel(command.Level)
+			if command.SetExperience {
+				experience = command.Experience
+			}
+			player.skills[command.Skill] = experience
+			if command.Skill == SkillAgility {
+				player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(experience))
+			}
+			player.lastDebugSkillSequence = command.Sequence
+		}
+		delete(w.pendingDebugSkills, id)
+	}
+}
+
 func movementSpeedForAgility(baseSpeed float64, agilityLevel int) float64 {
 	bonus := min(maximumAgilitySpeedBonus, float64(max(1, agilityLevel)-1)*agilitySpeedPerLevel)
 	return baseSpeed * (1 + bonus)
@@ -197,7 +267,7 @@ func skillIDValid(skill SkillID) bool {
 
 func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
 	switch weapon {
-	case WeaponBow, WeaponCrossbow:
+	case WeaponBow, WeaponOakShortbow, WeaponWillowShortbow, WeaponMapleShortbow, WeaponYewShortbow, WeaponCrossbow:
 		return SkillRange, true
 	case WeaponStaff:
 		return SkillMagic, true

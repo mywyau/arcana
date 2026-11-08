@@ -237,6 +237,7 @@ type playerState struct {
 	gatheringTraversal           bool
 	nextGatherPulse              uint64
 	lastGatherSequence           uint64
+	lastDebugSkillSequence       uint64
 	skills                       skillState
 }
 
@@ -261,6 +262,7 @@ type World struct {
 	pendingRingTransfers       map[PlayerID]RingTransferCommand
 	pendingRuneTransfers       map[PlayerID]RuneTransferCommand
 	pendingExperienceLocks     map[PlayerID]ExperienceLockCommand
+	pendingDebugSkills         map[PlayerID]DebugSetSkillCommand
 	drops                      map[string]DropSnapshot
 	dropLifetimes              map[string]time.Duration
 	fires                      map[string]FireSnapshot
@@ -312,6 +314,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingRingTransfers:       make(map[PlayerID]RingTransferCommand),
 		pendingRuneTransfers:       make(map[PlayerID]RuneTransferCommand),
 		pendingExperienceLocks:     make(map[PlayerID]ExperienceLockCommand),
+		pendingDebugSkills:         make(map[PlayerID]DebugSetSkillCommand),
 		drops:                      make(map[string]DropSnapshot),
 		dropLifetimes:              make(map[string]time.Duration),
 		fires:                      make(map[string]FireSnapshot),
@@ -425,6 +428,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingRingTransfers, id)
 	delete(w.pendingRuneTransfers, id)
 	delete(w.pendingExperienceLocks, id)
+	delete(w.pendingDebugSkills, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -509,6 +513,7 @@ func (w *World) Step(elapsed time.Duration) {
 		delete(w.pendingJoins, id)
 	}
 	w.applyPendingExperienceLocks()
+	w.applyPendingDebugSkills()
 
 	for id, move := range w.pendingMoves {
 		player := w.players[id]

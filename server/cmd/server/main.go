@@ -61,8 +61,14 @@ func main() {
 		{itemID: simulation.ItemVanguardCape, quantity: 1},
 	}
 	rangedSupplies := []testSupply{
-		{string(simulation.WeaponBow), 1}, {simulation.ItemIronArrow, 100},
-		{string(simulation.WeaponCrossbow), 1}, {simulation.ItemIronBolt, 100},
+		{string(simulation.WeaponBow), 1}, {string(simulation.WeaponOakShortbow), 1},
+		{string(simulation.WeaponWillowShortbow), 1}, {string(simulation.WeaponMapleShortbow), 1},
+		{string(simulation.WeaponYewShortbow), 1},
+		{simulation.ItemBronzeArrow, 100}, {simulation.ItemIronArrow, 100},
+		{simulation.ItemSteelArrow, 100}, {simulation.ItemMithrilArrow, 100}, {simulation.ItemAdamantiteArrow, 100},
+		{string(simulation.WeaponCrossbow), 1},
+		{simulation.ItemBronzeBolt, 100}, {simulation.ItemIronBolt, 100},
+		{simulation.ItemSteelBolt, 100}, {simulation.ItemMithrilBolt, 100}, {simulation.ItemAdamantiteBolt, 100},
 		{simulation.ItemNoviceRangerHood, 1}, {simulation.ItemNoviceRangerBody, 1},
 		{simulation.ItemNoviceRangerGloves, 1}, {simulation.ItemNoviceRangerLegs, 1}, {simulation.ItemNoviceRangerBoots, 1},
 		{simulation.ItemAmuletHawk, 1},
@@ -110,7 +116,9 @@ func main() {
 	craftingSupplies := []testSupply{
 		{simulation.ItemRubyRing, 1}, {simulation.ItemEmeraldRing, 1},
 		{simulation.ItemSapphireRing, 1}, {simulation.ItemDiamondRing, 1},
-		{simulation.ItemThread, 50}, {simulation.ItemFeathers, 200}, {simulation.ItemIronArrowTips, 200},
+		{simulation.ItemThread, 50}, {simulation.ItemBowstring, 50}, {simulation.ItemFeathers, 200},
+		{simulation.ItemBronzeArrowTips, 200}, {simulation.ItemIronArrowTips, 200},
+		{simulation.ItemSteelArrowTips, 200}, {simulation.ItemMithrilArrowTips, 200}, {simulation.ItemAdamantiteArrowTips, 200},
 		{simulation.ItemNormalLogs, 10}, {simulation.ItemOakLogs, 10}, {simulation.ItemWillowLogs, 10},
 		{simulation.ItemMapleLogs, 10}, {simulation.ItemYewLogs, 10},
 		{simulation.ItemBones, 25}, {simulation.ItemLeather, 25}, {simulation.ItemCoins, 1000},

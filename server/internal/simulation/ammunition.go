@@ -28,6 +28,35 @@ func newAmmunitionPouch() inventoryState {
 	return inventoryState{capacity: BaseAmmunitionPouchUnlocked}
 }
 
+func ammunitionForWeapon(pouch inventoryState, weapon WeaponDefinition) (ItemCost, int, bool) {
+	if weapon.Ammunition.Quantity <= 0 {
+		return ItemCost{}, 0, true
+	}
+	for slot := 0; slot < pouch.capacity; slot++ {
+		item, exists := inventoryItemAt(pouch, slot)
+		if !exists {
+			continue
+		}
+		definition, defined := itemDefinition(item.ItemID)
+		if !defined || definition.AmmunitionFamily != weapon.AmmunitionFamily || item.Quantity < weapon.Ammunition.Quantity {
+			continue
+		}
+		return ItemCost{ItemID: item.ItemID, Quantity: weapon.Ammunition.Quantity}, definition.AmmunitionStrength, true
+	}
+	return ItemCost{}, 0, false
+}
+
+func ammunitionStrengthForPlayer(player *playerState, weapon WeaponDefinition) int {
+	if player == nil {
+		return 0
+	}
+	_, strength, available := ammunitionForWeapon(player.ammunitionPouch, weapon)
+	if !available {
+		return 0
+	}
+	return strength
+}
+
 func snapshotAmmunitionPouch(pouch inventoryState) AmmunitionPouchSnapshot {
 	return AmmunitionPouchSnapshot{
 		Capacity: AmmunitionPouchCapacity, UnlockedSlots: pouch.capacity,

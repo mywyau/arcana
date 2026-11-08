@@ -14,37 +14,46 @@ var (
 type ForgingRecipeID string
 
 const (
-	ForgingBronzeSword    ForgingRecipeID = "bronze_sword"
-	ForgingBronzeHelm     ForgingRecipeID = "bronze_helm"
-	ForgingBronzePlate    ForgingRecipeID = "bronze_platebody"
-	ForgingBronzePickaxe  ForgingRecipeID = "bronze_pickaxe"
-	ForgingBronzeShield   ForgingRecipeID = "bronze_shield"
-	ForgingBronzeLegs     ForgingRecipeID = "bronze_legs"
-	ForgingBronzeGloves   ForgingRecipeID = "bronze_gloves"
-	ForgingBronzeBoots    ForgingRecipeID = "bronze_boots"
-	ForgingIronSword      ForgingRecipeID = "iron_sword"
-	ForgingIronArrowTips  ForgingRecipeID = "iron_arrow_tips"
-	ForgingIronHelm       ForgingRecipeID = "iron_helm"
-	ForgingIronPlate      ForgingRecipeID = "iron_platebody"
-	ForgingIronShield     ForgingRecipeID = "iron_shield"
-	ForgingIronLegs       ForgingRecipeID = "iron_legs"
-	ForgingIronGloves     ForgingRecipeID = "iron_gloves"
-	ForgingIronBoots      ForgingRecipeID = "iron_boots"
-	ForgingMithrilSword   ForgingRecipeID = "mithril_sword"
-	ForgingMithrilHelm    ForgingRecipeID = "mithril_helm"
-	ForgingMithrilPlate   ForgingRecipeID = "mithril_platebody"
-	ForgingMithrilShield  ForgingRecipeID = "mithril_shield"
-	ForgingMithrilLegs    ForgingRecipeID = "mithril_legs"
-	ForgingMithrilGloves  ForgingRecipeID = "mithril_gloves"
-	ForgingMithrilBoots   ForgingRecipeID = "mithril_boots"
-	ForgingRubyAmulet     ForgingRecipeID = "ruby_amulet"
-	ForgingEmeraldAmulet  ForgingRecipeID = "emerald_amulet"
-	ForgingSapphireAmulet ForgingRecipeID = "sapphire_amulet"
-	ForgingDiamondAmulet  ForgingRecipeID = "diamond_amulet"
-	ForgingSapphireRing   ForgingRecipeID = "sapphire_ring"
-	ForgingEmeraldRing    ForgingRecipeID = "emerald_ring"
-	ForgingRubyRing       ForgingRecipeID = "ruby_ring"
-	ForgingDiamondRing    ForgingRecipeID = "diamond_ring"
+	ForgingBronzeSword         ForgingRecipeID = "bronze_sword"
+	ForgingBronzeHelm          ForgingRecipeID = "bronze_helm"
+	ForgingBronzePlate         ForgingRecipeID = "bronze_platebody"
+	ForgingBronzePickaxe       ForgingRecipeID = "bronze_pickaxe"
+	ForgingBronzeShield        ForgingRecipeID = "bronze_shield"
+	ForgingBronzeLegs          ForgingRecipeID = "bronze_legs"
+	ForgingBronzeGloves        ForgingRecipeID = "bronze_gloves"
+	ForgingBronzeBoots         ForgingRecipeID = "bronze_boots"
+	ForgingBronzeArrowTips     ForgingRecipeID = "bronze_arrow_tips"
+	ForgingBronzeBolts         ForgingRecipeID = "bronze_bolts"
+	ForgingIronSword           ForgingRecipeID = "iron_sword"
+	ForgingIronArrowTips       ForgingRecipeID = "iron_arrow_tips"
+	ForgingIronBolts           ForgingRecipeID = "iron_bolts"
+	ForgingIronHelm            ForgingRecipeID = "iron_helm"
+	ForgingIronPlate           ForgingRecipeID = "iron_platebody"
+	ForgingIronShield          ForgingRecipeID = "iron_shield"
+	ForgingIronLegs            ForgingRecipeID = "iron_legs"
+	ForgingIronGloves          ForgingRecipeID = "iron_gloves"
+	ForgingIronBoots           ForgingRecipeID = "iron_boots"
+	ForgingSteelArrowTips      ForgingRecipeID = "steel_arrow_tips"
+	ForgingSteelBolts          ForgingRecipeID = "steel_bolts"
+	ForgingMithrilSword        ForgingRecipeID = "mithril_sword"
+	ForgingMithrilArrowTips    ForgingRecipeID = "mithril_arrow_tips"
+	ForgingMithrilBolts        ForgingRecipeID = "mithril_bolts"
+	ForgingAdamantiteArrowTips ForgingRecipeID = "adamantite_arrow_tips"
+	ForgingAdamantiteBolts     ForgingRecipeID = "adamantite_bolts"
+	ForgingMithrilHelm         ForgingRecipeID = "mithril_helm"
+	ForgingMithrilPlate        ForgingRecipeID = "mithril_platebody"
+	ForgingMithrilShield       ForgingRecipeID = "mithril_shield"
+	ForgingMithrilLegs         ForgingRecipeID = "mithril_legs"
+	ForgingMithrilGloves       ForgingRecipeID = "mithril_gloves"
+	ForgingMithrilBoots        ForgingRecipeID = "mithril_boots"
+	ForgingRubyAmulet          ForgingRecipeID = "ruby_amulet"
+	ForgingEmeraldAmulet       ForgingRecipeID = "emerald_amulet"
+	ForgingSapphireAmulet      ForgingRecipeID = "sapphire_amulet"
+	ForgingDiamondAmulet       ForgingRecipeID = "diamond_amulet"
+	ForgingSapphireRing        ForgingRecipeID = "sapphire_ring"
+	ForgingEmeraldRing         ForgingRecipeID = "emerald_ring"
+	ForgingRubyRing            ForgingRecipeID = "ruby_ring"
+	ForgingDiamondRing         ForgingRecipeID = "diamond_ring"
 )
 
 type forgingRecipeDefinition struct {
@@ -84,11 +93,14 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 	{ID: ForgingBronzeLegs, Name: "Bronze Legs", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 4}}, RewardItem: ItemBronzeLegs, RewardQuantity: 1, RewardXP: 40, Interval: 5},
 	{ID: ForgingBronzeGloves, Name: "Bronze Gloves", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}}, RewardItem: ItemBronzeGloves, RewardQuantity: 1, RewardXP: 10, Interval: 3},
 	{ID: ForgingBronzeBoots, Name: "Bronze Boots", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}}, RewardItem: ItemBronzeBoots, RewardQuantity: 1, RewardXP: 20, Interval: 4},
+	{ID: ForgingBronzeArrowTips, Name: "20 Bronze Arrow Tips", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}}, RewardItem: ItemBronzeArrowTips, RewardQuantity: 20, RewardXP: 10, Interval: 3},
+	{ID: ForgingBronzeBolts, Name: "20 Bronze Bolts", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}}, RewardItem: ItemBronzeBolt, RewardQuantity: 20, RewardXP: 12, Interval: 3},
 	{
 		ID: ForgingIronArrowTips, Name: "20 Iron Arrow Tips", RequiredLevel: 2,
 		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 1}},
 		RewardItem: ItemIronArrowTips, RewardQuantity: 20, RewardXP: 18, Interval: 3,
 	},
+	{ID: ForgingIronBolts, Name: "20 Iron Bolts", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 1}}, RewardItem: ItemIronBolt, RewardQuantity: 20, RewardXP: 20, Interval: 3},
 	{
 		ID: ForgingIronSword, Name: "Iron Sword", RequiredLevel: 3,
 		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 2}},
@@ -108,11 +120,17 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 	{ID: ForgingIronLegs, Name: "Iron Legs", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 4}}, RewardItem: ItemIronLegs, RewardQuantity: 1, RewardXP: 72, Interval: 6},
 	{ID: ForgingIronGloves, Name: "Iron Gloves", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 1}}, RewardItem: ItemIronGloves, RewardQuantity: 1, RewardXP: 18, Interval: 3},
 	{ID: ForgingIronBoots, Name: "Iron Boots", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 2}}, RewardItem: ItemIronBoots, RewardQuantity: 1, RewardXP: 36, Interval: 4},
+	{ID: ForgingSteelArrowTips, Name: "20 Steel Arrow Tips", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 1}}, RewardItem: ItemSteelArrowTips, RewardQuantity: 20, RewardXP: 28, Interval: 3},
+	{ID: ForgingSteelBolts, Name: "20 Steel Bolts", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 1}}, RewardItem: ItemSteelBolt, RewardQuantity: 20, RewardXP: 30, Interval: 3},
 	{
 		ID: ForgingMithrilSword, Name: "Mithril Sword", RequiredLevel: 6,
 		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},
 		RewardItem: string(WeaponMithrilSword), RewardQuantity: 1, RewardXP: 90, Interval: 6,
 	},
+	{ID: ForgingMithrilArrowTips, Name: "20 Mithril Arrow Tips", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 1}}, RewardItem: ItemMithrilArrowTips, RewardQuantity: 20, RewardXP: 40, Interval: 4},
+	{ID: ForgingMithrilBolts, Name: "20 Mithril Bolts", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 1}}, RewardItem: ItemMithrilBolt, RewardQuantity: 20, RewardXP: 45, Interval: 4},
+	{ID: ForgingAdamantiteArrowTips, Name: "20 Adamantite Arrow Tips", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 1}}, RewardItem: ItemAdamantiteArrowTips, RewardQuantity: 20, RewardXP: 65, Interval: 4},
+	{ID: ForgingAdamantiteBolts, Name: "20 Adamantite Bolts", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 1}}, RewardItem: ItemAdamantiteBolt, RewardQuantity: 20, RewardXP: 70, Interval: 4},
 	{
 		ID: ForgingMithrilHelm, Name: "Mithril Helm", RequiredLevel: 6,
 		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},

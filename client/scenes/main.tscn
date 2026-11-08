@@ -548,22 +548,19 @@ layout_mode = 2
 
 [node name="Hint" type="Label" parent="FletchingWindow/Panel/Margin/VBox"]
 layout_mode = 2
-text = "Choose a bundle recipe. Each batch takes 600 ms and produces 20 items."
+text = "Choose a recipe to see its requirements and available batches."
 
-[node name="Recipes" type="HBoxContainer" parent="FletchingWindow/Panel/Margin/VBox"]
+[node name="RecipeScroll" type="ScrollContainer" parent="FletchingWindow/Panel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+horizontal_scroll_mode = 0
 
-[node name="Shafts" type="Button" parent="FletchingWindow/Panel/Margin/VBox/Recipes"]
+[node name="Recipes" type="GridContainer" parent="FletchingWindow/Panel/Margin/VBox/RecipeScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "20 Arrow Shafts\n1 Normal Log\nRequires Knife\n10 XP"
-
-[node name="Arrows" type="Button" parent="FletchingWindow/Panel/Margin/VBox/Recipes"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "20 Iron Arrows\n20 Shafts + 20 Feathers\n20 Iron Arrow Tips\n20 XP"
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
 
 [node name="Selection" type="Label" parent="FletchingWindow/Panel/Margin/VBox"]
 layout_mode = 2

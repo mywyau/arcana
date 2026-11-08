@@ -13,87 +13,110 @@ const (
 	ItemKindConsumable ItemKind = "consumable"
 	ItemKindResource   ItemKind = "resource"
 
-	ItemStandardSpellbook  = "standard_spellbook"
-	ItemSkinBible          = "skin_bible"
-	ItemHolyBook           = "holy_book"
-	ItemClericsTome        = "clerics_tome"
-	ItemIronArrow          = "iron_arrow"
-	ItemIronBolt           = "iron_bolt"
-	ItemWaterRune          = "water_rune"
-	ItemEarthRune          = "earth_rune"
-	ItemFireRune           = "fire_rune"
-	ItemHolyRune           = "holy_rune"
-	ItemDarkRune           = "dark_rune"
-	ItemFocusRune          = "focus_rune"
-	ItemBlankRune          = "blank_rune"
-	ItemLeather            = "leather"
-	ItemGoldOre            = "gold_ore"
-	ItemSilverOre          = "silver_ore"
-	ItemClay               = "clay"
-	ItemAdamantiteOre      = "adamantite_ore"
-	ItemUncutSapphire      = "uncut_sapphire"
-	ItemSapphire           = "sapphire"
-	ItemUncutEmerald       = "uncut_emerald"
-	ItemEmerald            = "emerald"
-	ItemUncutRuby          = "uncut_ruby"
-	ItemRuby               = "ruby"
-	ItemUncutDiamond       = "uncut_diamond"
-	ItemDiamond            = "diamond"
-	ItemGoldBar            = "gold_bar"
-	ItemSilverBar          = "silver_bar"
-	ItemSteelBar           = "steel_bar"
-	ItemAdamantiteBar      = "adamantite_bar"
-	ItemBones              = "bones"
-	ItemCoins              = "coins"
-	ItemBronzePickaxe      = "bronze_pickaxe"
-	ItemBronzeAxe          = "bronze_axe"
-	ItemKnife              = "knife"
-	ItemChisel             = "chisel"
-	ItemSewingNeedle       = "sewing_needle"
-	ItemThread             = "thread"
-	ItemTinderbox          = "tinderbox"
-	ItemHammer             = "hammer"
-	ItemRingMould          = "ring_mould"
-	ItemAmuletMould        = "amulet_mould"
-	ItemPrayerPotion       = "prayer_potion"
-	ItemFishingRod         = "fishing_rod"
-	ItemLobsterCage        = "lobster_cage"
-	ItemVialOfWater        = "vial_of_water"
-	ItemSunleaf            = "sunleaf"
-	ItemMoonleaf           = "moonleaf"
-	ItemSacredDust         = "sacred_dust"
-	ItemFishOil            = "fish_oil"
-	ItemMinorHealingPotion = "minor_healing_potion"
-	ItemMurkyBrew          = "murky_brew"
-	ItemMeleePotion        = "melee_potion"
-	ItemRangingPotion      = "ranging_potion"
-	ItemMagicPotion        = "magic_potion"
-	ItemArrowShafts        = "arrow_shafts"
-	ItemFeathers           = "feathers"
-	ItemIronArrowTips      = "iron_arrow_tips"
-	ItemNormalLogs         = "normal_logs"
-	ItemOakLogs            = "oak_logs"
-	ItemWillowLogs         = "willow_logs"
-	ItemMapleLogs          = "maple_logs"
-	ItemYewLogs            = "yew_logs"
-	ItemCopperOre          = "copper_ore"
-	ItemTinOre             = "tin_ore"
-	ItemIronOre            = "iron_ore"
-	ItemCoal               = "coal"
-	ItemMithrilOre         = "mithril_ore"
-	ItemBronzeBar          = "bronze_bar"
-	ItemIronBar            = "iron_bar"
-	ItemMithrilBar         = "mithril_bar"
-	ItemCookedMinnow       = "cooked_minnow"
-	ItemRawMinnow          = "raw_minnow"
-	ItemRawTrout           = "raw_trout"
-	ItemCookedTrout        = "cooked_trout"
-	ItemRawSalmon          = "raw_salmon"
-	ItemCookedSalmon       = "cooked_salmon"
-	ItemRawTuna            = "raw_tuna"
-	ItemCookedTuna         = "cooked_tuna"
-	ItemRawLobster         = "raw_lobster"
-	ItemCookedLobster      = "cooked_lobster"
+	ItemStandardSpellbook      = "standard_spellbook"
+	ItemSkinBible              = "skin_bible"
+	ItemHolyBook               = "holy_book"
+	ItemClericsTome            = "clerics_tome"
+	ItemBronzeArrow            = "bronze_arrow"
+	ItemIronArrow              = "iron_arrow"
+	ItemSteelArrow             = "steel_arrow"
+	ItemMithrilArrow           = "mithril_arrow"
+	ItemAdamantiteArrow        = "adamantite_arrow"
+	ItemBronzeBolt             = "bronze_bolt"
+	ItemIronBolt               = "iron_bolt"
+	ItemSteelBolt              = "steel_bolt"
+	ItemMithrilBolt            = "mithril_bolt"
+	ItemAdamantiteBolt         = "adamantite_bolt"
+	ItemWaterRune              = "water_rune"
+	ItemEarthRune              = "earth_rune"
+	ItemFireRune               = "fire_rune"
+	ItemHolyRune               = "holy_rune"
+	ItemDarkRune               = "dark_rune"
+	ItemFocusRune              = "focus_rune"
+	ItemBlankRune              = "blank_rune"
+	ItemLeather                = "leather"
+	ItemGoldOre                = "gold_ore"
+	ItemSilverOre              = "silver_ore"
+	ItemClay                   = "clay"
+	ItemAdamantiteOre          = "adamantite_ore"
+	ItemUncutSapphire          = "uncut_sapphire"
+	ItemSapphire               = "sapphire"
+	ItemUncutEmerald           = "uncut_emerald"
+	ItemEmerald                = "emerald"
+	ItemUncutRuby              = "uncut_ruby"
+	ItemRuby                   = "ruby"
+	ItemUncutDiamond           = "uncut_diamond"
+	ItemDiamond                = "diamond"
+	ItemGoldBar                = "gold_bar"
+	ItemSilverBar              = "silver_bar"
+	ItemSteelBar               = "steel_bar"
+	ItemAdamantiteBar          = "adamantite_bar"
+	ItemBones                  = "bones"
+	ItemCoins                  = "coins"
+	ItemBronzePickaxe          = "bronze_pickaxe"
+	ItemBronzeAxe              = "bronze_axe"
+	ItemKnife                  = "knife"
+	ItemChisel                 = "chisel"
+	ItemSewingNeedle           = "sewing_needle"
+	ItemThread                 = "thread"
+	ItemTinderbox              = "tinderbox"
+	ItemHammer                 = "hammer"
+	ItemRingMould              = "ring_mould"
+	ItemAmuletMould            = "amulet_mould"
+	ItemPrayerPotion           = "prayer_potion"
+	ItemFishingRod             = "fishing_rod"
+	ItemLobsterCage            = "lobster_cage"
+	ItemVialOfWater            = "vial_of_water"
+	ItemSunleaf                = "sunleaf"
+	ItemMoonleaf               = "moonleaf"
+	ItemSacredDust             = "sacred_dust"
+	ItemFishOil                = "fish_oil"
+	ItemMinorHealingPotion     = "minor_healing_potion"
+	ItemMurkyBrew              = "murky_brew"
+	ItemMeleePotion            = "melee_potion"
+	ItemRangingPotion          = "ranging_potion"
+	ItemMagicPotion            = "magic_potion"
+	ItemArrowShafts            = "arrow_shafts"
+	ItemFeathers               = "feathers"
+	ItemBronzeArrowTips        = "bronze_arrow_tips"
+	ItemIronArrowTips          = "iron_arrow_tips"
+	ItemSteelArrowTips         = "steel_arrow_tips"
+	ItemMithrilArrowTips       = "mithril_arrow_tips"
+	ItemAdamantiteArrowTips    = "adamantite_arrow_tips"
+	ItemBowstring              = "bowstring"
+	ItemUnstrungShortbow       = "unstrung_shortbow"
+	ItemUnstrungOakShortbow    = "unstrung_oak_shortbow"
+	ItemUnstrungWillowShortbow = "unstrung_willow_shortbow"
+	ItemUnstrungMapleShortbow  = "unstrung_maple_shortbow"
+	ItemUnstrungYewShortbow    = "unstrung_yew_shortbow"
+	ItemNormalLogs             = "normal_logs"
+	ItemOakLogs                = "oak_logs"
+	ItemWillowLogs             = "willow_logs"
+	ItemMapleLogs              = "maple_logs"
+	ItemYewLogs                = "yew_logs"
+	ItemCopperOre              = "copper_ore"
+	ItemTinOre                 = "tin_ore"
+	ItemIronOre                = "iron_ore"
+	ItemCoal                   = "coal"
+	ItemMithrilOre             = "mithril_ore"
+	ItemBronzeBar              = "bronze_bar"
+	ItemIronBar                = "iron_bar"
+	ItemMithrilBar             = "mithril_bar"
+	ItemCookedMinnow           = "cooked_minnow"
+	ItemRawMinnow              = "raw_minnow"
+	ItemRawTrout               = "raw_trout"
+	ItemCookedTrout            = "cooked_trout"
+	ItemRawSalmon              = "raw_salmon"
+	ItemCookedSalmon           = "cooked_salmon"
+	ItemRawTuna                = "raw_tuna"
+	ItemCookedTuna             = "cooked_tuna"
+	ItemRawLobster             = "raw_lobster"
+	ItemCookedLobster          = "cooked_lobster"
+)
+
+const (
+	AmmunitionFamilyArrow = "arrow"
+	AmmunitionFamilyBolt  = "bolt"
 )
 
 type ConsumableDefinition struct {
@@ -118,17 +141,19 @@ type SkillRequirement struct {
 // ID. Definitions are currently declared in Go; the registry boundary allows
 // them to move to validated data files without changing combat or inventory.
 type ItemDefinition struct {
-	ID                string
-	Name              string
-	Kind              ItemKind
-	Virtual           bool
-	StackLimit        int
-	Ammunition        bool
-	EquipRequirements []SkillRequirement
-	Weapon            WeaponDefinition
-	Armour            ArmourDefinition
-	Spellbook         SpellbookID
-	Consumable        ConsumableDefinition
+	ID                 string
+	Name               string
+	Kind               ItemKind
+	Virtual            bool
+	StackLimit         int
+	Ammunition         bool
+	AmmunitionFamily   string
+	AmmunitionStrength int
+	EquipRequirements  []SkillRequirement
+	Weapon             WeaponDefinition
+	Armour             ArmourDefinition
+	Spellbook          SpellbookID
+	Consumable         ConsumableDefinition
 }
 
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
@@ -139,7 +164,8 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponSword), Name: "Iron Sword", Kind: ItemKindWeapon,
-		Weapon: swordWeapon(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponBronzeSword), Name: "Bronze Sword", Kind: ItemKindWeapon,
@@ -147,12 +173,12 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
 		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponMithrilSword), Name: "Mithril Sword", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 17}},
 		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
@@ -165,8 +191,32 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Weapon: swordWeapon(WeaponDefinition{ID: WeaponDagger, AccuracyBonus: 14, MeleeStrength: daggerMeleeStrength, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}),
 	},
 	{
-		ID: string(WeaponBow), Name: "Bow", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, TwoHanded: true, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}}, CombatStyleAccurate,
+		ID: string(WeaponBow), Name: "Shortbow", Kind: ItemKindWeapon,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, TwoHanded: true, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
+	},
+	{
+		ID: string(WeaponOakShortbow), Name: "Oak Shortbow", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponOakShortbow, TwoHanded: true, AccuracyBonus: 14, RangedStrength: 14, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
+	},
+	{
+		ID: string(WeaponWillowShortbow), Name: "Willow Shortbow", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponWillowShortbow, TwoHanded: true, AccuracyBonus: 16, RangedStrength: 16, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
+	},
+	{
+		ID: string(WeaponMapleShortbow), Name: "Maple Shortbow", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponMapleShortbow, TwoHanded: true, AccuracyBonus: 19, RangedStrength: 19, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
+	},
+	{
+		ID: string(WeaponYewShortbow), Name: "Yew Shortbow", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 30}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponYewShortbow, TwoHanded: true, AccuracyBonus: 23, RangedStrength: 23, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
@@ -196,7 +246,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponCrossbow), Name: "One-handed Crossbow", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponCrossbow, AccuracyBonus: 18, RangedStrength: crossbowRangedStrength, DamageVariance: 0.20, AttackInterval: crossbowAttackIntervalPulses, Range: crossbowRange, ApproachRange: crossbowApproachRange, Ammunition: ItemCost{ItemID: ItemIronBolt, Quantity: 1}}, CombatStyleAccurate,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponCrossbow, AccuracyBonus: 18, RangedStrength: crossbowRangedStrength, DamageVariance: 0.20, AttackInterval: crossbowAttackIntervalPulses, Range: crossbowRange, ApproachRange: crossbowApproachRange, Ammunition: ItemCost{ItemID: ItemIronBolt, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyBolt}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
@@ -231,18 +281,18 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemIronBoots, Name: "Iron Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 4, Crush: 3, Ranged: 2, Magic: -1}}},
 	{
 		ID: ItemMithrilHelm, Name: "Mithril Helm", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 6, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 4, Magic: -2}},
 	},
 	{
 		ID: ItemMithrilPlate, Name: "Mithril Platebody", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 15, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 11, Magic: -5}},
 	},
-	{ID: ItemMithrilShield, Name: "Mithril Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 8, Defence: DefenceBonuses{Stab: 13, Slash: 15, Crush: 17, Ranged: 11, Magic: -5}}},
-	{ID: ItemMithrilLegs, Name: "Mithril Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 10, Defence: DefenceBonuses{Stab: 11, Slash: 13, Crush: 10, Ranged: 8, Magic: -3}}},
-	{ID: ItemMithrilGloves, Name: "Mithril Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 6, Ranged: 4, Magic: -1}}},
-	{ID: ItemMithrilBoots, Name: "Mithril Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 5, Ranged: 4, Magic: -1}}},
+	{ID: ItemMithrilShield, Name: "Mithril Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 8, Defence: DefenceBonuses{Stab: 13, Slash: 15, Crush: 17, Ranged: 11, Magic: -5}}},
+	{ID: ItemMithrilLegs, Name: "Mithril Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 10, Defence: DefenceBonuses{Stab: 11, Slash: 13, Crush: 10, Ranged: 8, Magic: -3}}},
+	{ID: ItemMithrilGloves, Name: "Mithril Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 6, Ranged: 4, Magic: -1}}},
+	{ID: ItemMithrilBoots, Name: "Mithril Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 5, Ranged: 4, Magic: -1}}},
 	{
 		ID: ItemTrainingPlate, Name: "Training Plate", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2}},
@@ -342,8 +392,16 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemRuby, Name: "Ruby", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemUncutDiamond, Name: "Uncut Diamond", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemDiamond, Name: "Diamond", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true},
-	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true},
+	{ID: ItemBronzeArrow, Name: "Bronze Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: -1},
+	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow},
+	{ID: ItemSteelArrow, Name: "Steel Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 1},
+	{ID: ItemMithrilArrow, Name: "Mithril Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 2},
+	{ID: ItemAdamantiteArrow, Name: "Adamantite Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 3},
+	{ID: ItemBronzeBolt, Name: "Bronze Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: -1},
+	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt},
+	{ID: ItemSteelBolt, Name: "Steel Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 1},
+	{ID: ItemMithrilBolt, Name: "Mithril Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 2},
+	{ID: ItemAdamantiteBolt, Name: "Adamantite Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 3},
 	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
@@ -365,7 +423,17 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemFishOil, Name: "Fish Oil", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemArrowShafts, Name: "Arrow Shafts", Kind: ItemKindResource, StackLimit: MaximumItemStackQuantity},
 	{ID: ItemFeathers, Name: "Feathers", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemBronzeArrowTips, Name: "Bronze Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
 	{ID: ItemIronArrowTips, Name: "Iron Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemSteelArrowTips, Name: "Steel Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemMithrilArrowTips, Name: "Mithril Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemAdamantiteArrowTips, Name: "Adamantite Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemBowstring, Name: "Bowstring", Kind: ItemKindResource, StackLimit: 50},
+	{ID: ItemUnstrungShortbow, Name: "Unstrung Shortbow", Kind: ItemKindResource},
+	{ID: ItemUnstrungOakShortbow, Name: "Unstrung Oak Shortbow", Kind: ItemKindResource},
+	{ID: ItemUnstrungWillowShortbow, Name: "Unstrung Willow Shortbow", Kind: ItemKindResource},
+	{ID: ItemUnstrungMapleShortbow, Name: "Unstrung Maple Shortbow", Kind: ItemKindResource},
+	{ID: ItemUnstrungYewShortbow, Name: "Unstrung Yew Shortbow", Kind: ItemKindResource},
 	{
 		ID: ItemPrayerPotion, Name: "Prayer Potion", Kind: ItemKindConsumable, StackLimit: 5,
 		Consumable: ConsumableDefinition{PrayerRestoration: 25, CooldownPulses: 2},
@@ -471,8 +539,8 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		if definition.StackLimit < 0 {
 			return nil, fmt.Errorf("item %q has a negative stack limit", definition.ID)
 		}
-		if definition.Ammunition && definition.Kind != ItemKindResource {
-			return nil, fmt.Errorf("ammunition %q must be a resource", definition.ID)
+		if definition.Ammunition && (definition.Kind != ItemKindResource || definition.AmmunitionFamily == "") {
+			return nil, fmt.Errorf("ammunition %q must be a resource with a family", definition.ID)
 		}
 		seenRequirements := make(map[SkillID]struct{}, len(definition.EquipRequirements))
 		for _, requirement := range definition.EquipRequirements {
@@ -532,7 +600,8 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 			continue
 		}
 		ammunitionItem, exists := catalog[ammunition.ItemID]
-		if ammunition.ItemID == "" || ammunition.Quantity < 0 || !exists || ammunitionItem.Kind != ItemKindResource {
+		if ammunition.ItemID == "" || ammunition.Quantity < 0 || !exists || ammunitionItem.Kind != ItemKindResource ||
+			definition.Weapon.AmmunitionFamily == "" || ammunitionItem.AmmunitionFamily != definition.Weapon.AmmunitionFamily {
 			return nil, fmt.Errorf("weapon %q has invalid ammunition %+v", definition.ID, ammunition)
 		}
 	}

@@ -55,6 +55,18 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 	if recipe := welcome.ProductionRecipes[0]; recipe.Station == "" || recipe.ID == "" || len(recipe.Costs) == 0 {
 		t.Fatalf("welcome production recipe is incomplete: %+v", recipe)
 	}
+	foundFletchingRecipe := false
+	for _, recipe := range welcome.ProductionRecipes {
+		if recipe.Station == "fletching" {
+			foundFletchingRecipe = true
+			if recipe.RequiredLevel < 1 || recipe.RewardXP < 1 || recipe.Interval < 1 {
+				t.Fatalf("welcome fletching recipe is incomplete: %+v", recipe)
+			}
+		}
+	}
+	if !foundFletchingRecipe {
+		t.Fatal("welcome production catalogue has no fletching recipe")
+	}
 	if len(welcome.Spellbooks) != len(simulation.SpellbookCatalog()) || len(welcome.Spells) != len(simulation.SpellCatalog()) {
 		t.Fatalf("welcome spell catalogue has %d books and %d spells", len(welcome.Spellbooks), len(welcome.Spells))
 	}
@@ -315,8 +327,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 				}},
 			},
 			Skills: []simulation.SkillSnapshot{{
-				ID: simulation.SkillAttack, Experience: 125, Level: 2,
-				CurrentLevelExperience: 100, NextLevelExperience: 400,
+				ID: simulation.SkillAttack, Experience: 125, Level: 3,
+				CurrentLevelExperience: 87, NextLevelExperience: 138,
 			}},
 		}},
 	}, "player-one")
@@ -377,8 +389,8 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		t.Fatalf("player combat stats = %+v", player.CombatStats)
 	}
 	if len(player.Skills) != 1 || player.Skills[0].ID != "attack" ||
-		player.Skills[0].Experience != 125 || player.Skills[0].Level != 2 ||
-		player.Skills[0].CurrentLevelExperience != 100 || player.Skills[0].NextLevelExperience != 400 {
+		player.Skills[0].Experience != 125 || player.Skills[0].Level != 3 ||
+		player.Skills[0].CurrentLevelExperience != 87 || player.Skills[0].NextLevelExperience != 138 {
 		t.Fatalf("player skills = %+v", player.Skills)
 	}
 }

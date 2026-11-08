@@ -25,6 +25,16 @@ func TestDecodeClientMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeDebugSetSkillMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"debug_set_skill","sequence":4,"skill_id":"attack","level":30}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageDebugSetSkill || message.SkillID != "attack" || message.Level != 30 {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodeEngageTargetMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"engage_target","sequence":2,"target_id":"dummy"}`))
 	if err != nil {
@@ -215,18 +225,21 @@ func TestDecodePickupItemMessage(t *testing.T) {
 
 func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 	tests := map[string]string{
-		"malformed JSON":     `{"type":`,
-		"unknown field":      `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2},"extra":true}`,
-		"unknown type":       `{"type":"dance","sequence":1,"destination":{"x":1,"z":2}}`,
-		"missing sequence":   `{"type":"move_to","destination":{"x":1,"z":2}}`,
-		"missing target":     `{"type":"move_to","sequence":1}`,
-		"missing target ID":  `{"type":"engage_target","sequence":1}`,
-		"missing item ID":    `{"type":"equip_item","sequence":1}`,
-		"missing unequip ID": `{"type":"unequip_item","sequence":1}`,
-		"missing drop ID":    `{"type":"pickup_item","sequence":1}`,
-		"missing style":      `{"type":"set_combat_style","sequence":1}`,
-		"missing prayer ID":  `{"type":"set_prayer","sequence":1,"active":true}`,
-		"multiple values":    `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
+		"malformed JSON":      `{"type":`,
+		"unknown field":       `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2},"extra":true}`,
+		"unknown type":        `{"type":"dance","sequence":1,"destination":{"x":1,"z":2}}`,
+		"missing sequence":    `{"type":"move_to","destination":{"x":1,"z":2}}`,
+		"missing target":      `{"type":"move_to","sequence":1}`,
+		"missing target ID":   `{"type":"engage_target","sequence":1}`,
+		"missing item ID":     `{"type":"equip_item","sequence":1}`,
+		"missing unequip ID":  `{"type":"unequip_item","sequence":1}`,
+		"missing drop ID":     `{"type":"pickup_item","sequence":1}`,
+		"missing style":       `{"type":"set_combat_style","sequence":1}`,
+		"missing prayer ID":   `{"type":"set_prayer","sequence":1,"active":true}`,
+		"missing debug skill": `{"type":"debug_set_skill","sequence":1,"level":10}`,
+		"invalid debug level": `{"type":"debug_set_skill","sequence":1,"skill_id":"attack","level":101}`,
+		"negative debug XP":   `{"type":"debug_set_skill","sequence":1,"skill_id":"attack","set_experience":true,"experience":-1}`,
+		"multiple values":     `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
 	}
 
 	for name, input := range tests {

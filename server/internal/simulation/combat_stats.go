@@ -3,37 +3,38 @@ package simulation
 // CombatStatsSnapshot contains the derived values used by combat. Sending the
 // derived values keeps the client display aligned with the authoritative rules.
 type CombatStatsSnapshot struct {
-	Weapon                 WeaponID
-	Style                  CombatStyleID
-	Spell                  SpellID
-	AccuracySkill          SkillID
-	AccuracyLevel          int
-	WeaponAccuracyBonus    int
-	EquipmentAccuracyBonus int
-	StyleAccuracyBonus     int
-	SpellAccuracyBonus     int
-	PrayerHitChanceBonus   float64
-	TotalAccuracy          int
-	DamageSkill            SkillID
-	DamageLevel            int
-	StrengthBonus          int
-	EquipmentStrengthBonus int
-	SpellPower             int
-	SkillDamageBonus       float64
-	PrayerDamageBonus      float64
-	PrayerDamageReduction  float64
-	BaseAttackInterval     uint64
-	AttackInterval         uint64
-	AttackIntervalModifier int
-	MinimumDamage          int
-	MaximumDamage          int
-	DefenceLevel           int
-	DefenceBonuses         DefenceBonuses
-	AgilityLevel           int
-	EquipmentEvasionBonus  int
-	TotalEvasion           int
-	ArmourDamageReduction  float64
-	MaximumHealthBonus     int
+	Weapon                  WeaponID
+	Style                   CombatStyleID
+	Spell                   SpellID
+	AccuracySkill           SkillID
+	AccuracyLevel           int
+	WeaponAccuracyBonus     int
+	EquipmentAccuracyBonus  int
+	StyleAccuracyBonus      int
+	SpellAccuracyBonus      int
+	PrayerHitChanceBonus    float64
+	TotalAccuracy           int
+	DamageSkill             SkillID
+	DamageLevel             int
+	StrengthBonus           int
+	EquipmentStrengthBonus  int
+	AmmunitionStrengthBonus int
+	SpellPower              int
+	SkillDamageBonus        float64
+	PrayerDamageBonus       float64
+	PrayerDamageReduction   float64
+	BaseAttackInterval      uint64
+	AttackInterval          uint64
+	AttackIntervalModifier  int
+	MinimumDamage           int
+	MaximumDamage           int
+	DefenceLevel            int
+	DefenceBonuses          DefenceBonuses
+	AgilityLevel            int
+	EquipmentEvasionBonus   int
+	TotalEvasion            int
+	ArmourDamageReduction   float64
+	MaximumHealthBonus      int
 }
 
 type CombatMatchupSnapshot struct {
@@ -76,7 +77,8 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 		return CombatMatchupSnapshot{}
 	}
 	playerDodge := targetDodgeChance(player, target, weapon)
-	poweredDamage := weaponPoweredDamage(player, weapon)
+	ammunitionStrength := ammunitionStrengthForPlayer(player, weapon)
+	poweredDamage := weaponPoweredDamageWithAmmunition(player, weapon, ammunitionStrength)
 	variance := weapon.DamageVariance
 	playerAttackRange := weapon.Range
 	damageType := DamageTypeCrush
@@ -187,7 +189,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		strengthBonus = weapon.MagicStrength
 	}
 	minimumDamage, maximumDamage := damageRange(
-		weaponPoweredDamage(player, weapon),
+		weaponPoweredDamageWithAmmunition(player, weapon, ammunitionStrengthForPlayer(player, weapon)),
 		weapon.DamageVariance,
 	)
 
@@ -195,34 +197,35 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 	equipmentAccuracy, equipmentStrength := equipmentOffenceForWeapon(player, weapon)
 	attackInterval := effectiveWeaponAttackInterval(player, weapon)
 	return CombatStatsSnapshot{
-		Weapon:                 weapon.ID,
-		Style:                  player.combatStyle,
-		AccuracySkill:          accuracySkill,
-		AccuracyLevel:          effectiveCombatSkillLevel(player, accuracySkill),
-		WeaponAccuracyBonus:    weapon.AccuracyBonus,
-		EquipmentAccuracyBonus: equipmentAccuracy,
-		StyleAccuracyBonus:     combatStyleAccuracyBonus(player.combatStyle),
-		PrayerHitChanceBonus:   prayerHitChanceBonus(player, weapon),
-		TotalAccuracy:          playerAccuracyScore(player, weapon),
-		DamageSkill:            damageSkill,
-		DamageLevel:            effectiveCombatSkillLevel(player, damageSkill),
-		StrengthBonus:          strengthBonus,
-		EquipmentStrengthBonus: equipmentStrength,
-		SkillDamageBonus:       float64(effectiveCombatSkillLevel(player, damageSkill)-1) * skillDamagePointsPerLevel,
-		PrayerDamageBonus:      prayerDamageBonusForWeapon(prayerBonuses, weapon),
-		PrayerDamageReduction:  prayerBonuses.DamageReduction,
-		BaseAttackInterval:     weapon.AttackInterval,
-		AttackInterval:         attackInterval,
-		AttackIntervalModifier: int(attackInterval) - int(weapon.AttackInterval),
-		MinimumDamage:          minimumDamage,
-		MaximumDamage:          maximumDamage,
-		DefenceLevel:           effectiveCombatSkillLevel(player, SkillDefence),
-		DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
-		AgilityLevel:           SkillLevelForExperience(player.skills[SkillAgility]),
-		EquipmentEvasionBonus:  equippedEvasionBonusForPlayer(player),
-		TotalEvasion:           playerEvasionScore(player),
-		ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
-		MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
+		Weapon:                  weapon.ID,
+		Style:                   player.combatStyle,
+		AccuracySkill:           accuracySkill,
+		AccuracyLevel:           effectiveCombatSkillLevel(player, accuracySkill),
+		WeaponAccuracyBonus:     weapon.AccuracyBonus,
+		EquipmentAccuracyBonus:  equipmentAccuracy,
+		StyleAccuracyBonus:      combatStyleAccuracyBonus(player.combatStyle),
+		PrayerHitChanceBonus:    prayerHitChanceBonus(player, weapon),
+		TotalAccuracy:           playerAccuracyScore(player, weapon),
+		DamageSkill:             damageSkill,
+		DamageLevel:             effectiveCombatSkillLevel(player, damageSkill),
+		StrengthBonus:           strengthBonus,
+		EquipmentStrengthBonus:  equipmentStrength,
+		AmmunitionStrengthBonus: ammunitionStrengthForPlayer(player, weapon),
+		SkillDamageBonus:        float64(effectiveCombatSkillLevel(player, damageSkill)-1) * skillDamagePointsPerLevel,
+		PrayerDamageBonus:       prayerDamageBonusForWeapon(prayerBonuses, weapon),
+		PrayerDamageReduction:   prayerBonuses.DamageReduction,
+		BaseAttackInterval:      weapon.AttackInterval,
+		AttackInterval:          attackInterval,
+		AttackIntervalModifier:  int(attackInterval) - int(weapon.AttackInterval),
+		MinimumDamage:           minimumDamage,
+		MaximumDamage:           maximumDamage,
+		DefenceLevel:            effectiveCombatSkillLevel(player, SkillDefence),
+		DefenceBonuses:          equippedDefenceBonusesForPlayer(player),
+		AgilityLevel:            SkillLevelForExperience(player.skills[SkillAgility]),
+		EquipmentEvasionBonus:   equippedEvasionBonusForPlayer(player),
+		TotalEvasion:            playerEvasionScore(player),
+		ArmourDamageReduction:   armourDamageReduction(player, DamageTypeCrush),
+		MaximumHealthBonus:      equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
 	}
 }
 

@@ -67,7 +67,7 @@ func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	}
 
 	mustAddPlayer(t, world, "player-one", Position{X: -2, Z: -5}, 4)
-	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(5)
+	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(10)
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: drops[0].ID}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}

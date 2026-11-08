@@ -39,6 +39,8 @@ var _next_voice: int = 0
 var _mining_sound: AudioStreamWAV
 var _woodcutting_sound: AudioStreamWAV
 var _cooking_sound: AudioStreamWAV
+var _fletching_cut_sound: AudioStreamWAV
+var _fletching_assemble_sound: AudioStreamWAV
 var _crush_swing: AudioStreamWAV
 var _heavy_impact: AudioStreamWAV
 var _magic_cast: AudioStreamWAV
@@ -57,6 +59,8 @@ func _ready() -> void:
 	_mining_sound = _make_placeholder_sound(0.18, 920.0, 1480.0, 0.78, 0.04)
 	_woodcutting_sound = _make_placeholder_sound(0.16, 150.0, 290.0, 0.7, 0.12)
 	_cooking_sound = _make_placeholder_sound(0.24, 260.0, 520.0, 0.4, 0.34)
+	_fletching_cut_sound = _make_placeholder_sound(0.13, 180.0, 430.0, 0.68, 0.16)
+	_fletching_assemble_sound = _make_placeholder_sound(0.16, 520.0, 780.0, 0.46, 0.08)
 	_crush_swing = _make_placeholder_sound(0.16, 130.0, 210.0, 0.72, 0.18)
 	_heavy_impact = _make_placeholder_sound(0.2, 82.0, 155.0, 0.82, 0.24)
 	_magic_cast = _make_placeholder_sound(0.24, 520.0, 980.0, 0.42, 0.06)
@@ -105,6 +109,7 @@ func _is_ranged_weapon(weapon_id: String) -> bool:
 	return (
 		weapon_id in ["bow", "crossbow"]
 		or weapon_id.ends_with("_bow")
+		or weapon_id.ends_with("_shortbow")
 		or weapon_id.ends_with("_crossbow")
 	)
 
@@ -123,6 +128,8 @@ func play_action(action: StringName) -> void:
 		&"mining": _play_stream(_mining_sound, -3.0, randf_range(0.94, 1.06))
 		&"woodcutting": _play_stream(_woodcutting_sound, -3.0, randf_range(0.92, 1.04))
 		&"cooking": _play_stream(_cooking_sound, -5.0, randf_range(0.96, 1.05))
+		&"fletching_cut": _play_stream(_fletching_cut_sound, -4.0, randf_range(0.94, 1.06))
+		&"fletching_assemble": _play_stream(_fletching_assemble_sound, -4.0, randf_range(0.96, 1.08))
 
 
 func _play_variant(

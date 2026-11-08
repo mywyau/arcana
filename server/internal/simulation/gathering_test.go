@@ -79,11 +79,12 @@ func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
 		}
 	}
 	player := mustPlayer(t, world, "player-one")
-	if agility := mustSkill(t, player, SkillAgility); agility.Experience != 4*agilityObstacleExperience || agility.Level != 2 {
+	wantAgilityLevel := SkillLevelForExperience(4 * agilityObstacleExperience)
+	if agility := mustSkill(t, player, SkillAgility); agility.Experience != 4*agilityObstacleExperience || agility.Level != wantAgilityLevel {
 		t.Fatalf("Agility after four obstacle completions = %+v", agility)
 	}
-	if got, want := player.Speed, movementSpeedForAgility(4, 2); got != want {
-		t.Fatalf("movement speed after Agility level 2 = %.3f, want %.3f", got, want)
+	if got, want := player.Speed, movementSpeedForAgility(4, wantAgilityLevel); got != want {
+		t.Fatalf("movement speed after Agility level %d = %.3f, want %.3f", wantAgilityLevel, got, want)
 	}
 	if player.GatheringSpot != "" || player.GatheringResult != "completed_agility_obstacle" {
 		t.Fatalf("obstacle did not finish as a one-shot action: %+v", player)
@@ -139,7 +140,7 @@ func TestPrayerAltarSacrificesAllBonesOnePerPulseAndGrantsXP(t *testing.T) {
 	world.Step(9 * actionPulseInterval)
 	finished := mustPlayer(t, world, "player-one")
 	prayer := mustSkill(t, finished, SkillPrayer)
-	if finished.Inventory.itemsQuantity(ItemBones) != 0 || prayer.Experience != 100 || prayer.Level != 2 ||
+	if finished.Inventory.itemsQuantity(ItemBones) != 0 || prayer.Experience != 100 || prayer.Level != SkillLevelForExperience(100) ||
 		finished.GatheringSpot != "" || finished.GatheringResult != "sacrificed_all_bones" {
 		t.Fatalf("completed bone sacrifice = %+v", finished)
 	}

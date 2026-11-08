@@ -264,7 +264,12 @@ const REINFORCEMENT_TIERS: Dictionary = {
 	"mithril": {"bar": "mithril_bar", "bar_name": "Mithril Bars", "level": 8, "items": ["mithril_sword", "mithril_helm", "mithril_platebody", "mithril_shield", "mithril_legs", "mithril_gloves", "mithril_boots"]},
 }
 const MAXIMUM_REINFORCEMENT: int = 5
-const AMMUNITION_ITEMS: Dictionary = {"iron_arrow": true, "iron_bolt": true}
+const AMMUNITION_ITEMS: Dictionary = {
+	"bronze_arrow": true, "iron_arrow": true, "steel_arrow": true,
+	"mithril_arrow": true, "adamantite_arrow": true,
+	"bronze_bolt": true, "iron_bolt": true, "steel_bolt": true,
+	"mithril_bolt": true, "adamantite_bolt": true,
+}
 const RUNE_ITEMS: Dictionary = {
 	"air_rune": true, "water_rune": true, "earth_rune": true,
 	"fire_rune": true, "holy_rune": true, "dark_rune": true,
@@ -328,27 +333,6 @@ const KNOWN_BREWS: Dictionary = {
 	"fish_oil+sunleaf+vial_of_water": "Ranging Potion",
 	"moonleaf+vial_of_water": "Magic Potion",
 }
-const FLETCHING_RECIPES: Dictionary = {
-	"arrow_shafts": {
-		"name": "20 Arrow Shafts",
-		"costs": {"normal_logs": 1},
-		"tool": "knife",
-		"experience": 10,
-	},
-	"iron_arrows": {
-		"name": "20 Iron Arrows",
-		"costs": {"arrow_shafts": 20, "feathers": 20, "iron_arrow_tips": 20},
-		"tool": "",
-		"experience": 20,
-	},
-}
-const FLETCHING_INPUTS: Dictionary = {
-	"knife": true,
-	"normal_logs": true,
-	"arrow_shafts": true,
-	"feathers": true,
-	"iron_arrow_tips": true,
-}
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
 const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
@@ -383,8 +367,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var brewing_make_all_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeAll
 @onready var fletching_window: Window = $FletchingWindow
 @onready var fletching_close_button: Button = $FletchingWindow/Panel/Margin/VBox/Header/Close
-@onready var fletching_shafts_button: Button = $FletchingWindow/Panel/Margin/VBox/Recipes/Shafts
-@onready var fletching_arrows_button: Button = $FletchingWindow/Panel/Margin/VBox/Recipes/Arrows
+@onready var fletching_recipe_grid: GridContainer = $FletchingWindow/Panel/Margin/VBox/RecipeScroll/Recipes
 @onready var fletching_selection: Label = $FletchingWindow/Panel/Margin/VBox/Selection
 @onready var fletching_make_one_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/Make1
 @onready var fletching_make_x_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/MakeX
@@ -674,21 +657,21 @@ var _inventory_items: Array = []
 var _inventory_signature: String = ""
 var _inventory_page: int = 0
 var _skill_progress: Dictionary = {
-	"attack": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"strength": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"defence": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"range": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"magic": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"agility": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"fishing": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"cooking": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"mining": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"woodcutting": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"herblore": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"fletching": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"prayer": {"experience": 0, "level": 1, "current": 0, "next": 100},
-	"runecrafting": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"attack": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"strength": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"defence": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"range": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"magic": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"agility": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"fishing": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"cooking": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"mining": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"woodcutting": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"herblore": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"fletching": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"prayer": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"runecrafting": {"experience": 0, "level": 1, "current": 0, "next": 41},
 }
 var _skill_tiles: Dictionary = {}
 var _skill_details_window: Window
@@ -702,6 +685,11 @@ var _skill_details_action: Button
 var _skill_context_menu: PopupMenu
 var _skill_context_name: String = ""
 var _skill_context_id: String = ""
+var _debug_skill_window: Window
+var _debug_skill_selector: OptionButton
+var _debug_skill_level: SpinBox
+var _debug_skill_experience: SpinBox
+var _next_debug_skill_sequence: int = 1
 var _open_skill_name: String = ""
 var _open_skill_id: String = ""
 var _combat_stats: Dictionary = {}
@@ -738,6 +726,8 @@ var _brewing_result_text: String = ""
 var _brew_quantity_dialog: ConfirmationDialog
 var _brew_quantity_input: SpinBox
 var _selected_fletching_recipe: String = "arrow_shafts"
+var _fletching_recipes: Dictionary = {}
+var _fletching_recipe_buttons: Dictionary = {}
 var _next_fletch_sequence: int = 1
 var _last_fletch_sequence: int = 0
 var _fletch_pending: bool = false
@@ -845,10 +835,6 @@ func _ready() -> void:
 	brewing_make_all_button.pressed.connect(_request_brew.bind(0))
 	_setup_brew_quantity_dialog()
 	fletching_window.close_requested.connect(fletching_window.hide)
-	fletching_shafts_button.toggle_mode = true
-	fletching_arrows_button.toggle_mode = true
-	fletching_shafts_button.pressed.connect(_select_fletching_recipe.bind("arrow_shafts"))
-	fletching_arrows_button.pressed.connect(_select_fletching_recipe.bind("iron_arrows"))
 	fletching_make_one_button.pressed.connect(_request_fletch)
 	fletching_make_x_button.pressed.connect(_open_fletch_quantity_dialog)
 	fletching_make_all_button.pressed.connect(_request_fletch.bind(0))
@@ -976,6 +962,7 @@ func _ready() -> void:
 	_update_combat_hud()
 	_update_inventory_hud()
 	_setup_skill_details_interface()
+	_setup_debug_skill_interface()
 	_populate_placeholder_skills()
 	_populate_placeholder_spells()
 	_populate_placeholder_prayers()
@@ -1118,6 +1105,122 @@ func _on_crafting_window_input(event: InputEvent, crafting_window: Window) -> vo
 		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
 			crafting_window.hide()
 			crafting_window.set_input_as_handled()
+
+
+func _setup_debug_skill_interface() -> void:
+	_debug_skill_window = Window.new()
+	_debug_skill_window.name = "DebugSkillWindow"
+	_debug_skill_window.title = ""
+	_debug_skill_window.size = Vector2i(460, 300)
+	_debug_skill_window.unresizable = true
+	_debug_skill_window.transient = true
+	_style_interface_window(_debug_skill_window)
+	add_child(_debug_skill_window)
+	_debug_skill_window.close_requested.connect(_debug_skill_window.hide)
+	_debug_skill_window.window_input.connect(_on_crafting_window_input.bind(_debug_skill_window))
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_debug_skill_window.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 12)
+	margin.add_child(content)
+	var header := HBoxContainer.new()
+	content.add_child(header)
+	var title := Label.new()
+	title.text = "Test Skill Shrine"
+	title.add_theme_font_size_override("font_size", 22)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var close := Button.new()
+	_style_interface_close_button(close)
+	close.pressed.connect(_debug_skill_window.hide)
+	header.add_child(close)
+
+	_debug_skill_selector = OptionButton.new()
+	for skill_id: String in _skill_progress.keys():
+		_debug_skill_selector.add_item(skill_id.capitalize())
+		_debug_skill_selector.set_item_metadata(_debug_skill_selector.item_count - 1, skill_id)
+	_debug_skill_selector.item_selected.connect(_refresh_debug_skill_inputs.unbind(1))
+	content.add_child(_debug_skill_selector)
+
+	var level_row := HBoxContainer.new()
+	content.add_child(level_row)
+	var level_label := Label.new()
+	level_label.text = "Level"
+	level_label.custom_minimum_size.x = 90
+	level_row.add_child(level_label)
+	_debug_skill_level = SpinBox.new()
+	_debug_skill_level.min_value = 1
+	_debug_skill_level.max_value = 100
+	_debug_skill_level.rounded = true
+	_debug_skill_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	level_row.add_child(_debug_skill_level)
+	var set_level := Button.new()
+	set_level.text = "Set level"
+	set_level.pressed.connect(_request_debug_skill_level)
+	level_row.add_child(set_level)
+
+	var xp_row := HBoxContainer.new()
+	content.add_child(xp_row)
+	var xp_label := Label.new()
+	xp_label.text = "Exact XP"
+	xp_label.custom_minimum_size.x = 90
+	xp_row.add_child(xp_label)
+	_debug_skill_experience = SpinBox.new()
+	_debug_skill_experience.min_value = 0
+	_debug_skill_experience.max_value = 10000000
+	_debug_skill_experience.rounded = true
+	_debug_skill_experience.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	xp_row.add_child(_debug_skill_experience)
+	var set_xp := Button.new()
+	set_xp.text = "Set XP"
+	set_xp.pressed.connect(_request_debug_skill_experience)
+	xp_row.add_child(set_xp)
+
+	var warning := Label.new()
+	warning.text = "Debug only — changes are saved to this character."
+	warning.modulate = Color(0.95, 0.72, 0.38)
+	content.add_child(warning)
+
+
+func _selected_debug_skill_id() -> String:
+	if _debug_skill_selector == null or _debug_skill_selector.item_count == 0:
+		return ""
+	return str(_debug_skill_selector.get_item_metadata(_debug_skill_selector.selected))
+
+
+func _refresh_debug_skill_inputs() -> void:
+	var progress: Dictionary = _skill_progress.get(_selected_debug_skill_id(), {}) as Dictionary
+	_debug_skill_level.value = int(progress.get("level", 1))
+	_debug_skill_experience.value = int(progress.get("experience", 0))
+
+
+func _open_debug_skill_window() -> void:
+	_refresh_debug_skill_inputs()
+	_debug_skill_window.popup_centered(Vector2i(460, 300))
+
+
+func _request_debug_skill_level() -> void:
+	var skill_id := _selected_debug_skill_id()
+	var level := int(_debug_skill_level.value)
+	if network.send_debug_set_skill(_next_debug_skill_sequence, skill_id, level):
+		_next_debug_skill_sequence += 1
+		status_label.text = "Set %s to level %d" % [skill_id.capitalize(), level]
+
+
+func _request_debug_skill_experience() -> void:
+	var skill_id := _selected_debug_skill_id()
+	var experience := int(_debug_skill_experience.value)
+	if network.send_debug_set_skill(_next_debug_skill_sequence, skill_id, 1, experience, true):
+		_next_debug_skill_sequence += 1
+		status_label.text = "Set %s to %d XP" % [skill_id.capitalize(), experience]
 
 
 func _physics_process(_delta: float) -> void:
@@ -1552,7 +1655,7 @@ func _take_test_supply(drop_id: String) -> void:
 func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
 	_selected_station_id = spot_id
 	_selected_station_position = spot_position
-	if station in ["cooking", "smelting", "forging"]:
+	if station in ["cooking", "smelting", "forging", "debug_skills"]:
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		var interaction_range: float = float(
 			(_gathering_states.get(spot_id, {}) as Dictionary).get("range", 2.5)
@@ -1599,6 +1702,7 @@ func _crafting_station_name(station: String) -> String:
 	match station:
 		"forging": return "anvil"
 		"smelting": return "furnace"
+		"debug_skills": return "test skill shrine"
 		_: return "cooking range"
 
 
@@ -1607,6 +1711,7 @@ func _open_crafting_station_window(station: String) -> void:
 		"forging": _open_smithing_window()
 		"smelting": _open_smelting_window()
 		"cooking": _open_cooking_window()
+		"debug_skills": _open_debug_skill_window()
 
 
 func _update_crafting_station_proximity(player_position: Vector3) -> void:
@@ -1640,7 +1745,7 @@ func _recipes_for_station(station: String) -> Array:
 
 
 func _has_crafting_station(station: String) -> bool:
-	return _production_recipes.has(station) or CRAFTING_RECIPES.has(station)
+	return station == "debug_skills" or _production_recipes.has(station) or CRAFTING_RECIPES.has(station)
 
 
 func _format_recipe_costs(costs: Array, separator: String) -> String:
@@ -2135,53 +2240,139 @@ func _request_brew(quantity: int = 1) -> void:
 
 
 func _open_fletching_window(starting_item_id: String = "") -> void:
-	if starting_item_id in ["arrow_shafts", "feathers", "iron_arrow_tips"]:
-		_selected_fletching_recipe = "iron_arrows"
-	elif starting_item_id in ["knife", "normal_logs"]:
-		_selected_fletching_recipe = "arrow_shafts"
+	var matching_recipe: String = _fletching_recipe_for_item(starting_item_id)
+	if not matching_recipe.is_empty():
+		_selected_fletching_recipe = matching_recipe
 	_refresh_fletching_window()
 	fletching_window.popup_centered()
 
 
 func _select_fletching_recipe(recipe_id: String) -> void:
-	if _fletch_pending or not FLETCHING_RECIPES.has(recipe_id):
+	if _fletch_pending or not _fletching_recipes.has(recipe_id):
 		return
 	_selected_fletching_recipe = recipe_id
 	_refresh_fletching_window()
 
 
+func _fletching_recipe_for_item(item_id: String) -> String:
+	if item_id.is_empty():
+		return ""
+	for recipe_id_value: Variant in _fletching_recipes:
+		var recipe_id: String = str(recipe_id_value)
+		var recipe := _fletching_recipes[recipe_id] as Dictionary
+		if str(recipe.get("required_tool", "")) == item_id:
+			return recipe_id
+		for cost_data: Variant in recipe.get("costs", []) as Array:
+			if typeof(cost_data) == TYPE_DICTIONARY and str((cost_data as Dictionary).get("item_id", "")) == item_id:
+				return recipe_id
+	return ""
+
+
+func _is_fletching_input(item_id: String) -> bool:
+	return not _fletching_recipe_for_item(item_id).is_empty()
+
+
 func _maximum_fletch_batches() -> int:
-	var recipe: Dictionary = FLETCHING_RECIPES.get(_selected_fletching_recipe, {}) as Dictionary
+	var recipe: Dictionary = _fletching_recipes.get(_selected_fletching_recipe, {}) as Dictionary
 	if recipe.is_empty():
 		return 0
-	var tool_id: String = str(recipe.get("tool", ""))
+	var fletching_level: int = int((_skill_progress.get("fletching", {}) as Dictionary).get("level", 1))
+	if fletching_level < int(recipe.get("required_level", 1)):
+		return 0
+	var tool_id: String = str(recipe.get("required_tool", ""))
 	if not tool_id.is_empty() and _inventory_quantity(tool_id) < 1:
 		return 0
-	var maximum: int = 2_147_483_647
-	var costs: Dictionary = recipe.get("costs", {}) as Dictionary
-	for item_id: String in costs:
-		var required: int = int(costs[item_id])
-		maximum = mini(maximum, floori(float(_inventory_quantity(item_id)) / float(required)))
-	return 0 if maximum == 2_147_483_647 else maximum
+	return _maximum_production_batches(recipe.get("costs", []) as Array)
+
+
+func _rebuild_fletching_recipes() -> void:
+	_fletching_recipes.clear()
+	for child: Node in fletching_recipe_grid.get_children():
+		child.queue_free()
+	_fletching_recipe_buttons.clear()
+	var recipes: Array = _recipes_for_station("fletching")
+	for payload: Variant in recipes:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var recipe := (payload as Dictionary).duplicate(true)
+		var recipe_id: String = str(recipe.get("id", ""))
+		if recipe_id.is_empty():
+			continue
+		_fletching_recipes[recipe_id] = recipe
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(280, 130)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.text = _fletching_recipe_button_text(recipe)
+		var reward_item: String = str(recipe.get("reward_item", ""))
+		button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
+		button.expand_icon = true
+		button.icon_max_width = 52
+		button.pressed.connect(_select_fletching_recipe.bind(recipe_id))
+		fletching_recipe_grid.add_child(button)
+		_fletching_recipe_buttons[recipe_id] = button
+	if not _fletching_recipes.has(_selected_fletching_recipe):
+		_selected_fletching_recipe = str(_fletching_recipes.keys()[0]) if not _fletching_recipes.is_empty() else ""
+
+
+func _fletching_recipe_button_text(recipe: Dictionary) -> String:
+	var costs: String = _format_recipe_costs(recipe.get("costs", []) as Array, " + ")
+	var tool_id: String = str(recipe.get("required_tool", ""))
+	var tool_text := ""
+	if not tool_id.is_empty():
+		tool_text = "\nTool: %s" % str(ITEM_DISPLAY_NAMES.get(tool_id, tool_id.replace("_", " ").capitalize()))
+	return "%s\nLv %d • %d XP\n%s%s" % [
+		str(recipe.get("name", "Recipe")),
+		int(recipe.get("required_level", 1)),
+		int(recipe.get("reward_xp", 0)),
+		costs,
+		tool_text,
+	]
+
+
+func _fletching_recipe_for_reward(item_id: String) -> Dictionary:
+	for recipe_id_value: Variant in _fletching_recipes:
+		var recipe := _fletching_recipes[str(recipe_id_value)] as Dictionary
+		if str(recipe.get("reward_item", "")) == item_id:
+			return recipe
+	return {}
+
+
+func _play_fletching_completion_feedback(item_id: String) -> String:
+	var recipe: Dictionary = _fletching_recipe_for_reward(item_id)
+	if recipe.is_empty():
+		return ""
+	var quantity: int = int(recipe.get("reward_quantity", 1))
+	var item_name: String = str(ITEM_DISPLAY_NAMES.get(item_id, item_id.replace("_", " ").capitalize()))
+	sound_effects.play_action(&"fletching_cut" if item_id == "arrow_shafts" else &"fletching_assemble")
+	return "Produced %d %s" % [quantity, item_name]
 
 
 func _refresh_fletching_window() -> void:
 	var maximum := _maximum_fletch_batches()
-	var recipe: Dictionary = FLETCHING_RECIPES.get(_selected_fletching_recipe, {}) as Dictionary
+	var recipe: Dictionary = _fletching_recipes.get(_selected_fletching_recipe, {}) as Dictionary
 	var recipe_name: String = str(recipe.get("name", "Select a recipe"))
-	var experience: int = int(recipe.get("experience", 0))
-	fletching_shafts_button.button_pressed = _selected_fletching_recipe == "arrow_shafts"
-	fletching_arrows_button.button_pressed = _selected_fletching_recipe == "iron_arrows"
-	fletching_shafts_button.disabled = _fletch_pending
-	fletching_arrows_button.disabled = _fletch_pending
+	var experience: int = int(recipe.get("reward_xp", 0))
+	var interval: int = int(recipe.get("interval", 1))
+	for recipe_id_value: Variant in _fletching_recipe_buttons:
+		var recipe_id: String = str(recipe_id_value)
+		var button := _fletching_recipe_buttons[recipe_id] as Button
+		button.set_pressed_no_signal(recipe_id == _selected_fletching_recipe)
+		button.disabled = _fletch_pending
 	if _fletch_pending:
-		fletching_selection.text = "Making %s every 600 ms • %d batch%s remaining" % [
-			recipe_name, _fletch_remaining, "" if _fletch_remaining == 1 else "es",
+		fletching_selection.text = "Making %s every %.1f s • %d batch%s remaining" % [
+			recipe_name, float(interval) * 0.6, _fletch_remaining, "" if _fletch_remaining == 1 else "es",
 		]
 	else:
-		fletching_selection.text = "%s • %d XP per batch • materials for %d batch%s" % [
-			recipe_name, experience, maximum, "" if maximum == 1 else "es",
-		]
+		var required_level: int = int(recipe.get("required_level", 1))
+		var current_level: int = int((_skill_progress.get("fletching", {}) as Dictionary).get("level", 1))
+		if not recipe.is_empty() and current_level < required_level:
+			fletching_selection.text = "%s • Requires Fletching level %d" % [recipe_name, required_level]
+		else:
+			fletching_selection.text = "%s • %d XP per batch • materials for %d batch%s" % [
+				recipe_name, experience, maximum, "" if maximum == 1 else "es",
+			]
 	var unavailable := maximum < 1 or _fletch_pending
 	fletching_make_one_button.disabled = unavailable
 	fletching_make_x_button.disabled = unavailable
@@ -2193,7 +2384,7 @@ func _setup_fletch_quantity_dialog() -> void:
 	_fletch_quantity_dialog = ConfirmationDialog.new()
 	_style_interface_window(_fletch_quantity_dialog)
 	_fletch_quantity_dialog.title = "Fletch X batches"
-	_fletch_quantity_dialog.dialog_text = "Choose how many batches of 20 to make:"
+	_fletch_quantity_dialog.dialog_text = "Choose how many batches to make:"
 	_fletch_quantity_dialog.min_size = Vector2i(380, 180)
 	_fletch_quantity_dialog.get_ok_button().text = "Start fletching"
 	_fletch_quantity_input = SpinBox.new()
@@ -2791,7 +2982,7 @@ func _inventory_action_for_item(item_id: String) -> String:
 		return "consume"
 	if BREWING_INGREDIENTS.has(item_id):
 		return "brew"
-	if FLETCHING_INPUTS.has(item_id):
+	if _is_fletching_input(item_id):
 		return "fletch"
 	if UNCUT_GEMS.has(item_id):
 		return "cut_gem"
@@ -3005,6 +3196,7 @@ func _on_production_recipes_received(recipes: Array) -> void:
 		station_recipes.append(recipe)
 		grouped[station] = station_recipes
 	_production_recipes = grouped
+	_rebuild_fletching_recipes()
 	if cooking_window.visible:
 		_refresh_cooking_grid()
 	if smelting_window.visible:
@@ -3307,16 +3499,18 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_fletch_remaining = int(player_data.get("fletch_remaining", 0))
 			_next_fletch_pulse = int(player_data.get("next_fletch_pulse", 0))
 			var fletching_result_text: String = str(player_data.get("fletching_result", ""))
+			var fletching_batch_message := ""
+			if previous_fletch_remaining > _fletch_remaining and fletching_result_text not in ["", "fletching", "fletching_stopped"]:
+				fletching_batch_message = _play_fletching_completion_feedback(fletching_result_text)
 			if _fletch_pending and _fletch_remaining <= 0 and _last_fletch_sequence >= _next_fletch_sequence - 1:
 				_fletch_pending = false
-				status_label.text = "Fletching complete • Fletching XP gained"
+				status_label.text = "%s • Fletching complete" % fletching_batch_message if not fletching_batch_message.is_empty() else "Fletching complete • Fletching XP gained"
 				_append_game_message(status_label.text)
 			elif _fletch_remaining > 0:
 				_fletch_pending = true
 				if fletching_result_text != _fletching_result_text or previous_fletch_remaining != _fletch_remaining:
-					status_label.text = "Fletching… %d batch%s remaining" % [
-						_fletch_remaining, "" if _fletch_remaining == 1 else "es",
-					]
+					var progress_text := "%d batch%s remaining" % [_fletch_remaining, "" if _fletch_remaining == 1 else "es"]
+					status_label.text = "%s • %s" % [fletching_batch_message, progress_text] if not fletching_batch_message.is_empty() else "Fletching… %s" % progress_text
 			_fletching_result_text = fletching_result_text
 			if fletching_window.visible:
 				_refresh_fletching_window()
@@ -3947,6 +4141,10 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 					sound_effects.play_feedback(avoidance_sound)
 
 
+func _is_shortbow_weapon(weapon_id: String) -> bool:
+	return weapon_id == "bow" or weapon_id.ends_with("_shortbow")
+
+
 func _combat_damage_color(source_id: String, weapon_id: String, spell_id: String) -> Color:
 	if not spell_id.is_empty():
 		match spell_id:
@@ -3956,7 +4154,7 @@ func _combat_damage_color(source_id: String, weapon_id: String, spell_id: String
 			"holy_bolt": return Color(1.0, 0.82, 0.15)
 			"dark_bolt": return Color(0.68, 0.3, 0.92)
 			_: return Color(0.86, 0.9, 1.0)
-	if weapon_id in ["bow", "crossbow"]:
+	if _is_shortbow_weapon(weapon_id) or weapon_id == "crossbow":
 		return Color(1.0, 0.72, 0.18)
 	var source_state: Dictionary = _target_states.get(source_id, {}) as Dictionary
 	match str(source_state.get("attack_type", "")):
@@ -5310,7 +5508,8 @@ func _update_combat_styles_hud() -> void:
 		styles_grid.remove_child(child)
 		child.queue_free()
 
-	var style_options: Array = COMBAT_STYLES.get(_equipped_weapon, []) as Array
+	var style_weapon: String = "bow" if _is_shortbow_weapon(_equipped_weapon) else _equipped_weapon
+	var style_options: Array = COMBAT_STYLES.get(style_weapon, []) as Array
 	var selected_style: String = _queued_combat_style if not _queued_combat_style.is_empty() else _combat_style
 	for style_data: Variant in style_options:
 		var style: Dictionary = style_data
@@ -5356,7 +5555,7 @@ func _update_combat_styles_hud() -> void:
 		]
 		style_button.tooltip_text = "Successful hits train %s" % training
 		var accuracy_note: String = ""
-		var uses_projectile_styles: bool = _equipped_weapon == "bow" or _equipped_weapon == "crossbow" or _equipped_weapon == "staff"
+		var uses_projectile_styles: bool = _is_shortbow_weapon(_equipped_weapon) or _equipped_weapon == "crossbow" or _equipped_weapon == "staff"
 		match style_id:
 			"accurate":
 				accuracy_note = "Highest accuracy • tighter damage range" if uses_projectile_styles else "Improves accuracy"
@@ -5558,6 +5757,9 @@ func _detailed_offence_text() -> String:
 	damage_breakdown += "\nGear: %s" % _signed_stat(
 		int(_combat_stats.get("equipment_strength_bonus", 0)),
 	)
+	var ammunition_strength: int = int(_combat_stats.get("ammunition_strength_bonus", 0))
+	if ammunition_strength != 0:
+		damage_breakdown += "\nAmmo: %s" % _signed_stat(ammunition_strength)
 	if not spell_id.is_empty():
 		loadout_text = "%s • %s" % [
 			spell_id.capitalize(), str(_combat_stats.get("weapon", "unarmed")).capitalize(),
@@ -6330,7 +6532,7 @@ func _update_inventory_hud() -> void:
 			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id)
 			var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
 			var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
-			var is_fletching_input: bool = FLETCHING_INPUTS.has(item_id)
+			var is_fletching_input: bool = _is_fletching_input(item_id)
 			var is_uncut_gem: bool = UNCUT_GEMS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 			var is_queued: bool = equipment_pending and _queued_item == item_id and (
@@ -6777,7 +6979,7 @@ func _update_combat_hud() -> void:
 	var weapon_interval: int = int(_combat_stats.get("attack_interval", 4))
 	if _equipped_weapon == "dagger":
 		weapon_interval = int(_combat_stats.get("attack_interval", 3))
-	elif _equipped_weapon == "bow":
+	elif _is_shortbow_weapon(_equipped_weapon):
 		weapon_interval = int(_combat_stats.get("attack_interval", 4 if _combat_style == "rapid" else 5))
 	elif _equipped_weapon == "mace" or _equipped_weapon == "staff":
 		weapon_interval = int(_combat_stats.get("attack_interval", 5))
@@ -6815,10 +7017,10 @@ func _update_combat_hud() -> void:
 	var displayed_weapon: String = queued_weapon if equipment_pending and not queued_weapon.is_empty() else _equipped_weapon
 	sword_button.set_pressed_no_signal(displayed_weapon == "sword")
 	dagger_button.set_pressed_no_signal(displayed_weapon == "dagger")
-	bow_button.set_pressed_no_signal(displayed_weapon == "bow")
+	bow_button.set_pressed_no_signal(_is_shortbow_weapon(displayed_weapon))
 	sword_button.text = "1  Sword%s" % ("  • queued" if equipment_pending and queued_weapon == "sword" else "")
 	dagger_button.text = "2  Dagger%s" % ("  • queued" if equipment_pending and queued_weapon == "dagger" else "")
-	bow_button.text = "3  Bow%s" % ("  • queued" if equipment_pending and queued_weapon == "bow" else "")
+	bow_button.text = "3  Bow%s" % ("  • queued" if equipment_pending and _is_shortbow_weapon(queued_weapon) else "")
 	sword_button.disabled = _player_defeated
 	dagger_button.disabled = _player_defeated
 	bow_button.disabled = _player_defeated

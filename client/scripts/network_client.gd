@@ -116,6 +116,24 @@ func send_experience_lock(sequence: int, locked: bool) -> bool:
 	return true
 
 
+func send_debug_set_skill(sequence: int, skill_id: String, level: int, experience: int = 0, set_experience: bool = false) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot adjust test skills while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "debug_set_skill",
+		"sequence": sequence,
+		"skill_id": skill_id,
+		"level": level,
+		"experience": experience,
+		"set_experience": set_experience,
+	}))
+	if result != OK:
+		status_changed.emit("Could not adjust test skill: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_equip_item(sequence: int, item_id: String, instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot equip while disconnected")

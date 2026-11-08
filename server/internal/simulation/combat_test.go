@@ -166,7 +166,7 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 		t.Fatalf("player combat state after first hit = %+v", player)
 	}
 	attack := mustSkill(t, player, SkillAttack)
-	if attack.Experience != swordDamage || attack.Level != 1 || attack.NextLevelExperience != 100 {
+	if attack.Experience != swordDamage || attack.Level != 1 || attack.NextLevelExperience != SkillExperienceForLevel(2) {
 		t.Fatalf("Attack after first sword hit = %+v", attack)
 	}
 

@@ -57,3 +57,22 @@ func TestAmmunitionPouchRejectsNonAmmunition(t *testing.T) {
 		t.Fatal("QueueAmmunitionTransfer() error = nil for a non-ammunition item")
 	}
 }
+
+func TestWeaponUsesFirstCompatibleAmmunitionSlotAndTierStrength(t *testing.T) {
+	bow, _ := weaponDefinition(WeaponBow)
+	pouch := newAmmunitionPouch()
+	if !pouch.add(ItemBronzeArrow, 1) || !pouch.add(ItemMithrilArrow, 5) {
+		t.Fatal("could not fill ammunition pouch")
+	}
+	cost, strength, available := ammunitionForWeapon(pouch, bow)
+	if !available || cost.ItemID != ItemBronzeArrow || strength != -1 {
+		t.Fatalf("first ammunition = %+v, strength %d, available %t", cost, strength, available)
+	}
+	if !payItemCosts(&pouch, []ItemCost{cost}) {
+		t.Fatal("could not consume bronze arrow")
+	}
+	cost, strength, available = ammunitionForWeapon(pouch, bow)
+	if !available || cost.ItemID != ItemMithrilArrow || strength != 2 {
+		t.Fatalf("second ammunition = %+v, strength %d, available %t", cost, strength, available)
+	}
+}

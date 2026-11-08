@@ -94,20 +94,24 @@ const (
 type WeaponID string
 
 const (
-	WeaponSword        WeaponID = "sword"
-	WeaponBronzeSword  WeaponID = "bronze_sword"
-	WeaponMithrilSword WeaponID = "mithril_sword"
-	WeaponUnarmed      WeaponID = "unarmed"
-	WeaponSteelSword   WeaponID = "steel_sword"
-	WeaponRuneSword    WeaponID = "rune_sword"
-	WeaponDagger       WeaponID = "dagger"
-	WeaponBow          WeaponID = "bow"
-	WeaponMace         WeaponID = "mace"
-	WeaponBattleAxe    WeaponID = "battle_axe"
-	WeaponStaff        WeaponID = "staff"
-	WeaponSpear        WeaponID = "spear"
-	WeaponHalberd      WeaponID = "halberd"
-	WeaponCrossbow     WeaponID = "crossbow"
+	WeaponSword          WeaponID = "sword"
+	WeaponBronzeSword    WeaponID = "bronze_sword"
+	WeaponMithrilSword   WeaponID = "mithril_sword"
+	WeaponUnarmed        WeaponID = "unarmed"
+	WeaponSteelSword     WeaponID = "steel_sword"
+	WeaponRuneSword      WeaponID = "rune_sword"
+	WeaponDagger         WeaponID = "dagger"
+	WeaponBow            WeaponID = "bow"
+	WeaponOakShortbow    WeaponID = "oak_shortbow"
+	WeaponWillowShortbow WeaponID = "willow_shortbow"
+	WeaponMapleShortbow  WeaponID = "maple_shortbow"
+	WeaponYewShortbow    WeaponID = "yew_shortbow"
+	WeaponMace           WeaponID = "mace"
+	WeaponBattleAxe      WeaponID = "battle_axe"
+	WeaponStaff          WeaponID = "staff"
+	WeaponSpear          WeaponID = "spear"
+	WeaponHalberd        WeaponID = "halberd"
+	WeaponCrossbow       WeaponID = "crossbow"
 )
 
 type CombatStyleID string
@@ -159,6 +163,7 @@ type WeaponDefinition struct {
 	Range            float64
 	ApproachRange    float64
 	Ammunition       ItemCost
+	AmmunitionFamily string
 }
 
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
@@ -993,10 +998,14 @@ func (w *World) resolveAutoAttacks() {
 			player.lastActionResult = "missing_reagents"
 			continue
 		}
-		if !castingSpell && weapon.Ammunition.Quantity > 0 &&
-			!payItemCosts(&player.ammunitionPouch, []ItemCost{weapon.Ammunition}) {
-			player.lastActionResult = "missing_ammunition"
-			continue
+		ammunitionStrength := 0
+		if !castingSpell && weapon.Ammunition.Quantity > 0 {
+			ammunitionCost, strength, available := ammunitionForWeapon(player.ammunitionPouch, weapon)
+			if !available || !payItemCosts(&player.ammunitionPouch, []ItemCost{ammunitionCost}) {
+				player.lastActionResult = "missing_ammunition"
+				continue
+			}
+			ammunitionStrength = strength
 		}
 		player.lastActionPulse = w.combat.pulse
 		player.nextAttackPulse = w.combat.pulse + attackInterval
@@ -1016,7 +1025,7 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		poweredDamage := weaponPoweredDamage(player, weapon)
+		poweredDamage := weaponPoweredDamageWithAmmunition(player, weapon, ammunitionStrength)
 		damageVariance := weapon.DamageVariance
 		damageType := DamageTypeCrush
 		if styleDamageType, hasDamageType := weaponDamageTypeForStyle(weapon, player.combatStyle); hasDamageType {
@@ -1060,10 +1069,14 @@ func (w *World) resolveAutoAttacks() {
 }
 
 func weaponPoweredDamage(player *playerState, weapon WeaponDefinition) float64 {
+	return weaponPoweredDamageWithAmmunition(player, weapon, 0)
+}
+
+func weaponPoweredDamageWithAmmunition(player *playerState, weapon WeaponDefinition, ammunitionStrength int) float64 {
 	strength := weapon.MeleeStrength
 	skill := SkillStrength
 	if weapon.RangedStrength > 0 {
-		strength = weapon.RangedStrength
+		strength = weapon.RangedStrength + ammunitionStrength
 		skill = SkillRange
 	} else if weapon.MagicStrength > 0 {
 		strength = weapon.MagicStrength

@@ -38,7 +38,7 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	if snapshotInventoryContains(player.Inventory, string(WeaponBow)) {
 		t.Fatal("restored equipped bow still occupies an inventory slot")
 	}
-	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 125 || attack.Level != 2 {
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 125 || attack.Level != SkillLevelForExperience(125) {
 		t.Fatalf("restored Attack = %+v", attack)
 	}
 	if agility := mustSkill(t, player, SkillAgility); agility.Experience != 0 || agility.Level != 1 {

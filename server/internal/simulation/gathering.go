@@ -37,6 +37,7 @@ const (
 	starterPrayerAltarID      = "starter_prayer_altar"
 	warPrayerAltarID          = "war_prayer_altar"
 	starterAirRuneAltarID     = "starter_air_rune_altar"
+	debugSkillShrineID        = "debug_skill_shrine"
 	miningInterval            = 4
 	miningExperience          = 10
 	copperVeinCapacity        = 20
@@ -85,6 +86,7 @@ const (
 	craftingStationForging      craftingStationID = "forging"
 	craftingStationPrayer       craftingStationID = "prayer_altar"
 	craftingStationRunecrafting craftingStationID = "runecrafting"
+	craftingStationDebugSkills  craftingStationID = "debug_skills"
 )
 
 type GatheringSpotSnapshot struct {
@@ -242,6 +244,14 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			Interval: runecraftingInterval, Costs: []ItemCost{{ItemID: ItemBlankRune, Quantity: 1}},
 			ActiveResult: "runecrafting", RewardResult: "crafted_air_runes",
 			MissingResult: "missing_blank_runes",
+		},
+		debugSkillShrineID: {
+			GatheringSpotSnapshot: GatheringSpotSnapshot{
+				ID: debugSkillShrineID, Name: "Test Skill Shrine", Skill: SkillAttack,
+				Position: Position{X: -3, Z: -20}, Range: gatheringRange, RequiredLevel: 1,
+				Station: craftingStationDebugSkills,
+			},
+			ActionKind: timedActionWorldInteraction,
 		},
 	}
 }

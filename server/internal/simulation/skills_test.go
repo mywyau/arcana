@@ -8,11 +8,11 @@ func TestAttackLevelCurve(t *testing.T) {
 		level      int
 		next       int64
 	}{
-		{experience: 0, level: 1, next: 100},
-		{experience: 99, level: 1, next: 100},
-		{experience: 100, level: 2, next: 400},
-		{experience: 399, level: 2, next: 400},
-		{experience: 400, level: 3, next: 900},
+		{experience: 0, level: 1, next: 41},
+		{experience: 40, level: 1, next: 41},
+		{experience: 41, level: 2, next: 87},
+		{experience: 86, level: 2, next: 87},
+		{experience: 87, level: 3, next: 138},
 	}
 	for _, test := range tests {
 		if got := SkillLevelForExperience(test.experience); got != test.level {
@@ -83,6 +83,50 @@ func TestExperienceLockCommandAppliesOnSimulationStep(t *testing.T) {
 	player := mustPlayer(t, world, "player-one")
 	if !player.ExperienceLocked || player.LastExperienceLockSequence != 1 {
 		t.Fatalf("experience lock snapshot = %+v", player)
+	}
+}
+
+func TestDebugSkillShrineSetsExactLevelExperience(t *testing.T) {
+	world := NewWorld()
+	shrine := world.gatheringSpots[debugSkillShrineID]
+	mustAddPlayer(t, world, "player-one", shrine.Position, 4)
+	if err := world.QueueDebugSetSkill(DebugSetSkillCommand{
+		PlayerID: "player-one", Sequence: 1, Skill: SkillAttack, Level: 30,
+	}); err != nil {
+		t.Fatalf("QueueDebugSetSkill() returned an unexpected error: %v", err)
+	}
+	world.Step(50)
+	attack := mustSkill(t, mustPlayer(t, world, "player-one"), SkillAttack)
+	if attack.Level != 30 || attack.Experience != SkillExperienceForLevel(30) {
+		t.Fatalf("Attack = %+v, want level 30 at its exact threshold", attack)
+	}
+}
+
+func TestDebugSkillShrineRequiresProximity(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: 40, Z: 40}, 4)
+	err := world.QueueDebugSetSkill(DebugSetSkillCommand{
+		PlayerID: "player-one", Sequence: 1, Skill: SkillAttack, Level: 30,
+	})
+	if err == nil {
+		t.Fatal("QueueDebugSetSkill() error = nil while away from the shrine")
+	}
+}
+
+func TestDebugSkillShrineSetsExactExperience(t *testing.T) {
+	world := NewWorld()
+	shrine := world.gatheringSpots[debugSkillShrineID]
+	mustAddPlayer(t, world, "player-one", shrine.Position, 4)
+	if err := world.QueueDebugSetSkill(DebugSetSkillCommand{
+		PlayerID: "player-one", Sequence: 1, Skill: SkillMagic,
+		Experience: 86, SetExperience: true,
+	}); err != nil {
+		t.Fatalf("QueueDebugSetSkill() returned an unexpected error: %v", err)
+	}
+	world.Step(50)
+	magic := mustSkill(t, mustPlayer(t, world, "player-one"), SkillMagic)
+	if magic.Level != 2 || magic.Experience != 86 {
+		t.Fatalf("Magic = %+v, want level 2 with 86 XP", magic)
 	}
 }
 

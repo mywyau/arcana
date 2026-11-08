@@ -185,7 +185,7 @@ func play_weapon_attack(target_position: Vector3) -> float:
 	if _equipped_weapon == "unarmed":
 		_play_unarmed_attack()
 		return 0.0
-	if _equipped_weapon == "bow" or _equipped_weapon == "crossbow":
+	if _equipped_weapon == "bow" or _equipped_weapon.ends_with("_shortbow") or _equipped_weapon == "crossbow":
 		return _play_bow_attack(target_position)
 	if _equipped_weapon == "staff":
 		return _play_staff_attack(target_position)
@@ -429,7 +429,7 @@ func _update_weapon_visibility() -> void:
 		_equipped_weapon.ends_with("_dagger")
 	)
 	sword_pivot.visible = not _defeated and is_sword_or_dagger
-	bow_pivot.visible = not _defeated and _equipped_weapon == "bow"
+	bow_pivot.visible = not _defeated and (_equipped_weapon == "bow" or _equipped_weapon.ends_with("_shortbow"))
 	crossbow_pivot.visible = not _defeated and _equipped_weapon == "crossbow"
 	mace_pivot.visible = not _defeated and (_equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"))
 	battle_axe_pivot.visible = not _defeated and (_equipped_weapon in ["battle_axe", "halberd"] or _equipped_weapon.ends_with("_battle_axe"))

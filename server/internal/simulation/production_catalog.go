@@ -13,6 +13,7 @@ type ProductionRecipeSnapshot struct {
 	Costs          []ItemCost
 	RewardItem     string
 	RewardQuantity int
+	RewardXP       int64
 	Interval       uint64
 	RequiredTool   string
 }
@@ -20,7 +21,7 @@ type ProductionRecipeSnapshot struct {
 // ProductionRecipeCatalog returns a detached, deterministically ordered copy
 // of the production recipes currently exposed to the client.
 func ProductionRecipeCatalog() []ProductionRecipeSnapshot {
-	recipes := make([]ProductionRecipeSnapshot, 0, len(cookingRecipes)+len(smeltingRecipes)+len(forgingRecipes))
+	recipes := make([]ProductionRecipeSnapshot, 0, len(cookingRecipes)+len(smeltingRecipes)+len(forgingRecipes)+len(fletchingRecipes))
 	for _, recipe := range cookingRecipes {
 		recipes = append(recipes, ProductionRecipeSnapshot{
 			Station: string(craftingStationCooking), ID: recipe.ID, Name: recipe.Name,
@@ -41,6 +42,14 @@ func ProductionRecipeCatalog() []ProductionRecipeSnapshot {
 			ID: string(recipe.ID), Name: recipe.Name, RequiredLevel: recipe.RequiredLevel,
 			Costs: append([]ItemCost(nil), recipe.Costs...), RewardItem: recipe.RewardItem,
 			RewardQuantity: recipe.RewardQuantity, Interval: recipe.Interval, RequiredTool: recipe.RequiredTool,
+		})
+	}
+	for _, recipe := range fletchingRecipes {
+		recipes = append(recipes, ProductionRecipeSnapshot{
+			Station: "fletching", ID: recipe.ID, Name: recipe.Name, RequiredLevel: recipe.RequiredLevel,
+			Costs: append([]ItemCost(nil), recipe.Costs...), RewardItem: recipe.RewardItem,
+			RewardQuantity: recipe.RewardAmount, RewardXP: recipe.Experience, Interval: recipe.Interval,
+			RequiredTool: recipe.RequiredTool,
 		})
 	}
 	sort.Slice(recipes, func(i, j int) bool {
@@ -69,8 +78,12 @@ func forgingRecipeGroup(recipe forgingRecipeDefinition) string {
 			return "bronze"
 		case ItemIronBar:
 			return "iron"
+		case ItemSteelBar:
+			return "steel"
 		case ItemMithrilBar:
 			return "mithril"
+		case ItemAdamantiteBar:
+			return "adamantite"
 		case ItemGoldBar:
 			return "jewellery"
 		}

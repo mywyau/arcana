@@ -6,8 +6,22 @@ import (
 )
 
 const (
-	FletchArrowShafts = "arrow_shafts"
-	FletchIronArrows  = "iron_arrows"
+	FletchArrowShafts            = "arrow_shafts"
+	FletchBronzeArrows           = "bronze_arrows"
+	FletchIronArrows             = "iron_arrows"
+	FletchSteelArrows            = "steel_arrows"
+	FletchMithrilArrows          = "mithril_arrows"
+	FletchAdamantiteArrows       = "adamantite_arrows"
+	FletchUnstrungShortbow       = "unstrung_shortbow"
+	FletchShortbow               = "shortbow"
+	FletchUnstrungOakShortbow    = "unstrung_oak_shortbow"
+	FletchOakShortbow            = "oak_shortbow"
+	FletchUnstrungWillowShortbow = "unstrung_willow_shortbow"
+	FletchWillowShortbow         = "willow_shortbow"
+	FletchUnstrungMapleShortbow  = "unstrung_maple_shortbow"
+	FletchMapleShortbow          = "maple_shortbow"
+	FletchUnstrungYewShortbow    = "unstrung_yew_shortbow"
+	FletchYewShortbow            = "yew_shortbow"
 )
 
 type FletchCommand struct {
@@ -18,12 +32,15 @@ type FletchCommand struct {
 }
 
 type fletchingRecipe struct {
-	ID           string
-	Costs        []ItemCost
-	RequiredTool string
-	RewardItem   string
-	RewardAmount int
-	Experience   int64
+	ID            string
+	Name          string
+	RequiredLevel int
+	Costs         []ItemCost
+	RequiredTool  string
+	RewardItem    string
+	RewardAmount  int
+	Experience    int64
+	Interval      uint64
 }
 
 type pendingFletch struct {
@@ -34,17 +51,88 @@ type pendingFletch struct {
 
 var fletchingRecipes = map[string]fletchingRecipe{
 	FletchArrowShafts: {
-		ID: FletchArrowShafts, Costs: []ItemCost{{ItemID: ItemNormalLogs, Quantity: 1}},
-		RequiredTool: ItemKnife, RewardItem: ItemArrowShafts, RewardAmount: 20, Experience: 10,
+		ID: FletchArrowShafts, Name: "20 Arrow Shafts", RequiredLevel: 1,
+		Costs: []ItemCost{{ItemID: ItemNormalLogs, Quantity: 1}}, RequiredTool: ItemKnife,
+		RewardItem: ItemArrowShafts, RewardAmount: 20, Experience: 10, Interval: 1,
+	},
+	FletchBronzeArrows: {
+		ID: FletchBronzeArrows, Name: "20 Bronze Arrows", RequiredLevel: 1,
+		Costs:      []ItemCost{{ItemID: ItemArrowShafts, Quantity: 20}, {ItemID: ItemFeathers, Quantity: 20}, {ItemID: ItemBronzeArrowTips, Quantity: 20}},
+		RewardItem: ItemBronzeArrow, RewardAmount: 20, Experience: 15, Interval: 1,
 	},
 	FletchIronArrows: {
-		ID: FletchIronArrows,
+		ID: FletchIronArrows, Name: "20 Iron Arrows", RequiredLevel: 2,
 		Costs: []ItemCost{
 			{ItemID: ItemArrowShafts, Quantity: 20},
 			{ItemID: ItemFeathers, Quantity: 20},
 			{ItemID: ItemIronArrowTips, Quantity: 20},
 		},
-		RewardItem: ItemIronArrow, RewardAmount: 20, Experience: 20,
+		RewardItem: ItemIronArrow, RewardAmount: 20, Experience: 22, Interval: 1,
+	},
+	FletchSteelArrows: {
+		ID: FletchSteelArrows, Name: "20 Steel Arrows", RequiredLevel: 4,
+		Costs:      []ItemCost{{ItemID: ItemArrowShafts, Quantity: 20}, {ItemID: ItemFeathers, Quantity: 20}, {ItemID: ItemSteelArrowTips, Quantity: 20}},
+		RewardItem: ItemSteelArrow, RewardAmount: 20, Experience: 34, Interval: 1,
+	},
+	FletchMithrilArrows: {
+		ID: FletchMithrilArrows, Name: "20 Mithril Arrows", RequiredLevel: 6,
+		Costs:      []ItemCost{{ItemID: ItemArrowShafts, Quantity: 20}, {ItemID: ItemFeathers, Quantity: 20}, {ItemID: ItemMithrilArrowTips, Quantity: 20}},
+		RewardItem: ItemMithrilArrow, RewardAmount: 20, Experience: 50, Interval: 1,
+	},
+	FletchAdamantiteArrows: {
+		ID: FletchAdamantiteArrows, Name: "20 Adamantite Arrows", RequiredLevel: 8,
+		Costs:      []ItemCost{{ItemID: ItemArrowShafts, Quantity: 20}, {ItemID: ItemFeathers, Quantity: 20}, {ItemID: ItemAdamantiteArrowTips, Quantity: 20}},
+		RewardItem: ItemAdamantiteArrow, RewardAmount: 20, Experience: 70, Interval: 1,
+	},
+	FletchUnstrungShortbow: {
+		ID: FletchUnstrungShortbow, Name: "Unstrung Shortbow", RequiredLevel: 1,
+		Costs: []ItemCost{{ItemID: ItemNormalLogs, Quantity: 1}}, RequiredTool: ItemKnife,
+		RewardItem: ItemUnstrungShortbow, RewardAmount: 1, Experience: 6, Interval: 2,
+	},
+	FletchShortbow: {
+		ID: FletchShortbow, Name: "Shortbow", RequiredLevel: 1,
+		Costs:      []ItemCost{{ItemID: ItemUnstrungShortbow, Quantity: 1}, {ItemID: ItemBowstring, Quantity: 1}},
+		RewardItem: string(WeaponBow), RewardAmount: 1, Experience: 6, Interval: 1,
+	},
+	FletchUnstrungOakShortbow: {
+		ID: FletchUnstrungOakShortbow, Name: "Unstrung Oak Shortbow", RequiredLevel: 2,
+		Costs: []ItemCost{{ItemID: ItemOakLogs, Quantity: 1}}, RequiredTool: ItemKnife,
+		RewardItem: ItemUnstrungOakShortbow, RewardAmount: 1, Experience: 10, Interval: 2,
+	},
+	FletchOakShortbow: {
+		ID: FletchOakShortbow, Name: "Oak Shortbow", RequiredLevel: 2,
+		Costs:      []ItemCost{{ItemID: ItemUnstrungOakShortbow, Quantity: 1}, {ItemID: ItemBowstring, Quantity: 1}},
+		RewardItem: string(WeaponOakShortbow), RewardAmount: 1, Experience: 10, Interval: 1,
+	},
+	FletchUnstrungWillowShortbow: {
+		ID: FletchUnstrungWillowShortbow, Name: "Unstrung Willow Shortbow", RequiredLevel: 3,
+		Costs: []ItemCost{{ItemID: ItemWillowLogs, Quantity: 1}}, RequiredTool: ItemKnife,
+		RewardItem: ItemUnstrungWillowShortbow, RewardAmount: 1, Experience: 15, Interval: 2,
+	},
+	FletchWillowShortbow: {
+		ID: FletchWillowShortbow, Name: "Willow Shortbow", RequiredLevel: 3,
+		Costs:      []ItemCost{{ItemID: ItemUnstrungWillowShortbow, Quantity: 1}, {ItemID: ItemBowstring, Quantity: 1}},
+		RewardItem: string(WeaponWillowShortbow), RewardAmount: 1, Experience: 15, Interval: 1,
+	},
+	FletchUnstrungMapleShortbow: {
+		ID: FletchUnstrungMapleShortbow, Name: "Unstrung Maple Shortbow", RequiredLevel: 5,
+		Costs: []ItemCost{{ItemID: ItemMapleLogs, Quantity: 1}}, RequiredTool: ItemKnife,
+		RewardItem: ItemUnstrungMapleShortbow, RewardAmount: 1, Experience: 24, Interval: 2,
+	},
+	FletchMapleShortbow: {
+		ID: FletchMapleShortbow, Name: "Maple Shortbow", RequiredLevel: 5,
+		Costs:      []ItemCost{{ItemID: ItemUnstrungMapleShortbow, Quantity: 1}, {ItemID: ItemBowstring, Quantity: 1}},
+		RewardItem: string(WeaponMapleShortbow), RewardAmount: 1, Experience: 24, Interval: 1,
+	},
+	FletchUnstrungYewShortbow: {
+		ID: FletchUnstrungYewShortbow, Name: "Unstrung Yew Shortbow", RequiredLevel: 8,
+		Costs: []ItemCost{{ItemID: ItemYewLogs, Quantity: 1}}, RequiredTool: ItemKnife,
+		RewardItem: ItemUnstrungYewShortbow, RewardAmount: 1, Experience: 38, Interval: 2,
+	},
+	FletchYewShortbow: {
+		ID: FletchYewShortbow, Name: "Yew Shortbow", RequiredLevel: 8,
+		Costs:      []ItemCost{{ItemID: ItemUnstrungYewShortbow, Quantity: 1}, {ItemID: ItemBowstring, Quantity: 1}},
+		RewardItem: string(WeaponYewShortbow), RewardAmount: 1, Experience: 38, Interval: 1,
 	},
 }
 
@@ -65,6 +153,9 @@ func (w *World) QueueFletch(command FletchCommand) error {
 	if command.Sequence <= player.lastFletchSequence || player.fletchRemaining > 0 {
 		return fmt.Errorf("fletching command is not available")
 	}
+	if err := validateFletchingLevel(player, recipe); err != nil {
+		return err
+	}
 	if _, err := fletchedInventoryAfter(player.inventory, recipe); err != nil {
 		return err
 	}
@@ -77,12 +168,19 @@ func (w *World) QueueFletch(command FletchCommand) error {
 		return fmt.Errorf("cannot fletch %d batch(es); ingredients allow %d", remaining, maximum)
 	}
 	w.pendingFletches[command.PlayerID] = pendingFletch{
-		command: command, remaining: remaining, nextPulse: w.combat.pulse + 1,
+		command: command, remaining: remaining, nextPulse: w.combat.pulse + recipe.Interval,
 	}
 	player.lastFletchSequence = command.Sequence
 	player.fletchRemaining = remaining
-	player.nextFletchPulse = w.combat.pulse + 1
+	player.nextFletchPulse = w.combat.pulse + recipe.Interval
 	player.fletchingResult = "fletching"
+	return nil
+}
+
+func validateFletchingLevel(player *playerState, recipe fletchingRecipe) error {
+	if player == nil || SkillLevelForExperience(player.skills[SkillFletching]) < recipe.RequiredLevel {
+		return fmt.Errorf("fletching level %d is required", recipe.RequiredLevel)
+	}
 	return nil
 }
 
@@ -121,7 +219,7 @@ func (w *World) applyPendingFletches() {
 			delete(w.pendingFletches, id)
 			continue
 		}
-		pending.nextPulse = w.combat.pulse + 1
+		pending.nextPulse = w.combat.pulse + recipe.Interval
 		player.nextFletchPulse = pending.nextPulse
 		w.pendingFletches[id] = pending
 	}
