@@ -1,8 +1,6 @@
 class_name NetworkClient
 extends Node
 
-const GUEST_IDENTITY_PATH: String = "user://guest_identity.cfg"
-
 signal status_changed(status: String)
 signal welcome_received(player_id: String)
 signal production_recipes_received(recipes: Array)
@@ -17,6 +15,7 @@ var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
 var _guest_token: String = ""
 var _retry_without_guest_token: bool = false
+var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg")
 
 
 func _ready() -> void:
@@ -595,7 +594,7 @@ func _send_authentication() -> bool:
 
 func _load_guest_token() -> void:
 	var config := ConfigFile.new()
-	if config.load(GUEST_IDENTITY_PATH) != OK:
+	if config.load(_guest_identity_path) != OK:
 		return
 	_guest_token = str(config.get_value("identity", "guest_token", ""))
 
@@ -603,6 +602,6 @@ func _load_guest_token() -> void:
 func _save_guest_token() -> void:
 	var config := ConfigFile.new()
 	config.set_value("identity", "guest_token", _guest_token)
-	var result: Error = config.save(GUEST_IDENTITY_PATH)
+	var result: Error = config.save(_guest_identity_path)
 	if result != OK:
 		status_changed.emit("Could not save guest identity: %s" % error_string(result))

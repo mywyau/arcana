@@ -20,8 +20,6 @@ const GATHERING_COLLISION_MASK: int = 32
 const BANK_COLLISION_MASK: int = 64
 const MERCHANT_COLLISION_MASK: int = 128
 const ALL_WORLD_COLLISION_MASK: int = 7
-const HUD_LAYOUT_PATH: String = "user://hud_layout.cfg"
-const CLIENT_SETTINGS_PATH: String = "user://client_settings.cfg"
 const HUD_MINIMUM_SCALE: float = 0.75
 const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
@@ -443,6 +441,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var menu_prayer_tab: Button = $UI/MenuTabsHUD/Margin/Row/Prayer
 @onready var menu_settings_tab: Button = $UI/MenuUtilityTabsHUD/Margin/Row/Settings
 @onready var bank_hud: PanelContainer = $UI/BankHUD
+@onready var bank_header: HBoxContainer = $UI/BankHUD/Margin/VBox/Header
 @onready var bank_title: Label = $UI/BankHUD/Margin/VBox/Header/Title
 @onready var bank_hint: Label = $UI/BankHUD/Margin/VBox/Hint
 @onready var bank_close_button: Button = $UI/BankHUD/Margin/VBox/Header/Close
@@ -595,6 +594,7 @@ var _pending_bank_withdraw_slot: int = -1
 var _bank_dragging: bool = false
 var _bank_drag_pointer_start: Vector2 = Vector2.ZERO
 var _bank_drag_position_start: Vector2 = Vector2.ZERO
+var _bank_has_user_position: bool = false
 var _bank_item_menu: PopupMenu
 var _bank_menu_slot: int = -1
 var _bank_menu_quantity: int = 0
@@ -781,9 +781,17 @@ var _game_messages: Array[Dictionary] = []
 var _last_network_error_code: String = ""
 var _last_network_error_message: String = ""
 var _xp_tracker_initialized: bool = false
+var _hud_layout_path: String = ClientProfile.config_path("hud_layout.cfg")
+var _client_settings_path: String = ClientProfile.config_path("client_settings.cfg")
 
 
 func _ready() -> void:
+	var profile_name: String = ClientProfile.selected_name()
+	if profile_name != ClientProfile.DEFAULT_NAME:
+		DisplayServer.window_set_title("%s — %s" % [
+			str(ProjectSettings.get_setting("application/config/name", "Game")),
+			profile_name,
+		])
 	for interface_window: Window in [
 		smithing_window, smelting_window, cooking_window, brewing_window, fletching_window,
 	]:
@@ -856,7 +864,8 @@ func _ready() -> void:
 	_bank_item_menu.id_pressed.connect(_on_bank_item_menu_action)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
-	bank_title.gui_input.connect(_on_bank_title_input)
+	bank_header.gui_input.connect(_on_bank_header_input)
+	bank_header.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_expand_button.pressed.connect(_request_bank_expansion)
 	merchant_window.sell_requested.connect(_request_merchant_sale)
@@ -1352,6 +1361,7 @@ func _open_bank(chest_id: String) -> void:
 		bank_title.text = str(chest.get("name", "Test Supply Chest"))
 		bank_hint.text = "Click a supply to take its stack • supplies return when the server restarts"
 		bank_hud.visible = true
+		_position_bank_beside_inventory()
 		bank_expand_button.visible = false
 		_update_test_supply_hud(true)
 		_update_inventory_hud()
@@ -1361,6 +1371,7 @@ func _open_bank(chest_id: String) -> void:
 	bank_title.text = "Personal Bank"
 	bank_hint.text = "Click an inventory item to deposit one • click a bank item to withdraw one"
 	bank_hud.visible = true
+	_position_bank_beside_inventory()
 	bank_expand_button.visible = true
 	_update_bank_hud()
 	_update_inventory_hud()
@@ -1380,35 +1391,58 @@ func _close_bank() -> void:
 	_bank_dragging = false
 
 
-func _on_bank_title_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mouse_event := event as InputEventMouseButton
-		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
-			return
-		_bank_dragging = mouse_event.pressed
-		if _bank_dragging:
-			_bank_drag_pointer_start = get_viewport().get_mouse_position()
-			_bank_drag_position_start = bank_hud.global_position
-		bank_title.accept_event()
-	elif event is InputEventMouseMotion and _bank_dragging:
-		var pointer_delta := get_viewport().get_mouse_position() - _bank_drag_pointer_start
-		var viewport_size := get_viewport().get_visible_rect().size
-		var maximum_position := Vector2(
-			maxf(0.0, viewport_size.x - bank_hud.size.x),
-			maxf(0.0, viewport_size.y - bank_hud.size.y),
-		)
-		bank_hud.global_position = (_bank_drag_position_start + pointer_delta).clamp(
-			Vector2.ZERO,
-			maximum_position,
-		)
-		bank_title.accept_event()
+func _on_bank_header_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+	_bank_dragging = true
+	_bank_has_user_position = true
+	_bank_drag_pointer_start = get_viewport().get_mouse_position()
+	_bank_drag_position_start = bank_hud.global_position
 	_bank_menu_slot = -1
 	_bank_menu_quantity = 0
 	if _bank_item_menu != null:
 		_bank_item_menu.hide()
 	if _bank_withdraw_dialog != null:
 		_bank_withdraw_dialog.hide()
-	_update_inventory_hud()
+	bank_header.accept_event()
+
+
+func _input(event: InputEvent) -> void:
+	if not _bank_dragging:
+		return
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and not mouse_event.pressed:
+			_bank_dragging = false
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion:
+		var pointer_delta := get_viewport().get_mouse_position() - _bank_drag_pointer_start
+		_set_bank_screen_position(_bank_drag_position_start + pointer_delta)
+		get_viewport().set_input_as_handled()
+
+
+func _position_bank_beside_inventory() -> void:
+	if _bank_has_user_position:
+		_set_bank_screen_position(bank_hud.global_position)
+		return
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var bank_position := Vector2(
+		inventory_hud.global_position.x - bank_hud.size.x - 16.0,
+		(viewport_size.y - bank_hud.size.y) * 0.5,
+	)
+	_set_bank_screen_position(bank_position)
+
+
+func _set_bank_screen_position(requested_position: Vector2) -> void:
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var maximum_position := Vector2(
+		maxf(0.0, viewport_size.x - bank_hud.size.x),
+		maxf(0.0, viewport_size.y - bank_hud.size.y),
+	)
+	bank_hud.global_position = requested_position.clamp(Vector2.ZERO, maximum_position)
 
 
 func _update_bank_proximity(player_position: Vector3) -> void:
@@ -4187,7 +4221,7 @@ func _load_client_settings() -> void:
 	var effects_volume: float = 65.0
 	var show_diagnostics: bool = true
 	var show_xp_tracker: bool = true
-	if config.load(CLIENT_SETTINGS_PATH) == OK:
+	if config.load(_client_settings_path) == OK:
 		music_volume = clampf(float(config.get_value("audio", "music_volume", music_volume)), 0.0, 100.0)
 		effects_volume = clampf(float(config.get_value("audio", "effects_volume", effects_volume)), 0.0, 100.0)
 		show_diagnostics = bool(config.get_value("interface", "show_diagnostics", show_diagnostics))
@@ -4210,7 +4244,7 @@ func _save_client_settings() -> void:
 	config.set_value("audio", "effects_volume", settings_effects_slider.value)
 	config.set_value("interface", "show_diagnostics", settings_diagnostics_toggle.button_pressed)
 	config.set_value("interface", "show_xp_tracker", settings_xp_tracker_toggle.button_pressed)
-	config.save(CLIENT_SETTINGS_PATH)
+	config.save(_client_settings_path)
 
 
 func _on_music_volume_changed(volume: float) -> void:
@@ -4560,7 +4594,7 @@ func _set_hud_group_layout(group_id: String, requested_position: Vector2, reques
 
 func _load_hud_layout() -> void:
 	var config := ConfigFile.new()
-	if config.load(HUD_LAYOUT_PATH) != OK:
+	if config.load(_hud_layout_path) != OK:
 		return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	for group_id_value: Variant in _hud_groups.keys():
@@ -4588,7 +4622,7 @@ func _save_hud_layout() -> void:
 		)
 		config.set_value(group_id, "position_ratio", position_ratio)
 		config.set_value(group_id, "scale", float(group["scale"]))
-	var save_error: Error = config.save(HUD_LAYOUT_PATH)
+	var save_error: Error = config.save(_hud_layout_path)
 	if save_error != OK:
 		push_warning("Could not save HUD layout: %s" % error_string(save_error))
 
@@ -4614,6 +4648,8 @@ func _clamp_all_hud_groups() -> void:
 
 func _on_hud_viewport_resized() -> void:
 	_clamp_all_hud_groups()
+	if bank_hud.visible:
+		_set_bank_screen_position(bank_hud.global_position)
 
 
 func _set_active_menu_tab(active_tab: String) -> void:
@@ -5582,6 +5618,9 @@ func _detailed_defence_text() -> String:
 			_signed_stat(int(defence.get("magic", 0))),
 		]
 		+"[cell][b]OVERVIEW[/b]\n"
+		+"Evasion: %d\n" % int(_combat_stats.get("total_evasion", 1))
+		+"Agility: %d\n" % int(_combat_stats.get("agility_level", 1))
+		+"Gear evasion: %s\n" % _signed_stat(int(_combat_stats.get("equipment_evasion_bonus", 0)))
 		+"Prayer DR: %.0f%%\n" % (
 			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
 		)

@@ -2102,9 +2102,9 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -330.0
+offset_left = -270.0
 offset_top = -350.0
-offset_right = 330.0
+offset_right = 270.0
 offset_bottom = 350.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -2123,10 +2123,13 @@ theme_override_constants/separation = 10
 
 [node name="Header" type="HBoxContainer" parent="UI/BankHUD/Margin/VBox"]
 layout_mode = 2
+mouse_default_cursor_shape = 13
 
 [node name="Title" type="Label" parent="UI/BankHUD/Margin/VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 1
+tooltip_text = "Drag to move the bank"
 text = "Personal Bank"
 theme_override_font_sizes/font_size = 24
 
@@ -2159,4 +2162,4 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
-columns = 5
+columns = 4

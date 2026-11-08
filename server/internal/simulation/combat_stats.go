@@ -29,6 +29,9 @@ type CombatStatsSnapshot struct {
 	MaximumDamage          int
 	DefenceLevel           int
 	DefenceBonuses         DefenceBonuses
+	AgilityLevel           int
+	EquipmentEvasionBonus  int
+	TotalEvasion           int
 	ArmourDamageReduction  float64
 	MaximumHealthBonus     int
 }
@@ -139,6 +142,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			spellPoweredDamage(player, spell), spell.DamageVariance,
 		)
 		magicLevel := effectiveCombatSkillLevel(player, SkillMagic)
+		agilityLevel := SkillLevelForExperience(player.skills[SkillAgility])
 		equipmentBonuses := equippedOffenceBonuses(player.equippedArmour)
 		return CombatStatsSnapshot{
 			Weapon:                 weapon.ID,
@@ -164,6 +168,9 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			MaximumDamage:          maximumDamage,
 			DefenceLevel:           effectiveCombatSkillLevel(player, SkillDefence),
 			DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
+			AgilityLevel:           agilityLevel,
+			EquipmentEvasionBonus:  equippedEvasionBonusForPlayer(player),
+			TotalEvasion:           playerEvasionScore(player),
 			ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
 			MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
 		}
@@ -211,6 +218,9 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		MaximumDamage:          maximumDamage,
 		DefenceLevel:           effectiveCombatSkillLevel(player, SkillDefence),
 		DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
+		AgilityLevel:           SkillLevelForExperience(player.skills[SkillAgility]),
+		EquipmentEvasionBonus:  equippedEvasionBonusForPlayer(player),
+		TotalEvasion:           playerEvasionScore(player),
 		ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
 		MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
 	}

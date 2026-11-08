@@ -343,6 +343,9 @@ type CombatStatsSnapshot struct {
 	MaximumDamage          int            `json:"maximum_damage"`
 	DefenceLevel           int            `json:"defence_level"`
 	DefenceBonuses         DefenceBonuses `json:"defence_bonuses"`
+	AgilityLevel           int            `json:"agility_level"`
+	EquipmentEvasionBonus  int            `json:"equipment_evasion_bonus"`
+	TotalEvasion           int            `json:"total_evasion"`
 	ArmourDamageReduction  float64        `json:"armour_damage_reduction"`
 	MaximumHealthBonus     int            `json:"maximum_health_bonus"`
 }

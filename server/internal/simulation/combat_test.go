@@ -272,7 +272,7 @@ func TestCombatEventHistoryIsBounded(t *testing.T) {
 }
 
 func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
-	world := NewWorldWithRollSource(&sequenceRollSource{values: []float64{0.05}})
+	world := NewWorldWithRollSource(&sequenceRollSource{values: []float64{0.03}})
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -300,7 +300,7 @@ func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
 }
 
 func TestPlayerDodgeAvoidsDummyDamageAndConsumesCadence(t *testing.T) {
-	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.5, 0.5, 0.05}}
+	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.5, 0.5, 0.005}}
 	world := NewWorldWithRollSource(rolls)
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {

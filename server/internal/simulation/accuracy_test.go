@@ -33,13 +33,13 @@ func TestAttackLevelReducesTargetDodgeChance(t *testing.T) {
 	player := &playerState{skills: newDefaultSkills(), combatStyle: CombatStyleStab}
 	target := &TargetSnapshot{Evasion: dummyEvasionScore, DodgeRate: dummyDodgeRate}
 	levelOneChance := targetDodgeChance(player, target, weapon)
-	if math.Abs(levelOneChance-0.084_705_882) > 0.000_001 {
-		t.Fatalf("level-one target dodge chance = %.3f, want 0.085", levelOneChance)
+	if math.Abs(levelOneChance-0.036_764_706) > 0.000_001 {
+		t.Fatalf("level-one target dodge chance = %.3f, want 0.037", levelOneChance)
 	}
 
 	player.skills[SkillAttack] = SkillExperienceForLevel(50)
-	if got := targetDodgeChance(player, target, weapon); math.Abs(got-minimumDodgeChance) > 0.000_001 {
-		t.Fatalf("level-50 target dodge chance = %.3f, want floor %.3f", got, minimumDodgeChance)
+	if got := targetDodgeChance(player, target, weapon); math.Abs(got-0.021_367_521) > 0.000_001 {
+		t.Fatalf("level-50 target dodge chance = %.3f, want 0.021", got)
 	}
 }
 
@@ -50,19 +50,39 @@ func TestAgilityAndPrayerIncreasePlayerDodgeChance(t *testing.T) {
 		activePrayers:       make(map[PrayerID]bool),
 		prayerDrainProgress: make(map[PrayerID]uint64),
 	}
-	if got := playerDodgeChance(dummyAccuracyScore, player); math.Abs(got-0.071_612_903) > 0.000_001 {
-		t.Fatalf("level-one player dodge chance = %.3f, want 0.072", got)
+	if got := playerDodgeChance(dummyAccuracyScore, player); math.Abs(got-0.008_064_516) > 0.000_001 {
+		t.Fatalf("level-one player dodge chance = %.3f, want 0.008", got)
 	}
 
 	player.skills[SkillAgility] = SkillExperienceForLevel(50)
 	withoutPrayer := playerDodgeChance(dummyAccuracyScore, player)
-	if math.Abs(withoutPrayer-0.225_405_405) > 0.000_001 {
+	if math.Abs(withoutPrayer-0.225_225_225) > 0.000_001 {
 		t.Fatalf("level-50 Agility dodge chance = %.3f, want 0.225", withoutPrayer)
 	}
 	player.activePrayers[PrayerEvasion] = true
 	withPrayer := playerDodgeChance(dummyAccuracyScore, player)
 	if math.Abs(withPrayer-(withoutPrayer+evasionDodgeBonus)) > 0.000_001 {
 		t.Fatalf("Evasion prayer dodge chance = %.3f, want %.3f", withPrayer, withoutPrayer+evasionDodgeBonus)
+	}
+}
+
+func TestEvasionEquipmentRaisesPlayerDodgeChance(t *testing.T) {
+	player := &playerState{
+		skills:         newDefaultSkills(),
+		equippedArmour: make(map[ArmourSlot]string),
+	}
+	naked := playerDodgeChance(dummyAccuracyScore, player)
+	player.equippedArmour = map[ArmourSlot]string{
+		ArmourSlotHead: ItemSwiftHelm,
+		ArmourSlotBody: ItemSwiftBody,
+		ArmourSlotFeet: ItemSwiftBoots,
+	}
+	withSwiftSet := playerDodgeChance(dummyAccuracyScore, player)
+	if got := equippedEvasionBonusForPlayer(player); got != 5 {
+		t.Fatalf("Swift set evasion bonus = %d, want 5", got)
+	}
+	if withSwiftSet <= naked {
+		t.Fatalf("Swift set dodge %.3f <= naked dodge %.3f", withSwiftSet, naked)
 	}
 }
 

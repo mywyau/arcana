@@ -1,13 +1,13 @@
 package simulation
 
 const (
-	minimumDodgeChance    = 0.05
+	minimumDodgeChance    = 0.0
 	maximumDodgeChance    = 0.90
 	accuracyCurveScale    = 50.0
-	accuracyCurveStrength = 0.30
+	evasionCurveStrength  = 0.50
 	dummyAccuracyScore    = 11
 	dummyEvasionScore     = 5
-	defaultBaseDodgeBonus = 0.12
+	defaultBaseDodgeBonus = 0.0
 )
 
 func weaponAccuracySkill(weapon WeaponDefinition) SkillID {
@@ -35,7 +35,7 @@ func playerEvasionScore(player *playerState) int {
 	if player == nil {
 		return 1
 	}
-	return SkillLevelForExperience(player.skills[SkillAgility])
+	return max(0, SkillLevelForExperience(player.skills[SkillAgility])+equippedEvasionBonusForPlayer(player))
 }
 
 func combatStyleAccuracyBonus(style CombatStyleID) int {
@@ -56,12 +56,13 @@ func combatStyleAccuracyBonus(style CombatStyleID) int {
 }
 
 func calculatedDodgeChance(accuracyScore, evasionScore int, dodgeBonus float64) float64 {
-	accuracy := float64(max(1, accuracyScore))
-	evasion := float64(max(1, evasionScore))
-	relativeAdvantage := (accuracy - evasion) / (accuracy + evasion + accuracyCurveScale)
-	hitChance := 1 - dodgeBonus + relativeAdvantage*accuracyCurveStrength
-	hitChance = max(1-maximumDodgeChance, min(hitChance, 1-minimumDodgeChance))
-	return 1 - hitChance
+	accuracy := float64(max(0, accuracyScore))
+	evasion := float64(max(0, evasionScore))
+	chance := dodgeBonus
+	if evasion > 0 {
+		chance += evasionCurveStrength * evasion / (accuracy + evasion + accuracyCurveScale)
+	}
+	return max(minimumDodgeChance, min(chance, maximumDodgeChance))
 }
 
 func targetDodgeChance(player *playerState, target *TargetSnapshot, weapon WeaponDefinition) float64 {

@@ -84,11 +84,12 @@ type OffenceBonuses struct {
 }
 
 type ArmourDefinition struct {
-	Slot        ArmourSlot
-	Set         ArmourSetID
-	Defence     DefenceBonuses
-	Offence     OffenceBonuses
-	HealthBonus int
+	Slot         ArmourSlot
+	Set          ArmourSetID
+	Defence      DefenceBonuses
+	Offence      OffenceBonuses
+	EvasionBonus int
+	HealthBonus  int
 }
 
 type ArmourSetDefinition struct {
@@ -183,6 +184,24 @@ func equippedOffenceBonuses(equipped map[ArmourSlot]string) OffenceBonuses {
 		total.MagicStrength += definition.Offence.MagicStrength
 	}
 	return total
+}
+
+func equippedEvasionBonusForPlayer(player *playerState) int {
+	if player == nil {
+		return 0
+	}
+	bonus := 0
+	for _, itemID := range player.equippedArmour {
+		if definition, exists := armourDefinition(itemID); exists {
+			bonus += definition.EvasionBonus
+		}
+	}
+	for _, ring := range player.ringRack.items {
+		if definition, exists := armourDefinition(ring.ItemID); exists {
+			bonus += definition.EvasionBonus
+		}
+	}
+	return bonus
 }
 
 func equipmentOffenceForWeapon(player *playerState, weapon WeaponDefinition) (accuracy, strength int) {

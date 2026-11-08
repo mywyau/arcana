@@ -701,6 +701,9 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 					Crush: player.CombatStats.DefenceBonuses.Crush, Ranged: player.CombatStats.DefenceBonuses.Ranged,
 					Magic: player.CombatStats.DefenceBonuses.Magic,
 				},
+				AgilityLevel:          player.CombatStats.AgilityLevel,
+				EquipmentEvasionBonus: player.CombatStats.EquipmentEvasionBonus,
+				TotalEvasion:          player.CombatStats.TotalEvasion,
 			},
 			Inventory: protocol.InventorySnapshot{
 				Capacity: player.Inventory.Capacity,

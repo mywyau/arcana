@@ -364,7 +364,7 @@ func newCombatState() *combatState {
 		Position:      wildFowlHome,
 		Health:        wildFowlMaximumHealth,
 		MaximumHealth: wildFowlMaximumHealth,
-		DodgeRate:     0.05,
+		DodgeRate:     defaultBaseDodgeBonus,
 		Accuracy:      5,
 		Evasion:       wildFowlEvasionScore,
 		AttackType:    wildFowlProfile.DamageType,
@@ -376,7 +376,7 @@ func newCombatState() *combatState {
 	cow := &TargetSnapshot{
 		ID: cowTargetID, Name: "Cow", Kind: targetKindCow, Position: cowHome,
 		Health: cowMaximumHealth, MaximumHealth: cowMaximumHealth,
-		DodgeRate: 0.06, Accuracy: 7, Evasion: cowEvasionScore,
+		DodgeRate: defaultBaseDodgeBonus, Accuracy: 7, Evasion: cowEvasionScore,
 		AttackType: cowProfile.DamageType, Defence: cowProfile.Defence, Elements: cowProfile.Elements,
 		CombatLevel: cowProfile.CombatLevel,
 	}

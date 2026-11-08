@@ -117,7 +117,7 @@ func TestRegenerationPrayerHealsFivePercentOnDrainCadence(t *testing.T) {
 }
 
 func TestEvasionPrayerAppliesBeforeIncomingAttack(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.12))
+	world := NewWorldWithRollSource(fixedRollSource(0.04))
 	dummy := world.combat.targets[dummyTargetID]
 	mustAddPlayer(t, world, "player-one", dummy.Position, 4)
 	dummy.TargetID = "player-one"

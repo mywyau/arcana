@@ -125,6 +125,15 @@ from any working directory. Run each command in its own terminal:
 ./run-client.sh
 ```
 
+Pass a profile name to keep a separate guest identity, HUD layout, and client
+settings for local multiplayer testing. Each client window includes its profile
+name in the title:
+
+```sh
+./run-client.sh player-one
+./run-client.sh player-two
+```
+
 The green capsule is the local player. Other connected players are blue.
 Drag with the middle mouse button to orbit the guided camera and use the mouse
 wheel to zoom. The camera follows the local player and pulls closer when world
