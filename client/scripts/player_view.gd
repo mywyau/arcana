@@ -385,6 +385,10 @@ func set_weapon(weapon_id: String) -> void:
 	battle_axe_pivot.scale = Vector3(1.0, 1.65, 1.0) if weapon_id == "halberd" else Vector3.ONE
 
 
+func equipped_weapon() -> String:
+	return _equipped_weapon
+
+
 func set_armour(equipped_armour: Dictionary) -> void:
 	if equipped_armour == _equipped_armour:
 		return

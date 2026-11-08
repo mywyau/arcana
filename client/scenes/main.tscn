@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/prototype_terrain.gd" id="5_terrain"]
 [ext_resource type="Script" path="res://scripts/background_music.gd" id="6_music"]
 [ext_resource type="Script" path="res://scripts/interaction_click_marker.gd" id="7_click_marker"]
+[ext_resource type="PackedScene" path="res://scenes/xp_tracker.tscn" id="8_xp_tracker"]
+[ext_resource type="Script" path="res://scripts/sound_effects.gd" id="9_sound_effects"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -129,6 +131,9 @@ script = ExtResource("1_main")
 [node name="BackgroundMusic" type="AudioStreamPlayer" parent="."]
 bus = &"Music"
 script = ExtResource("6_music")
+
+[node name="SoundEffects" type="Node" parent="."]
+script = ExtResource("9_sound_effects")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2038963755]
 environment = SubResource("Environment_world")
@@ -572,56 +577,7 @@ layout_mode = 2
 text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
 label_settings = SubResource("StatusLabelSettings")
 
-[node name="XPTrackerHUD" type="MarginContainer" parent="UI"]
-mouse_filter = 2
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -300.0
-offset_top = 108.0
-offset_right = -20.0
-offset_bottom = 220.0
-grow_horizontal = 0
-
-[node name="Margin" type="MarginContainer" parent="UI/XPTrackerHUD"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 8
-
-[node name="VBox" type="VBoxContainer" parent="UI/XPTrackerHUD/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="Total" type="Label" parent="UI/XPTrackerHUD/Margin/VBox"]
-layout_mode = 2
-text = "Total XP  0"
-horizontal_alignment = 2
-theme_override_colors/font_color = Color(0.95, 0.72, 0.2, 1)
-theme_override_colors/font_outline_color = Color(0.025, 0.03, 0.035, 0.95)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 17
-
-[node name="GainRow" type="HBoxContainer" parent="UI/XPTrackerHUD/Margin/VBox"]
-layout_mode = 2
-alignment = 2
-theme_override_constants/separation = 4
-
-[node name="Gain" type="Label" parent="UI/XPTrackerHUD/Margin/VBox/GainRow"]
-layout_mode = 2
-text = ""
-vertical_alignment = 1
-theme_override_colors/font_color = Color(0.62, 1, 0.36, 1)
-theme_override_colors/font_outline_color = Color(0.025, 0.03, 0.035, 1)
-theme_override_constants/outline_size = 5
-theme_override_font_sizes/font_size = 24
-
-[node name="Icon" type="TextureRect" parent="UI/XPTrackerHUD/Margin/VBox/GainRow"]
-custom_minimum_size = Vector2(30, 30)
-layout_mode = 2
-expand_mode = 1
-stretch_mode = 5
+[node name="XPTrackerHUD" parent="UI" instance=ExtResource("8_xp_tracker")]
 
 [node name="HudEditHint" type="Label" parent="UI"]
 visible = false
@@ -1344,6 +1300,31 @@ value = 40.0
 custom_minimum_size = Vector2(56, 0)
 layout_mode = 2
 text = "40%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="EffectsVolume" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="UI/SettingsHUD/Margin/VBox/EffectsVolume"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "Effects volume"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="UI/SettingsHUD/Margin/VBox/EffectsVolume"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 1.0
+value = 65.0
+
+[node name="Value" type="Label" parent="UI/SettingsHUD/Margin/VBox/EffectsVolume"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+text = "65%"
 horizontal_alignment = 2
 vertical_alignment = 1
 

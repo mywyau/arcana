@@ -399,6 +399,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
 @onready var ground: PrototypeTerrain = $Ground
 @onready var network: NetworkClient = $NetworkClient
+@onready var sound_effects: SoundEffects = $SoundEffects
 @onready var smithing_window: Window = $SmithingWindow
 @onready var smithing_tabs: TabContainer = $SmithingWindow/Panel/Margin/VBox/Tabs
 @onready var smelting_window: Window = $SmeltingWindow
@@ -433,11 +434,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var bank_chests: Node3D = $BankChests
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
-@onready var xp_tracker_hud: MarginContainer = $UI/XPTrackerHUD
-@onready var xp_tracker_total: Label = $UI/XPTrackerHUD/Margin/VBox/Total
-@onready var xp_tracker_gain_row: HBoxContainer = $UI/XPTrackerHUD/Margin/VBox/GainRow
-@onready var xp_tracker_gain: Label = $UI/XPTrackerHUD/Margin/VBox/GainRow/Gain
-@onready var xp_tracker_icon: TextureRect = $UI/XPTrackerHUD/Margin/VBox/GainRow/Icon
+@onready var xp_tracker_hud: XPTracker = $UI/XPTrackerHUD
 @onready var hud_edit_hint: Label = $UI/HudEditHint
 @onready var chat_hud: PanelContainer = $UI/ChatHUD
 @onready var game_message_log: RichTextLabel = $UI/ChatHUD/Margin/VBox/Messages
@@ -463,6 +460,8 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var settings_disable_xp_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/DisableXP
 @onready var settings_music_slider: HSlider = $UI/SettingsHUD/Margin/VBox/MusicVolume/Slider
 @onready var settings_music_value: Label = $UI/SettingsHUD/Margin/VBox/MusicVolume/Value
+@onready var settings_effects_slider: HSlider = $UI/SettingsHUD/Margin/VBox/EffectsVolume/Slider
+@onready var settings_effects_value: Label = $UI/SettingsHUD/Margin/VBox/EffectsVolume/Value
 @onready var settings_edit_hud_button: Button = $UI/SettingsHUD/Margin/VBox/EditHUD
 @onready var settings_reset_hud_button: Button = $UI/SettingsHUD/Margin/VBox/ResetHUD
 @onready var menu_tabs_hud: PanelContainer = $UI/MenuTabsHUD
@@ -793,7 +792,6 @@ var _game_messages: Array[Dictionary] = []
 var _last_network_error_code: String = ""
 var _last_network_error_message: String = ""
 var _xp_tracker_initialized: bool = false
-var _xp_gain_generation: int = 0
 
 
 func _ready() -> void:
@@ -951,6 +949,7 @@ func _ready() -> void:
 	settings_xp_tracker_toggle.toggled.connect(_on_xp_tracker_toggled)
 	settings_disable_xp_toggle.toggled.connect(_on_experience_lock_toggled)
 	settings_music_slider.value_changed.connect(_on_music_volume_changed)
+	settings_effects_slider.value_changed.connect(_on_effects_volume_changed)
 	settings_edit_hud_button.pressed.connect(_begin_hud_editing_from_settings)
 	settings_reset_hud_button.pressed.connect(_reset_hud_layout_from_settings)
 	for settings_button: Button in [inventory_settings_button, $UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row/Settings]:
@@ -2918,6 +2917,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if gathering_result_text != _gathering_result:
 				var previous_gathering_result: String = _gathering_result
 				_gathering_result = gathering_result_text
+				_play_gathering_sound(_gathering_result)
 				match _gathering_result:
 					"":
 						if not previous_gathering_result.is_empty():
@@ -3344,6 +3344,15 @@ func _sync_bank_chests(chest_payloads: Variant) -> void:
 			_close_bank()
 
 
+func _play_gathering_sound(result: String) -> void:
+	if result.begins_with("mined_"):
+		sound_effects.play_action(&"mining")
+	elif result.begins_with("chopped_"):
+		sound_effects.play_action(&"woodcutting")
+	elif result.begins_with("cooked_"):
+		sound_effects.play_action(&"cooking")
+
+
 func _process_combat_events(snapshot: Dictionary) -> void:
 	var events_data: Variant = snapshot.get("combat_events", [])
 	if typeof(events_data) != TYPE_ARRAY:
@@ -3378,6 +3387,10 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		var source: PlayerView = _player_views.get(source_id)
 		var target: PlayerView = _player_views.get(target_id)
 		var dummy_view: TargetDummy = _dummy_view_for_id(target_id)
+		var local_combat: bool = source_id == _local_player_id or target_id == _local_player_id
+		var weapon_id: String = source.equipped_weapon() if source != null else "unarmed"
+		if local_combat and source != null and spell_id.is_empty():
+			sound_effects.play_weapon_attack(weapon_id)
 		if dummy_view != null:
 			if source == null:
 				continue
@@ -3392,6 +3405,8 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 				amount,
 				source.global_position,
 				impact_delay,
+				local_combat and spell_id.is_empty(),
+				weapon_id,
 			)
 		elif target != null:
 			if source != null:
@@ -3404,6 +3419,8 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 				attacking_dummy.play_attack(target.global_position)
 			if event_type == "damage":
 				target.play_hit(amount)
+				if local_combat and spell_id.is_empty():
+					sound_effects.play_combat_impact(weapon_id)
 			else:
 				target.play_dodge()
 
@@ -3418,6 +3435,8 @@ func _play_dummy_impact_after_delay(
 	amount: int,
 	source_position: Vector3,
 	delay: float,
+	play_sound: bool,
+	weapon_id: String,
 ) -> void:
 	if delay > 0.0:
 		await get_tree().create_timer(delay).timeout
@@ -3425,6 +3444,8 @@ func _play_dummy_impact_after_delay(
 		return
 	if event_type == "damage":
 		dummy_view.play_hit(amount, source_position)
+		if play_sound:
+			sound_effects.play_combat_impact(weapon_id)
 	else:
 		dummy_view.play_dodge()
 
@@ -3642,17 +3663,22 @@ func _toggle_combat_debug_hud() -> void:
 func _load_client_settings() -> void:
 	var config := ConfigFile.new()
 	var music_volume: float = 40.0
+	var effects_volume: float = 65.0
 	var show_diagnostics: bool = true
 	var show_xp_tracker: bool = true
 	if config.load(CLIENT_SETTINGS_PATH) == OK:
 		music_volume = clampf(float(config.get_value("audio", "music_volume", music_volume)), 0.0, 100.0)
+		effects_volume = clampf(float(config.get_value("audio", "effects_volume", effects_volume)), 0.0, 100.0)
 		show_diagnostics = bool(config.get_value("interface", "show_diagnostics", show_diagnostics))
 		show_xp_tracker = bool(config.get_value("interface", "show_xp_tracker", show_xp_tracker))
 	settings_music_slider.set_value_no_signal(music_volume)
+	settings_effects_slider.set_value_no_signal(effects_volume)
 	settings_diagnostics_toggle.set_pressed_no_signal(show_diagnostics)
 	settings_xp_tracker_toggle.set_pressed_no_signal(show_xp_tracker)
 	_apply_music_volume(music_volume)
+	_apply_effects_volume(effects_volume)
 	settings_music_value.text = "%d%%" % roundi(music_volume)
+	settings_effects_value.text = "%d%%" % roundi(effects_volume)
 	diagnostics_label.visible = show_diagnostics
 	xp_tracker_hud.visible = show_xp_tracker
 
@@ -3660,6 +3686,7 @@ func _load_client_settings() -> void:
 func _save_client_settings() -> void:
 	var config := ConfigFile.new()
 	config.set_value("audio", "music_volume", settings_music_slider.value)
+	config.set_value("audio", "effects_volume", settings_effects_slider.value)
 	config.set_value("interface", "show_diagnostics", settings_diagnostics_toggle.button_pressed)
 	config.set_value("interface", "show_xp_tracker", settings_xp_tracker_toggle.button_pressed)
 	config.save(CLIENT_SETTINGS_PATH)
@@ -3679,6 +3706,22 @@ func _apply_music_volume(volume: float) -> void:
 	AudioServer.set_bus_mute(music_bus_index, normalized_volume <= 0.0)
 	if normalized_volume > 0.0:
 		AudioServer.set_bus_volume_db(music_bus_index, linear_to_db(normalized_volume))
+
+
+func _on_effects_volume_changed(volume: float) -> void:
+	_apply_effects_volume(volume)
+	settings_effects_value.text = "%d%%" % roundi(volume)
+	_save_client_settings()
+
+
+func _apply_effects_volume(volume: float) -> void:
+	var effects_bus_index := AudioServer.get_bus_index(&"SFX")
+	if effects_bus_index < 0:
+		return
+	var normalized_volume := clampf(volume / 100.0, 0.0, 1.0)
+	AudioServer.set_bus_mute(effects_bus_index, normalized_volume <= 0.0)
+	if normalized_volume > 0.0:
+		AudioServer.set_bus_volume_db(effects_bus_index, linear_to_db(normalized_volume))
 
 
 func _on_diagnostics_toggled(visible: bool) -> void:
@@ -4453,19 +4496,13 @@ func _apply_skills_snapshot(skills: Array) -> void:
 
 
 func _show_xp_gain(skill_id: String, gained_xp: int, total_xp: int) -> void:
-	_xp_gain_generation += 1
-	var generation: int = _xp_gain_generation
 	var skill_name: String = str(ACTIVE_SKILL_NAMES.get(skill_id, skill_id.capitalize()))
-	xp_tracker_icon.texture = SKILL_ICONS.get(skill_name) as Texture2D
-	xp_tracker_icon.tooltip_text = skill_name
-	xp_tracker_total.text = "Total %s XP  %d" % [skill_name, total_xp]
-	xp_tracker_gain.text = "+%d XP" % gained_xp
-	xp_tracker_gain_row.modulate = Color.WHITE
-	await get_tree().create_timer(3.0).timeout
-	if generation != _xp_gain_generation or not is_instance_valid(xp_tracker_gain_row):
-		return
-	var fade := create_tween()
-	fade.tween_property(xp_tracker_gain_row, "modulate:a", 0.0, 0.35)
+	xp_tracker_hud.show_gain(
+		skill_name,
+		SKILL_ICONS.get(skill_name) as Texture2D,
+		gained_xp,
+		total_xp,
+	)
 
 
 func _update_active_skills_hud() -> void:
