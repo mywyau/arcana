@@ -694,6 +694,7 @@ var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
 var _fletching_ui: FletchingWindow
 var _inventory_window: InventoryWindow
+var _inventory_context_menu: InventoryContextMenu
 var _production_windows: ProductionWindows
 var _production_recipes: Dictionary = {}
 var _spellbooks: Dictionary = {}
@@ -796,6 +797,9 @@ func _ready() -> void:
 	_inventory_window.item_pressed.connect(_on_inventory_slot_pressed)
 	_inventory_window.swap_requested.connect(_request_inventory_swap)
 	_inventory_window.context_requested.connect(_open_inventory_context_menu)
+	_inventory_context_menu = InventoryContextMenu.new()
+	add_child(_inventory_context_menu)
+	_inventory_context_menu.action_requested.connect(_on_inventory_context_action)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
 	bank_header.gui_input.connect(_on_bank_header_input)
@@ -939,6 +943,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if _inventory_context_menu != null and _inventory_context_menu.close_overlay():
+						get_viewport().set_input_as_handled()
+						return
 					if _production_windows != null and _production_windows.close_overlays():
 						get_viewport().set_input_as_handled()
 						return
@@ -2023,20 +2030,6 @@ func _on_world_context_action(menu_id: int) -> void:
 			var drop_view := _drop_views.get(drop_id) as LootDrop
 			if drop_view != null and is_instance_valid(drop_view):
 				_request_pickup_drop(drop_id, drop_view.global_position)
-		"inventory_action":
-			_on_inventory_item_pressed(
-				str(action.get("item_id", "")),
-				str(action.get("instance_id", "")),
-				str(action.get("action", "")),
-				int(action.get("slot", -1)),
-			)
-		"inventory_drop":
-			_request_drop_item(
-				str(action.get("item_id", "")),
-				str(action.get("instance_id", "")),
-			)
-
-
 func _open_inventory_context_menu(slot: int, screen_position: Vector2) -> void:
 	if _player_defeated or bank_hud.visible or (
 		_ammunition_pouch_window != null and _ammunition_pouch_window.visible
@@ -2044,51 +2037,33 @@ func _open_inventory_context_menu(slot: int, screen_position: Vector2) -> void:
 		_rune_pouch_window != null and _rune_pouch_window.visible
 	):
 		return
-	var item: Dictionary = {}
-	for payload: Variant in _inventory_items:
-		if typeof(payload) == TYPE_DICTIONARY and int((payload as Dictionary).get("slot", -1)) == slot:
-			item = payload as Dictionary
-			break
+	var item := _inventory_item_at_slot(slot)
 	if item.is_empty():
 		return
-	for child: Node in _world_context_rows.get_children():
-		_world_context_rows.remove_child(child)
-		child.queue_free()
-	_context_menu_actions.clear()
 	var item_id: String = str(item.get("item_id", ""))
-	var instance_id: String = str(item.get("instance_id", ""))
 	var quantity: int = int(item.get("quantity", 1))
 	var item_name: String = str(ITEM_DISPLAY_NAMES.get(item_id, item_id.capitalize()))
 	var inventory_action: String = _inventory_action_for_item(item_id)
-	var next_menu_id: int = 0
-	if not inventory_action.is_empty():
-		var verb: String = "Use"
-		if inventory_action == "equip" or inventory_action == "ring":
-			verb = "Equip"
-		elif inventory_action == "ammunition":
-			verb = "Load"
-		elif inventory_action == "consume":
-			var consumable: Dictionary = CONSUMABLE_ITEMS.get(item_id, {}) as Dictionary
-			verb = "Eat" if int(consumable.get("healing", 0)) > 0 else "Drink"
-		_add_world_context_action(verb, item_name, next_menu_id, 260.0)
-		_context_menu_actions[next_menu_id] = {
-			"type": "inventory_action",
-			"item_id": item_id,
-			"instance_id": instance_id,
-			"action": inventory_action,
-			"slot": slot,
-		}
-		next_menu_id += 1
-	_add_world_context_action("Drop All" if quantity > 1 else "Drop", item_name, next_menu_id, 260.0)
-	_context_menu_actions[next_menu_id] = {
-		"type": "inventory_drop",
-		"item_id": item_id,
-		"instance_id": instance_id,
-	}
-	var menu_height: int = 24 + maxi(0, _world_context_rows.get_child_count() - 1) * 6
-	for child: Control in _world_context_rows.get_children():
-		menu_height += 48
-	_world_context_menu.popup(Rect2i(Vector2i(screen_position), Vector2i(280, menu_height)))
+	var consumable: Dictionary = CONSUMABLE_ITEMS.get(item_id, {}) as Dictionary
+	_inventory_context_menu.open_menu(
+		slot, screen_position, item_name, quantity, inventory_action,
+		int(consumable.get("healing", 0)) > 0,
+	)
+
+
+func _on_inventory_context_action(inventory_slot: int, action_kind: String) -> void:
+	var item := _inventory_item_at_slot(inventory_slot)
+	if item.is_empty() or _player_defeated:
+		return
+	var item_id: String = str(item.get("item_id", ""))
+	var instance_id: String = str(item.get("instance_id", ""))
+	if action_kind == InventoryContextMenu.ACTION_DROP:
+		_request_drop_item(item_id, instance_id)
+		return
+	if action_kind == InventoryContextMenu.ACTION_PRIMARY:
+		_on_inventory_item_pressed(
+			item_id, instance_id, _inventory_action_for_item(item_id), inventory_slot,
+		)
 
 
 func _top_loot_hit(ray_origin: Vector3, ray_end: Vector3) -> Dictionary:
@@ -2506,12 +2481,7 @@ func _on_welcome_received(player_id: String) -> void:
 func _on_snapshot_received(snapshot: Dictionary) -> void:
 	var snapshot_tick: int = int(snapshot.get("tick", 0))
 	_action_pulse = int(snapshot.get("action_pulse", 0))
-	_sync_targets(snapshot.get("targets", []))
-	_sync_drops(snapshot.get("drops", []))
-	_sync_fires(snapshot.get("fires", []))
-	_sync_gathering_spots(snapshot.get("gathering_spots", []))
-	_sync_bank_chests(snapshot.get("bank_chests", []))
-	_sync_merchants(snapshot.get("merchants", []))
+	_sync_snapshot_world(snapshot)
 	var player_payloads: Variant = snapshot.get("players", [])
 	if typeof(player_payloads) != TYPE_ARRAY:
 		return
@@ -2526,34 +2496,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		if id.is_empty() or typeof(position_data) != TYPE_DICTIONARY:
 			continue
 
-		var coordinates: Dictionary = position_data
-		var position := Vector3(
-			float(coordinates.get("x", 0.0)),
-			float(coordinates.get("y", 0.0)),
-			float(coordinates.get("z", 0.0)),
-		)
-		var path: Array[Vector3] = []
-		var path_data: Variant = player_data.get("path", [])
-		if typeof(path_data) == TYPE_ARRAY:
-			for waypoint_data: Variant in path_data:
-				if typeof(waypoint_data) != TYPE_DICTIONARY:
-					continue
-				var waypoint: Dictionary = waypoint_data
-				path.append(Vector3(
-					float(waypoint.get("x", 0.0)),
-					float(waypoint.get("y", 0.0)),
-					float(waypoint.get("z", 0.0)),
-				))
-
-		var view: PlayerView = _player_views.get(id)
-		if view == null:
-			view = PLAYER_SCENE.instantiate() as PlayerView
-			players.add_child(view)
-			_player_views[id] = view
-			view.set_local_player(id == _local_player_id)
-			if id == _local_player_id:
-				camera_rig.follow(view)
-				_ensure_attack_range_indicator(view)
+		var position := _snapshot_vector(position_data as Dictionary)
+		var path := _snapshot_path(player_data.get("path", []))
+		var view := _ensure_snapshot_player_view(id)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
 		var server_driven_path: bool = (
@@ -2661,97 +2606,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var combat_matchup_data: Variant = player_data.get("combat_matchup", {})
 			if typeof(combat_matchup_data) == TYPE_DICTIONARY:
 				_combat_matchup = (combat_matchup_data as Dictionary).duplicate(true)
-			var skills_data: Variant = player_data.get("skills", [])
-			if typeof(skills_data) == TYPE_ARRAY:
-				_apply_skills_snapshot(skills_data as Array)
-			var inventory_data: Variant = player_data.get("inventory", {})
-			if typeof(inventory_data) == TYPE_DICTIONARY:
-				_apply_inventory_snapshot(inventory_data as Dictionary)
-			var ammunition_data: Variant = player_data.get("ammunition_pouch", {})
-			if typeof(ammunition_data) == TYPE_DICTIONARY:
-				_apply_ammunition_pouch_snapshot(ammunition_data as Dictionary)
-			var last_ammunition_sequence: int = int(player_data.get("last_ammunition_sequence", 0))
-			_next_ammunition_sequence = maxi(_next_ammunition_sequence, last_ammunition_sequence + 1)
-			var ring_data: Variant = player_data.get("ring_rack", {})
-			if typeof(ring_data) == TYPE_DICTIONARY:
-				_apply_ring_rack_snapshot(ring_data as Dictionary)
-			var last_ring_sequence: int = int(player_data.get("last_ring_sequence", 0))
-			_next_ring_sequence = maxi(_next_ring_sequence, last_ring_sequence + 1)
-			var rune_data: Variant = player_data.get("rune_pouch", {})
-			if typeof(rune_data) == TYPE_DICTIONARY:
-				_apply_rune_pouch_snapshot(rune_data as Dictionary)
-			var last_rune_sequence: int = int(player_data.get("last_rune_sequence", 0))
-			_next_rune_sequence = maxi(_next_rune_sequence, last_rune_sequence + 1)
-			var bank_data: Variant = player_data.get("bank", {})
-			if typeof(bank_data) == TYPE_DICTIONARY:
-				_apply_bank_snapshot(bank_data as Dictionary)
-			var last_bank_sequence: int = int(player_data.get("last_bank_sequence", 0))
-			_next_bank_sequence = maxi(_next_bank_sequence, last_bank_sequence + 1)
-			_update_bank_proximity(position)
-			_last_merchant_sequence = int(player_data.get("last_merchant_sequence", 0))
-			_next_merchant_sequence = maxi(_next_merchant_sequence, _last_merchant_sequence + 1)
-			_update_merchant_proximity(position)
-			_update_crafting_station_proximity(position)
-			_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
-			_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
-			_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
-			if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
-				var consumed_item_id: String = _queued_consume_item
-				_queued_consume_item = ""
-				_queued_consume_slot = -1
-				inventory_selection_changed = true
-				var consumed_definition: Dictionary = CONSUMABLE_ITEMS.get(consumed_item_id, {}) as Dictionary
-				var boost_description: String = str(consumed_definition.get("boost", ""))
-				if not boost_description.is_empty():
-					status_label.text = "%s active • %s" % [
-						str(ITEM_DISPLAY_NAMES.get(consumed_item_id, consumed_item_id.replace("_", " ").capitalize())),
-						boost_description,
-					]
-					_append_game_message(status_label.text)
-			_last_brew_sequence = int(player_data.get("last_brew_sequence", 0))
-			_next_brew_sequence = maxi(_next_brew_sequence, _last_brew_sequence + 1)
-			var previous_brew_pending: bool = _brew_pending
-			var previous_brew_remaining: int = _brew_remaining
-			_brew_remaining = int(player_data.get("brew_remaining", 0))
-			_next_brew_pulse = int(player_data.get("next_brew_pulse", 0))
-			var brewing_result_text: String = str(player_data.get("brewing_result", ""))
-			if _brew_pending and _brew_remaining <= 0 and _last_brew_sequence >= _next_brew_sequence - 1:
-				_brew_pending = false
-				_sync_brewing_ui()
-				_brewing_ui.clear_selection()
-				status_label.text = "Brewing complete • Herblore XP gained"
-				_append_game_message(status_label.text)
-			elif _brew_remaining > 0:
-				_brew_pending = true
-				if brewing_result_text != _brewing_result_text or previous_brew_remaining != _brew_remaining:
-					status_label.text = "Brewing… %d potion%s remaining" % [
-						_brew_remaining, "" if _brew_remaining == 1 else "s",
-					]
-			_brewing_result_text = brewing_result_text
-			if previous_brew_pending != _brew_pending or previous_brew_remaining != _brew_remaining:
-				_sync_brewing_ui()
-			_last_fletch_sequence = int(player_data.get("last_fletch_sequence", 0))
-			_next_fletch_sequence = maxi(_next_fletch_sequence, _last_fletch_sequence + 1)
-			var previous_fletch_pending: bool = _fletch_pending
-			var previous_fletch_remaining: int = _fletch_remaining
-			_fletch_remaining = int(player_data.get("fletch_remaining", 0))
-			_next_fletch_pulse = int(player_data.get("next_fletch_pulse", 0))
-			var fletching_result_text: String = str(player_data.get("fletching_result", ""))
-			var fletching_batch_message := ""
-			if previous_fletch_remaining > _fletch_remaining and fletching_result_text not in ["", "fletching", "fletching_stopped"]:
-				fletching_batch_message = _play_fletching_completion_feedback(fletching_result_text)
-			if _fletch_pending and _fletch_remaining <= 0 and _last_fletch_sequence >= _next_fletch_sequence - 1:
-				_fletch_pending = false
-				status_label.text = "%s • Fletching complete" % fletching_batch_message if not fletching_batch_message.is_empty() else "Fletching complete • Fletching XP gained"
-				_append_game_message(status_label.text)
-			elif _fletch_remaining > 0:
-				_fletch_pending = true
-				if fletching_result_text != _fletching_result_text or previous_fletch_remaining != _fletch_remaining:
-					var progress_text := "%d batch%s remaining" % [_fletch_remaining, "" if _fletch_remaining == 1 else "es"]
-					status_label.text = "%s • %s" % [fletching_batch_message, progress_text] if not fletching_batch_message.is_empty() else "Fletching… %s" % progress_text
-			_fletching_result_text = fletching_result_text
-			if previous_fletch_pending != _fletch_pending or previous_fletch_remaining != _fletch_remaining:
-				_sync_fletching_ui()
+			_apply_local_storage_snapshot(player_data, position)
+			inventory_selection_changed = (
+				_apply_local_production_progress_snapshot(player_data) or inventory_selection_changed
+			)
 			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
 			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
 			var previous_gathering_spot: String = _gathering_spot
@@ -2999,38 +2857,194 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_update_combat_styles_hud()
 			if prayer_changed:
 				_update_prayer_hud()
-			if _last_action_result.is_empty():
-				_last_action_result = "none"
-			var navigation_data: Variant = player_data.get("navigation_location", {})
-			if typeof(navigation_data) == TYPE_DICTIONARY:
-				var navigation_location: Dictionary = navigation_data
-				_local_navigation_kind = str(navigation_location.get("kind", "unknown"))
-				_local_navigation_id = str(navigation_location.get("id", ""))
-			upper_level.set_navigation_location(_local_navigation_kind, _local_navigation_id)
-			camera_rig.set_world_collision_mask(_active_collision_mask())
-			diagnostics_label.text = "tick %d  |  sent %d  |  acknowledged %d  |  correction %.3f  |  %s:%s" % [
-				snapshot_tick,
-				_next_sequence - 1,
-				acknowledged_sequence,
-				correction,
-				_local_navigation_kind,
-				_local_navigation_id,
-			]
-			if not _last_network_error_code.is_empty():
-				diagnostics_label.text += "  |  last error %s: %s" % [
-					_last_network_error_code, _last_network_error_message,
-				]
+			_apply_local_navigation_snapshot(
+				player_data, snapshot_tick, acknowledged_sequence, correction,
+			)
 		active_ids[id] = true
 	_update_combat_hud()
 
-	for id: String in _player_views.keys():
-		if not active_ids.has(id):
-			var departed: PlayerView = _player_views[id]
-			if id == _local_player_id:
-				camera_rig.follow(null)
-			departed.queue_free()
-			_player_views.erase(id)
+	_remove_departed_player_views(active_ids)
 	_process_combat_events(snapshot)
+
+
+func _sync_snapshot_world(snapshot: Dictionary) -> void:
+	_sync_targets(snapshot.get("targets", []))
+	_sync_drops(snapshot.get("drops", []))
+	_sync_fires(snapshot.get("fires", []))
+	_sync_gathering_spots(snapshot.get("gathering_spots", []))
+	_sync_bank_chests(snapshot.get("bank_chests", []))
+	_sync_merchants(snapshot.get("merchants", []))
+
+
+func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -> void:
+	var skills_data: Variant = player_data.get("skills", [])
+	if typeof(skills_data) == TYPE_ARRAY:
+		_apply_skills_snapshot(skills_data as Array)
+	var inventory_data: Variant = player_data.get("inventory", {})
+	if typeof(inventory_data) == TYPE_DICTIONARY:
+		_apply_inventory_snapshot(inventory_data as Dictionary)
+	var ammunition_data: Variant = player_data.get("ammunition_pouch", {})
+	if typeof(ammunition_data) == TYPE_DICTIONARY:
+		_apply_ammunition_pouch_snapshot(ammunition_data as Dictionary)
+	var last_ammunition_sequence: int = int(player_data.get("last_ammunition_sequence", 0))
+	_next_ammunition_sequence = maxi(_next_ammunition_sequence, last_ammunition_sequence + 1)
+	var ring_data: Variant = player_data.get("ring_rack", {})
+	if typeof(ring_data) == TYPE_DICTIONARY:
+		_apply_ring_rack_snapshot(ring_data as Dictionary)
+	var last_ring_sequence: int = int(player_data.get("last_ring_sequence", 0))
+	_next_ring_sequence = maxi(_next_ring_sequence, last_ring_sequence + 1)
+	var rune_data: Variant = player_data.get("rune_pouch", {})
+	if typeof(rune_data) == TYPE_DICTIONARY:
+		_apply_rune_pouch_snapshot(rune_data as Dictionary)
+	var last_rune_sequence: int = int(player_data.get("last_rune_sequence", 0))
+	_next_rune_sequence = maxi(_next_rune_sequence, last_rune_sequence + 1)
+	var bank_data: Variant = player_data.get("bank", {})
+	if typeof(bank_data) == TYPE_DICTIONARY:
+		_apply_bank_snapshot(bank_data as Dictionary)
+	var last_bank_sequence: int = int(player_data.get("last_bank_sequence", 0))
+	_next_bank_sequence = maxi(_next_bank_sequence, last_bank_sequence + 1)
+	_update_bank_proximity(position)
+	_last_merchant_sequence = int(player_data.get("last_merchant_sequence", 0))
+	_next_merchant_sequence = maxi(_next_merchant_sequence, _last_merchant_sequence + 1)
+	_update_merchant_proximity(position)
+	_update_crafting_station_proximity(position)
+
+
+func _apply_local_production_progress_snapshot(player_data: Dictionary) -> bool:
+	var inventory_selection_changed := false
+	_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
+	_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
+	_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
+	if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
+		var consumed_item_id: String = _queued_consume_item
+		_queued_consume_item = ""
+		_queued_consume_slot = -1
+		inventory_selection_changed = true
+		var consumed_definition: Dictionary = CONSUMABLE_ITEMS.get(consumed_item_id, {}) as Dictionary
+		var boost_description: String = str(consumed_definition.get("boost", ""))
+		if not boost_description.is_empty():
+			status_label.text = "%s active • %s" % [
+				str(ITEM_DISPLAY_NAMES.get(consumed_item_id, consumed_item_id.replace("_", " ").capitalize())),
+				boost_description,
+			]
+			_append_game_message(status_label.text)
+	_last_brew_sequence = int(player_data.get("last_brew_sequence", 0))
+	_next_brew_sequence = maxi(_next_brew_sequence, _last_brew_sequence + 1)
+	var previous_brew_pending: bool = _brew_pending
+	var previous_brew_remaining: int = _brew_remaining
+	_brew_remaining = int(player_data.get("brew_remaining", 0))
+	_next_brew_pulse = int(player_data.get("next_brew_pulse", 0))
+	var brewing_result_text: String = str(player_data.get("brewing_result", ""))
+	if _brew_pending and _brew_remaining <= 0 and _last_brew_sequence >= _next_brew_sequence - 1:
+		_brew_pending = false
+		_sync_brewing_ui()
+		_brewing_ui.clear_selection()
+		status_label.text = "Brewing complete • Herblore XP gained"
+		_append_game_message(status_label.text)
+	elif _brew_remaining > 0:
+		_brew_pending = true
+		if brewing_result_text != _brewing_result_text or previous_brew_remaining != _brew_remaining:
+			status_label.text = "Brewing… %d potion%s remaining" % [
+				_brew_remaining, "" if _brew_remaining == 1 else "s",
+			]
+	_brewing_result_text = brewing_result_text
+	if previous_brew_pending != _brew_pending or previous_brew_remaining != _brew_remaining:
+		_sync_brewing_ui()
+	_last_fletch_sequence = int(player_data.get("last_fletch_sequence", 0))
+	_next_fletch_sequence = maxi(_next_fletch_sequence, _last_fletch_sequence + 1)
+	var previous_fletch_pending: bool = _fletch_pending
+	var previous_fletch_remaining: int = _fletch_remaining
+	_fletch_remaining = int(player_data.get("fletch_remaining", 0))
+	_next_fletch_pulse = int(player_data.get("next_fletch_pulse", 0))
+	var fletching_result_text: String = str(player_data.get("fletching_result", ""))
+	var fletching_batch_message := ""
+	if previous_fletch_remaining > _fletch_remaining and fletching_result_text not in ["", "fletching", "fletching_stopped"]:
+		fletching_batch_message = _play_fletching_completion_feedback(fletching_result_text)
+	if _fletch_pending and _fletch_remaining <= 0 and _last_fletch_sequence >= _next_fletch_sequence - 1:
+		_fletch_pending = false
+		status_label.text = "%s • Fletching complete" % fletching_batch_message if not fletching_batch_message.is_empty() else "Fletching complete • Fletching XP gained"
+		_append_game_message(status_label.text)
+	elif _fletch_remaining > 0:
+		_fletch_pending = true
+		if fletching_result_text != _fletching_result_text or previous_fletch_remaining != _fletch_remaining:
+			var progress_text := "%d batch%s remaining" % [_fletch_remaining, "" if _fletch_remaining == 1 else "es"]
+			status_label.text = "%s • %s" % [fletching_batch_message, progress_text] if not fletching_batch_message.is_empty() else "Fletching… %s" % progress_text
+	_fletching_result_text = fletching_result_text
+	if previous_fletch_pending != _fletch_pending or previous_fletch_remaining != _fletch_remaining:
+		_sync_fletching_ui()
+	return inventory_selection_changed
+
+
+func _apply_local_navigation_snapshot(
+		player_data: Dictionary,
+		snapshot_tick: int,
+		acknowledged_sequence: int,
+		correction: float,
+) -> void:
+	if _last_action_result.is_empty():
+		_last_action_result = "none"
+	var navigation_data: Variant = player_data.get("navigation_location", {})
+	if typeof(navigation_data) == TYPE_DICTIONARY:
+		var navigation_location: Dictionary = navigation_data
+		_local_navigation_kind = str(navigation_location.get("kind", "unknown"))
+		_local_navigation_id = str(navigation_location.get("id", ""))
+	upper_level.set_navigation_location(_local_navigation_kind, _local_navigation_id)
+	camera_rig.set_world_collision_mask(_active_collision_mask())
+	diagnostics_label.text = "tick %d  |  sent %d  |  acknowledged %d  |  correction %.3f  |  %s:%s" % [
+		snapshot_tick,
+		_next_sequence - 1,
+		acknowledged_sequence,
+		correction,
+		_local_navigation_kind,
+		_local_navigation_id,
+	]
+	if not _last_network_error_code.is_empty():
+		diagnostics_label.text += "  |  last error %s: %s" % [
+			_last_network_error_code, _last_network_error_message,
+		]
+
+
+func _snapshot_vector(coordinates: Dictionary) -> Vector3:
+	return Vector3(
+		float(coordinates.get("x", 0.0)),
+		float(coordinates.get("y", 0.0)),
+		float(coordinates.get("z", 0.0)),
+	)
+
+
+func _snapshot_path(path_data: Variant) -> Array[Vector3]:
+	var path: Array[Vector3] = []
+	if typeof(path_data) != TYPE_ARRAY:
+		return path
+	for waypoint_data: Variant in path_data:
+		if typeof(waypoint_data) == TYPE_DICTIONARY:
+			path.append(_snapshot_vector(waypoint_data as Dictionary))
+	return path
+
+
+func _ensure_snapshot_player_view(player_id: String) -> PlayerView:
+	var view: PlayerView = _player_views.get(player_id)
+	if view != null:
+		return view
+	view = PLAYER_SCENE.instantiate() as PlayerView
+	players.add_child(view)
+	_player_views[player_id] = view
+	view.set_local_player(player_id == _local_player_id)
+	if player_id == _local_player_id:
+		camera_rig.follow(view)
+		_ensure_attack_range_indicator(view)
+	return view
+
+
+func _remove_departed_player_views(active_ids: Dictionary) -> void:
+	for player_id: String in _player_views.keys():
+		if active_ids.has(player_id):
+			continue
+		var departed: PlayerView = _player_views[player_id]
+		if player_id == _local_player_id:
+			camera_rig.follow(null)
+		departed.queue_free()
+		_player_views.erase(player_id)
 
 
 func _sync_targets(target_payloads: Variant) -> void:
