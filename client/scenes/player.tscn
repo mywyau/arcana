@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/player_view.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/player_humanoid.tscn" id="2_humanoid"]
@@ -36,6 +36,18 @@ roughness = 0.7
 material = SubResource("BowStringMaterial")
 size = Vector3(0.025, 1.12, 0.025)
 
+[sub_resource type="BoxMesh" id="CrossbowStockMesh"]
+material = SubResource("BowWoodMaterial")
+size = Vector3(0.13, 0.68, 0.13)
+
+[sub_resource type="BoxMesh" id="CrossbowLimbMesh"]
+material = SubResource("BowWoodMaterial")
+size = Vector3(0.78, 0.09, 0.09)
+
+[sub_resource type="BoxMesh" id="CrossbowStringMesh"]
+material = SubResource("BowStringMaterial")
+size = Vector3(0.72, 0.025, 0.025)
+
 [sub_resource type="BoxMesh" id="HeavyHandleMesh"]
 material = SubResource("SwordHiltMaterial")
 size = Vector3(0.11, 0.9, 0.11)
@@ -44,6 +56,10 @@ size = Vector3(0.11, 0.9, 0.11)
 albedo_color = Color(0.42, 0.48, 0.52, 1)
 metallic = 0.7
 roughness = 0.3
+
+[sub_resource type="BoxMesh" id="CrossbowRailMesh"]
+material = SubResource("HeavyWeaponMaterial")
+size = Vector3(0.08, 0.48, 0.07)
 
 [sub_resource type="BoxMesh" id="MaceHeadMesh"]
 material = SubResource("HeavyWeaponMaterial")
@@ -68,6 +84,14 @@ material = SubResource("StaffOrbMaterial")
 radius = 0.16
 height = 0.32
 
+[sub_resource type="StandardMaterial3D" id="CapeMaterial"]
+albedo_color = Color(0.3, 0.2, 0.4, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="CapeMesh"]
+material = SubResource("CapeMaterial")
+size = Vector3(0.68, 1.02, 0.045)
+
 [node name="Player" type="Node3D"]
 script = ExtResource("1_player")
 
@@ -75,11 +99,17 @@ script = ExtResource("1_player")
 
 [node name="Humanoid" parent="VisualRoot" instance=ExtResource("2_humanoid")]
 
+[node name="Cape" type="MeshInstance3D" parent="VisualRoot"]
+position = Vector3(0, 1.18, 0.3)
+rotation_degrees = Vector3(6, 0, 0)
+visible = false
+mesh = SubResource("CapeMesh")
+
 [node name="WeaponAnchor" type="Node3D" parent="VisualRoot"]
-position = Vector3(0.57, 0.79, 0)
+position = Vector3(-0.57, 0.79, 0)
 
 [node name="SwordPivot" type="Node3D" parent="VisualRoot/WeaponAnchor"]
-rotation_degrees = Vector3(0, 0, -55)
+rotation_degrees = Vector3(-10, 0, 135)
 
 [node name="Blade" type="MeshInstance3D" parent="VisualRoot/WeaponAnchor/SwordPivot"]
 position = Vector3(0, 0.5, 0)
@@ -107,6 +137,27 @@ mesh = SubResource("BowLimbMesh")
 [node name="String" type="MeshInstance3D" parent="VisualRoot/WeaponAnchor/BowPivot"]
 position = Vector3(0.07, 0, 0)
 mesh = SubResource("BowStringMesh")
+
+[node name="CrossbowPivot" type="Node3D" parent="VisualRoot/WeaponAnchor"]
+position = Vector3(-0.18, 0.05, -0.1)
+rotation_degrees = Vector3(0, 0, -25)
+visible = false
+
+[node name="Stock" type="MeshInstance3D" parent="VisualRoot/WeaponAnchor/CrossbowPivot"]
+position = Vector3(0, 0.28, 0)
+mesh = SubResource("CrossbowStockMesh")
+
+[node name="Rail" type="MeshInstance3D" parent="VisualRoot/WeaponAnchor/CrossbowPivot"]
+position = Vector3(0, 0.48, -0.08)
+mesh = SubResource("CrossbowRailMesh")
+
+[node name="Limb" type="MeshInstance3D" parent="VisualRoot/WeaponAnchor/CrossbowPivot"]
+position = Vector3(0, 0.65, 0)
+mesh = SubResource("CrossbowLimbMesh")
+
+[node name="String" type="MeshInstance3D" parent="VisualRoot/WeaponAnchor/CrossbowPivot"]
+position = Vector3(0, 0.57, 0)
+mesh = SubResource("CrossbowStringMesh")
 
 [node name="MacePivot" type="Node3D" parent="VisualRoot/WeaponAnchor"]
 rotation_degrees = Vector3(0, 0, -50)

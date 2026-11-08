@@ -14,6 +14,7 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	state.CombatStyle = CombatStyleLongRange
 	state.Inventory.Items = []InventoryItem{{Slot: 0, ItemID: string(WeaponBow), Quantity: 1}}
 	state.Skills = []PersistentSkillState{{ID: SkillAttack, Experience: 125}}
+	state.ExperienceLocked = true
 	state.Bank.Items = []InventoryItem{{Slot: 0, ItemID: ItemAirRune, Quantity: 250}}
 	state.AmmunitionPouch.Items = []InventoryItem{{Slot: 0, ItemID: ItemIronArrow, Quantity: 80}}
 	state.RingRack.Items = []InventoryItem{{Slot: 0, ItemID: ItemRubyRing, Quantity: 1, InstanceID: "ring-1"}}
@@ -30,6 +31,9 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	if player.Position != state.Position || player.Health != 64 ||
 		player.EquippedWeapon != WeaponBow || player.CombatStyle != CombatStyleLongRange {
 		t.Fatalf("restored player = %+v", player)
+	}
+	if !player.ExperienceLocked {
+		t.Fatal("experience lock was not restored")
 	}
 	if snapshotInventoryContains(player.Inventory, string(WeaponBow)) {
 		t.Fatal("restored equipped bow still occupies an inventory slot")

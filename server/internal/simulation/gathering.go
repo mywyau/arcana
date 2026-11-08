@@ -48,8 +48,10 @@ const (
 	willowTreeCapacity        = 8
 	mapleTreeCapacity         = 6
 	yewTreeCapacity           = 4
-	agilityObstacleExperience = 25
-	agilityObstacleInterval   = 2
+	agilityObstacleExperience = 50
+	agilityObstacleInterval   = 5
+	agilityBeamHalfLength     = 3.25
+	agilityEndpointTolerance  = 0.15
 	prayerBoneExperience      = 10
 	prayerRestoreRecipeID     = "restore_prayer"
 	prayerSacrificeBonesID    = "sacrifice_bones"
@@ -103,11 +105,23 @@ type GatherCommand struct {
 	SpotID     string
 	RecipeID   string
 	InstanceID string
+	Quantity   int
 }
 
 type pendingGather struct {
-	command GatherCommand
-	path    []Position
+	command             GatherCommand
+	path                []Position
+	interactionPosition Position
+	completionPosition  Position
+	traversal           bool
+}
+
+func agilityBeamEndpoints(center Position) (Position, Position) {
+	left := center
+	left.X -= agilityBeamHalfLength
+	right := center
+	right.X += agilityBeamHalfLength
+	return left, right
 }
 
 func newGatheringSpots() map[string]gatheringSpotDefinition {
@@ -120,7 +134,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterCookingRangeID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCookingRangeID, Name: "Cooking Range", Skill: SkillCooking,
-				Position: Position{X: -8, Z: -8}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: -10, Z: -21}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationCooking,
 			},
 			ActiveResult: "cooking",
@@ -158,14 +172,14 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 25, Z: 18}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
 		starterGoldVeinID:    miningVein(starterGoldVeinID, "Gold Vein", Position{X: 22, Z: 22}, 4, ItemGoldOre, 32, goldVeinCapacity, 20, 5),
 		starterNormalTreeID:  woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
-		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -24, Z: 7}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
-		starterWillowTreeID:  woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -7, Z: 24}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
+		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -7, Z: 24}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
+		starterWillowTreeID:  woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -24, Z: 7}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
 		starterMapleTreeID:   woodcuttingTree(starterMapleTreeID, "Maple Tree", Position{X: 25, Z: 8}, 5, ItemMapleLogs, 34, mapleTreeCapacity, 18, 6),
 		starterYewTreeID:     woodcuttingTree(starterYewTreeID, "Yew Tree", Position{X: 18, Z: -24}, 8, ItemYewLogs, 52, yewTreeCapacity, 24, 7),
 		starterAgilityObstacleID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterAgilityObstacleID, Name: "Balance Beam", Skill: SkillAgility,
-				Position: Position{X: -10, Z: 4}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: -36, Z: 32}, Range: gatheringRange, RequiredLevel: 1,
 			},
 			RewardXP: agilityObstacleExperience, Interval: agilityObstacleInterval,
 			ActiveResult: "balancing", RewardResult: "completed_agility_obstacle", TrainingOnly: true,
@@ -238,6 +252,9 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("gather sequence must be positive")
 	}
+	if command.Quantity < 0 || command.Quantity > 10_000 {
+		return fmt.Errorf("gather quantity must be between 0 and 10000")
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	spot, exists := w.gatheringSpots[command.SpotID]
@@ -257,7 +274,10 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if pending, exists := w.pendingGathering[command.PlayerID]; exists && command.Sequence <= pending.command.Sequence {
 		return fmt.Errorf("gather sequence %d is not newer than pending sequence %d", command.Sequence, pending.command.Sequence)
 	}
-	if SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
+	// Natural resources validate requirements after the authoritative approach.
+	// Stations keep their early validation because selecting a recipe is a
+	// separate UI action rather than a direct world interaction.
+	if spot.Station != "" && SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
 		return fmt.Errorf("%s level %d is required", spot.Skill, spot.RequiredLevel)
 	}
 	if spot.Station == craftingStationFishing {
@@ -290,6 +310,8 @@ func (w *World) QueueGather(command GatherCommand) error {
 		if _, err := smeltingInventoryAfter(player.inventory, recipe); err != nil {
 			return err
 		}
+	} else if command.Quantity > 0 {
+		return fmt.Errorf("gather quantity is only supported for smelting")
 	}
 	if spot.Station == craftingStationForging {
 		recipe, recipeExists := forgingRecipe(ForgingRecipeID(command.RecipeID))
@@ -328,20 +350,30 @@ func (w *World) QueueGather(command GatherCommand) error {
 			return fmt.Errorf("prayer altar recipe %q does not exist", command.RecipeID)
 		}
 	}
-	if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
+	if spot.Station != "" && spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
 		return fmt.Errorf("gathering spot %q is depleted", spot.ID)
 	}
-	if spot.Station == "" && !spot.TrainingOnly && !canCompleteGatheringAction(player.inventory, spot) {
-		if !canPayItemCosts(player.inventory, spot.Costs) {
-			return fmt.Errorf("required items are missing")
-		}
-		return fmt.Errorf("inventory is full")
-	}
 
-	path := []Position{spot.Position}
-	if distance(player.position, spot.Position) > spot.Range && w.pathfinder != nil {
+	interactionPosition := spot.Position
+	completionPosition := spot.Position
+	traversal := spot.ID == starterAgilityObstacleID
+	approachDistance := spot.Range
+	if traversal {
+		left, right := agilityBeamEndpoints(spot.Position)
+		interactionPosition, completionPosition = left, right
+		if distance(player.position, right) < distance(player.position, left) {
+			interactionPosition, completionPosition = right, left
+		}
+		approachDistance = agilityEndpointTolerance
+	}
+	path := []Position{interactionPosition}
+	if distance(player.position, interactionPosition) > approachDistance && w.pathfinder != nil {
 		var err error
-		path, err = w.pathfinder.FindPathWithinRange(player.position, spot.Position, spot.Range-0.25)
+		if traversal {
+			path, err = w.pathfinder.FindPath(player.position, interactionPosition)
+		} else {
+			path, err = w.pathfinder.FindPathWithinRange(player.position, interactionPosition, spot.Range-0.25)
+		}
 		if err != nil {
 			return fmt.Errorf("find gathering path: %w", err)
 		}
@@ -355,7 +387,12 @@ func (w *World) QueueGather(command GatherCommand) error {
 	player.autoPickingUp = false
 	player.combatTarget = ""
 	player.autoApproaching = false
-	w.pendingGathering[command.PlayerID] = pendingGather{command: command, path: clonePositions(path)}
+	w.pendingGathering[command.PlayerID] = pendingGather{
+		command: command, path: clonePositions(path),
+		interactionPosition: interactionPosition,
+		completionPosition:  completionPosition,
+		traversal:           traversal,
+	}
 	return nil
 }
 
@@ -375,6 +412,10 @@ func (w *World) startPendingGathering() {
 		player.gatheringSpot = spot.ID
 		player.gatheringRecipe = pending.command.RecipeID
 		player.gatheringInstanceID = pending.command.InstanceID
+		player.gatheringRemaining = pending.command.Quantity
+		player.gatheringInteractionPosition = pending.interactionPosition
+		player.gatheringCompletionPosition = pending.completionPosition
+		player.gatheringTraversal = pending.traversal
 		interval := spot.Interval
 		if recipe, exists := foodRecipe(spot.Station, player.gatheringRecipe); exists {
 			interval = recipe.Interval
@@ -389,7 +430,11 @@ func (w *World) startPendingGathering() {
 			interval = recipe.Interval
 		}
 		player.nextGatherPulse = w.combat.pulse + interval
-		if distance(player.position, spot.Position) > spot.Range {
+		interactionRange := spot.Range
+		if pending.traversal {
+			interactionRange = agilityEndpointTolerance
+		}
+		if distance(player.position, pending.interactionPosition) > interactionRange {
 			player.destination = positionPointer(pending.path[len(pending.path)-1])
 			player.path = clonePositions(pending.path)
 			player.gatheringResult = "approaching"
@@ -422,7 +467,13 @@ func (w *World) resolveGatheringActions() {
 			clearGathering(player, "spot_missing")
 			continue
 		}
-		if distance(player.position, spot.Position) > spot.Range {
+		interactionPosition := spot.Position
+		interactionRange := spot.Range
+		if player.gatheringTraversal {
+			interactionPosition = player.gatheringInteractionPosition
+			interactionRange = agilityEndpointTolerance
+		}
+		if distance(player.position, interactionPosition) > interactionRange {
 			if player.destination == nil {
 				clearGathering(player, "spot_unreachable")
 			}
@@ -430,6 +481,15 @@ func (w *World) resolveGatheringActions() {
 		}
 		if player.destination != nil {
 			stopPlayer(player)
+		}
+		if player.gatheringTraversal && player.gatheringResult == "approaching" {
+			player.gatheringResult = spot.ActiveResult
+			player.nextGatherPulse = w.combat.pulse + spot.Interval
+			continue
+		}
+		if SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
+			clearGathering(player, fmt.Sprintf("requires_%s_level_%d", spot.Skill, spot.RequiredLevel))
+			continue
 		}
 		// Resolve tool requirements at the resource so the approach remains a
 		// valid server-driven route even when the player lacks the tool.
@@ -480,6 +540,13 @@ func (w *World) resolveGatheringActions() {
 				continue
 			}
 			player.gatheringResult = "smelted_" + recipe.RewardItem
+			if player.gatheringRemaining > 0 {
+				player.gatheringRemaining--
+				if player.gatheringRemaining == 0 {
+					clearGathering(player, "smelted_"+recipe.RewardItem)
+					continue
+				}
+			}
 			player.nextGatherPulse = w.combat.pulse + recipe.Interval
 			continue
 		}
@@ -544,6 +611,10 @@ func (w *World) resolveGatheringActions() {
 			continue
 		}
 		if spot.TrainingOnly {
+			if player.gatheringTraversal {
+				player.position = player.gatheringCompletionPosition
+				stopPlayer(player)
+			}
 			grantSkillExperience(player, spot.Skill, spot.RewardXP)
 			clearGathering(player, spot.RewardResult)
 			continue
@@ -595,11 +666,6 @@ func (w *World) rechargeGatheringSpots() {
 	}
 }
 
-func canCompleteGatheringAction(inventory inventoryState, spot gatheringSpotDefinition) bool {
-	candidate := cloneInventory(inventory)
-	return payItemCosts(&candidate, spot.Costs) && candidate.add(spot.RewardItem, spot.RewardQuantity)
-}
-
 func cloneInventory(inventory inventoryState) inventoryState {
 	return inventoryState{
 		capacity: inventory.capacity,
@@ -614,6 +680,10 @@ func clearGathering(player *playerState, result string) {
 	player.gatheringSpot = ""
 	player.gatheringRecipe = ""
 	player.gatheringInstanceID = ""
+	player.gatheringRemaining = 0
+	player.gatheringInteractionPosition = Position{}
+	player.gatheringCompletionPosition = Position{}
+	player.gatheringTraversal = false
 	player.nextGatherPulse = 0
 	player.gatheringResult = result
 }

@@ -8,11 +8,11 @@ import (
 func TestEnemyCombatProfilesCreateDistinctEncounters(t *testing.T) {
 	fowl := combatProfileForEnemy(wildFowlTargetID)
 	warden := combatProfileForEnemy(hillWardenTargetID)
-	if fowl.AttackDamage != 4 || fowl.AttackInterval != 3 || fowl.DamageType != DamageTypeStab ||
+	if fowl.CombatLevel != 2 || fowl.AttackDamage != 4 || fowl.AttackInterval != 3 || fowl.DamageType != DamageTypeStab ||
 		fowl.DetectionRange != 3 || fowl.LeashRange != 5 {
 		t.Fatalf("Wild Fowl profile = %+v", fowl)
 	}
-	if warden.AttackDamage != 18 || warden.AttackInterval != 5 || warden.DamageType != DamageTypeSlash ||
+	if warden.CombatLevel != 18 || warden.AttackDamage != 18 || warden.AttackInterval != 5 || warden.DamageType != DamageTypeSlash ||
 		warden.DetectionRange != 6 || warden.LeashRange != 10 {
 		t.Fatalf("Hill Warden profile = %+v", warden)
 	}

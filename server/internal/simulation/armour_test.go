@@ -72,6 +72,23 @@ func TestNoviceCombatSetsProvideFocusedOffence(t *testing.T) {
 	}
 }
 
+func TestCombatCapesUseCapeSlotAndFocusedBonuses(t *testing.T) {
+	tests := []struct {
+		itemID  string
+		offence OffenceBonuses
+	}{
+		{ItemVanguardCape, OffenceBonuses{MeleeAccuracy: 3, MeleeStrength: 2}},
+		{ItemWayfarerCape, OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}},
+		{ItemArcanistCape, OffenceBonuses{MagicAccuracy: 3, MagicStrength: 2}},
+	}
+	for _, test := range tests {
+		definition, exists := armourDefinition(test.itemID)
+		if !exists || definition.Slot != ArmourSlotCape || definition.Offence != test.offence {
+			t.Errorf("armourDefinition(%q) = %+v, %t", test.itemID, definition, exists)
+		}
+	}
+}
+
 func TestMetalArmourUsesHeadAndBodySlots(t *testing.T) {
 	tests := []struct {
 		itemID string

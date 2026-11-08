@@ -1,0 +1,2 @@
+ALTER TABLE characters
+    ADD COLUMN experience_locked BOOLEAN NOT NULL DEFAULT FALSE;

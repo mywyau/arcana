@@ -99,6 +99,21 @@ func send_disengage(sequence: int) -> bool:
 	return true
 
 
+func send_experience_lock(sequence: int, locked: bool) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot change XP settings while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "set_experience_lock",
+		"sequence": sequence,
+		"active": locked,
+	}))
+	if result != OK:
+		status_changed.emit("Could not change XP settings: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_equip_item(sequence: int, item_id: String, instance_id: String = "") -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot equip while disconnected")
@@ -225,7 +240,7 @@ func send_fletch(sequence: int, recipe_id: String, quantity: int = 1) -> bool:
 	return true
 
 
-func send_gather(sequence: int, spot_id: String, recipe_id: String = "", instance_id: String = "") -> bool:
+func send_gather(sequence: int, spot_id: String, recipe_id: String = "", instance_id: String = "", quantity: int = 0) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot gather while disconnected")
 		return false
@@ -239,6 +254,8 @@ func send_gather(sequence: int, spot_id: String, recipe_id: String = "", instanc
 		message["recipe_id"] = recipe_id
 	if not instance_id.is_empty():
 		message["instance_id"] = instance_id
+	if quantity > 0:
+		message["quantity"] = quantity
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not start gathering: %s" % error_string(result))

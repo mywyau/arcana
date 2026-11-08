@@ -27,7 +27,7 @@ const (
 var starterBankChest = BankChestSnapshot{
 	ID:       StarterBankChestID,
 	Name:     "Bank Chest",
-	Position: Position{X: -11, Z: -8},
+	Position: Position{X: -18, Z: -21},
 	Range:    bankInteractionRange,
 }
 

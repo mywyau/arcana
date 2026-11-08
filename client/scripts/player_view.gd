@@ -30,11 +30,13 @@ const TRAINING_COLOUR := Color("7b8790")
 @onready var swift_chest_trim: MeshInstance3D = $VisualRoot/Humanoid/SwiftChestTrim
 @onready var swift_helm: Node3D = $VisualRoot/Humanoid/SwiftHelm
 @onready var swift_boots: Node3D = $VisualRoot/Humanoid/SwiftBoots
+@onready var cape: MeshInstance3D = $VisualRoot/Cape
 @onready var weapon_anchor: Node3D = $VisualRoot/WeaponAnchor
 @onready var sword_pivot: Node3D = $VisualRoot/WeaponAnchor/SwordPivot
 @onready var blade: MeshInstance3D = $VisualRoot/WeaponAnchor/SwordPivot/Blade
 @onready var hilt: MeshInstance3D = $VisualRoot/WeaponAnchor/SwordPivot/Hilt
 @onready var bow_pivot: Node3D = $VisualRoot/WeaponAnchor/BowPivot
+@onready var crossbow_pivot: Node3D = $VisualRoot/WeaponAnchor/CrossbowPivot
 @onready var mace_pivot: Node3D = $VisualRoot/WeaponAnchor/MacePivot
 @onready var mace_head: MeshInstance3D = $VisualRoot/WeaponAnchor/MacePivot/Head
 @onready var battle_axe_pivot: Node3D = $VisualRoot/WeaponAnchor/BattleAxePivot
@@ -200,28 +202,28 @@ func play_weapon_attack(target_position: Vector3) -> float:
 	var is_dagger: bool = _equipped_weapon == "dagger" or _equipped_weapon.ends_with("_dagger")
 	var forward_duration: float = 0.11 if is_dagger else 0.16
 	var return_duration: float = 0.14 if is_dagger else 0.22
-	_play_melee_attack(sword_pivot, -55.0, 70.0, forward_duration, return_duration)
+	_play_sword_attack(forward_duration, return_duration)
 	return 0.0
 
 
 func _play_unarmed_attack() -> void:
 	if _attack_tween != null:
 		_attack_tween.kill()
-	right_arm.rotation_degrees.x = 0.0
+	left_arm.rotation_degrees.x = 0.0
 	_attack_tween = create_tween()
 	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_attack_tween.tween_property(right_arm, "rotation_degrees:x", -82.0, 0.1)
+	_attack_tween.tween_property(left_arm, "rotation_degrees:x", -82.0, 0.1)
 	_attack_tween.set_ease(Tween.EASE_IN_OUT)
-	_attack_tween.tween_property(right_arm, "rotation_degrees:x", 0.0, 0.16)
+	_attack_tween.tween_property(left_arm, "rotation_degrees:x", 0.0, 0.16)
 
 
-func play_spell_attack(target_position: Vector3, _spell_id: String) -> float:
+func play_spell_attack(target_position: Vector3, spell_id: String) -> float:
 	if _defeated:
 		return 0.0
 	var flat_target := Vector3(target_position.x, global_position.y, target_position.z)
 	if global_position.distance_squared_to(flat_target) > 0.001:
 		visual_root.look_at(flat_target, Vector3.UP, true)
-	return _play_staff_attack(target_position)
+	return _play_staff_attack(target_position, spell_id)
 
 
 func _play_melee_attack(
@@ -241,19 +243,37 @@ func _play_melee_attack(
 	_attack_tween.tween_property(pivot, "rotation_degrees:z", rest_angle, return_duration)
 
 
+func _play_sword_attack(forward_duration: float, return_duration: float) -> void:
+	if _attack_tween != null:
+		_attack_tween.kill()
+	var rest_pose := Vector3(-10.0, 0.0, 135.0)
+	var windup_pose := Vector3(-28.0, 0.0, 48.0)
+	var strike_pose := Vector3(68.0, 0.0, 62.0)
+	sword_pivot.rotation_degrees = rest_pose
+	_attack_tween = create_tween()
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees", windup_pose, forward_duration * 0.45)
+	_attack_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees", strike_pose, forward_duration * 0.55)
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees", rest_pose, return_duration)
+
+
 func _play_bow_attack(target_position: Vector3) -> float:
 	if _attack_tween != null:
 		_attack_tween.kill()
-	bow_pivot.rotation_degrees.z = -10.0
+	var ranged_pivot: Node3D = crossbow_pivot if _equipped_weapon == "crossbow" else bow_pivot
+	var rest_angle: float = -25.0 if _equipped_weapon == "crossbow" else -10.0
+	ranged_pivot.rotation_degrees.z = rest_angle
 	_attack_tween = create_tween()
 	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_attack_tween.tween_property(bow_pivot, "rotation_degrees:z", 8.0, 0.12)
+	_attack_tween.tween_property(ranged_pivot, "rotation_degrees:z", rest_angle + 18.0, 0.12)
 	_attack_tween.set_ease(Tween.EASE_IN_OUT)
-	_attack_tween.tween_property(bow_pivot, "rotation_degrees:z", -10.0, 0.18)
+	_attack_tween.tween_property(ranged_pivot, "rotation_degrees:z", rest_angle, 0.18)
 
 	var arrow := MeshInstance3D.new()
 	var arrow_mesh := BoxMesh.new()
-	arrow_mesh.size = Vector3(0.045, 0.045, 0.55)
+	arrow_mesh.size = Vector3(0.045, 0.045, 0.36 if _equipped_weapon == "crossbow" else 0.55)
 	var arrow_material := StandardMaterial3D.new()
 	arrow_material.albedo_color = Color(0.78, 0.58, 0.3)
 	arrow_material.roughness = 0.8
@@ -306,7 +326,7 @@ func _move_arrow_along_arc(
 		arrow.look_at(look_position, Vector3.UP, true)
 
 
-func _play_staff_attack(target_position: Vector3) -> float:
+func _play_staff_attack(target_position: Vector3, spell_id: String = "") -> float:
 	if _attack_tween != null:
 		_attack_tween.kill()
 	staff_pivot.rotation_degrees.z = -15.0
@@ -318,13 +338,14 @@ func _play_staff_attack(target_position: Vector3) -> float:
 
 	var bolt := MeshInstance3D.new()
 	var bolt_mesh := SphereMesh.new()
-	bolt_mesh.radius = 0.11
-	bolt_mesh.height = 0.22
+	bolt_mesh.radius = 0.17
+	bolt_mesh.height = 0.34
+	var projectile_color: Color = _spell_projectile_color(spell_id)
 	var bolt_material := StandardMaterial3D.new()
-	bolt_material.albedo_color = Color(0.45, 0.86, 1.0)
+	bolt_material.albedo_color = projectile_color
 	bolt_material.emission_enabled = true
-	bolt_material.emission = Color(0.25, 0.55, 1.0)
-	bolt_material.emission_energy_multiplier = 3.0
+	bolt_material.emission = projectile_color
+	bolt_material.emission_energy_multiplier = 1.8 if spell_id == "dark_bolt" else 3.0
 	bolt_mesh.material = bolt_material
 	bolt.mesh = bolt_mesh
 	var projectile_parent: Node = get_tree().current_scene
@@ -340,6 +361,17 @@ func _play_staff_attack(target_position: Vector3) -> float:
 	return flight_time
 
 
+func _spell_projectile_color(spell_id: String) -> Color:
+	match spell_id:
+		"wind_bolt": return Color(0.96, 0.98, 1.0)
+		"water_bolt": return Color(0.08, 0.38, 1.0)
+		"earth_bolt": return Color(0.16, 0.68, 0.24)
+		"fire_bolt": return Color(1.0, 0.06, 0.025)
+		"holy_bolt": return Color(1.0, 0.72, 0.02)
+		"dark_bolt": return Color(0.3, 0.06, 0.42)
+		_: return Color(0.45, 0.86, 1.0)
+
+
 func set_weapon(weapon_id: String) -> void:
 	_equipped_weapon = weapon_id
 	var dagger_equipped: bool = weapon_id == "dagger" or weapon_id.ends_with("_dagger")
@@ -349,6 +381,7 @@ func set_weapon(weapon_id: String) -> void:
 	blade.scale = Vector3(0.8, 0.55, 1.0) if dagger_equipped else (Vector3(0.8, 1.9, 0.8) if spear_equipped else Vector3.ONE)
 	blade.position.y = 0.3 if dagger_equipped else 0.5
 	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
+	sword_pivot.rotation_degrees = Vector3(-10.0, 0.0, 135.0)
 	battle_axe_pivot.scale = Vector3(1.0, 1.65, 1.0) if weapon_id == "halberd" else Vector3.ONE
 
 
@@ -359,6 +392,7 @@ func set_armour(equipped_armour: Dictionary) -> void:
 	var head_item: String = str(_equipped_armour.get("head", ""))
 	var body_item: String = str(_equipped_armour.get("body", ""))
 	var feet_item: String = str(_equipped_armour.get("feet", ""))
+	var cape_item: String = str(_equipped_armour.get("cape", ""))
 	training_helm.visible = head_item == "training_helm" or _is_tiered_item(head_item, "helm")
 	swift_helm.visible = head_item == "swift_helm"
 	var helmet_equipped: bool = training_helm.visible or swift_helm.visible
@@ -368,6 +402,9 @@ func set_armour(equipped_armour: Dictionary) -> void:
 	swift_body.visible = body_item == "swift_body"
 	swift_chest_trim.visible = swift_body.visible
 	swift_boots.visible = feet_item == "swift_boots"
+	cape.visible = not cape_item.is_empty()
+	if cape.visible:
+		cape.material_override = _cape_material_for_item(cape_item)
 	if training_helm.visible:
 		_apply_material_to_meshes(training_helm, _material_for_item(head_item))
 	if training_plate.visible:
@@ -383,7 +420,8 @@ func _update_weapon_visibility() -> void:
 		_equipped_weapon.ends_with("_dagger")
 	)
 	sword_pivot.visible = not _defeated and is_sword_or_dagger
-	bow_pivot.visible = not _defeated and _equipped_weapon in ["bow", "crossbow"]
+	bow_pivot.visible = not _defeated and _equipped_weapon == "bow"
+	crossbow_pivot.visible = not _defeated and _equipped_weapon == "crossbow"
 	mace_pivot.visible = not _defeated and (_equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"))
 	battle_axe_pivot.visible = not _defeated and (_equipped_weapon in ["battle_axe", "halberd"] or _equipped_weapon.ends_with("_battle_axe"))
 	staff_pivot.visible = not _defeated and _equipped_weapon == "staff"
@@ -431,6 +469,22 @@ func _material_for_item(item_id: String) -> StandardMaterial3D:
 	material.metallic = 0.68
 	material.roughness = 0.3
 	_equipment_materials[tier] = material
+	return material
+
+
+func _cape_material_for_item(item_id: String) -> StandardMaterial3D:
+	var key := "cape:%s" % item_id
+	if _equipment_materials.has(key):
+		return _equipment_materials[key] as StandardMaterial3D
+	var colour := Color(0.28, 0.2, 0.45)
+	if item_id == "vanguard_cape":
+		colour = Color(0.56, 0.18, 0.18)
+	elif item_id == "wayfarer_cape":
+		colour = Color(0.18, 0.43, 0.32)
+	var material := StandardMaterial3D.new()
+	material.albedo_color = colour
+	material.roughness = 0.88
+	_equipment_materials[key] = material
 	return material
 
 

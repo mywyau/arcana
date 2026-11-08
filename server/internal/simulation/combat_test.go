@@ -676,7 +676,7 @@ func TestBowCooldownSurvivesDisengageAndReengage(t *testing.T) {
 	}
 }
 
-func TestEngagingTargetStopsExistingMovementBeforeCombatPulse(t *testing.T) {
+func TestEngagingTargetReplacesExistingMovementWithImmediateApproach(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: 3}, 4)
 	mustQueueMove(t, world, "player-one", 1, Position{X: -4, Z: 8})
@@ -691,8 +691,8 @@ func TestEngagingTargetStopsExistingMovementBeforeCombatPulse(t *testing.T) {
 	world.Step(50 * time.Millisecond)
 
 	player := mustPlayer(t, world, "player-one")
-	if player.Destination != nil || len(player.Path) != 0 {
-		t.Fatalf("movement continued while engagement waited for its action pulse: %+v", player)
+	if !player.AutoApproaching || player.Destination == nil || player.Destination.Z >= 3 {
+		t.Fatalf("engagement did not immediately replace the existing movement route: %+v", player)
 	}
 }
 
@@ -783,8 +783,48 @@ func TestBowStylesModifyCadenceAndRange(t *testing.T) {
 	if rapid.AttackInterval != 4 || accurate.AttackInterval != bowAttackIntervalPulses {
 		t.Fatalf("bow intervals: rapid=%d accurate=%d", rapid.AttackInterval, accurate.AttackInterval)
 	}
-	if longRange.Range != 14 || longRange.ApproachRange != 13.25 || accurate.Range != bowRange {
-		t.Fatalf("bow ranges: long=%+v accurate=%+v", longRange, accurate)
+	if rapid.Range != bowRange ||
+		rapid.ApproachRange != bowApproachRange ||
+		accurate.Range != bowRange || accurate.ApproachRange != bowApproachRange ||
+		longRange.Range != bowRange+longRangeStyleRangeBonus ||
+		longRange.ApproachRange != bowApproachRange+longRangeStyleRangeBonus {
+		t.Fatalf("bow ranges: rapid=%+v accurate=%+v long=%+v", rapid, accurate, longRange)
+	}
+	if rapid.DamageVariance != bowDamageVariance+wideStyleDamageVarianceBonus ||
+		accurate.DamageVariance != bowDamageVariance-accurateStyleDamageVarianceReduction ||
+		longRange.DamageVariance != bowDamageVariance+wideStyleDamageVarianceBonus {
+		t.Fatalf("bow variances: rapid=%.2f accurate=%.2f long=%.2f", rapid.DamageVariance, accurate.DamageVariance, longRange.DamageVariance)
+	}
+}
+
+func TestCrossbowStylesUseRangedRangeTradeoffs(t *testing.T) {
+	accurate, _ := weaponDefinitionForStyle(WeaponCrossbow, CombatStyleAccurate)
+	rapid, _ := weaponDefinitionForStyle(WeaponCrossbow, CombatStyleRapid)
+	longRange, _ := weaponDefinitionForStyle(WeaponCrossbow, CombatStyleLongRange)
+
+	if rapid.Range != crossbowRange ||
+		accurate.Range != crossbowRange ||
+		longRange.Range != crossbowRange+longRangeStyleRangeBonus {
+		t.Fatalf("crossbow ranges: rapid=%.2f accurate=%.2f long=%.2f", rapid.Range, accurate.Range, longRange.Range)
+	}
+}
+
+func TestStaffStylesUseProjectileStyleTradeoffs(t *testing.T) {
+	accurate, _ := weaponDefinitionForStyle(WeaponStaff, CombatStyleAccurate)
+	rapid, _ := weaponDefinitionForStyle(WeaponStaff, CombatStyleRapid)
+	longRange, _ := weaponDefinitionForStyle(WeaponStaff, CombatStyleLongRange)
+
+	if rapid.AttackInterval != staffAttackIntervalPulses-1 || accurate.AttackInterval != staffAttackIntervalPulses {
+		t.Fatalf("staff intervals: rapid=%d accurate=%d", rapid.AttackInterval, accurate.AttackInterval)
+	}
+	if rapid.Range != staffRange || accurate.Range != staffRange || longRange.Range != staffRange+longRangeStyleRangeBonus {
+		t.Fatalf("staff ranges: rapid=%.2f accurate=%.2f long=%.2f", rapid.Range, accurate.Range, longRange.Range)
+	}
+	if accurate.AccuracyBonus != 11+accurateStyleAccuracyBonus ||
+		math.Abs(rapid.DamageVariance-(staffDamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 ||
+		math.Abs(accurate.DamageVariance-(staffDamageVariance-accurateStyleDamageVarianceReduction)) > 0.000_001 ||
+		math.Abs(longRange.DamageVariance-(staffDamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 {
+		t.Fatalf("staff style definitions: rapid=%+v accurate=%+v", rapid, accurate)
 	}
 }
 
@@ -922,7 +962,7 @@ func TestStaffHitTrainsMagic(t *testing.T) {
 	}
 }
 
-func TestSwordStylesRouteOrSuppressCombatXP(t *testing.T) {
+func TestSwordStylesRouteCombatXP(t *testing.T) {
 	tests := []struct {
 		name       string
 		style      CombatStyleID
@@ -932,7 +972,6 @@ func TestSwordStylesRouteOrSuppressCombatXP(t *testing.T) {
 		{name: "stab", style: CombatStyleStab, trained: SkillAttack, experience: swordDamage},
 		{name: "slash", style: CombatStyleSlash, trained: SkillStrength, experience: swordDamage},
 		{name: "defensive", style: CombatStyleDefensive, trained: SkillDefence, experience: swordDamage},
-		{name: "unfocused", style: CombatStyleUnfocused},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -992,8 +1031,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSteelSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponMithrilSword) ||
-		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponRuneSword) ||
-		!combatStyleValidForWeapon(CombatStyleUnfocused, WeaponBow) {
+		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponRuneSword) {
 		t.Fatal("additional weapon combat styles are not valid")
 	}
 }
@@ -1104,6 +1142,30 @@ func TestEngagedPlayerApproachesBeforeAutoAttacking(t *testing.T) {
 	}
 }
 
+func TestEngagedPlayerApproachesBeforeNextCombatPulse(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	world.players["player-one"].nextAttackPulse = 3
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	player := mustPlayer(t, world, "player-one")
+	if player.LastActionResult != "approaching" || !player.AutoApproaching || player.Destination == nil {
+		t.Fatalf("player did not begin approaching before the combat pulse: %+v", player)
+	}
+	if player.Position == (Position{}) {
+		t.Fatalf("player position did not advance on the immediate approach: %+v", player)
+	}
+	if got := mustTarget(t, world.Snapshot(), dummyTargetID).Health; got != dummyMaximumHealth {
+		t.Fatalf("dummy health before attack cooldown = %d, want %d", got, dummyMaximumHealth)
+	}
+	if player.NextAttackPulse != 3 {
+		t.Fatalf("next attack pulse = %d, want 3", player.NextAttackPulse)
+	}
+}
+
 func TestSwordApproachesAtPreviouslyValidLongRange(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -0.3}, 4)
@@ -1111,7 +1173,7 @@ func TestSwordApproachesAtPreviouslyValidLongRange(t *testing.T) {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
 	}
 
-	world.Step(actionPulseInterval)
+	world.Step(50 * time.Millisecond)
 	if got := mustTarget(t, world.Snapshot(), dummyTargetID).Health; got != dummyMaximumHealth {
 		t.Fatalf("dummy health at 1.7-unit range = %d, want %d", got, dummyMaximumHealth)
 	}
@@ -1163,7 +1225,7 @@ func TestManualMovementWithDisengageDoesNotResumeApproach(t *testing.T) {
 	}
 	world.Step(50 * time.Millisecond)
 	player := mustPlayer(t, world, "player-one")
-	if player.CombatTarget != dummyTargetID || player.AutoApproaching {
+	if player.CombatTarget != "" || player.AutoApproaching {
 		t.Fatalf("player state during manual reposition = %+v", player)
 	}
 

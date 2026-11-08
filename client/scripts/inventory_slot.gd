@@ -2,12 +2,18 @@ class_name InventorySlot
 extends Button
 
 signal swap_requested(from_slot: int, to_slot: int)
+signal context_requested(slot: int, screen_position: Vector2)
 
 var slot_index: int = -1
 var contains_item: bool = false
 var unlocked: bool = false
 var _quantity_label: Label
 var _reinforcement_label: Label
+var _drop_highlight: Panel
+
+
+func _ready() -> void:
+	mouse_exited.connect(_clear_drop_highlight)
 
 
 func configure(index: int, has_item: bool, is_unlocked: bool) -> void:
@@ -52,6 +58,15 @@ func set_reinforcement(level: int) -> void:
 	_reinforcement_label.text = "+%d" % level
 
 
+func _gui_input(event: InputEvent) -> void:
+	if not contains_item or not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_RIGHT:
+		context_requested.emit(slot_index, get_global_mouse_position())
+		accept_event()
+
+
 func _compact_quantity(quantity: int) -> String:
 	if quantity >= 1_000_000:
 		return _compact_quantity_unit(quantity, 1_000_000, "m")
@@ -80,10 +95,51 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	return unlocked and data is Dictionary and (data as Dictionary).has("inventory_slot")
+	var can_drop: bool = false
+	if unlocked and data is Dictionary and (data as Dictionary).has("inventory_slot"):
+		var from_slot: int = int((data as Dictionary).get("inventory_slot", -1))
+		can_drop = from_slot >= 0 and from_slot != slot_index
+	_set_drop_highlight(can_drop)
+	return can_drop
 
 
 func _drop_data(_at_position: Vector2, data: Variant) -> void:
+	_clear_drop_highlight()
 	var from_slot: int = int((data as Dictionary).get("inventory_slot", -1))
 	if from_slot >= 0 and from_slot != slot_index:
 		swap_requested.emit(from_slot, slot_index)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_END:
+		_clear_drop_highlight()
+
+
+func _set_drop_highlight(visible: bool) -> void:
+	if not visible:
+		_clear_drop_highlight()
+		return
+	if _drop_highlight == null:
+		_drop_highlight = Panel.new()
+		_drop_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_drop_highlight.z_index = 10
+		var border := StyleBoxFlat.new()
+		border.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+		border.border_width_left = 4
+		border.border_width_top = 4
+		border.border_width_right = 4
+		border.border_width_bottom = 4
+		border.border_color = Color(0.28, 0.82, 1.0, 1.0)
+		border.corner_radius_top_left = 6
+		border.corner_radius_top_right = 6
+		border.corner_radius_bottom_left = 6
+		border.corner_radius_bottom_right = 6
+		_drop_highlight.add_theme_stylebox_override("panel", border)
+		add_child(_drop_highlight)
+		_drop_highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_drop_highlight.visible = true
+
+
+func _clear_drop_highlight() -> void:
+	if _drop_highlight != null:
+		_drop_highlight.visible = false

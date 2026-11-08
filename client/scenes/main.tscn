@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://tys80ciwbtbq" path="res://scripts/floor_visibility.gd" id="4_floor_visibility"]
 [ext_resource type="Script" path="res://scripts/prototype_terrain.gd" id="5_terrain"]
 [ext_resource type="Script" path="res://scripts/background_music.gd" id="6_music"]
+[ext_resource type="Script" path="res://scripts/interaction_click_marker.gd" id="7_click_marker"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -60,32 +61,6 @@ size = Vector3(1, 2, 2)
 [sub_resource type="BoxShape3D" id="GroundObstacleShape"]
 size = Vector3(1, 2, 2)
 
-[sub_resource type="StandardMaterial3D" id="MarkerMaterial"]
-albedo_color = Color(0.95, 0.76, 0.2, 1)
-emission_enabled = true
-emission = Color(0.35, 0.2, 0.02, 1)
-
-[sub_resource type="CylinderMesh" id="MarkerMesh"]
-material = SubResource("MarkerMaterial")
-top_radius = 0.25
-bottom_radius = 0.25
-height = 0.04
-
-[sub_resource type="StandardMaterial3D" id="TargetPulseMaterial"]
-transparency = 1
-shading_mode = 0
-albedo_color = Color(0.38, 0.72, 1, 0.9)
-emission_enabled = true
-emission = Color(0.22, 0.3, 0.95, 1)
-emission_energy_multiplier = 2.0
-
-[sub_resource type="TorusMesh" id="TargetPulseMesh"]
-material = SubResource("TargetPulseMaterial")
-inner_radius = 0.58
-outer_radius = 0.72
-rings = 32
-ring_segments = 8
-
 [sub_resource type="LabelSettings" id="StatusLabelSettings"]
 font_size = 18
 font_color = Color(0.95, 0.97, 1, 1)
@@ -128,7 +103,7 @@ corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="TargetHealthFill"]
-bg_color = Color(0.82, 0.22, 0.18, 1)
+bg_color = Color(0.14, 0.72, 0.28, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -226,15 +201,6 @@ metadata/navigation_layer_id = "ground"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0)
 shape = SubResource("GroundObstacleShape")
 
-[node name="ClickMarker" type="MeshInstance3D" parent="." unique_id=975731856]
-visible = false
-mesh = SubResource("MarkerMesh")
-
-[node name="TargetClickPulse" type="MeshInstance3D" parent="."]
-visible = false
-cast_shadow = 0
-mesh = SubResource("TargetPulseMesh")
-
 [node name="Targets" type="Node3D" parent="."]
 
 [node name="Drops" type="Node3D" parent="."]
@@ -293,10 +259,6 @@ layout_mode = 2
 text = "Smithing"
 theme_override_font_sizes/font_size = 26
 
-[node name="Hint" type="Label" parent="SmithingWindow/Panel/Margin/VBox"]
-layout_mode = 2
-text = "Choose a material tier, then select an item to forge."
-
 [node name="Tabs" type="TabContainer" parent="SmithingWindow/Panel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -331,11 +293,6 @@ theme_override_constants/separation = 10
 layout_mode = 2
 text = "Smelting"
 theme_override_font_sizes/font_size = 26
-
-[node name="Hint" type="Label" parent="SmeltingWindow/Panel/Margin/VBox"]
-layout_mode = 2
-text = "Choose a bar. Smelting continues until you run out of ore, fuel, or inventory space."
-autowrap_mode = 2
 
 [node name="RecipeScroll" type="ScrollContainer" parent="SmeltingWindow/Panel/Margin/VBox"]
 layout_mode = 2
@@ -380,10 +337,12 @@ layout_mode = 2
 text = "Cooking"
 theme_override_font_sizes/font_size = 26
 
-[node name="Hint" type="Label" parent="CookingWindow/Panel/Margin/VBox"]
+[node name="IngredientsToggle" type="Button" parent="CookingWindow/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
-text = "Choose a recipe. Cooking continues until you run out of raw food or inventory space."
-autowrap_mode = 2
+toggle_mode = true
+text = "Ingredients"
+tooltip_text = "Show or hide recipe ingredients"
 
 [node name="RecipeScroll" type="ScrollContainer" parent="CookingWindow/Panel/Margin/VBox"]
 layout_mode = 2
@@ -584,6 +543,13 @@ text = "Make All"
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=705812827]
 
+[node name="InteractionClickMarker" type="Control" parent="UI"]
+visible = false
+mouse_filter = 2
+offset_right = 52.0
+offset_bottom = 52.0
+script = ExtResource("7_click_marker")
+
 [node name="Margin" type="MarginContainer" parent="UI" unique_id=1258717813]
 offset_right = 1600.0
 offset_bottom = 64.0
@@ -606,6 +572,57 @@ layout_mode = 2
 text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
 label_settings = SubResource("StatusLabelSettings")
 
+[node name="XPTrackerHUD" type="MarginContainer" parent="UI"]
+mouse_filter = 2
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 108.0
+offset_right = -20.0
+offset_bottom = 220.0
+grow_horizontal = 0
+
+[node name="Margin" type="MarginContainer" parent="UI/XPTrackerHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="UI/XPTrackerHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Total" type="Label" parent="UI/XPTrackerHUD/Margin/VBox"]
+layout_mode = 2
+text = "Total XP  0"
+horizontal_alignment = 2
+theme_override_colors/font_color = Color(0.95, 0.72, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0.025, 0.03, 0.035, 0.95)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 17
+
+[node name="GainRow" type="HBoxContainer" parent="UI/XPTrackerHUD/Margin/VBox"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="Gain" type="Label" parent="UI/XPTrackerHUD/Margin/VBox/GainRow"]
+layout_mode = 2
+text = ""
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.62, 1, 0.36, 1)
+theme_override_colors/font_outline_color = Color(0.025, 0.03, 0.035, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 24
+
+[node name="Icon" type="TextureRect" parent="UI/XPTrackerHUD/Margin/VBox/GainRow"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
 [node name="HudEditHint" type="Label" parent="UI"]
 visible = false
 mouse_filter = 2
@@ -616,9 +633,56 @@ offset_top = 112.0
 offset_right = 360.0
 offset_bottom = 142.0
 grow_horizontal = 2
-text = "HUD EDIT MODE  •  drag MOVE  •  drag ↘ to scale  •  F10 save/close  •  Shift+F10 reset"
+text = "HUD EDIT MODE  •  drag MOVE  •  drag any corner to scale  •  F10 save/close  •  Shift+F10 reset"
 label_settings = SubResource("StatusLabelSettings")
 horizontal_alignment = 1
+
+[node name="ChatHUD" type="PanelContainer" parent="UI"]
+anchors_preset = 3
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -470.0
+offset_right = 580.0
+offset_bottom = -210.0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/ChatHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="UI/ChatHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Channels" type="HBoxContainer" parent="UI/ChatHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="Game" type="Button" parent="UI/ChatHUD/Margin/VBox/Channels"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+disabled = true
+text = "Game"
+
+[node name="Messages" type="RichTextLabel" parent="UI/ChatHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 190)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 1
+bbcode_enabled = true
+scroll_active = true
+scroll_following = true
+selection_enabled = true
+context_menu_enabled = true
+shortcut_keys_enabled = true
+theme_override_colors/default_color = Color(0.88, 0.91, 0.94, 1)
+theme_override_font_sizes/normal_font_size = 16
 
 [node name="PlayerVitalsHUD" type="PanelContainer" parent="UI"]
 mouse_filter = 2
@@ -643,9 +707,24 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="HealthLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox"]
+[node name="Header" type="HBoxContainer" parent="UI/PlayerVitalsHUD/Margin/VBox"]
 layout_mode = 2
-text = "Health  100/100  •  Dodge 10%"
+
+[node name="HealthLabel" type="Label" parent="UI/PlayerVitalsHUD/Margin/VBox/Header"]
+layout_mode = 2
+text = "Health  100/100"
+
+[node name="Spacer" type="Control" parent="UI/PlayerVitalsHUD/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Details" type="Button" parent="UI/PlayerVitalsHUD/Margin/VBox/Header"]
+custom_minimum_size = Vector2(32, 26)
+layout_mode = 2
+toggle_mode = true
+text = "›"
+tooltip_text = "Toggle your combat details"
+theme_override_font_sizes/font_size = 22
 
 [node name="Health" type="ProgressBar" parent="UI/PlayerVitalsHUD/Margin/VBox"]
 custom_minimum_size = Vector2(0, 18)
@@ -667,51 +746,212 @@ show_percentage = false
 theme_override_styles/background = SubResource("HUDBarBackground")
 theme_override_styles/fill = SubResource("PrayerFill")
 
+[node name="PlayerDetailsHUD" type="PanelContainer" parent="UI"]
+visible = false
+offset_left = 350.0
+offset_top = 650.0
+offset_right = 590.0
+offset_bottom = 805.0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/PlayerDetailsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="UI/PlayerDetailsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Title" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Your Combat Details"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.45, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 17
+
+[node name="Separator" type="HSeparator" parent="UI/PlayerDetailsHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="Grid" type="GridContainer" parent="UI/PlayerDetailsHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 5
+columns = 2
+
+[node name="CombatLevelHeading" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Combat level"
+
+[node name="CombatLevel" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "1"
+horizontal_alignment = 2
+
+[node name="AccuracyHeading" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Hit chance"
+
+[node name="Accuracy" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "—"
+horizontal_alignment = 2
+
+[node name="DamageHeading" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Damage"
+
+[node name="Damage" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "—"
+horizontal_alignment = 2
+
+[node name="DodgeHeading" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Dodge"
+
+[node name="Dodge" type="Label" parent="UI/PlayerDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "0%"
+horizontal_alignment = 2
+
 [node name="TargetHUD" type="PanelContainer" parent="UI"]
 visible = false
-mouse_filter = 2
+mouse_filter = 0
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -210.0
+offset_left = -160.0
 offset_top = 20.0
-offset_right = 210.0
-offset_bottom = 102.0
+offset_right = 160.0
+offset_bottom = 96.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("HUDPanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="UI/TargetHUD"]
 layout_mode = 2
-theme_override_constants/margin_left = 14
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 14
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 6
 
 [node name="VBox" type="VBoxContainer" parent="UI/TargetHUD/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 4
 
 [node name="Header" type="HBoxContainer" parent="UI/TargetHUD/Margin/VBox"]
 layout_mode = 2
 
 [node name="HealthLabel" type="Label" parent="UI/TargetHUD/Margin/VBox/Header"]
 layout_mode = 2
-text = "Target  100/100"
+text = "Target  •  Lv 1"
 
 [node name="Spacer" type="Control" parent="UI/TargetHUD/Margin/VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="AggroLabel" type="Label" parent="UI/TargetHUD/Margin/VBox/Header"]
+[node name="AggroIcon" type="TextureRect" parent="UI/TargetHUD/Margin/VBox/Header"]
+visible = false
+custom_minimum_size = Vector2(26, 26)
 layout_mode = 2
-text = "No aggro"
+tooltip_text = "Enemy is not targeting you"
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Details" type="Button" parent="UI/TargetHUD/Margin/VBox/Header"]
+custom_minimum_size = Vector2(32, 26)
+layout_mode = 2
+toggle_mode = true
+text = "›"
+tooltip_text = "Toggle detailed combat matchup"
+theme_override_font_sizes/font_size = 22
 
 [node name="Health" type="ProgressBar" parent="UI/TargetHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 18)
+custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 value = 100.0
 show_percentage = false
 theme_override_styles/background = SubResource("HUDBarBackground")
 theme_override_styles/fill = SubResource("TargetHealthFill")
+
+[node name="Value" type="Label" parent="UI/TargetHUD/Margin/VBox/Health"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100/100"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.03, 0.035, 0.04, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+
+[node name="TargetDetailsHUD" type="PanelContainer" parent="UI"]
+visible = false
+offset_left = 850.0
+offset_top = 20.0
+offset_right = 1100.0
+offset_bottom = 155.0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/TargetDetailsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="UI/TargetDetailsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Title" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Combat Breakdown"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.95, 0.72, 0.2, 1)
+theme_override_font_sizes/font_size = 17
+
+[node name="Separator" type="HSeparator" parent="UI/TargetDetailsHUD/Margin/VBox"]
+layout_mode = 2
+
+[node name="Grid" type="GridContainer" parent="UI/TargetDetailsHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 5
+columns = 2
+
+[node name="AccuracyHeading" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Enemy hit chance"
+
+[node name="TargetAccuracy" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "—"
+horizontal_alignment = 2
+
+[node name="DamageHeading" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Enemy damage"
+
+[node name="TargetDamage" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "—"
+horizontal_alignment = 2
+
+[node name="AttackTypeHeading" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Enemy attack"
+
+[node name="TargetAttackType" type="Label" parent="UI/TargetDetailsHUD/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Crush"
+horizontal_alignment = 2
 
 [node name="CombatHUD" type="PanelContainer" parent="UI"]
 visible = false
@@ -910,34 +1150,41 @@ layout_mode = 2
 text = "Inventory  •  0/8 slots used"
 
 [node name="PageRow" type="HBoxContainer" parent="UI/InventoryHUD/Margin/VBox"]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Previous" type="Button" parent="UI/InventoryHUD/Margin/VBox/PageRow"]
-custom_minimum_size = Vector2(64, 40)
+custom_minimum_size = Vector2(112, 48)
 layout_mode = 2
-text = "<"
+theme_override_font_sizes/font_size = 22
+text = "◀"
+tooltip_text = "Previous inventory page"
 
 [node name="Label" type="Label" parent="UI/InventoryHUD/Margin/VBox/PageRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Page 1/2  •  8/50 unlocked"
+text = "Page 1/3"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_font_sizes/font_size = 16
 
 [node name="Next" type="Button" parent="UI/InventoryHUD/Margin/VBox/PageRow"]
-custom_minimum_size = Vector2(64, 40)
+custom_minimum_size = Vector2(112, 48)
 layout_mode = 2
-text = ">"
+theme_override_font_sizes/font_size = 22
+text = "▶"
+tooltip_text = "Next inventory page"
 
 [node name="ContentScroll" type="ScrollContainer" parent="UI/InventoryHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
 
 [node name="Grid" type="GridContainer" parent="UI/InventoryHUD/Margin/VBox/ContentScroll"]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 5
@@ -1053,6 +1300,23 @@ layout_mode = 2
 button_pressed = true
 text = "Show network diagnostics"
 
+[node name="ShowXPTracker" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+button_pressed = true
+text = "Show XP tracker"
+
+[node name="CustomAccountTitle" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+text = "Custom account"
+theme_override_font_sizes/font_size = 20
+
+[node name="DisableXP" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Disable all XP gain"
+tooltip_text = "Actions still work, but no skills gain experience while this is enabled."
+
 [node name="AudioTitle" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
 layout_mode = 2
 text = "Audio"
@@ -1126,6 +1390,104 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(68, 56)
 layout_mode = 2
 disabled = true
+text = ""
+
+[node name="MenuTabsHUD" type="PanelContainer" parent="UI"]
+anchors_preset = 3
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -620.0
+offset_top = -82.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("UtilityStripStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/MenuTabsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 5
+
+[node name="Row" type="HBoxContainer" parent="UI/MenuTabsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Styles" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = ""
+
+[node name="Skills" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = ""
+
+[node name="Inventory" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = ""
+
+[node name="Equipment" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = ""
+
+[node name="Magic" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = ""
+
+[node name="Prayer" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = ""
+
+[node name="MenuUtilityTabsHUD" type="PanelContainer" parent="UI"]
+anchors_preset = 3
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -620.0
+offset_top = -82.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("UtilityStripStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/MenuUtilityTabsHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 5
+
+[node name="Row" type="HBoxContainer" parent="UI/MenuUtilityTabsHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Spacer" type="Control" parent="UI/MenuUtilityTabsHUD/Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Settings" type="Button" parent="UI/MenuUtilityTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+toggle_mode = true
 text = ""
 
 [node name="SkillsHUD" type="PanelContainer" parent="UI"]
@@ -1292,6 +1654,7 @@ toggle_mode = true
 text = "Styles"
 
 [node name="Summary" type="Label" parent="UI/EquipmentHUD/Margin/VBox"]
+visible = false
 layout_mode = 2
 text = "Equipment  •  paper-doll overview"
 
@@ -1300,17 +1663,23 @@ layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Grid" type="GridContainer" parent="UI/EquipmentHUD/Margin/VBox/ContentScroll"]
+[node name="Center" type="CenterContainer" parent="UI/EquipmentHUD/Margin/VBox/ContentScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="Grid" type="GridContainer" parent="UI/EquipmentHUD/Margin/VBox/ContentScroll/Center"]
+layout_mode = 2
 theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 4
+theme_override_constants/v_separation = 8
 columns = 3
 
 [node name="DetailedStats" type="Button" parent="UI/EquipmentHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
-text = "View equipment details"
+size_flags_horizontal = 4
+text = ""
+tooltip_text = "View equipment details"
 
 [node name="CombatStatsHUD" type="PanelContainer" parent="UI"]
 visible = false
@@ -1382,13 +1751,15 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Equipment & Set Effects"
 
-[node name="Stats" type="Label" parent="UI/CombatStatsHUD/Margin/VBox"]
+[node name="Stats" type="RichTextLabel" parent="UI/CombatStatsHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+bbcode_enabled = true
+scroll_active = true
+selection_enabled = true
 theme_override_colors/font_color = Color(0.92, 0.94, 0.98, 1)
 theme_override_font_sizes/font_size = 18
 text = "Waiting for combat stats…"
-vertical_alignment = 0
 
 [node name="MagicHUD" type="PanelContainer" parent="UI"]
 visible = false
@@ -1554,6 +1925,7 @@ toggle_mode = true
 text = "Styles"
 
 [node name="PrayerSet" type="Label" parent="UI/PrayerHUD/Margin/VBox"]
+visible = false
 layout_mode = 2
 text = "Prayer set: Common Litany"
 
@@ -1659,13 +2031,16 @@ columns = 2
 
 [node name="BankHUD" type="PanelContainer" parent="UI"]
 visible = false
-anchors_preset = 4
+anchors_preset = 8
+anchor_left = 0.5
 anchor_top = 0.5
+anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = 20.0
+offset_left = -330.0
 offset_top = -350.0
-offset_right = 680.0
+offset_right = 330.0
 offset_bottom = 350.0
+grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("HUDPanelStyle")
 

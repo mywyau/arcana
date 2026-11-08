@@ -40,6 +40,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemSwiftBoots, ItemKindArmour},
 		{ItemNoviceRobeHood, ItemKindArmour}, {ItemNoviceRobeTop, ItemKindArmour}, {ItemNoviceRobeGloves, ItemKindArmour}, {ItemNoviceRobeBottoms, ItemKindArmour}, {ItemNoviceRobeBoots, ItemKindArmour},
 		{ItemNoviceRangerHood, ItemKindArmour}, {ItemNoviceRangerBody, ItemKindArmour}, {ItemNoviceRangerGloves, ItemKindArmour}, {ItemNoviceRangerLegs, ItemKindArmour}, {ItemNoviceRangerBoots, ItemKindArmour},
+		{ItemVanguardCape, ItemKindArmour}, {ItemWayfarerCape, ItemKindArmour}, {ItemArcanistCape, ItemKindArmour},
 		{ItemAmuletFerocity, ItemKindArmour},
 		{ItemAmuletHawk, ItemKindArmour},
 		{ItemAmuletEmbers, ItemKindArmour},
@@ -56,6 +57,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemFireRune, ItemKindResource},
 		{ItemHolyRune, ItemKindResource},
 		{ItemDarkRune, ItemKindResource},
+		{ItemFocusRune, ItemKindResource},
 		{ItemLeather, ItemKindResource},
 		{ItemGoldOre, ItemKindResource},
 		{ItemUncutSapphire, ItemKindResource}, {ItemSapphire, ItemKindResource},
@@ -258,8 +260,7 @@ func TestCatalogWeaponStylesDriveDefaultsAndValidation(t *testing.T) {
 		if got := defaultCombatStyle(test.weapon); got != test.defaultStyle {
 			t.Errorf("defaultCombatStyle(%q) = %q, want %q", test.weapon, got, test.defaultStyle)
 		}
-		if !combatStyleValidForWeapon(test.allowed, test.weapon) ||
-			!combatStyleValidForWeapon(CombatStyleUnfocused, test.weapon) {
+		if !combatStyleValidForWeapon(test.allowed, test.weapon) {
 			t.Errorf("weapon %q does not allow configured styles", test.weapon)
 		}
 		if combatStyleValidForWeapon(test.rejected, test.weapon) {
@@ -275,34 +276,27 @@ func TestValidateWeaponStylesRejectsMalformedStyleMetadata(t *testing.T) {
 	}{
 		{
 			name:   "missing default",
-			weapon: WeaponDefinition{CombatStyles: []CombatStyleID{CombatStyleStab, CombatStyleUnfocused}},
+			weapon: WeaponDefinition{CombatStyles: []CombatStyleID{CombatStyleStab}},
 		},
 		{
 			name: "default not allowed",
 			weapon: WeaponDefinition{
 				DefaultStyle: CombatStyleSlash,
-				CombatStyles: []CombatStyleID{CombatStyleStab, CombatStyleUnfocused},
+				CombatStyles: []CombatStyleID{CombatStyleStab},
 			},
 		},
 		{
 			name: "duplicate style",
 			weapon: WeaponDefinition{
 				DefaultStyle: CombatStyleStab,
-				CombatStyles: []CombatStyleID{CombatStyleStab, CombatStyleStab, CombatStyleUnfocused},
+				CombatStyles: []CombatStyleID{CombatStyleStab, CombatStyleStab},
 			},
 		},
 		{
 			name: "unknown style",
 			weapon: WeaponDefinition{
 				DefaultStyle: CombatStyleStab,
-				CombatStyles: []CombatStyleID{CombatStyleStab, "unknown", CombatStyleUnfocused},
-			},
-		},
-		{
-			name: "missing unfocused",
-			weapon: WeaponDefinition{
-				DefaultStyle: CombatStyleStab,
-				CombatStyles: []CombatStyleID{CombatStyleStab, CombatStyleSlash},
+				CombatStyles: []CombatStyleID{CombatStyleStab, "unknown"},
 			},
 		},
 	}

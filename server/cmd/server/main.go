@@ -58,6 +58,7 @@ func main() {
 		{itemID: simulation.ItemMithrilGloves, quantity: 1}, {itemID: simulation.ItemMithrilBoots, quantity: 1},
 		{itemID: simulation.ItemAmuletFerocity, quantity: 1},
 		{itemID: simulation.ItemAmuletFury, quantity: 1},
+		{itemID: simulation.ItemVanguardCape, quantity: 1},
 	}
 	rangedSupplies := []testSupply{
 		{string(simulation.WeaponBow), 1}, {simulation.ItemIronArrow, 100},
@@ -65,6 +66,7 @@ func main() {
 		{simulation.ItemNoviceRangerHood, 1}, {simulation.ItemNoviceRangerBody, 1},
 		{simulation.ItemNoviceRangerGloves, 1}, {simulation.ItemNoviceRangerLegs, 1}, {simulation.ItemNoviceRangerBoots, 1},
 		{simulation.ItemAmuletHawk, 1},
+		{simulation.ItemWayfarerCape, 1},
 	}
 	magicSupplies := []testSupply{
 		{string(simulation.WeaponStaff), 1}, {simulation.ItemStandardSpellbook, 1},
@@ -72,9 +74,11 @@ func main() {
 		{simulation.ItemClericsTome, 1},
 		{simulation.ItemAirRune, 50}, {simulation.ItemWaterRune, 50}, {simulation.ItemEarthRune, 50},
 		{simulation.ItemFireRune, 50}, {simulation.ItemHolyRune, 50}, {simulation.ItemDarkRune, 50},
+		{simulation.ItemFocusRune, 250},
 		{simulation.ItemNoviceRobeHood, 1}, {simulation.ItemNoviceRobeTop, 1},
 		{simulation.ItemNoviceRobeGloves, 1}, {simulation.ItemNoviceRobeBottoms, 1}, {simulation.ItemNoviceRobeBoots, 1},
 		{simulation.ItemAmuletEmbers, 1},
+		{simulation.ItemArcanistCape, 1},
 	}
 	oresSupplies := []testSupply{
 		{simulation.ItemCopperOre, 20}, {simulation.ItemTinOre, 20}, {simulation.ItemIronOre, 20},
@@ -128,7 +132,7 @@ func main() {
 		{simulation.TestFoodChestPosition, foodSupplies},
 	} {
 		for _, supply := range group.items {
-			if err := world.AddWorldDrop(group.position, supply.itemID, supply.quantity); err != nil {
+			if err := world.AddTestSupply(group.position, supply.itemID, supply.quantity); err != nil {
 				log.Fatal(err)
 			}
 		}

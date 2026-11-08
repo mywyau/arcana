@@ -23,6 +23,28 @@ type SpellCommand struct {
 	SpellID  SpellID
 }
 
+func spellDefinitionForStyle(player *playerState, spell SpellDefinition) SpellDefinition {
+	if player == nil {
+		return spell
+	}
+	weapon, exists := weaponDefinition(player.equippedWeapon)
+	if !exists || weapon.MagicStrength <= 0 {
+		return spell
+	}
+	switch player.combatStyle {
+	case CombatStyleRapid:
+		spell.AttackInterval = max(2, spell.AttackInterval-1)
+		spell.DamageVariance += wideStyleDamageVarianceBonus
+	case CombatStyleAccurate:
+		spell.AccuracyBonus += accurateStyleAccuracyBonus
+		spell.DamageVariance = max(0, spell.DamageVariance-accurateStyleDamageVarianceReduction)
+	case CombatStyleLongRange:
+		spell.Range += longRangeStyleRangeBonus
+		spell.DamageVariance += wideStyleDamageVarianceBonus
+	}
+	return spell
+}
+
 func spellAccuracyScore(player *playerState, spell SpellDefinition) int {
 	level := 1
 	focusAccuracy := 0

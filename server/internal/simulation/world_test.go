@@ -242,6 +242,9 @@ func mustEquipStandardSpellbook(t *testing.T, world *World, id PlayerID) {
 	if !player.inventory.add(ItemStandardSpellbook, 1) {
 		t.Fatalf("could not add %q to player %q", ItemStandardSpellbook, id)
 	}
+	if !player.inventory.add(ItemFocusRune, 50) {
+		t.Fatalf("could not add %q to player %q", ItemFocusRune, id)
+	}
 	player.equippedSpellbook = ItemStandardSpellbook
 }
 

@@ -1,6 +1,7 @@
 package simulation
 
 type enemyCombatProfile struct {
+	CombatLevel    int
 	AttackDamage   int
 	AttackInterval uint64
 	AttackRange    float64
@@ -12,6 +13,7 @@ type enemyCombatProfile struct {
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
+	CombatLevel:    5,
 	AttackDamage:   dummyAttackDamage,
 	AttackInterval: dummyAttackIntervalPulses,
 	AttackRange:    dummyAttackRange,
@@ -22,6 +24,7 @@ var defaultEnemyCombatProfile = enemyCombatProfile{
 
 var enemyCombatProfiles = map[string]enemyCombatProfile{
 	hillWardenTargetID: {
+		CombatLevel:    18,
 		AttackDamage:   18,
 		AttackInterval: 5,
 		AttackRange:    1.7,
@@ -32,6 +35,7 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Elements:       ElementalResistances{Air: -10, Earth: 10},
 	},
 	wildFowlTargetID: {
+		CombatLevel:    2,
 		AttackDamage:   wildFowlAttackDamage,
 		AttackInterval: 3,
 		AttackRange:    1.2,
@@ -42,9 +46,10 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Elements:       ElementalResistances{Air: 5, Fire: -15},
 	},
 	cowTargetID: {
+		CombatLevel:  4,
 		AttackDamage: cowAttackDamage, AttackInterval: 4, AttackRange: 1.4,
 		DetectionRange: 3.5, LeashRange: 6, DamageType: DamageTypeCrush,
-		Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 2, Magic: 1},
+		Defence:  DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 2, Magic: 1},
 		Elements: ElementalResistances{Earth: 5, Fire: -10},
 	},
 }

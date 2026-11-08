@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+func TestStarterAgilityObstacleTuning(t *testing.T) {
+	if agilityObstacleInterval != 5 {
+		t.Fatalf("agility obstacle interval = %d pulses, want 5", agilityObstacleInterval)
+	}
+	if agilityObstacleExperience != 50 {
+		t.Fatalf("agility obstacle XP = %d, want 50", agilityObstacleExperience)
+	}
+}
+
 func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterFishingSpotID]
@@ -46,9 +55,11 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterAgilityObstacleID]
-	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+	left, right := agilityBeamEndpoints(spot.Position)
+	if err := world.AddPlayer("player-one", left, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
+	expectedPosition := right
 	for sequence := uint64(1); sequence <= 4; sequence++ {
 		if err := world.QueueGather(GatherCommand{
 			PlayerID: "player-one", Sequence: sequence, SpotID: starterAgilityObstacleID,
@@ -57,6 +68,15 @@ func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
 		}
 		world.Step(50 * time.Millisecond)
 		world.Step(agilityObstacleInterval * actionPulseInterval)
+		player := mustPlayer(t, world, "player-one")
+		if player.Position != expectedPosition {
+			t.Fatalf("position after traversal %d = %+v, want %+v", sequence, player.Position, expectedPosition)
+		}
+		if expectedPosition == right {
+			expectedPosition = left
+		} else {
+			expectedPosition = right
+		}
 	}
 	player := mustPlayer(t, world, "player-one")
 	if agility := mustSkill(t, player, SkillAgility); agility.Experience != 4*agilityObstacleExperience || agility.Level != 2 {
@@ -584,15 +604,25 @@ func TestWoodcuttingTreeProgressionAndRecharge(t *testing.T) {
 func TestOakTreeRequiresWoodcuttingLevelTwo(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterOakTreeID]
-	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
+	if err := world.AddPlayer("player-one", start, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	world.players["player-one"].inventory.add(ItemBronzeAxe, 1)
 	command := GatherCommand{PlayerID: "player-one", Sequence: 1, SpotID: starterOakTreeID}
-	if err := world.QueueGather(command); err == nil {
-		t.Fatal("QueueGather() error = nil below Woodcutting level 2")
+	if err := world.QueueGather(command); err != nil {
+		t.Fatalf("QueueGather() rejected the low-level approach: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	approached := mustPlayer(t, world, "player-one")
+	if distance(approached.Position, spot.Position) > spot.Range || approached.Destination != nil {
+		t.Fatalf("low-level player did not stop at the tree: %+v", approached)
+	}
+	if approached.GatheringResult != "requires_woodcutting_level_2" || approached.GatheringSpot != "" {
+		t.Fatalf("low-level gathering result = %+v", approached)
 	}
 	world.players["player-one"].skills[SkillWoodcutting] = SkillExperienceForLevel(2)
+	command.Sequence = 2
 	if err := world.QueueGather(command); err != nil {
 		t.Fatalf("QueueGather() rejected Woodcutting level 2: %v", err)
 	}
@@ -639,6 +669,40 @@ func TestFurnaceRepeatedlySmeltsSelectedRecipe(t *testing.T) {
 	if playerSnapshot.Inventory.itemsQuantity(ItemBronzeBar) != 2 || playerSnapshot.GatheringSpot != "" ||
 		playerSnapshot.GatheringResult != "missing_smelting_inputs" {
 		t.Fatalf("player after exhausting smelting inputs = %+v", playerSnapshot)
+	}
+}
+
+func TestFurnaceStopsAfterRequestedQuantity(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterFurnaceID]
+	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemCopperOre, 3)
+	player.inventory.add(ItemTinOre, 3)
+	recipe, _ := smeltingRecipe(SmeltingBronzeBar)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID,
+		RecipeID: string(SmeltingBronzeBar), Quantity: 2,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	first := mustPlayer(t, world, "player-one")
+	if first.Inventory.itemsQuantity(ItemBronzeBar) != 1 || first.GatheringSpot != starterFurnaceID {
+		t.Fatalf("player after first requested smelt = %+v", first)
+	}
+
+	world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+	finished := mustPlayer(t, world, "player-one")
+	if finished.Inventory.itemsQuantity(ItemBronzeBar) != 2 ||
+		finished.Inventory.itemsQuantity(ItemCopperOre) != 1 ||
+		finished.Inventory.itemsQuantity(ItemTinOre) != 1 ||
+		finished.GatheringSpot != "" || finished.GatheringResult != "smelted_bronze_bar" {
+		t.Fatalf("player after requested smelting quantity = %+v", finished)
 	}
 }
 

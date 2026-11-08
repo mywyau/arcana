@@ -218,8 +218,8 @@ func TestAccuracyPrayerBoostsOnlyMeleeAccuracy(t *testing.T) {
 	}
 	player.equippedWeapon = WeaponBow
 	player.combatStyle = CombatStyleAccurate
-	bow, _ := weaponDefinition(WeaponBow)
-	if got, want := playerAccuracyScore(player, bow), 17; got != want {
+	bow, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleAccurate)
+	if got, want := playerAccuracyScore(player, bow), 19; got != want {
 		t.Fatalf("ranged accuracy with melee Accuracy prayer = %d, want %d", got, want)
 	}
 }

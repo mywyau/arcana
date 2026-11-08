@@ -37,6 +37,12 @@ type SkillSnapshot struct {
 	NextLevelExperience    int64
 }
 
+type ExperienceLockCommand struct {
+	PlayerID PlayerID
+	Sequence uint64
+	Locked   bool
+}
+
 // PersistentSkillState stores only total experience. Levels are derived so a
 // future curve adjustment does not require rewriting every character.
 type PersistentSkillState struct {
@@ -130,7 +136,7 @@ func SkillLevelForExperience(experience int64) int {
 }
 
 func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
-	if player == nil || amount <= 0 {
+	if player == nil || player.experienceLocked || amount <= 0 {
 		return
 	}
 	if player.skills == nil {
@@ -139,6 +145,39 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 	player.skills[skill] += amount
 	if skill == SkillAgility {
 		player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(player.skills[SkillAgility]))
+	}
+}
+
+func (w *World) QueueExperienceLock(command ExperienceLockCommand) error {
+	if command.Sequence == 0 {
+		return fmt.Errorf("experience lock sequence must be positive")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	player, exists := w.players[command.PlayerID]
+	if !exists {
+		player, exists = w.pendingJoins[command.PlayerID]
+	}
+	if !exists {
+		return fmt.Errorf("player %q does not exist", command.PlayerID)
+	}
+	if command.Sequence <= player.lastExperienceLockSequence {
+		return fmt.Errorf("experience lock sequence %d is not newer than %d", command.Sequence, player.lastExperienceLockSequence)
+	}
+	if pending, exists := w.pendingExperienceLocks[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
+		return fmt.Errorf("experience lock sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	}
+	w.pendingExperienceLocks[command.PlayerID] = command
+	return nil
+}
+
+func (w *World) applyPendingExperienceLocks() {
+	for id, command := range w.pendingExperienceLocks {
+		if player, exists := w.players[id]; exists {
+			player.experienceLocked = command.Locked
+			player.lastExperienceLockSequence = command.Sequence
+		}
+		delete(w.pendingExperienceLocks, id)
 	}
 }
 
@@ -154,9 +193,6 @@ func skillIDValid(skill SkillID) bool {
 }
 
 func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
-	if style == CombatStyleUnfocused {
-		return "", false
-	}
 	switch weapon {
 	case WeaponBow, WeaponCrossbow:
 		return SkillRange, true

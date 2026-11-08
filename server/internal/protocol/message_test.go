@@ -96,12 +96,19 @@ func TestDecodeFletchMessage(t *testing.T) {
 }
 
 func TestDecodeGatherMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"starter_furnace","recipe_id":"bronze_bar"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"starter_furnace","recipe_id":"bronze_bar","quantity":3}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
-	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "starter_furnace" || message.RecipeID != "bronze_bar" {
+	if message.Type != MessageGather || message.Sequence != 7 || message.SpotID != "starter_furnace" || message.RecipeID != "bronze_bar" || message.Quantity != 3 {
 		t.Fatalf("decoded gather message = %+v", message)
+	}
+}
+
+func TestDecodeGatherMessageRejectsNegativeQuantity(t *testing.T) {
+	_, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"starter_furnace","recipe_id":"bronze_bar","quantity":-1}`))
+	if err == nil {
+		t.Fatal("DecodeClientMessage() error = nil for negative gather quantity")
 	}
 }
 
@@ -152,6 +159,16 @@ func TestDecodeCombatStyleMessage(t *testing.T) {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
 	if message.Type != MessageCombatStyle || message.Sequence != 6 || message.CombatStyle != "rapid" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
+func TestDecodeExperienceLockMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"set_experience_lock","sequence":7,"active":true}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageExperienceLock || message.Sequence != 7 || !message.Active {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
 	}
 }

@@ -1,6 +1,9 @@
 package simulation
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestWindBoltDefinition(t *testing.T) {
 	spell, exists := spellDefinition(SpellWindBolt)
@@ -8,9 +11,35 @@ func TestWindBoltDefinition(t *testing.T) {
 		spell.BookID != SpellbookStandard || spell.IconID != "wind_bolt" ||
 		spell.CastMode != SpellCastAutocast || spell.TargetType != SpellTargetEnemy ||
 		spell.EffectType != SpellEffectDirectDamage || spell.Element != MagicElementAir ||
-		len(spell.Costs) != 1 || spell.Costs[0] != (ItemCost{ItemID: ItemAirRune, Quantity: 1}) ||
+		len(spell.Costs) != 2 || spell.Costs[0] != (ItemCost{ItemID: ItemAirRune, Quantity: 1}) ||
+		spell.Costs[1] != (ItemCost{ItemID: ItemFocusRune, Quantity: 1}) ||
 		spell.BasePower != 4 || spell.Range != 10 || spell.DamageVariance != 0.20 {
 		t.Fatalf("Wind Bolt definition = %+v, exists %t", spell, exists)
+	}
+}
+
+func TestStaffStylesModifyAutocastSpell(t *testing.T) {
+	base, _ := spellDefinition(SpellWindBolt)
+	player := &playerState{equippedWeapon: WeaponStaff}
+
+	player.combatStyle = CombatStyleRapid
+	rapid := spellDefinitionForStyle(player, base)
+	player.combatStyle = CombatStyleAccurate
+	accurate := spellDefinitionForStyle(player, base)
+	player.combatStyle = CombatStyleLongRange
+	longRange := spellDefinitionForStyle(player, base)
+
+	if rapid.AttackInterval != base.AttackInterval-1 ||
+		math.Abs(rapid.DamageVariance-(base.DamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 {
+		t.Fatalf("rapid spell = %+v, base %+v", rapid, base)
+	}
+	if accurate.AccuracyBonus != base.AccuracyBonus+accurateStyleAccuracyBonus ||
+		math.Abs(accurate.DamageVariance-(base.DamageVariance-accurateStyleDamageVarianceReduction)) > 0.000_001 {
+		t.Fatalf("accurate spell = %+v, base %+v", accurate, base)
+	}
+	if longRange.Range != base.Range+longRangeStyleRangeBonus ||
+		math.Abs(longRange.DamageVariance-(base.DamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 {
+		t.Fatalf("long-range spell = %+v, base %+v", longRange, base)
 	}
 }
 
@@ -283,6 +312,9 @@ func TestWindBoltConsumesRuneAndReplacesWeaponAttack(t *testing.T) {
 	if got := player.Inventory.itemsQuantity(ItemAirRune); got != 49 {
 		t.Fatalf("air rune quantity after cast = %d, want 49", got)
 	}
+	if got := player.Inventory.itemsQuantity(ItemFocusRune); got != 49 {
+		t.Fatalf("focus rune quantity after cast = %d, want 49", got)
+	}
 	if got, want := mustTarget(t, snapshot, dummyTargetID).Health, dummyMaximumHealth-4; got != want {
 		t.Fatalf("dummy health after Wind Bolt = %d, want %d", got, want)
 	}
@@ -314,17 +346,20 @@ func TestWindBoltConsumesRuneWhenTargetDodges(t *testing.T) {
 	if got := player.Inventory.itemsQuantity(ItemAirRune); got != 49 {
 		t.Fatalf("air rune quantity after dodged cast = %d, want 49", got)
 	}
+	if got := player.Inventory.itemsQuantity(ItemFocusRune); got != 49 {
+		t.Fatalf("focus rune quantity after dodged cast = %d, want 49", got)
+	}
 	events := world.Snapshot().CombatEvents
 	if len(events) != 1 || events[0].Type != CombatEventDodged || events[0].SpellID != SpellWindBolt {
 		t.Fatalf("dodged Wind Bolt events = %+v", events)
 	}
 }
 
-func TestWindBoltPausesWithoutRunes(t *testing.T) {
+func TestWindBoltPausesWithoutFocusRunes(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	mustEquipStandardSpellbook(t, world, "player-one")
-	world.players["player-one"].inventory.remove(ItemAirRune, 50)
+	world.players["player-one"].inventory.remove(ItemFocusRune, 50)
 	if err := world.QueueSpell(SpellCommand{PlayerID: "player-one", Sequence: 1, SpellID: SpellWindBolt}); err != nil {
 		t.Fatalf("QueueSpell() returned an unexpected error without runes: %v", err)
 	}

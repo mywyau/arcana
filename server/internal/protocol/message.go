@@ -15,6 +15,7 @@ const (
 	MessageEquipItem          = "equip_item"
 	MessageUnequipItem        = "unequip_item"
 	MessageCombatStyle        = "set_combat_style"
+	MessageExperienceLock     = "set_experience_lock"
 	MessageSetPrayer          = "set_prayer"
 	MessageSetSpell           = "set_spell"
 	MessagePickupItem         = "pickup_item"
@@ -117,6 +118,7 @@ type TargetSnapshot struct {
 	Accuracy        int      `json:"accuracy"`
 	Evasion         int      `json:"evasion"`
 	AttackType      string   `json:"attack_type"`
+	CombatLevel     int      `json:"combat_level"`
 }
 
 type DropSnapshot struct {
@@ -126,6 +128,7 @@ type DropSnapshot struct {
 	Quantity      int      `json:"quantity"`
 	InstanceID    string   `json:"instance_id,omitempty"`
 	Reinforcement int      `json:"reinforcement,omitempty"`
+	Infinite      bool     `json:"infinite,omitempty"`
 }
 
 type FireSnapshot struct {
@@ -194,7 +197,11 @@ type PlayerSnapshot struct {
 	SelectedSpell                string                  `json:"selected_spell"`
 	LastSpellSequence            uint64                  `json:"last_spell_sequence"`
 	DodgeRate                    float64                 `json:"dodge_rate"`
+	CombatLevel                  int                     `json:"combat_level"`
 	CombatStats                  CombatStatsSnapshot     `json:"combat_stats"`
+	CombatMatchup                CombatMatchupSnapshot   `json:"combat_matchup"`
+	ExperienceLocked             bool                    `json:"experience_locked"`
+	LastExperienceLockSequence   uint64                  `json:"last_experience_lock_sequence"`
 	Inventory                    InventorySnapshot       `json:"inventory"`
 	Bank                         *InventorySnapshot      `json:"bank,omitempty"`
 	AmmunitionPouch              AmmunitionPouchSnapshot `json:"ammunition_pouch"`
@@ -253,6 +260,18 @@ type CombatStatsSnapshot struct {
 	MaximumHealthBonus     int            `json:"maximum_health_bonus"`
 }
 
+type CombatMatchupSnapshot struct {
+	TargetID            string  `json:"target_id"`
+	PlayerHitChance     float64 `json:"player_hit_chance"`
+	PlayerMinimumDamage int     `json:"player_minimum_damage"`
+	PlayerMaximumDamage int     `json:"player_maximum_damage"`
+	PlayerAttackRange   float64 `json:"player_attack_range"`
+	TargetHitChance     float64 `json:"target_hit_chance"`
+	TargetMinimumDamage int     `json:"target_minimum_damage"`
+	TargetMaximumDamage int     `json:"target_maximum_damage"`
+	TargetAttackRange   float64 `json:"target_attack_range"`
+}
+
 type DefenceBonuses struct {
 	Stab   int `json:"stab"`
 	Slash  int `json:"slash"`
@@ -287,8 +306,9 @@ type RingRackSnapshot struct {
 }
 
 type RunePouchSnapshot struct {
-	Capacity int             `json:"capacity"`
-	Items    []InventoryItem `json:"items"`
+	Capacity      int             `json:"capacity"`
+	UnlockedSlots int             `json:"unlocked_slots"`
+	Items         []InventoryItem `json:"items"`
 }
 
 type InventoryItem struct {
@@ -325,6 +345,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
+		message.Type != MessageExperienceLock &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
 		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
 		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand &&
@@ -363,6 +384,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageGather && message.SpotID == "" {
 		return ClientMessage{}, fmt.Errorf("gathering spot ID is required")
+	}
+	if message.Type == MessageGather && message.Quantity < 0 {
+		return ClientMessage{}, fmt.Errorf("gather quantity cannot be negative")
 	}
 	if message.Type == MessageBrew {
 		if message.Quantity < 0 {

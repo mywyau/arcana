@@ -32,6 +32,30 @@ func TestInitialWorldDropDoesNotExpire(t *testing.T) {
 	}
 }
 
+func TestInfiniteTestSupplyCanBeTakenRepeatedly(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddTestSupply(Position{}, ItemCoins, 5); err != nil {
+		t.Fatalf("AddTestSupply() returned an unexpected error: %v", err)
+	}
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+
+	for sequence := uint64(1); sequence <= 2; sequence++ {
+		if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: sequence, DropID: "drop-1"}); err != nil {
+			t.Fatalf("QueuePickup(%d) returned an unexpected error: %v", sequence, err)
+		}
+		world.Step(50 * time.Millisecond)
+	}
+
+	player := mustPlayer(t, world, "player-one")
+	if got := player.Inventory.itemsQuantity(ItemCoins); got != 10 {
+		t.Fatalf("coin quantity after repeated test-supply takes = %d, want 10", got)
+	}
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || !drops[0].Infinite {
+		t.Fatalf("test supply after repeated takes = %+v", drops)
+	}
+}
+
 func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddWorldDrop(Position{X: -2, Z: -5}, string(WeaponSteelSword), 1); err != nil {

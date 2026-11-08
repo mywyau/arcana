@@ -24,6 +24,7 @@ const (
 	ItemFireRune           = "fire_rune"
 	ItemHolyRune           = "holy_rune"
 	ItemDarkRune           = "dark_rune"
+	ItemFocusRune          = "focus_rune"
 	ItemLeather            = "leather"
 	ItemGoldOre            = "gold_ore"
 	ItemUncutSapphire      = "uncut_sapphire"
@@ -252,6 +253,9 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemNoviceRangerGloves, Name: "Novice Ranger Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1}}},
 	{ID: ItemNoviceRangerLegs, Name: "Novice Ranger Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 3, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
 	{ID: ItemNoviceRangerBoots, Name: "Novice Ranger Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1, RangedStrength: 1}}},
+	{ID: ItemVanguardCape, Name: "Vanguard Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1}, Offence: OffenceBonuses{MeleeAccuracy: 3, MeleeStrength: 2}}},
+	{ID: ItemWayfarerCape, Name: "Wayfarer Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemArcanistCape, Name: "Arcanist Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 3, MagicStrength: 2}}},
 	{
 		ID: ItemAmuletFerocity, Name: "Ruby Amulet", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
@@ -304,6 +308,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemFireRune, Name: "Fire Rune", Kind: ItemKindResource},
 	{ID: ItemHolyRune, Name: "Holy Rune", Kind: ItemKindResource},
 	{ID: ItemDarkRune, Name: "Dark Rune", Kind: ItemKindResource},
+	{ID: ItemFocusRune, Name: "Focus Rune", Kind: ItemKindResource},
 	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource},
 	{ID: ItemUncutSapphire, Name: "Uncut Sapphire", Kind: ItemKindResource, StackLimit: 10},
@@ -397,14 +402,12 @@ func swordWeapon(definition WeaponDefinition) WeaponDefinition {
 
 func weaponWithStyles(definition WeaponDefinition, defaultStyle CombatStyleID, styles ...weaponStyleDefinition) WeaponDefinition {
 	definition.DefaultStyle = defaultStyle
-	definition.CombatStyles = make([]CombatStyleID, 0, len(styles)+1)
-	definition.StyleDamageTypes = make(map[CombatStyleID]DamageType, len(styles)+1)
+	definition.CombatStyles = make([]CombatStyleID, 0, len(styles))
+	definition.StyleDamageTypes = make(map[CombatStyleID]DamageType, len(styles))
 	for _, style := range styles {
 		definition.CombatStyles = append(definition.CombatStyles, style.ID)
 		definition.StyleDamageTypes[style.ID] = style.DamageType
 	}
-	definition.CombatStyles = append(definition.CombatStyles, CombatStyleUnfocused)
-	definition.StyleDamageTypes[CombatStyleUnfocused] = definition.StyleDamageTypes[defaultStyle]
 	return definition
 }
 
@@ -516,9 +519,6 @@ func validateWeaponStyles(weapon WeaponDefinition) error {
 	if !defaultAllowed {
 		return fmt.Errorf("default combat style %q is not allowed", weapon.DefaultStyle)
 	}
-	if _, allowsUnfocused := seen[CombatStyleUnfocused]; !allowsUnfocused {
-		return fmt.Errorf("must allow combat style %q", CombatStyleUnfocused)
-	}
 	return nil
 }
 
@@ -535,7 +535,7 @@ func knownCombatStyle(style CombatStyleID) bool {
 	switch style {
 	case CombatStyleSlash, CombatStyleStab, CombatStyleRapid, CombatStyleAccurate,
 		CombatStyleLongRange, CombatStyleCrush, CombatStyleHeavyCrush,
-		CombatStyleDefensive, CombatStyleUnfocused:
+		CombatStyleDefensive:
 		return true
 	default:
 		return false

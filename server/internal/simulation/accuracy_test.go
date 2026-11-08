@@ -67,13 +67,14 @@ func TestAgilityAndPrayerIncreasePlayerDodgeChance(t *testing.T) {
 }
 
 func TestCombatStylesModifyAccuracyScore(t *testing.T) {
-	weapon, _ := weaponDefinition(WeaponBow)
 	player := &playerState{skills: newDefaultSkills(), combatStyle: CombatStyleAccurate}
-	accurate := playerAccuracyScore(player, weapon)
+	accurateWeapon, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleAccurate)
+	accurate := playerAccuracyScore(player, accurateWeapon)
 	player.combatStyle = CombatStyleRapid
-	rapid := playerAccuracyScore(player, weapon)
-	if accurate-rapid != 7 {
-		t.Fatalf("accurate score %d minus rapid score %d = %d, want 7", accurate, rapid, accurate-rapid)
+	rapidWeapon, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleRapid)
+	rapid := playerAccuracyScore(player, rapidWeapon)
+	if accurate-rapid != 9 {
+		t.Fatalf("accurate score %d minus rapid score %d = %d, want 9", accurate, rapid, accurate-rapid)
 	}
 }
 

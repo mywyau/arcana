@@ -21,6 +21,7 @@ type PersistentPlayerState struct {
 	RunePouch                    RunePouchSnapshot
 	Bank                         BankSnapshot
 	Skills                       []PersistentSkillState
+	ExperienceLocked             bool
 }
 
 // DefaultPersistentPlayerState is used for a newly created character.
@@ -67,14 +68,16 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 			Items:    append([]InventoryItem(nil), snapshot.RingRack.Items...),
 		},
 		RunePouch: RunePouchSnapshot{
-			Capacity: snapshot.RunePouch.Capacity,
-			Items:    append([]InventoryItem(nil), snapshot.RunePouch.Items...),
+			Capacity:      snapshot.RunePouch.Capacity,
+			UnlockedSlots: snapshot.RunePouch.UnlockedSlots,
+			Items:         append([]InventoryItem(nil), snapshot.RunePouch.Items...),
 		},
 		Bank: BankSnapshot{
 			Capacity: snapshot.Bank.Capacity,
 			Items:    append([]InventoryItem(nil), snapshot.Bank.Items...),
 		},
-		Skills: make([]PersistentSkillState, 0, len(snapshot.Skills)),
+		Skills:           make([]PersistentSkillState, 0, len(snapshot.Skills)),
+		ExperienceLocked: snapshot.ExperienceLocked,
 	}
 	for _, skill := range snapshot.Skills {
 		state.Skills = append(state.Skills, PersistentSkillState{ID: skill.ID, Experience: skill.Experience})
@@ -99,6 +102,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	}
 	if _, exists := weaponDefinition(state.EquippedWeapon); !exists {
 		return fmt.Errorf("unknown equipped weapon %q", state.EquippedWeapon)
+	}
+	if state.CombatStyle == CombatStyleID("unfocused") {
+		state.CombatStyle = defaultCombatStyle(state.EquippedWeapon)
 	}
 	if !combatStyleValidForWeapon(state.CombatStyle, state.EquippedWeapon) {
 		return fmt.Errorf("combat style %q is invalid for %q", state.CombatStyle, state.EquippedWeapon)
@@ -239,6 +245,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		equippedArmourInstances:      cloneEquippedArmourInstances(state.EquippedArmourInstances),
 		equippedArmourReinforcements: cloneEquippedArmourReinforcements(state.EquippedArmourReinforcements),
 		combatStyle:                  state.CombatStyle,
+		experienceLocked:             state.ExperienceLocked,
 		skills:                       skills,
 	}
 	return nil

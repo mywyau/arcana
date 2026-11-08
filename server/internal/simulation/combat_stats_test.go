@@ -1,6 +1,55 @@
 package simulation
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
+
+func TestPlayerCombatLevelUsesStrongestOffenceAndGeneralDefence(t *testing.T) {
+	player := &playerState{skills: newDefaultSkills()}
+	player.skills[SkillAttack] = SkillExperienceForLevel(20)
+	player.skills[SkillStrength] = SkillExperienceForLevel(10)
+	player.skills[SkillRange] = SkillExperienceForLevel(30)
+	player.skills[SkillDefence] = SkillExperienceForLevel(10)
+	player.skills[SkillAgility] = SkillExperienceForLevel(20)
+
+	if got, want := playerCombatLevel(player), 23; got != want {
+		t.Fatalf("playerCombatLevel() = %d, want %d", got, want)
+	}
+}
+
+func TestCombatMatchupUsesAuthoritativeAccuracyDamageAndRanges(t *testing.T) {
+	player := &playerState{
+		id:             "player-one",
+		equippedWeapon: WeaponSword,
+		combatStyle:    CombatStyleStab,
+		equippedArmour: make(map[ArmourSlot]string),
+		skills:         newDefaultSkills(),
+	}
+	target := &TargetSnapshot{
+		ID: dummyTargetID, Accuracy: dummyAccuracyScore, Evasion: dummyEvasionScore,
+		DodgeRate: dummyDodgeRate,
+	}
+	weapon, _ := equippedWeaponDefinitionForStyle(player)
+	wantMinimum, wantMaximum := damageRange(weaponPoweredDamage(player, weapon), weapon.DamageVariance)
+	wantTargetDamage := reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush)
+
+	got := combatMatchup(player, target)
+	if got.TargetID != dummyTargetID || got.PlayerMinimumDamage != wantMinimum ||
+		got.PlayerMaximumDamage != wantMaximum || got.PlayerAttackRange != weapon.Range {
+		t.Fatalf("player matchup = %+v", got)
+	}
+	if math.Abs(got.PlayerHitChance-(1-targetDodgeChance(player, target, weapon))) > 0.000001 {
+		t.Fatalf("PlayerHitChance = %f", got.PlayerHitChance)
+	}
+	if got.TargetMinimumDamage != wantTargetDamage || got.TargetMaximumDamage != wantTargetDamage ||
+		got.TargetAttackRange != dummyAttackRange {
+		t.Fatalf("target matchup = %+v", got)
+	}
+	if math.Abs(got.TargetHitChance-(1-playerDodgeChance(target.Accuracy, player))) > 0.000001 {
+		t.Fatalf("TargetHitChance = %f", got.TargetHitChance)
+	}
+}
 
 func TestDerivedCombatStatsUseAuthoritativeCombatRules(t *testing.T) {
 	player := &playerState{
@@ -44,7 +93,7 @@ func TestDerivedCombatStatsFollowRangedSkillAndStyle(t *testing.T) {
 	if stats.AccuracySkill != SkillRange || stats.DamageSkill != SkillRange || stats.AccuracyLevel != 21 || stats.DamageLevel != 21 {
 		t.Fatalf("ranged skill stats = %+v", stats)
 	}
-	if stats.TotalAccuracy != 30 || stats.SkillDamageBonus != 10 || stats.MinimumDamage != 11 || stats.MaximumDamage != 18 {
+	if stats.TotalAccuracy != 30 || stats.SkillDamageBonus != 10 || stats.MinimumDamage != 8 || stats.MaximumDamage != 20 {
 		t.Fatalf("ranged derived stats = %+v", stats)
 	}
 }

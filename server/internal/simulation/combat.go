@@ -8,73 +8,77 @@ import (
 )
 
 const (
-	actionPulseInterval           = 600 * time.Millisecond
-	skillDamagePointsPerLevel     = 0.5
-	swordAttackIntervalPulses     = 4
-	swordRange                    = 1.55
-	swordApproachRange            = 1.25
-	swordMeleeStrength            = 10
-	swordDamageVariance           = 0.20
-	steelSwordMeleeStrength       = 14
-	runeSwordMeleeStrength        = 40
-	daggerRange                   = 1.3
-	daggerApproachRange           = 1.05
-	daggerMeleeStrength           = 7
-	daggerDamageVariance          = 2.0 / 7.0
-	daggerAttackIntervalPulses    = 3
-	bowRange                      = 12.0
-	bowApproachRange              = 11.25
-	bowRangedStrength             = 4
-	bowDamageVariance             = 0.25
-	bowAttackIntervalPulses       = 5
-	maceRange                     = 1.45
-	maceApproachRange             = 1.15
-	maceMeleeStrength             = 12
-	maceDamageVariance            = 0.25
-	maceAttackIntervalPulses      = 5
-	battleAxeRange                = 1.55
-	battleAxeApproachRange        = 1.25
-	battleAxeMeleeStrength        = 15
-	battleAxeDamageVariance       = 4.0 / 15.0
-	battleAxeAttackIntervalPulses = 6
-	staffRange                    = 10.0
-	staffApproachRange            = 9.25
-	staffMagicStrength            = 6
-	staffDamageVariance           = 1.0 / 3.0
-	staffAttackIntervalPulses     = 5
-	polearmRange                  = 2.8
-	polearmApproachRange          = 2.35
-	spearMeleeStrength            = 11
-	spearAttackIntervalPulses     = 5
-	halberdMeleeStrength          = 16
-	halberdAttackIntervalPulses   = 6
-	crossbowRange                 = 11.0
-	crossbowApproachRange         = 10.25
-	crossbowRangedStrength        = 8
-	crossbowAttackIntervalPulses  = 7
-	playerMaximumHealth           = 100
-	playerMaximumPrayer           = 100
-	playerDodgeRate               = defaultBaseDodgeBonus
-	dummyMaximumHealth            = 100
-	wildFowlMaximumHealth         = 30
-	wildFowlAttackDamage          = 4
-	cowMaximumHealth              = 45
-	cowAttackDamage               = 6
-	dummyDodgeRate                = defaultBaseDodgeBonus
-	dummyAttackDamage             = 15
-	dummyAttackIntervalPulses     = 4
-	dummyAttackRange              = 1.55
-	dummyLeashRange               = 6.0
-	roamingEnemySpeed             = 3.0
-	roamingRepathPulses           = 1
-	respawnDelayPulses            = 5
-	dummyTargetID                 = "dummy"
-	upperDummyTargetID            = "upper_dummy"
-	overlookDummyTargetID         = "overlook_dummy"
-	hillWardenTargetID            = "hill_warden"
-	wildFowlTargetID              = "wild_fowl"
-	cowTargetID                   = "cow"
-	combatEventHistoryLimit       = 32
+	actionPulseInterval                  = 600 * time.Millisecond
+	skillDamagePointsPerLevel            = 0.5
+	swordAttackIntervalPulses            = 4
+	swordRange                           = 1.55
+	swordApproachRange                   = 1.25
+	swordMeleeStrength                   = 10
+	swordDamageVariance                  = 0.20
+	steelSwordMeleeStrength              = 14
+	runeSwordMeleeStrength               = 40
+	daggerRange                          = 1.3
+	daggerApproachRange                  = 1.05
+	daggerMeleeStrength                  = 7
+	daggerDamageVariance                 = 2.0 / 7.0
+	daggerAttackIntervalPulses           = 3
+	bowRange                             = 12.0
+	bowApproachRange                     = 11.25
+	bowRangedStrength                    = 4
+	bowDamageVariance                    = 0.25
+	bowAttackIntervalPulses              = 5
+	maceRange                            = 1.45
+	maceApproachRange                    = 1.15
+	maceMeleeStrength                    = 12
+	maceDamageVariance                   = 0.25
+	maceAttackIntervalPulses             = 5
+	battleAxeRange                       = 1.55
+	battleAxeApproachRange               = 1.25
+	battleAxeMeleeStrength               = 15
+	battleAxeDamageVariance              = 4.0 / 15.0
+	battleAxeAttackIntervalPulses        = 6
+	staffRange                           = 10.0
+	staffApproachRange                   = 9.25
+	staffMagicStrength                   = 6
+	staffDamageVariance                  = 1.0 / 3.0
+	staffAttackIntervalPulses            = 5
+	polearmRange                         = 2.8
+	polearmApproachRange                 = 2.35
+	spearMeleeStrength                   = 11
+	spearAttackIntervalPulses            = 5
+	halberdMeleeStrength                 = 16
+	halberdAttackIntervalPulses          = 6
+	crossbowRange                        = 11.0
+	crossbowApproachRange                = 10.25
+	crossbowRangedStrength               = 8
+	crossbowAttackIntervalPulses         = 7
+	longRangeStyleRangeBonus             = 4.0
+	wideStyleDamageVarianceBonus         = 0.15
+	accurateStyleDamageVarianceReduction = 0.10
+	accurateStyleAccuracyBonus           = 2
+	playerMaximumHealth                  = 100
+	playerMaximumPrayer                  = 100
+	playerDodgeRate                      = defaultBaseDodgeBonus
+	dummyMaximumHealth                   = 100
+	wildFowlMaximumHealth                = 30
+	wildFowlAttackDamage                 = 4
+	cowMaximumHealth                     = 45
+	cowAttackDamage                      = 6
+	dummyDodgeRate                       = defaultBaseDodgeBonus
+	dummyAttackDamage                    = 15
+	dummyAttackIntervalPulses            = 4
+	dummyAttackRange                     = 1.55
+	dummyLeashRange                      = 6.0
+	roamingEnemySpeed                    = 3.0
+	roamingRepathPulses                  = 1
+	respawnDelayPulses                   = 5
+	dummyTargetID                        = "dummy"
+	upperDummyTargetID                   = "upper_dummy"
+	overlookDummyTargetID                = "overlook_dummy"
+	hillWardenTargetID                   = "hill_warden"
+	wildFowlTargetID                     = "wild_fowl"
+	cowTargetID                          = "cow"
+	combatEventHistoryLimit              = 32
 )
 
 const (
@@ -114,7 +118,6 @@ const (
 	CombatStyleCrush      CombatStyleID = "crush"
 	CombatStyleHeavyCrush CombatStyleID = "heavy_crush"
 	CombatStyleDefensive  CombatStyleID = "defensive"
-	CombatStyleUnfocused  CombatStyleID = "unfocused"
 )
 
 func defaultCombatStyle(weapon WeaponID) CombatStyleID {
@@ -182,13 +185,18 @@ func weaponDefinitionForStyle(id WeaponID, style CombatStyleID) (WeaponDefinitio
 	if !exists {
 		return WeaponDefinition{}, false
 	}
-	if weapon.RangedStrength > 0 {
+	if weapon.RangedStrength > 0 || weapon.MagicStrength > 0 {
 		switch style {
 		case CombatStyleRapid:
 			weapon.AttackInterval = max(2, weapon.AttackInterval-1)
+			weapon.DamageVariance += wideStyleDamageVarianceBonus
+		case CombatStyleAccurate:
+			weapon.AccuracyBonus += accurateStyleAccuracyBonus
+			weapon.DamageVariance = max(0, weapon.DamageVariance-accurateStyleDamageVarianceReduction)
 		case CombatStyleLongRange:
-			weapon.Range += 2
-			weapon.ApproachRange += 2
+			weapon.Range += longRangeStyleRangeBonus
+			weapon.ApproachRange += longRangeStyleRangeBonus
+			weapon.DamageVariance += wideStyleDamageVarianceBonus
 		}
 	}
 	return weapon, true
@@ -275,6 +283,7 @@ type TargetSnapshot struct {
 	Accuracy        int
 	Evasion         int
 	AttackType      DamageType
+	CombatLevel     int
 	Defence         DefenceBonuses
 	Elements        ElementalResistances
 }
@@ -342,6 +351,7 @@ func newCombatState() *combatState {
 		AttackType:    hillWardenProfile.DamageType,
 		Defence:       hillWardenProfile.Defence,
 		Elements:      hillWardenProfile.Elements,
+		CombatLevel:   hillWardenProfile.CombatLevel,
 	}
 	wildFowlProfile := combatProfileForEnemy(wildFowlTargetID)
 	wildFowl := &TargetSnapshot{
@@ -357,6 +367,7 @@ func newCombatState() *combatState {
 		AttackType:    wildFowlProfile.DamageType,
 		Defence:       wildFowlProfile.Defence,
 		Elements:      wildFowlProfile.Elements,
+		CombatLevel:   wildFowlProfile.CombatLevel,
 	}
 	cowProfile := combatProfileForEnemy(cowTargetID)
 	cow := &TargetSnapshot{
@@ -364,6 +375,7 @@ func newCombatState() *combatState {
 		Health: cowMaximumHealth, MaximumHealth: cowMaximumHealth,
 		DodgeRate: 0.06, Accuracy: 7, Evasion: 2,
 		AttackType: cowProfile.DamageType, Defence: cowProfile.Defence, Elements: cowProfile.Elements,
+		CombatLevel: cowProfile.CombatLevel,
 	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
@@ -378,6 +390,7 @@ func newCombatState() *combatState {
 				Accuracy:      dummyAccuracyScore,
 				Evasion:       dummyEvasionScore,
 				AttackType:    DamageTypeCrush,
+				CombatLevel:   defaultEnemyCombatProfile.CombatLevel,
 			},
 			upperDummyTargetID: {
 				ID:            upperDummyTargetID,
@@ -390,6 +403,7 @@ func newCombatState() *combatState {
 				Accuracy:      dummyAccuracyScore,
 				Evasion:       dummyEvasionScore,
 				AttackType:    DamageTypeCrush,
+				CombatLevel:   defaultEnemyCombatProfile.CombatLevel,
 			},
 			overlookDummyTargetID: {
 				ID:            overlookDummyTargetID,
@@ -402,6 +416,7 @@ func newCombatState() *combatState {
 				Accuracy:      dummyAccuracyScore,
 				Evasion:       dummyEvasionScore,
 				AttackType:    DamageTypeCrush,
+				CombatLevel:   defaultEnemyCombatProfile.CombatLevel,
 			},
 			hillWardenTargetID: hillWarden,
 			wildFowlTargetID:   wildFowl,
@@ -633,7 +648,6 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.applyCombatStyleCommands()
 		w.applyPrayerCommands()
 		w.applySpellCommands()
-		w.applyTargetCommands()
 		w.resolveAutoAttacks()
 		w.resolveGatheringActions()
 		w.updateRoamingEnemies()
@@ -894,10 +908,29 @@ func (w *World) applyTargetCommands() {
 			if player.autoApproaching {
 				stopPlayer(player)
 			}
+			player.autoApproaching = false
 		} else {
+			stopPlayer(player)
+			player.autoApproaching = false
 			player.lastActionResult = "engaged"
+			if target, targetExists := w.combat.dummyByID(command.TargetID); targetExists && !target.Defeated {
+				weapon, _ := equippedWeaponDefinitionForStyle(player)
+				attackRange := weapon.Range
+				approachRange := weapon.ApproachRange
+				if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell {
+					spell = spellDefinitionForStyle(player, spell)
+					attackRange = spell.Range
+					approachRange = max(0.1, spell.Range-0.75)
+				}
+				if distance(player.position, target.Position) > attackRange {
+					if err := w.approachDummy(player, target.Position, approachRange); err != nil {
+						player.lastActionResult = "target_unreachable"
+					} else {
+						player.lastActionResult = "approaching"
+					}
+				}
+			}
 		}
-		player.autoApproaching = false
 		delete(w.combat.pendingTargets, id)
 	}
 }
@@ -925,6 +958,9 @@ func (w *World) resolveAutoAttacks() {
 		}
 		weapon, _ := equippedWeaponDefinitionForStyle(player)
 		spell, castingSpell := spellDefinition(player.selectedSpell)
+		if castingSpell {
+			spell = spellDefinitionForStyle(player, spell)
+		}
 		attackRange := weapon.Range
 		approachRange := weapon.ApproachRange
 		attackInterval := effectiveWeaponAttackInterval(player, weapon)

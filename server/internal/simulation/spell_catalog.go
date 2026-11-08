@@ -92,7 +92,7 @@ var configuredSpellCatalog = mustBuildSpellCatalog(
 			CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
 			Element:            MagicElementAir,
 			RequiredMagicLevel: 1,
-			Costs:              []ItemCost{{ItemID: ItemAirRune, Quantity: 1}},
+			Costs:              boltRuneCosts(ItemAirRune),
 			BasePower:          4,
 			AccuracyBonus:      10,
 			Range:              10,
@@ -112,8 +112,15 @@ func basicBolt(bookID SpellbookID, id SpellID, name, iconID string, element Magi
 		ID: id, BookID: bookID, Name: name, IconID: iconID,
 		CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
 		Element: element, RequiredMagicLevel: level,
-		Costs: []ItemCost{{ItemID: runeID, Quantity: 1}}, BasePower: power, AccuracyBonus: 10,
+		Costs: boltRuneCosts(runeID), BasePower: power, AccuracyBonus: 10,
 		Range: 10, DamageVariance: 0.20, AttackInterval: windBoltAttackIntervalPulses,
+	}
+}
+
+func boltRuneCosts(elementalRuneID string) []ItemCost {
+	return []ItemCost{
+		{ItemID: elementalRuneID, Quantity: 1},
+		{ItemID: ItemFocusRune, Quantity: 1},
 	}
 }
 

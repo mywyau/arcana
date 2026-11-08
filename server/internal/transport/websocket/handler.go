@@ -297,6 +297,13 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				Style:    simulation.CombatStyleID(message.CombatStyle),
 			})
+		case protocol.MessageExperienceLock:
+			rejectionCode = "experience_lock_rejected"
+			err = h.world.QueueExperienceLock(simulation.ExperienceLockCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				Locked:   message.Active,
+			})
 		case protocol.MessageSetPrayer:
 			rejectionCode = "prayer_rejected"
 			err = h.world.QueuePrayer(simulation.PrayerCommand{
@@ -372,6 +379,7 @@ func (h *Handler) readCommands(
 				SpotID:     message.SpotID,
 				RecipeID:   message.RecipeID,
 				InstanceID: message.InstanceID,
+				Quantity:   message.Quantity,
 			})
 		case protocol.MessageBankDeposit:
 			rejectionCode = "bank_rejected"
@@ -471,6 +479,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			Quantity:      drop.Quantity,
 			InstanceID:    drop.InstanceID,
 			Reinforcement: drop.Reinforcement,
+			Infinite:      drop.Infinite,
 		})
 	}
 	for _, fire := range snapshot.Fires {
@@ -552,6 +561,20 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			SelectedSpell:                string(player.SelectedSpell),
 			LastSpellSequence:            player.LastSpellSequence,
 			DodgeRate:                    player.DodgeRate,
+			CombatLevel:                  player.CombatLevel,
+			ExperienceLocked:             player.ExperienceLocked,
+			LastExperienceLockSequence:   player.LastExperienceLockSequence,
+			CombatMatchup: protocol.CombatMatchupSnapshot{
+				TargetID:            player.CombatMatchup.TargetID,
+				PlayerHitChance:     player.CombatMatchup.PlayerHitChance,
+				PlayerMinimumDamage: player.CombatMatchup.PlayerMinimumDamage,
+				PlayerMaximumDamage: player.CombatMatchup.PlayerMaximumDamage,
+				PlayerAttackRange:   player.CombatMatchup.PlayerAttackRange,
+				TargetHitChance:     player.CombatMatchup.TargetHitChance,
+				TargetMinimumDamage: player.CombatMatchup.TargetMinimumDamage,
+				TargetMaximumDamage: player.CombatMatchup.TargetMaximumDamage,
+				TargetAttackRange:   player.CombatMatchup.TargetAttackRange,
+			},
 			CombatStats: protocol.CombatStatsSnapshot{
 				Weapon:                 string(player.CombatStats.Weapon),
 				Style:                  string(player.CombatStats.Style),
@@ -650,8 +673,8 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				})
 			}
 			playerMessage.RunePouch = protocol.RunePouchSnapshot{
-				Capacity: player.RunePouch.Capacity,
-				Items:    make([]protocol.InventoryItem, 0, len(player.RunePouch.Items)),
+				Capacity: player.RunePouch.Capacity, UnlockedSlots: player.RunePouch.UnlockedSlots,
+				Items: make([]protocol.InventoryItem, 0, len(player.RunePouch.Items)),
 			}
 			playerMessage.LastRuneSequence = player.LastRuneSequence
 			for _, item := range player.RunePouch.Items {
@@ -718,5 +741,6 @@ func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnap
 		Accuracy:        target.Accuracy,
 		Evasion:         target.Evasion,
 		AttackType:      string(target.AttackType),
+		CombatLevel:     target.CombatLevel,
 	}
 }

@@ -18,6 +18,7 @@ type DropSnapshot struct {
 	Quantity      int
 	InstanceID    string
 	Reinforcement int
+	Infinite      bool
 }
 
 type PickupCommand struct {
@@ -35,6 +36,15 @@ type DropItemCommand struct {
 
 // AddWorldDrop places initial world loot before the simulation starts.
 func (w *World) AddWorldDrop(position Position, itemID string, quantity int) error {
+	return w.addInitialDrop(position, itemID, quantity, false)
+}
+
+// AddTestSupply places a non-depleting item source used by development chests.
+func (w *World) AddTestSupply(position Position, itemID string, quantity int) error {
+	return w.addInitialDrop(position, itemID, quantity, true)
+}
+
+func (w *World) addInitialDrop(position Position, itemID string, quantity int, infinite bool) error {
 	if !position.valid() {
 		return fmt.Errorf("drop position must be finite")
 	}
@@ -46,7 +56,11 @@ func (w *World) AddWorldDrop(position Position, itemID string, quantity int) err
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.spawnPersistentDrop(position, itemID, quantity)
+	w.nextDropID++
+	id := fmt.Sprintf("drop-%d", w.nextDropID)
+	w.drops[id] = DropSnapshot{
+		ID: id, Position: position, ItemID: itemID, Quantity: quantity, Infinite: infinite,
+	}
 	return nil
 }
 
@@ -215,7 +229,7 @@ func (w *World) applyPendingPickups() {
 		} else {
 			added = player.inventory.add(drop.ItemID, drop.Quantity)
 		}
-		if added {
+		if added && !drop.Infinite {
 			delete(w.drops, command.DropID)
 			delete(w.dropLifetimes, command.DropID)
 		}

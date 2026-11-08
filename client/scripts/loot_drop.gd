@@ -31,6 +31,11 @@ func set_drop_id(drop_id: String) -> void:
 	body.set_meta(&"drop_id", drop_id)
 
 
+func set_world_interactable(enabled: bool) -> void:
+	visible = enabled
+	body.collision_layer = 16 if enabled else 0
+
+
 func set_stack_top(is_top: bool) -> void:
 	visual.visible = is_top
 	item_label.visible = is_top

@@ -7,6 +7,8 @@ const GATHERING_SCENE: PackedScene = preload("res://scenes/gathering_spot.tscn")
 const WORLD_FIRE_SCRIPT: Script = preload("res://scripts/world_fire.gd")
 const BANK_CHEST_SCENE: PackedScene = preload("res://scenes/bank_chest.tscn")
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
+const SPELL_SLOT_SCRIPT: Script = preload("res://scripts/spell_slot.gd")
+const CLOSE_WINDOW_ICON: Texture2D = preload("res://assets/icons/navigation/close_window.svg")
 const RAY_LENGTH: float = 1000.0
 const GROUND_COLLISION_MASK: int = 1
 const UPPER_COLLISION_MASK: int = 2
@@ -22,10 +24,25 @@ const HUD_MINIMUM_SCALE: float = 0.75
 const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
+const MENU_TAB_BAR_GAP: float = 10.0
 const INVENTORY_TOTAL_SLOTS: int = 50
-const INVENTORY_PAGE_SIZE: int = 25
+const INVENTORY_PAGE_SIZE: int = INVENTORY_TOTAL_SLOTS
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
+const GAME_MESSAGE_LIMIT: int = 100
+const GATHERING_PROGRESS_RESULTS: Dictionary = {
+	"": true,
+	"approaching": true,
+	"balancing": true,
+	"praying": true,
+	"fishing": true,
+	"cooking": true,
+	"mining": true,
+	"woodcutting": true,
+	"smelting": true,
+	"forging": true,
+}
 const CONTEXT_LOOT_RADIUS_PIXELS: float = 42.0
+const CONTEXT_LOOT_ITEM_LIMIT: int = 8
 const BANK_TAKE_ONE: int = 0
 const BANK_TAKE_X: int = 1
 const BANK_TAKE_ALL: int = 2
@@ -44,6 +61,7 @@ const ITEM_DISPLAY_NAMES: Dictionary = {
 	"skin_bible": "Skin Bible", "holy_book": "Holy Book", "clerics_tome": "Cleric's Tome",
 	"ruby_ring": "Ruby Ring", "emerald_ring": "Emerald Ring",
 	"sapphire_ring": "Sapphire Ring", "diamond_ring": "Diamond Ring",
+	"vanguard_cape": "Vanguard Cape", "wayfarer_cape": "Wayfarer Cape", "arcanist_cape": "Arcanist Cape",
 }
 const CRAFTING_RECIPES: Dictionary = {
 	"fishing": [
@@ -157,6 +175,14 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"fletching": "Fletching",
 	"prayer": "Prayer",
 }
+const HUD_TAB_HOTKEYS: Dictionary = {
+	"Styles": 1,
+	"Skills": 2,
+	"Inventory": 3,
+	"Equipment": 4,
+	"Magic": 5,
+	"Prayer": 6,
+}
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
 const DAGGER_ICON: Texture2D = IconCatalog.DAGGER
@@ -181,85 +207,71 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "crush", "name": "Punch", "training": "Attack"},
 		{"id": "heavy_crush", "name": "Heavy Punch", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"bronze_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"steel_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"mithril_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"rune_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"dagger": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"mace": [
 		{"id": "crush", "name": "Crush", "training": "Attack"},
 		{"id": "heavy_crush", "name": "Heavy Crush", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"battle_axe": [
 		{"id": "slash", "name": "Measured Slash", "training": "Attack"},
 		{"id": "heavy_crush", "name": "Heavy Crush", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"spear": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Sweep", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive Stab", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"halberd": [
 		{"id": "slash", "name": "Cleave", "training": "Strength"},
 		{"id": "stab", "name": "Thrust", "training": "Attack"},
 		{"id": "defensive", "name": "Defensive Cleave", "training": "Defence"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"bow": [
 		{"id": "rapid", "name": "Rapid", "training": "Range"},
 		{"id": "accurate", "name": "Accurate", "training": "Range"},
 		{"id": "long_range", "name": "Long Range", "training": "Range"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"crossbow": [
 		{"id": "rapid", "name": "Rapid", "training": "Range"},
 		{"id": "accurate", "name": "Accurate", "training": "Range"},
 		{"id": "long_range", "name": "Long Range", "training": "Range"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 	"staff": [
 		{"id": "rapid", "name": "Rapid", "training": "Magic"},
 		{"id": "accurate", "name": "Accurate", "training": "Magic"},
 		{"id": "long_range", "name": "Long Range", "training": "Magic"},
-		{"id": "unfocused", "name": "Unfocused", "training": ""},
 	],
 }
 const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
@@ -280,6 +292,7 @@ const ARMOUR_SLOTS: Dictionary = {
 	"swift_boots": "feet",
 	"novice_robe_hood": "head", "novice_robe_top": "body", "novice_robe_gloves": "hands", "novice_robe_bottoms": "legs", "novice_robe_boots": "feet",
 	"novice_ranger_hood": "head", "novice_ranger_body": "body", "novice_ranger_gloves": "hands", "novice_ranger_legs": "legs", "novice_ranger_boots": "feet",
+	"vanguard_cape": "cape", "wayfarer_cape": "cape", "arcanist_cape": "cape",
 	"amulet_ferocity": "neck",
 	"amulet_hawk": "neck",
 	"amulet_embers": "neck",
@@ -293,10 +306,11 @@ const REINFORCEMENT_TIERS: Dictionary = {
 	"mithril": {"bar": "mithril_bar", "bar_name": "Mithril Bars", "level": 8, "items": ["mithril_sword", "mithril_helm", "mithril_platebody", "mithril_shield", "mithril_legs", "mithril_gloves", "mithril_boots"]},
 }
 const MAXIMUM_REINFORCEMENT: int = 5
-const AMMUNITION_ITEMS: Dictionary = {"iron_arrow": true}
+const AMMUNITION_ITEMS: Dictionary = {"iron_arrow": true, "iron_bolt": true}
 const RUNE_ITEMS: Dictionary = {
 	"air_rune": true, "water_rune": true, "earth_rune": true,
 	"fire_rune": true, "holy_rune": true, "dark_rune": true,
+	"focus_rune": true,
 }
 const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_ferocity": "+5 melee accuracy • +5 melee strength",
@@ -305,6 +319,9 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_fury": "+2 accuracy • +2 strength for melee, ranged, and magic",
 	"ruby_ring": "+2 melee strength", "emerald_ring": "+2 ranged strength",
 	"sapphire_ring": "+2 magic strength", "diamond_ring": "+1 accuracy and strength for all styles",
+	"vanguard_cape": "+3 melee accuracy • +2 melee strength",
+	"wayfarer_cape": "+3 ranged accuracy • +2 ranged strength",
+	"arcanist_cape": "+3 magic accuracy • +2 magic strength",
 }
 const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"steel_sword": "Attack level 5",
@@ -387,6 +404,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var smelting_window: Window = $SmeltingWindow
 @onready var smelting_grid: GridContainer = $SmeltingWindow/Panel/Margin/VBox/RecipeScroll/Grid
 @onready var cooking_window: Window = $CookingWindow
+@onready var cooking_ingredients_toggle: Button = $CookingWindow/Panel/Margin/VBox/IngredientsToggle
 @onready var cooking_grid: GridContainer = $CookingWindow/Panel/Margin/VBox/RecipeScroll/Grid
 @onready var brewing_window: Window = $BrewingWindow
 @onready var brewing_slots: Array[Button] = [
@@ -415,8 +433,16 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var bank_chests: Node3D = $BankChests
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
+@onready var xp_tracker_hud: MarginContainer = $UI/XPTrackerHUD
+@onready var xp_tracker_total: Label = $UI/XPTrackerHUD/Margin/VBox/Total
+@onready var xp_tracker_gain_row: HBoxContainer = $UI/XPTrackerHUD/Margin/VBox/GainRow
+@onready var xp_tracker_gain: Label = $UI/XPTrackerHUD/Margin/VBox/GainRow/Gain
+@onready var xp_tracker_icon: TextureRect = $UI/XPTrackerHUD/Margin/VBox/GainRow/Icon
 @onready var hud_edit_hint: Label = $UI/HudEditHint
+@onready var chat_hud: PanelContainer = $UI/ChatHUD
+@onready var game_message_log: RichTextLabel = $UI/ChatHUD/Margin/VBox/Messages
 @onready var player_vitals_hud: PanelContainer = $UI/PlayerVitalsHUD
+@onready var player_details_hud: PanelContainer = $UI/PlayerDetailsHUD
 @onready var combat_hud: PanelContainer = $UI/CombatHUD
 @onready var inventory_hud: PanelContainer = $UI/InventoryHUD
 @onready var skills_hud: PanelContainer = $UI/SkillsHUD
@@ -433,10 +459,21 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var settings_prayer_tab_button: Button = $UI/SettingsHUD/Margin/VBox/TabRow/Prayer
 @onready var settings_styles_tab_button: Button = $UI/SettingsHUD/Margin/VBox/TabRow/Styles
 @onready var settings_diagnostics_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowDiagnostics
+@onready var settings_xp_tracker_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowXPTracker
+@onready var settings_disable_xp_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/DisableXP
 @onready var settings_music_slider: HSlider = $UI/SettingsHUD/Margin/VBox/MusicVolume/Slider
 @onready var settings_music_value: Label = $UI/SettingsHUD/Margin/VBox/MusicVolume/Value
 @onready var settings_edit_hud_button: Button = $UI/SettingsHUD/Margin/VBox/EditHUD
 @onready var settings_reset_hud_button: Button = $UI/SettingsHUD/Margin/VBox/ResetHUD
+@onready var menu_tabs_hud: PanelContainer = $UI/MenuTabsHUD
+@onready var menu_utility_tabs_hud: PanelContainer = $UI/MenuUtilityTabsHUD
+@onready var menu_styles_tab: Button = $UI/MenuTabsHUD/Margin/Row/Styles
+@onready var menu_skills_tab: Button = $UI/MenuTabsHUD/Margin/Row/Skills
+@onready var menu_inventory_tab: Button = $UI/MenuTabsHUD/Margin/Row/Inventory
+@onready var menu_equipment_tab: Button = $UI/MenuTabsHUD/Margin/Row/Equipment
+@onready var menu_magic_tab: Button = $UI/MenuTabsHUD/Margin/Row/Magic
+@onready var menu_prayer_tab: Button = $UI/MenuTabsHUD/Margin/Row/Prayer
+@onready var menu_settings_tab: Button = $UI/MenuUtilityTabsHUD/Margin/Row/Settings
 @onready var bank_hud: PanelContainer = $UI/BankHUD
 @onready var bank_title: Label = $UI/BankHUD/Margin/VBox/Header/Title
 @onready var bank_hint: Label = $UI/BankHUD/Margin/VBox/Hint
@@ -478,10 +515,10 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var equipment_magic_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Magic
 @onready var equipment_prayer_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Prayer
 @onready var equipment_styles_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Styles
-@onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/ContentScroll/Grid
+@onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/ContentScroll/Center/Grid
 @onready var detailed_stats_button: Button = $UI/EquipmentHUD/Margin/VBox/DetailedStats
 @onready var combat_stats_hud: PanelContainer = $UI/CombatStatsHUD
-@onready var combat_stats_label: Label = $UI/CombatStatsHUD/Margin/VBox/Stats
+@onready var combat_stats_label: RichTextLabel = $UI/CombatStatsHUD/Margin/VBox/Stats
 @onready var combat_stats_close_button: Button = $UI/CombatStatsHUD/Margin/VBox/Header/Close
 @onready var combat_stats_offence_button: Button = $UI/CombatStatsHUD/Margin/VBox/PageRow/Offence
 @onready var combat_stats_defence_button: Button = $UI/CombatStatsHUD/Margin/VBox/PageRow/Defence
@@ -512,12 +549,24 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var styles_grid: GridContainer = $UI/StylesHUD/Margin/VBox/ContentScroll/Grid
 @onready var target_hud: PanelContainer = $UI/TargetHUD
 @onready var player_health_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Health
-@onready var player_health_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/HealthLabel
+@onready var player_health_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/Header/HealthLabel
+@onready var player_details_button: Button = $UI/PlayerVitalsHUD/Margin/VBox/Header/Details
 @onready var player_prayer_bar: ProgressBar = $UI/PlayerVitalsHUD/Margin/VBox/Prayer
 @onready var player_prayer_label: Label = $UI/PlayerVitalsHUD/Margin/VBox/PrayerLabel
+@onready var player_details_combat_level: Label = $UI/PlayerDetailsHUD/Margin/VBox/Grid/CombatLevel
+@onready var player_details_accuracy: Label = $UI/PlayerDetailsHUD/Margin/VBox/Grid/Accuracy
+@onready var player_details_damage: Label = $UI/PlayerDetailsHUD/Margin/VBox/Grid/Damage
+@onready var player_details_dodge: Label = $UI/PlayerDetailsHUD/Margin/VBox/Grid/Dodge
 @onready var target_health_bar: ProgressBar = $UI/TargetHUD/Margin/VBox/Health
+@onready var target_health_value: Label = $UI/TargetHUD/Margin/VBox/Health/Value
 @onready var target_health_label: Label = $UI/TargetHUD/Margin/VBox/Header/HealthLabel
-@onready var aggro_label: Label = $UI/TargetHUD/Margin/VBox/Header/AggroLabel
+@onready var aggro_icon: TextureRect = $UI/TargetHUD/Margin/VBox/Header/AggroIcon
+@onready var target_details_button: Button = $UI/TargetHUD/Margin/VBox/Header/Details
+@onready var target_details_hud: PanelContainer = $UI/TargetDetailsHUD
+@onready var target_details_title: Label = $UI/TargetDetailsHUD/Margin/VBox/Title
+@onready var target_details_target_accuracy: Label = $UI/TargetDetailsHUD/Margin/VBox/Grid/TargetAccuracy
+@onready var target_details_target_damage: Label = $UI/TargetDetailsHUD/Margin/VBox/Grid/TargetDamage
+@onready var target_details_attack_type: Label = $UI/TargetDetailsHUD/Margin/VBox/Grid/TargetAttackType
 @onready var combat_state_label: Label = $UI/CombatHUD/Margin/VBox/CombatState
 @onready var cooldown_label: Label = $UI/CombatHUD/Margin/VBox/CooldownLabel
 @onready var cooldown_bar: ProgressBar = $UI/CombatHUD/Margin/VBox/Cooldown
@@ -525,8 +574,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var dagger_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Dagger
 @onready var bow_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Bow
 @onready var disengage_button: Button = $UI/CombatHUD/Margin/VBox/WeaponRow/Disengage
-@onready var click_marker: MeshInstance3D = $ClickMarker
-@onready var target_click_pulse: MeshInstance3D = $TargetClickPulse
+@onready var interaction_click_marker: Control = $UI/InteractionClickMarker
 @onready var upper_level: FloorVisibility = $UpperLevel
 
 var _local_player_id: String = ""
@@ -568,6 +616,9 @@ var _pending_bank_chest_id: String = ""
 var _bank_withdraw_dialog: ConfirmationDialog
 var _bank_withdraw_amount: SpinBox
 var _pending_bank_withdraw_slot: int = -1
+var _bank_dragging: bool = false
+var _bank_drag_pointer_start: Vector2 = Vector2.ZERO
+var _bank_drag_position_start: Vector2 = Vector2.ZERO
 var _bank_item_menu: PopupMenu
 var _bank_menu_slot: int = -1
 var _bank_menu_quantity: int = 0
@@ -587,7 +638,8 @@ var _ring_rack_window: Window
 var _ring_rack_grid: GridContainer
 var _ring_rack_summary: Label
 var _rune_pouch_items: Array = []
-var _rune_pouch_capacity: int = 6
+var _rune_pouch_capacity: int = 9
+var _rune_pouch_unlocked: int = 2
 var _rune_pouch_signature: String = ""
 var _next_rune_sequence: int = 1
 var _rune_pouch_window: Window
@@ -657,20 +709,43 @@ var _skill_progress: Dictionary = {
 	"prayer": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
+var _skill_details_window: Window
+var _skill_details_icon: TextureRect
+var _skill_details_title: Label
+var _skill_details_level: Label
+var _skill_details_progress: ProgressBar
+var _skill_details_xp: Label
+var _skill_details_description: Label
+var _skill_details_action: Button
+var _skill_context_menu: PopupMenu
+var _skill_context_name: String = ""
+var _skill_context_id: String = ""
+var _open_skill_name: String = ""
+var _open_skill_id: String = ""
 var _combat_stats: Dictionary = {}
+var _combat_matchup: Dictionary = {}
+var _player_combat_level: int = 1
+var _experience_locked: bool = false
+var _last_experience_lock_sequence: int = 0
+var _next_experience_lock_sequence: int = 1
 var _combat_stats_page: String = "offence"
 var _player_views: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
 var _pending_click: Vector2
 var _has_pending_click: bool = false
-var _target_click_tween: Tween
-var _world_context_menu: PopupMenu
+var _world_context_menu: PopupPanel
+var _world_context_rows: VBoxContainer
 var _context_menu_actions: Dictionary = {}
 var _crafting_menu: PopupMenu
 var _crafting_menu_actions: Dictionary = {}
 var _selected_station_id: String = ""
 var _selected_station_position: Vector3 = Vector3.ZERO
+var _last_gather_request_spot_id: String = ""
+var _pending_crafting_station_id: String = ""
+var _pending_crafting_station: String = ""
+var _pending_crafting_position: Vector3 = Vector3.ZERO
+var _pending_crafting_range: float = 0.0
 var _brewing_selection: Array[String] = []
 var _next_brew_sequence: int = 1
 var _brew_pending: bool = false
@@ -689,30 +764,71 @@ var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
 var _fletch_quantity_dialog: ConfirmationDialog
 var _fletch_quantity_input: SpinBox
+var _smelting_action_menu: PopupMenu
+var _smelting_menu_recipe_id: String = ""
+var _smelting_quantity_dialog: ConfirmationDialog
+var _smelting_quantity_input: SpinBox
+var _cooking_details_visible: bool = false
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
 var _target_hud_active: bool = false
+var _player_details_open: bool = false
+var _target_details_open: bool = false
+var _target_health_fill_style: StyleBoxFlat
 var _combat_debug_hud_visible: bool = false
 var _hud_drag_group: String = ""
 var _hud_scale_group: String = ""
 var _hud_pointer_start: Vector2 = Vector2.ZERO
 var _hud_position_start: Vector2 = Vector2.ZERO
 var _hud_scale_start: float = 1.0
+var _hud_resize_corner: Vector2 = Vector2.ONE
+var _hud_resize_base_size: Vector2 = Vector2.ONE
+var _hud_resize_top_extent: float = 0.0
+var _hud_resize_opposite: Vector2 = Vector2.ZERO
+var _attack_range_indicator: Node3D
+var _attack_range_fill: MeshInstance3D
+var _displayed_attack_range: float = -1.0
+var _game_messages: Array[Dictionary] = []
+var _last_network_error_code: String = ""
+var _last_network_error_message: String = ""
+var _xp_tracker_initialized: bool = false
+var _xp_gain_generation: int = 0
 
 
 func _ready() -> void:
-	_world_context_menu = PopupMenu.new()
+	for interface_window: Window in [
+		smithing_window, smelting_window, cooking_window, brewing_window, fletching_window,
+	]:
+		_style_interface_window(interface_window)
+	_world_context_menu = PopupPanel.new()
 	_world_context_menu.name = "WorldContextMenu"
+	var context_panel_style := StyleBoxFlat.new()
+	context_panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
+	_world_context_menu.add_theme_stylebox_override("panel", context_panel_style)
 	add_child(_world_context_menu)
-	_world_context_menu.id_pressed.connect(_on_world_context_action)
+	var context_margin := MarginContainer.new()
+	context_margin.add_theme_constant_override("margin_left", 6)
+	context_margin.add_theme_constant_override("margin_top", 6)
+	context_margin.add_theme_constant_override("margin_right", 6)
+	context_margin.add_theme_constant_override("margin_bottom", 6)
+	_world_context_menu.add_child(context_margin)
+	_world_context_rows = VBoxContainer.new()
+	_world_context_rows.add_theme_constant_override("separation", 6)
+	context_margin.add_child(_world_context_rows)
 	_crafting_menu = PopupMenu.new()
 	_crafting_menu.name = "CraftingMenu"
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
+	_setup_smelting_action_menu()
+	_setup_smelting_quantity_dialog()
 	smithing_window.close_requested.connect(smithing_window.hide)
+	smithing_window.window_input.connect(_on_crafting_window_input.bind(smithing_window))
 	smelting_window.close_requested.connect(smelting_window.hide)
+	smelting_window.window_input.connect(_on_crafting_window_input.bind(smelting_window))
 	cooking_window.close_requested.connect(cooking_window.hide)
+	cooking_window.window_input.connect(_on_cooking_window_input)
+	cooking_ingredients_toggle.toggled.connect(_on_cooking_ingredients_toggled)
 	brewing_window.close_requested.connect(brewing_window.hide)
 	for slot_index: int in range(brewing_slots.size()):
 		brewing_slots[slot_index].pressed.connect(_remove_brewing_ingredient.bind(slot_index))
@@ -732,9 +848,17 @@ func _ready() -> void:
 	_setup_fletch_quantity_dialog()
 	_bank_item_menu = PopupMenu.new()
 	_bank_item_menu.name = "BankItemMenu"
+	_bank_item_menu.min_size = Vector2i(190, 0)
+	_bank_item_menu.add_theme_font_size_override("font_size", 18)
+	_bank_item_menu.add_theme_constant_override("item_start_padding", 18)
+	_bank_item_menu.add_theme_constant_override("item_end_padding", 22)
+	_bank_item_menu.add_theme_constant_override("v_separation", 8)
 	add_child(_bank_item_menu)
 	_bank_item_menu.id_pressed.connect(_on_bank_item_menu_action)
+	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
+	bank_title.gui_input.connect(_on_bank_title_input)
+	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_expand_button.pressed.connect(_request_bank_expansion)
 	_setup_bank_withdraw_dialog()
 	_setup_ammunition_pouch_window()
@@ -748,6 +872,18 @@ func _ready() -> void:
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
 	bow_button.pressed.connect(_request_equip.bind("bow"))
 	disengage_button.pressed.connect(_request_disengage)
+	player_details_button.toggled.connect(_on_player_details_toggled)
+	target_details_button.toggled.connect(_on_target_details_toggled)
+	_target_health_fill_style = target_health_bar.get_theme_stylebox("fill").duplicate() as StyleBoxFlat
+	target_health_bar.add_theme_stylebox_override("fill", _target_health_fill_style)
+	aggro_icon.texture = IconCatalog.centered_icon(EQUIPMENT_ICONS.get("sword") as Texture2D)
+	menu_styles_tab.pressed.connect(_show_styles_tab)
+	menu_skills_tab.pressed.connect(_show_skills_tab)
+	menu_inventory_tab.pressed.connect(_show_inventory_tab)
+	menu_equipment_tab.pressed.connect(_show_equipment_tab)
+	menu_magic_tab.pressed.connect(_show_magic_tab)
+	menu_prayer_tab.pressed.connect(_show_prayer_tab)
+	menu_settings_tab.pressed.connect(_show_settings_tab)
 	combat_tab_button.pressed.connect(_show_combat_tab)
 	inventory_tab_button.pressed.connect(_show_inventory_tab)
 	combat_skills_tab_button.pressed.connect(_show_skills_tab)
@@ -778,6 +914,7 @@ func _ready() -> void:
 	equipment_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	equipment_styles_tab_button.pressed.connect(_show_styles_tab)
 	detailed_stats_button.pressed.connect(_show_detailed_combat_stats)
+	_style_interface_close_button(combat_stats_close_button)
 	combat_stats_close_button.pressed.connect(_hide_detailed_combat_stats)
 	combat_stats_offence_button.pressed.connect(_show_combat_stats_page.bind("offence"))
 	combat_stats_defence_button.pressed.connect(_show_combat_stats_page.bind("defence"))
@@ -811,6 +948,8 @@ func _ready() -> void:
 	settings_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	settings_styles_tab_button.pressed.connect(_show_styles_tab)
 	settings_diagnostics_toggle.toggled.connect(_on_diagnostics_toggled)
+	settings_xp_tracker_toggle.toggled.connect(_on_xp_tracker_toggled)
+	settings_disable_xp_toggle.toggled.connect(_on_experience_lock_toggled)
 	settings_music_slider.value_changed.connect(_on_music_volume_changed)
 	settings_edit_hud_button.pressed.connect(_begin_hud_editing_from_settings)
 	settings_reset_hud_button.pressed.connect(_reset_hud_layout_from_settings)
@@ -819,13 +958,16 @@ func _ready() -> void:
 		settings_button.expand_icon = true
 		settings_button.add_theme_constant_override("icon_max_width", 42)
 	_configure_player_menu()
+	_configure_detailed_stats_button()
 	_update_combat_hud()
 	_update_inventory_hud()
+	_setup_skill_details_interface()
 	_populate_placeholder_skills()
 	_populate_placeholder_spells()
 	_populate_placeholder_prayers()
 	_update_combat_styles_hud()
 	_update_equipment_hud()
+	_append_game_message("Welcome. Game messages will appear here.")
 	_setup_hud_layout.call_deferred()
 
 
@@ -844,8 +986,22 @@ func _unhandled_input(event: InputEvent) -> void:
 				_toggle_combat_debug_hud()
 				get_viewport().set_input_as_handled()
 				return
+			if not key_event.ctrl_pressed and not key_event.alt_pressed and not key_event.meta_pressed:
+				var hotkey_tab: int = key_event.keycode - KEY_1 + 1
+				if hotkey_tab >= 1 and hotkey_tab <= 6:
+					_show_hud_tab_hotkey(hotkey_tab)
+					get_viewport().set_input_as_handled()
+					return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if _smelting_action_menu != null and _smelting_action_menu.visible:
+						_smelting_action_menu.hide()
+						get_viewport().set_input_as_handled()
+						return
+					if _smelting_quantity_dialog != null and _smelting_quantity_dialog.visible:
+						_smelting_quantity_dialog.hide()
+						get_viewport().set_input_as_handled()
+						return
 					if _hud_edit_mode:
 						_set_hud_edit_mode(false)
 						get_viewport().set_input_as_handled()
@@ -908,24 +1064,6 @@ func _unhandled_input(event: InputEvent) -> void:
 						return
 					_request_disengage()
 					get_viewport().set_input_as_handled()
-				KEY_1:
-					_request_equip("sword")
-					get_viewport().set_input_as_handled()
-				KEY_2:
-					_request_equip("dagger")
-					get_viewport().set_input_as_handled()
-				KEY_3:
-					_request_equip("bow")
-					get_viewport().set_input_as_handled()
-				KEY_4:
-					_request_equip("mace")
-					get_viewport().set_input_as_handled()
-				KEY_5:
-					_request_equip("battle_axe")
-					get_viewport().set_input_as_handled()
-				KEY_6:
-					_request_equip("staff")
-					get_viewport().set_input_as_handled()
 		return
 	if _hud_edit_mode:
 		get_viewport().set_input_as_handled()
@@ -948,6 +1086,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	_has_pending_click = true
 
 
+func _on_cooking_window_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			cooking_window.hide()
+			cooking_window.set_input_as_handled()
+
+
+func _on_crafting_window_input(event: InputEvent, crafting_window: Window) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			crafting_window.hide()
+			crafting_window.set_input_as_handled()
+
+
 func _physics_process(_delta: float) -> void:
 	if not _has_pending_click:
 		return
@@ -962,7 +1116,8 @@ func _physics_process(_delta: float) -> void:
 		var target_body := target_result.get("collider") as CollisionObject3D
 		if target_body != null and target_body.has_meta(&"combat_target_id"):
 			var target_id: String = str(target_body.get_meta(&"combat_target_id"))
-			_request_engage_target(target_id, target_body.global_position)
+			if _request_engage_target(target_id, target_body.global_position):
+				_play_interaction_click_feedback(_pending_click)
 			return
 
 	var bank_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
@@ -972,7 +1127,8 @@ func _physics_process(_delta: float) -> void:
 		var bank_body := bank_result.get("collider") as CollisionObject3D
 		if bank_body != null and bank_body.has_meta(&"bank_chest_id"):
 			var bank_chest_id: String = str(bank_body.get_meta(&"bank_chest_id"))
-			_request_open_bank(bank_chest_id, bank_body.global_position, float(bank_body.get_meta(&"bank_range", 2.5)))
+			if _request_open_bank(bank_chest_id, bank_body.global_position, float(bank_body.get_meta(&"bank_range", 2.5))):
+				_play_interaction_click_feedback(_pending_click)
 			return
 
 	var gathering_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
@@ -985,11 +1141,17 @@ func _physics_process(_delta: float) -> void:
 			var spot_state: Dictionary = _gathering_states.get(spot_id, {}) as Dictionary
 			var station: String = str(spot_state.get("station", ""))
 			if station == "fishing":
-				_request_gather(spot_id, gathering_body.global_position, str(spot_state.get("recipe_id", "")))
+				if _request_gather(spot_id, gathering_body.global_position, str(spot_state.get("recipe_id", ""))):
+					_play_interaction_click_feedback(_pending_click)
+			elif station == "prayer_altar":
+				if _request_gather(spot_id, gathering_body.global_position, "restore_prayer"):
+					_play_interaction_click_feedback(_pending_click)
 			elif CRAFTING_RECIPES.has(station):
+				_play_interaction_click_feedback(_pending_click)
 				_open_crafting_menu(spot_id, gathering_body.global_position, station, _pending_click)
 			else:
-				_request_gather(spot_id, gathering_body.global_position)
+				if _request_gather(spot_id, gathering_body.global_position):
+					_play_interaction_click_feedback(_pending_click)
 			return
 
 	var loot_result: Dictionary = _top_loot_hit(ray_origin, ray_end)
@@ -997,7 +1159,8 @@ func _physics_process(_delta: float) -> void:
 		var loot_body := loot_result.get("collider") as CollisionObject3D
 		if loot_body != null and loot_body.has_meta(&"drop_id"):
 			var drop_id: String = str(loot_body.get_meta(&"drop_id"))
-			_request_pickup_drop(drop_id, loot_body.global_position)
+			if _request_pickup_drop(drop_id, loot_body.global_position):
+				_play_interaction_click_feedback(_pending_click)
 			return
 
 	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
@@ -1015,6 +1178,7 @@ func _physics_process(_delta: float) -> void:
 		_close_bank()
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
+		_pending_crafting_station_id = ""
 		_next_sequence += 1
 		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
 			_request_disengage()
@@ -1024,62 +1188,67 @@ func _physics_process(_delta: float) -> void:
 				local_view.predict_path(ground.surface_path(local_view.global_position, destination))
 			else:
 				local_view.predict_move(destination)
-		click_marker.position = destination + Vector3.UP * 0.03
-		click_marker.visible = true
+		_play_movement_click_feedback(_pending_click)
 
 
-func _request_engage_target(target_id: String, target_position: Vector3) -> void:
+func _request_engage_target(target_id: String, _target_position: Vector3) -> bool:
 	if target_id.is_empty() or _player_defeated:
-		return
+		return false
 	if network.send_engage_target(_next_action_sequence, target_id):
+		_pending_crafting_station_id = ""
 		_next_action_sequence += 1
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.stop_prediction()
-		click_marker.visible = false
-		_play_target_click_feedback(target_position)
 		_update_combat_hud()
+		return true
+	return false
 
 
-func _request_pickup_drop(drop_id: String, drop_position: Vector3) -> void:
+func _request_pickup_drop(drop_id: String, _drop_position: Vector3) -> bool:
 	if drop_id.is_empty() or _player_defeated:
-		return
+		return false
 	if network.send_pickup_item(_next_pickup_sequence, drop_id):
+		_pending_crafting_station_id = ""
 		_next_pickup_sequence += 1
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.stop_prediction()
 		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
 			_request_disengage()
-		click_marker.visible = false
-		_play_target_click_feedback(drop_position)
+		return true
+	return false
 
 
-func _request_gather(spot_id: String, spot_position: Vector3, recipe_id: String = "", instance_id: String = "") -> void:
+func _request_gather(spot_id: String, _spot_position: Vector3, recipe_id: String = "", instance_id: String = "", quantity: int = 0) -> bool:
 	if spot_id.is_empty() or _player_defeated:
-		return
-	if network.send_gather(_next_gather_sequence, spot_id, recipe_id, instance_id):
+		return false
+	if network.send_gather(_next_gather_sequence, spot_id, recipe_id, instance_id, quantity):
+		_pending_crafting_station_id = ""
+		_last_gather_request_spot_id = spot_id
 		_next_gather_sequence += 1
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.stop_prediction()
-		click_marker.visible = false
-		_play_target_click_feedback(spot_position)
+		return true
+	return false
 
 
-func _request_open_bank(chest_id: String, chest_position: Vector3, interaction_range: float) -> void:
+func _request_open_bank(chest_id: String, chest_position: Vector3, interaction_range: float) -> bool:
 	if chest_id.is_empty() or _player_defeated:
-		return
+		return false
 	_pending_bank_chest_id = chest_id
 	var local_view: PlayerView = _player_views.get(_local_player_id)
 	if local_view != null and local_view.global_position.distance_to(chest_position) <= interaction_range:
 		_open_bank(chest_id)
-		return
+		return true
 	if network.send_move(_next_sequence, chest_position):
 		_next_sequence += 1
 		status_label.text = "Walking to the bank chest…"
 		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
 			_request_disengage()
+		return true
+	return false
 
 
 func _open_bank(chest_id: String) -> void:
@@ -1117,6 +1286,31 @@ func _close_bank() -> void:
 	bank_hud.visible = false
 	camera_rig.set_zoom_blocked(false)
 	_pending_bank_withdraw_slot = -1
+	_bank_dragging = false
+
+
+func _on_bank_title_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return
+		_bank_dragging = mouse_event.pressed
+		if _bank_dragging:
+			_bank_drag_pointer_start = get_viewport().get_mouse_position()
+			_bank_drag_position_start = bank_hud.global_position
+		bank_title.accept_event()
+	elif event is InputEventMouseMotion and _bank_dragging:
+		var pointer_delta := get_viewport().get_mouse_position() - _bank_drag_pointer_start
+		var viewport_size := get_viewport().get_visible_rect().size
+		var maximum_position := Vector2(
+			maxf(0.0, viewport_size.x - bank_hud.size.x),
+			maxf(0.0, viewport_size.y - bank_hud.size.y),
+		)
+		bank_hud.global_position = (_bank_drag_position_start + pointer_delta).clamp(
+			Vector2.ZERO,
+			maximum_position,
+		)
+		bank_title.accept_event()
 	_bank_menu_slot = -1
 	_bank_menu_quantity = 0
 	if _bank_item_menu != null:
@@ -1233,14 +1427,30 @@ func _take_test_supply(drop_id: String) -> void:
 func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: String, screen_position: Vector2) -> void:
 	_selected_station_id = spot_id
 	_selected_station_position = spot_position
-	if station == "forging":
-		_open_smithing_window()
-		return
-	if station == "cooking":
-		_open_cooking_window()
-		return
-	if station == "smelting":
-		_open_smelting_window()
+	if station in ["cooking", "smelting", "forging"]:
+		var local_view: PlayerView = _player_views.get(_local_player_id)
+		var interaction_range: float = float(
+			(_gathering_states.get(spot_id, {}) as Dictionary).get("range", 2.5)
+		)
+		if local_view != null and local_view.global_position.distance_to(spot_position) > interaction_range:
+			_pending_crafting_station_id = spot_id
+			_pending_crafting_station = station
+			_pending_crafting_position = spot_position
+			_pending_crafting_range = interaction_range
+			var offset: Vector3 = local_view.global_position - spot_position
+			offset.y = 0.0
+			if offset.is_zero_approx():
+				offset = Vector3.RIGHT
+			var destination: Vector3 = spot_position + offset.normalized() * maxf(0.1, interaction_range - 0.3)
+			destination.y = spot_position.y
+			if network.send_move(_next_sequence, destination):
+				_next_sequence += 1
+				status_label.text = "Walking to the %s…" % _crafting_station_name(station)
+			else:
+				_pending_crafting_station_id = ""
+			return
+		_pending_crafting_station_id = ""
+		_open_crafting_station_window(station)
 		return
 	_crafting_menu.clear()
 	_crafting_menu_actions.clear()
@@ -1260,7 +1470,43 @@ func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: Strin
 	_crafting_menu.popup()
 
 
+func _crafting_station_name(station: String) -> String:
+	match station:
+		"forging": return "anvil"
+		"smelting": return "furnace"
+		_: return "cooking range"
+
+
+func _open_crafting_station_window(station: String) -> void:
+	match station:
+		"forging": _open_smithing_window()
+		"smelting": _open_smelting_window()
+		"cooking": _open_cooking_window()
+
+
+func _update_crafting_station_proximity(player_position: Vector3) -> void:
+	if _pending_crafting_station_id.is_empty():
+		return
+	if player_position.distance_to(_pending_crafting_position) > _pending_crafting_range:
+		return
+	var station: String = _pending_crafting_station
+	_pending_crafting_station_id = ""
+	_pending_crafting_station = ""
+	var local_view: PlayerView = _player_views.get(_local_player_id)
+	if local_view != null:
+		local_view.stop_prediction()
+	if network.send_move(_next_sequence, player_position):
+		_next_sequence += 1
+	_open_crafting_station_window(station)
+
+
 func _open_cooking_window() -> void:
+	cooking_ingredients_toggle.set_pressed_no_signal(_cooking_details_visible)
+	_refresh_cooking_grid()
+	cooking_window.popup_centered()
+
+
+func _refresh_cooking_grid() -> void:
 	for child: Node in cooking_grid.get_children():
 		cooking_grid.remove_child(child)
 		child.queue_free()
@@ -1273,13 +1519,15 @@ func _open_cooking_window() -> void:
 		var required_level: int = int(recipe.get("level", 1))
 		var available: int = _inventory_quantity(input_id)
 		var recipe_button := Button.new()
-		recipe_button.custom_minimum_size = Vector2(260, 116)
+		recipe_button.custom_minimum_size = Vector2(260, 116 if _cooking_details_visible else 92)
 		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		recipe_button.focus_mode = Control.FOCUS_NONE
 		recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		recipe_button.text = "%s\n%s  •  Cooking %d\nAvailable: %d" % [
-			recipe.get("name", recipe_id.capitalize()), recipe.get("inputs", ""), required_level, available,
+		recipe_button.text = "%s\nLv %d" % [
+			recipe.get("name", recipe_id.capitalize()), required_level,
 		]
+		if _cooking_details_visible:
+			recipe_button.text += "\n%s" % recipe.get("inputs", "Raw food")
 		recipe_button.icon = ITEM_ICONS.get(recipe_id, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
 		recipe_button.add_theme_constant_override("icon_max_width", 62)
@@ -1292,7 +1540,11 @@ func _open_cooking_window() -> void:
 			recipe_button.tooltip_text = "Cook %s until you run out" % recipe.get("name", recipe_id.capitalize())
 		recipe_button.pressed.connect(_select_cooking_recipe.bind(recipe_id))
 		cooking_grid.add_child(recipe_button)
-	cooking_window.popup_centered()
+
+
+func _on_cooking_ingredients_toggled(show_details: bool) -> void:
+	_cooking_details_visible = show_details
+	_refresh_cooking_grid()
 
 
 func _open_smelting_window() -> void:
@@ -1304,13 +1556,14 @@ func _open_smelting_window() -> void:
 		var recipe := recipe_data as Dictionary
 		var recipe_id: String = str(recipe.get("id", ""))
 		var required_level: int = int(recipe.get("level", 1))
+		var input_lines: String = str(recipe.get("inputs", "")).replace(" + ", "\n")
 		var recipe_button := Button.new()
-		recipe_button.custom_minimum_size = Vector2(260, 116)
+		recipe_button.custom_minimum_size = Vector2(260, 132)
 		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		recipe_button.focus_mode = Control.FOCUS_NONE
 		recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		recipe_button.text = "%s\n%s\nSmithing %d" % [
-			recipe.get("name", recipe_id.capitalize()), recipe.get("inputs", ""), required_level,
+			recipe.get("name", recipe_id.capitalize()), input_lines, required_level,
 		]
 		recipe_button.icon = ITEM_ICONS.get(recipe_id, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
@@ -1322,13 +1575,74 @@ func _open_smelting_window() -> void:
 			else "Smelt %s until materials run out" % recipe.get("name", recipe_id.capitalize())
 		)
 		recipe_button.pressed.connect(_select_smelting_recipe.bind(recipe_id))
+		recipe_button.gui_input.connect(_on_smelting_recipe_input.bind(recipe_id))
 		smelting_grid.add_child(recipe_button)
 	smelting_window.popup_centered()
 
 
-func _select_smelting_recipe(recipe_id: String) -> void:
+func _select_smelting_recipe(recipe_id: String, quantity: int = 0) -> void:
 	smelting_window.hide()
-	_request_gather(_selected_station_id, _selected_station_position, recipe_id)
+	_request_gather(_selected_station_id, _selected_station_position, recipe_id, "", quantity)
+
+
+func _setup_smelting_action_menu() -> void:
+	_smelting_action_menu = PopupMenu.new()
+	_smelting_action_menu.name = "SmeltingActionMenu"
+	var menu_panel_style := StyleBoxFlat.new()
+	menu_panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
+	_smelting_action_menu.add_theme_stylebox_override("panel", menu_panel_style)
+	_smelting_action_menu.add_item("Make 1", 0)
+	_smelting_action_menu.add_item("Make X", 1)
+	_smelting_action_menu.add_item("Make All", 2)
+	_smelting_action_menu.id_pressed.connect(_on_smelting_action_selected)
+	add_child(_smelting_action_menu)
+
+
+func _setup_smelting_quantity_dialog() -> void:
+	_smelting_quantity_dialog = ConfirmationDialog.new()
+	_style_interface_window(_smelting_quantity_dialog)
+	_smelting_quantity_dialog.title = "Make X bars"
+	_smelting_quantity_dialog.dialog_text = "Choose how many bars to smelt:"
+	_smelting_quantity_dialog.min_size = Vector2i(360, 180)
+	_smelting_quantity_dialog.get_ok_button().text = "Start smelting"
+	_smelting_quantity_input = SpinBox.new()
+	_smelting_quantity_input.min_value = 1
+	_smelting_quantity_input.max_value = 10_000
+	_smelting_quantity_input.step = 1
+	_smelting_quantity_input.value = 5
+	_smelting_quantity_input.custom_minimum_size = Vector2(280, 44)
+	_smelting_quantity_input.position = Vector2(40, 74)
+	_smelting_quantity_dialog.add_child(_smelting_quantity_input)
+	_smelting_quantity_dialog.confirmed.connect(_confirm_smelting_quantity)
+	add_child(_smelting_quantity_dialog)
+
+
+func _on_smelting_recipe_input(event: InputEvent, recipe_id: String) -> void:
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	_smelting_menu_recipe_id = recipe_id
+	_smelting_action_menu.position = Vector2i(get_viewport().get_mouse_position())
+	_smelting_action_menu.popup()
+	get_viewport().set_input_as_handled()
+
+
+func _on_smelting_action_selected(action_id: int) -> void:
+	if _smelting_menu_recipe_id.is_empty():
+		return
+	match action_id:
+		0:
+			_select_smelting_recipe(_smelting_menu_recipe_id, 1)
+		1:
+			_smelting_quantity_dialog.popup_centered()
+			_smelting_quantity_input.grab_focus()
+			_smelting_quantity_input.get_line_edit().select_all()
+		2:
+			_select_smelting_recipe(_smelting_menu_recipe_id, 0)
+
+
+func _confirm_smelting_quantity() -> void:
+	_select_smelting_recipe(_smelting_menu_recipe_id, int(_smelting_quantity_input.value))
 
 
 func _select_cooking_recipe(recipe_id: String) -> void:
@@ -1343,7 +1657,8 @@ func _open_smithing_window() -> void:
 	var smithing_progress: Dictionary = _skill_progress.get("smithing", {}) as Dictionary
 	var smithing_level: int = int(smithing_progress.get("level", 1))
 	var recipes: Array = CRAFTING_RECIPES.get("forging", []) as Array
-	for tier: String in ["bronze", "iron", "mithril", "gold"]:
+	# Gold jewellery belongs at a future jeweller's bench, not the anvil.
+	for tier: String in ["bronze", "iron", "mithril"]:
 		var tier_scroll := ScrollContainer.new()
 		tier_scroll.name = tier.capitalize()
 		tier_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1361,17 +1676,17 @@ func _open_smithing_window() -> void:
 			var recipe_id: String = str(recipe.get("id", ""))
 			var required_level: int = int(recipe.get("level", 1))
 			var recipe_button := Button.new()
-			recipe_button.custom_minimum_size = Vector2(330, 104)
+			recipe_button.custom_minimum_size = Vector2(300, 78)
 			recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			recipe_button.focus_mode = Control.FOCUS_NONE
-			recipe_button.text = "%s\n%s  •  Smithing %d" % [
+			recipe_button.text = "%s\n%s  •  Lv %d" % [
 				recipe.get("name", recipe_id.capitalize()), recipe.get("inputs", ""), required_level,
 			]
 			recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			var icon_id: String = "sword" if recipe_id == "iron_sword" else recipe_id
 			recipe_button.icon = ITEM_ICONS.get(icon_id, EMPTY_SLOT_ICON) as Texture2D
 			recipe_button.expand_icon = true
-			recipe_button.add_theme_constant_override("icon_max_width", 62)
+			recipe_button.add_theme_constant_override("icon_max_width", 50)
 			recipe_button.disabled = smithing_level < required_level
 			recipe_button.tooltip_text = (
 				"Requires Smithing level %d" % required_level
@@ -1386,7 +1701,7 @@ func _open_smithing_window() -> void:
 
 func _add_reinforcement_smithing_tab() -> void:
 	var reinforce_scroll := ScrollContainer.new()
-	reinforce_scroll.name = "Reinforce"
+	reinforce_scroll.name = "Upgrade"
 	reinforce_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var reinforce_list := VBoxContainer.new()
 	reinforce_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1408,21 +1723,21 @@ func _add_reinforcement_smithing_tab() -> void:
 		var bar_cost: int = int(reinforcement_data.get("cost", 0))
 		var required_level: int = int(reinforcement_data.get("level", 1))
 		var recipe_button := Button.new()
-		recipe_button.custom_minimum_size = Vector2(0, 90)
-		recipe_button.text = "Reinforce %s to +%d\n%d %s  •  Smithing %d  •  inventory slot %d" % [
+		recipe_button.custom_minimum_size = Vector2(0, 72)
+		recipe_button.text = "Upgrade %s to +%d\n%d %s  •  Lv %d  •  slot %d" % [
 			item_id.capitalize(), reinforcement + 1, bar_cost, reinforcement_data.get("bar_name", "Bars"),
 			required_level, int(item.get("slot", 0)) + 1,
 		]
 		recipe_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
-		recipe_button.add_theme_constant_override("icon_max_width", 56)
+		recipe_button.add_theme_constant_override("icon_max_width", 48)
 		recipe_button.disabled = smithing_level < required_level
 		recipe_button.pressed.connect(_select_smithing_recipe.bind("reinforce_%s" % item_id, instance_id))
 		reinforce_list.add_child(recipe_button)
 		candidates += 1
 	if candidates == 0:
 		var empty_label := Label.new()
-		empty_label.text = "No eligible equipment to reinforce."
+		empty_label.text = "No eligible equipment to upgrade."
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.custom_minimum_size = Vector2(0, 80)
 		reinforce_list.add_child(empty_label)
@@ -1548,6 +1863,7 @@ func _maximum_selected_brews() -> int:
 
 func _setup_brew_quantity_dialog() -> void:
 	_brew_quantity_dialog = ConfirmationDialog.new()
+	_style_interface_window(_brew_quantity_dialog)
 	_brew_quantity_dialog.title = "Make X potions"
 	_brew_quantity_dialog.dialog_text = "Choose how many potions to brew:"
 	_brew_quantity_dialog.min_size = Vector2i(360, 180)
@@ -1644,6 +1960,7 @@ func _refresh_fletching_window() -> void:
 
 func _setup_fletch_quantity_dialog() -> void:
 	_fletch_quantity_dialog = ConfirmationDialog.new()
+	_style_interface_window(_fletch_quantity_dialog)
 	_fletch_quantity_dialog.title = "Fletch X batches"
 	_fletch_quantity_dialog.dialog_text = "Choose how many batches of 20 to make:"
 	_fletch_quantity_dialog.min_size = Vector2i(380, 180)
@@ -1693,27 +2010,101 @@ func _on_crafting_recipe_selected(menu_id: int) -> void:
 
 
 func _open_world_context_menu(screen_position: Vector2) -> void:
-	_world_context_menu.clear()
+	for child: Node in _world_context_rows.get_children():
+		_world_context_rows.remove_child(child)
+		child.queue_free()
 	_context_menu_actions.clear()
 	var next_menu_id: int = 0
+	var bank_hit: Dictionary = _bank_at_screen_position(screen_position)
+	if not bank_hit.is_empty():
+		var chest_id: String = str(bank_hit.get("chest_id", ""))
+		var chest_state: Dictionary = _bank_chest_states.get(chest_id, {}) as Dictionary
+		var chest_name: String = str(chest_state.get("name", "Chest"))
+		_add_world_context_action("Open", chest_name, next_menu_id)
+		_context_menu_actions[next_menu_id] = {
+			"type": "open_chest",
+			"chest_id": chest_id,
+			"position": bank_hit.get("position", Vector3.ZERO),
+			"range": float(bank_hit.get("range", 2.5)),
+		}
+		next_menu_id += 1
+
+	var gathering_hit: Dictionary = _gathering_at_screen_position(screen_position)
+	if str(gathering_hit.get("station", "")) == "prayer_altar":
+		if next_menu_id > 0:
+			_add_world_context_separator()
+		var spot_id: String = str(gathering_hit.get("spot_id", ""))
+		var spot_position: Vector3 = gathering_hit.get("position", Vector3.ZERO) as Vector3
+		var altar_recipe: String = str((_gathering_states.get(spot_id, {}) as Dictionary).get("recipe_id", ""))
+		var altar_actions: Array[Dictionary] = [
+			{"verb": "Restore", "target": "Prayer", "recipe_id": "restore_prayer"},
+			{"verb": "Sacrifice", "target": "All Bones", "recipe_id": "sacrifice_bones"},
+		]
+		if altar_recipe == "adopt_common_litany":
+			altar_actions.append({"verb": "Adopt", "target": "Common Litany", "recipe_id": altar_recipe})
+		elif altar_recipe == "adopt_war_covenant":
+			altar_actions.append({"verb": "Adopt", "target": "War Covenant", "recipe_id": altar_recipe})
+		for altar_action: Dictionary in altar_actions:
+			_add_world_context_action(str(altar_action["verb"]), str(altar_action["target"]), next_menu_id)
+			_context_menu_actions[next_menu_id] = {
+				"type": "altar",
+				"spot_id": spot_id,
+				"position": spot_position,
+				"recipe_id": str(altar_action["recipe_id"]),
+			}
+			next_menu_id += 1
+	elif not gathering_hit.is_empty():
+		if next_menu_id > 0:
+			_add_world_context_separator()
+		var spot_name: String = str(gathering_hit.get("name", "Resource"))
+		var skill: String = str(gathering_hit.get("skill", ""))
+		var station: String = str(gathering_hit.get("station", ""))
+		var action_verb: String
+		var action_target: String
+		match station:
+			"smelting": action_verb = "Smelt"; action_target = spot_name
+			"forging": action_verb = "Smith"; action_target = spot_name
+			"cooking": action_verb = "Cook"; action_target = spot_name
+			"fishing": action_verb = "Fish"; action_target = spot_name
+			_:
+				match skill:
+					"mining": action_verb = "Mine"; action_target = spot_name
+					"woodcutting": action_verb = "Chop down"; action_target = spot_name
+					"agility": action_verb = "Cross"; action_target = spot_name
+					_: action_verb = "Use"; action_target = spot_name
+		_add_world_context_action(action_verb, action_target, next_menu_id)
+		_context_menu_actions[next_menu_id] = {
+			"type": "station" if CRAFTING_RECIPES.has(station) and station != "fishing" else "gather",
+			"spot_id": str(gathering_hit.get("spot_id", "")),
+			"position": gathering_hit.get("position", Vector3.ZERO),
+			"station": station,
+			"recipe_id": str(gathering_hit.get("recipe_id", "")),
+			"screen_position": screen_position,
+		}
+		next_menu_id += 1
+
 	var target_id: String = _target_id_at_screen_position(screen_position)
 	if not target_id.is_empty():
+		if next_menu_id > 0:
+			_add_world_context_separator()
 		var target_state: Dictionary = _target_states.get(target_id, {})
 		var target_name: String = str(target_state.get("name", target_id.capitalize()))
-		_world_context_menu.add_item("Attack %s" % target_name, next_menu_id)
+		_add_world_context_action("Attack", target_name, next_menu_id)
 		_context_menu_actions[next_menu_id] = {"type": "attack", "target_id": target_id}
 		next_menu_id += 1
 
 	var loot_candidates: Array[Dictionary] = _loot_near_screen_position(screen_position)
-	if not target_id.is_empty() and not loot_candidates.is_empty():
-		_world_context_menu.add_separator()
-	for candidate: Dictionary in loot_candidates:
+	if next_menu_id > 0 and not loot_candidates.is_empty():
+		_add_world_context_separator()
+	var visible_loot_count: int = mini(loot_candidates.size(), CONTEXT_LOOT_ITEM_LIMIT)
+	for loot_index: int in range(visible_loot_count):
+		var candidate: Dictionary = loot_candidates[loot_index]
 		var quantity: int = int(candidate.get("quantity", 1))
 		var item_name: String = str(candidate.get("item_id", "Item")).capitalize()
-		var label: String = "Take %s" % item_name
+		var target_label: String = item_name
 		if quantity > 1:
-			label += " ×%d" % quantity
-		_world_context_menu.add_item(label, next_menu_id)
+			target_label += " ×%d" % quantity
+		_add_world_context_action("Take", target_label, next_menu_id)
 		_context_menu_actions[next_menu_id] = {
 			"type": "take",
 			"drop_id": str(candidate.get("drop_id", "")),
@@ -1722,8 +2113,101 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 
 	if _context_menu_actions.is_empty():
 		return
-	_world_context_menu.position = Vector2i(screen_position)
-	_world_context_menu.popup()
+	var menu_height: int = 24 + maxi(0, _world_context_rows.get_child_count() - 1) * 6
+	for child: Control in _world_context_rows.get_children():
+		menu_height += 10 if child is HSeparator else 48
+	_world_context_menu.popup(Rect2i(Vector2i(screen_position), Vector2i(280, menu_height)))
+
+
+func _add_world_context_action(verb: String, target: String, menu_id: int, row_width: float = 260.0) -> void:
+	var row := Button.new()
+	row.custom_minimum_size = Vector2(row_width, 44)
+	row.focus_mode = Control.FOCUS_NONE
+	row.text = ""
+	var normal_style := StyleBoxFlat.new()
+	normal_style.bg_color = Color(0, 0, 0, 0)
+	normal_style.content_margin_left = 16
+	normal_style.content_margin_top = 8
+	normal_style.content_margin_right = 16
+	normal_style.content_margin_bottom = 8
+	row.add_theme_stylebox_override("normal", normal_style)
+	row.add_theme_stylebox_override("focus", normal_style)
+	var hover_style := normal_style.duplicate() as StyleBoxFlat
+	hover_style.bg_color = Color(1.0, 1.0, 1.0, 0.08)
+	row.add_theme_stylebox_override("hover", hover_style)
+	var pressed_style := normal_style.duplicate() as StyleBoxFlat
+	pressed_style.bg_color = Color(1.0, 0.78, 0.22, 0.12)
+	row.add_theme_stylebox_override("pressed", pressed_style)
+	row.pressed.connect(_on_world_context_action.bind(menu_id))
+	var labels := HBoxContainer.new()
+	labels.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	labels.offset_left = 16
+	labels.offset_top = 8
+	labels.offset_right = -16
+	labels.offset_bottom = -8
+	labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	labels.add_theme_constant_override("separation", 5)
+	row.add_child(labels)
+	var verb_label := Label.new()
+	verb_label.text = verb
+	verb_label.add_theme_color_override("font_color", Color(0.9, 0.68, 0.16, 1.0))
+	verb_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	labels.add_child(verb_label)
+	var target_label := Label.new()
+	target_label.text = target
+	target_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	target_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	target_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	labels.add_child(target_label)
+	_world_context_rows.add_child(row)
+
+
+func _add_world_context_separator() -> void:
+	var separator := HSeparator.new()
+	separator.custom_minimum_size.y = 6
+	separator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_world_context_rows.add_child(separator)
+
+
+func _bank_at_screen_position(screen_position: Vector2) -> Dictionary:
+	var ray_origin: Vector3 = camera.project_ray_origin(screen_position)
+	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	query.collision_mask = BANK_COLLISION_MASK
+	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return {}
+	var body := result.get("collider") as CollisionObject3D
+	if body == null or not body.has_meta(&"bank_chest_id"):
+		return {}
+	return {
+		"chest_id": str(body.get_meta(&"bank_chest_id")),
+		"position": body.global_position,
+		"range": float(body.get_meta(&"bank_range", 2.5)),
+	}
+
+
+func _gathering_at_screen_position(screen_position: Vector2) -> Dictionary:
+	var ray_origin: Vector3 = camera.project_ray_origin(screen_position)
+	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	query.collision_mask = GATHERING_COLLISION_MASK
+	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return {}
+	var body := result.get("collider") as CollisionObject3D
+	if body == null or not body.has_meta(&"gathering_spot_id"):
+		return {}
+	var spot_id: String = str(body.get_meta(&"gathering_spot_id"))
+	var spot_state: Dictionary = _gathering_states.get(spot_id, {}) as Dictionary
+	return {
+		"spot_id": spot_id,
+		"position": body.global_position,
+		"station": str(spot_state.get("station", "")),
+		"skill": str(spot_state.get("skill", "")),
+		"name": str(spot_state.get("name", spot_id.capitalize())),
+		"recipe_id": str(spot_state.get("recipe_id", "")),
+	}
 
 
 func _target_id_at_screen_position(screen_position: Vector2) -> String:
@@ -1746,11 +2230,13 @@ func _loot_near_screen_position(screen_position: Vector2) -> Array[Dictionary]:
 		var view := _drop_views.get(drop_id) as LootDrop
 		if view == null or not is_instance_valid(view) or camera.is_position_behind(view.global_position):
 			continue
+		var state: Dictionary = _drop_states.get(drop_id, {})
+		if bool(state.get("infinite", false)):
+			continue
 		var projected_position: Vector2 = camera.unproject_position(view.global_position + Vector3.UP * 0.35)
 		var screen_distance: float = projected_position.distance_to(screen_position)
 		if screen_distance > CONTEXT_LOOT_RADIUS_PIXELS:
 			continue
-		var state: Dictionary = _drop_states.get(drop_id, {})
 		candidates.append({
 			"drop_id": drop_id,
 			"item_id": str(state.get("item_id", "item")),
@@ -1778,8 +2264,34 @@ func _context_loot_candidate_before(left: Dictionary, right: Dictionary) -> bool
 
 
 func _on_world_context_action(menu_id: int) -> void:
+	_world_context_menu.hide()
 	var action: Dictionary = _context_menu_actions.get(menu_id, {})
 	match str(action.get("type", "")):
+		"open_chest":
+			_request_open_bank(
+				str(action.get("chest_id", "")),
+				action.get("position", Vector3.ZERO) as Vector3,
+				float(action.get("range", 2.5)),
+			)
+		"altar":
+			_request_gather(
+				str(action.get("spot_id", "")),
+				action.get("position", Vector3.ZERO) as Vector3,
+				str(action.get("recipe_id", "")),
+			)
+		"station":
+			_open_crafting_menu(
+				str(action.get("spot_id", "")),
+				action.get("position", Vector3.ZERO) as Vector3,
+				str(action.get("station", "")),
+				action.get("screen_position", Vector2.ZERO) as Vector2,
+			)
+		"gather":
+			_request_gather(
+				str(action.get("spot_id", "")),
+				action.get("position", Vector3.ZERO) as Vector3,
+				str(action.get("recipe_id", "")),
+			)
 		"attack":
 			var target_id: String = str(action.get("target_id", ""))
 			var target_view := _target_views.get(target_id) as TargetDummy
@@ -1790,6 +2302,72 @@ func _on_world_context_action(menu_id: int) -> void:
 			var drop_view := _drop_views.get(drop_id) as LootDrop
 			if drop_view != null and is_instance_valid(drop_view):
 				_request_pickup_drop(drop_id, drop_view.global_position)
+		"inventory_action":
+			_on_inventory_item_pressed(
+				str(action.get("item_id", "")),
+				str(action.get("instance_id", "")),
+				str(action.get("action", "")),
+				int(action.get("slot", -1)),
+			)
+		"inventory_drop":
+			_request_drop_item(
+				str(action.get("item_id", "")),
+				str(action.get("instance_id", "")),
+			)
+
+
+func _open_inventory_context_menu(slot: int, screen_position: Vector2) -> void:
+	if _player_defeated or bank_hud.visible or (
+		_ammunition_pouch_window != null and _ammunition_pouch_window.visible
+	) or (
+		_rune_pouch_window != null and _rune_pouch_window.visible
+	):
+		return
+	var item: Dictionary = {}
+	for payload: Variant in _inventory_items:
+		if typeof(payload) == TYPE_DICTIONARY and int((payload as Dictionary).get("slot", -1)) == slot:
+			item = payload as Dictionary
+			break
+	if item.is_empty():
+		return
+	for child: Node in _world_context_rows.get_children():
+		_world_context_rows.remove_child(child)
+		child.queue_free()
+	_context_menu_actions.clear()
+	var item_id: String = str(item.get("item_id", ""))
+	var instance_id: String = str(item.get("instance_id", ""))
+	var quantity: int = int(item.get("quantity", 1))
+	var item_name: String = str(ITEM_DISPLAY_NAMES.get(item_id, item_id.capitalize()))
+	var inventory_action: String = _inventory_action_for_item(item_id)
+	var next_menu_id: int = 0
+	if not inventory_action.is_empty():
+		var verb: String = "Use"
+		if inventory_action == "equip" or inventory_action == "ring":
+			verb = "Equip"
+		elif inventory_action == "ammunition":
+			verb = "Load"
+		elif inventory_action == "consume":
+			var consumable: Dictionary = CONSUMABLE_ITEMS.get(item_id, {}) as Dictionary
+			verb = "Eat" if int(consumable.get("healing", 0)) > 0 else "Drink"
+		_add_world_context_action(verb, item_name, next_menu_id, 260.0)
+		_context_menu_actions[next_menu_id] = {
+			"type": "inventory_action",
+			"item_id": item_id,
+			"instance_id": instance_id,
+			"action": inventory_action,
+			"slot": slot,
+		}
+		next_menu_id += 1
+	_add_world_context_action("Drop All" if quantity > 1 else "Drop", item_name, next_menu_id, 260.0)
+	_context_menu_actions[next_menu_id] = {
+		"type": "inventory_drop",
+		"item_id": item_id,
+		"instance_id": instance_id,
+	}
+	var menu_height: int = 24 + maxi(0, _world_context_rows.get_child_count() - 1) * 6
+	for child: Control in _world_context_rows.get_children():
+		menu_height += 48
+	_world_context_menu.popup(Rect2i(Vector2i(screen_position), Vector2i(280, menu_height)))
 
 
 func _top_loot_hit(ray_origin: Vector3, ray_end: Vector3) -> Dictionary:
@@ -1841,23 +2419,12 @@ func _can_predict_directly(
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
-func _play_target_click_feedback(target_position: Vector3) -> void:
-	if _target_click_tween != null and _target_click_tween.is_valid():
-		_target_click_tween.kill()
-	target_click_pulse.global_position = target_position + Vector3.UP * 0.06
-	target_click_pulse.scale = Vector3.ONE * 0.55
-	target_click_pulse.transparency = 0.0
-	target_click_pulse.visible = true
-	_target_click_tween = create_tween()
-	_target_click_tween.set_parallel(true)
-	_target_click_tween.tween_property(
-		target_click_pulse,
-		"scale",
-		Vector3.ONE * 1.35,
-		0.22,
-	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	_target_click_tween.tween_property(target_click_pulse, "transparency", 1.0, 0.38)
-	_target_click_tween.chain().tween_callback(target_click_pulse.hide)
+func _play_interaction_click_feedback(screen_position: Vector2) -> void:
+	interaction_click_marker.play_at(screen_position, Color(0.78, 0.32, 1.0))
+
+
+func _play_movement_click_feedback(screen_position: Vector2) -> void:
+	interaction_click_marker.play_at(screen_position, Color(1.0, 0.78, 0.08))
 
 
 func _request_equip(item_id: String, instance_id: String = "") -> void:
@@ -1917,7 +2484,34 @@ func _is_item_equipped(item_id: String, instance_id: String = "") -> bool:
 	)
 
 
-func _on_inventory_item_pressed(item_id: String, instance_id: String, action: String) -> void:
+func _inventory_action_for_item(item_id: String) -> String:
+	if AMMUNITION_ITEMS.has(item_id):
+		return "ammunition"
+	if RUNE_ITEMS.has(item_id):
+		return "rune"
+	if item_id == "tinderbox":
+		return "firemaking"
+	if str(ARMOUR_SLOTS.get(item_id, "")) == "ring":
+		return "ring"
+	if EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id):
+		return "equip"
+	if CONSUMABLE_ITEMS.has(item_id):
+		return "consume"
+	if BREWING_INGREDIENTS.has(item_id):
+		return "brew"
+	if FLETCHING_INPUTS.has(item_id):
+		return "fletch"
+	if UNCUT_GEMS.has(item_id):
+		return "cut_gem"
+	return ""
+
+
+func _on_inventory_item_pressed(
+	item_id: String,
+	instance_id: String,
+	action: String,
+	inventory_slot: int = -1,
+) -> void:
 	if _player_defeated:
 		return
 	if bank_hud.visible:
@@ -1938,6 +2532,12 @@ func _on_inventory_item_pressed(item_id: String, instance_id: String, action: St
 		_request_light_fire(item_id)
 		return
 	match action:
+		"ammunition":
+			if inventory_slot >= 0:
+				_request_ammunition_deposit(inventory_slot)
+		"rune":
+			if inventory_slot >= 0:
+				_request_rune_deposit(inventory_slot)
 		"equip": _request_equip(item_id, instance_id)
 		"ring": _request_ring_deposit(item_id, instance_id)
 		"consume": _request_consume_item(item_id)
@@ -2065,18 +2665,42 @@ func _active_collision_mask() -> int:
 	return ALL_WORLD_COLLISION_MASK
 
 
+func _append_game_message(message: String, is_error: bool = false) -> void:
+	var clean_message: String = message.strip_edges()
+	if clean_message.is_empty():
+		return
+	_game_messages.append({"text": clean_message, "error": is_error})
+	while _game_messages.size() > GAME_MESSAGE_LIMIT:
+		_game_messages.pop_front()
+	game_message_log.clear()
+	for entry: Dictionary in _game_messages:
+		game_message_log.push_color(Color(0.95, 0.72, 0.2))
+		game_message_log.add_text("[Game] ")
+		game_message_log.pop()
+		if bool(entry.get("error", false)):
+			game_message_log.push_color(Color(1.0, 0.3, 0.3))
+		game_message_log.add_text(str(entry.get("text", "")) + "\n")
+		if bool(entry.get("error", false)):
+			game_message_log.pop()
+	game_message_log.scroll_to_line(maxi(0, game_message_log.get_line_count() - 1))
+
+
 func _on_status_changed(status: String) -> void:
 	status_label.text = status
+	if status.contains("disconnected") or status.contains("failed"):
+		_append_game_message(status, true)
 
 
 func _on_welcome_received(player_id: String) -> void:
 	_local_player_id = player_id
 	status_label.text = "Connected as %s — click a walkable surface to move" % player_id
+	_append_game_message("Connected as %s." % player_id)
 	for id: String in _player_views:
 		var view: PlayerView = _player_views[id]
 		view.set_local_player(id == _local_player_id)
 		if id == _local_player_id:
 			camera_rig.follow(view)
+			_ensure_attack_range_indicator(view)
 
 
 func _on_snapshot_received(snapshot: Dictionary) -> void:
@@ -2128,6 +2752,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			view.set_local_player(id == _local_player_id)
 			if id == _local_player_id:
 				camera_rig.follow(view)
+				_ensure_attack_range_indicator(view)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
 		var server_driven_path: bool = (
@@ -2159,6 +2784,15 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_auto_approaching = bool(player_data.get("auto_approaching", false))
 			_player_health = int(player_data.get("health", _player_health))
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
+			_player_combat_level = int(player_data.get("combat_level", _player_combat_level))
+			_experience_locked = bool(player_data.get("experience_locked", _experience_locked))
+			_last_experience_lock_sequence = int(player_data.get(
+				"last_experience_lock_sequence", _last_experience_lock_sequence,
+			))
+			_next_experience_lock_sequence = maxi(
+				_next_experience_lock_sequence, _last_experience_lock_sequence + 1,
+			)
+			settings_disable_xp_toggle.set_pressed_no_signal(_experience_locked)
 			var prayer_points: int = int(player_data.get("prayer", _player_prayer))
 			if prayer_points != _player_prayer:
 				_player_prayer = prayer_points
@@ -2200,6 +2834,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if typeof(combat_stats_data) == TYPE_DICTIONARY and combat_stats_data != _combat_stats:
 				_combat_stats = (combat_stats_data as Dictionary).duplicate(true)
 				_update_detailed_combat_stats()
+			var combat_matchup_data: Variant = player_data.get("combat_matchup", {})
+			if typeof(combat_matchup_data) == TYPE_DICTIONARY:
+				_combat_matchup = (combat_matchup_data as Dictionary).duplicate(true)
 			var skills_data: Variant = player_data.get("skills", [])
 			if typeof(skills_data) == TYPE_ARRAY:
 				_apply_skills_snapshot(skills_data as Array)
@@ -2227,6 +2864,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var last_bank_sequence: int = int(player_data.get("last_bank_sequence", 0))
 			_next_bank_sequence = maxi(_next_bank_sequence, last_bank_sequence + 1)
 			_update_bank_proximity(position)
+			_update_crafting_station_proximity(position)
 			_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
 			_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
 			_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
@@ -2243,6 +2881,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_brew_pending = false
 				_brewing_selection.clear()
 				status_label.text = "Brewing complete • Herblore XP gained"
+				_append_game_message(status_label.text)
 			elif _brew_remaining > 0:
 				_brew_pending = true
 				if brewing_result_text != _brewing_result_text or previous_brew_remaining != _brew_remaining:
@@ -2261,6 +2900,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if _fletch_pending and _fletch_remaining <= 0 and _last_fletch_sequence >= _next_fletch_sequence - 1:
 				_fletch_pending = false
 				status_label.text = "Fletching complete • Fletching XP gained"
+				_append_game_message(status_label.text)
 			elif _fletch_remaining > 0:
 				_fletch_pending = true
 				if fletching_result_text != _fletching_result_text or previous_fletch_remaining != _fletch_remaining:
@@ -2361,7 +3001,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"missing_forging_inputs":
 						status_label.text = "Smithing stopped: required bars are missing"
 					"reinforcement_failed":
-						status_label.text = "Reinforcement stopped: item or bars are unavailable"
+						status_label.text = "Upgrade stopped: item or bars are unavailable"
 					"missing_bronze_pickaxe":
 						status_label.text = "Mining stopped: a Bronze Pickaxe is required"
 					"vein_depleted":
@@ -2369,7 +3009,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"inventory_full":
 						status_label.text = "Gathering stopped: inventory is full"
 					_:
-						if _gathering_result.begins_with("caught_raw_"):
+						if _gathering_result.begins_with("requires_"):
+							var requirement_parts: PackedStringArray = _gathering_result.trim_prefix("requires_").rsplit("_level_", true, 1)
+							if requirement_parts.size() == 2:
+								status_label.text = "%s level %s is required" % [
+									requirement_parts[0].replace("_", " ").capitalize(),
+									requirement_parts[1],
+								]
+						elif _gathering_result.begins_with("caught_raw_"):
 							var caught_name: String = _gathering_result.trim_prefix("caught_").replace("_", " ").capitalize()
 							status_label.text = "Caught a %s • Fishing continues…" % caught_name
 						elif _gathering_result.begins_with("cooked_"):
@@ -2386,7 +3033,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							var result_parts := reinforcement_result.rsplit("_to_", true, 1)
 							var reinforced_name: String = str(result_parts[0]).replace("_", " ").capitalize()
 							var reinforced_level: String = str(result_parts[1]) if result_parts.size() > 1 else ""
-							status_label.text = "%s reinforced to +%s" % [reinforced_name, reinforced_level]
+							status_label.text = "%s upgraded to +%s" % [reinforced_name, reinforced_level]
+				if not GATHERING_PROGRESS_RESULTS.has(_gathering_result):
+					_append_game_message(status_label.text)
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
 			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))
 			var equipped_weapon_reinforcement: int = int(player_data.get("equipped_weapon_reinforcement", 0))
@@ -2468,6 +3117,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_local_navigation_kind,
 				_local_navigation_id,
 			]
+			if not _last_network_error_code.is_empty():
+				diagnostics_label.text += "  |  last error %s: %s" % [
+					_last_network_error_code, _last_network_error_message,
+				]
 		active_ids[id] = true
 	_update_combat_hud()
 
@@ -2545,6 +3198,7 @@ func _sync_drops(drop_payloads: Variant) -> void:
 			str(drop_data.get("item_id", "")),
 			int(drop_data.get("quantity", 1)),
 		)
+		view.set_world_interactable(not bool(drop_data.get("infinite", false)))
 		_drop_states[drop_id] = drop_data.duplicate(true)
 		var coordinates: Dictionary = position_data
 		view.position = Vector3(
@@ -2776,7 +3430,9 @@ func _play_dummy_impact_after_delay(
 
 
 func _on_server_error(code: String, message: String) -> void:
-	status_label.text = "%s: %s" % [code, message]
+	_last_network_error_code = code
+	_last_network_error_message = message
+	status_label.text = _friendly_server_error(code, message)
 	if code == "combat_style_rejected":
 		_queued_combat_style = ""
 		_update_combat_styles_hud()
@@ -2819,6 +3475,63 @@ func _on_server_error(code: String, message: String) -> void:
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
 			local_view.cancel_prediction()
+	_append_game_message(status_label.text, true)
+
+
+func _friendly_server_error(code: String, message: String) -> String:
+	if code != "gather_rejected":
+		return message.replace("_", " ").capitalize()
+	var readable := message.replace("_", " ")
+	if readable.contains("required smelting inputs"):
+		return "You do not have the ores required for that smelting recipe."
+	if readable.contains("required forging inputs"):
+		return "You do not have the bars required for that smithing recipe."
+	if readable.contains("required cooking inputs"):
+		return "You do not have the ingredients required for that cooking recipe."
+	if readable == "inventory is full":
+		return "Your inventory is full."
+	if readable.contains("smelting recipe") and readable.contains("does not exist"):
+		return "That smelting recipe is unavailable."
+	if readable.contains("forging recipe") and readable.contains("does not exist"):
+		return "That smithing recipe is unavailable."
+	if readable.contains("cooking recipe") and readable.contains("does not exist"):
+		return "That cooking recipe is unavailable."
+	if readable.contains(" level ") and readable.ends_with(" is required"):
+		return readable.capitalize() + "."
+	if readable.contains("is depleted"):
+		return "That resource is depleted right now."
+	if readable.contains("find gathering path") or readable.contains("empty path"):
+		return "You cannot reach the %s from here." % _gather_error_target_name()
+	if readable == "bones are required":
+		return "You need bones to make that sacrifice."
+	if readable.contains("is not available at altar"):
+		return "That prayer set is not available at this altar."
+	if readable.contains("does not exist"):
+		return "That gathering target is no longer available."
+	if readable.contains("sequence"):
+		return "That %s action could not be started. Please try again." % _gather_error_activity()
+	return "You cannot start %s right now." % _gather_error_activity()
+
+
+func _gather_error_activity() -> String:
+	var state: Dictionary = _gathering_states.get(_last_gather_request_spot_id, {}) as Dictionary
+	match str(state.get("station", "")):
+		"smelting": return "smelting"
+		"forging": return "smithing"
+		"cooking": return "cooking"
+		"fishing": return "fishing"
+		"prayer_altar": return "prayer"
+	match str(state.get("skill", "")):
+		"mining": return "mining"
+		"woodcutting": return "woodcutting"
+		"agility": return "agility training"
+	return "that action"
+
+
+func _gather_error_target_name() -> String:
+	var state: Dictionary = _gathering_states.get(_last_gather_request_spot_id, {}) as Dictionary
+	var target_name: String = str(state.get("name", "target")).strip_edges().to_lower()
+	return target_name if not target_name.is_empty() else "target"
 
 
 func _configure_player_menu() -> void:
@@ -2839,22 +3552,84 @@ func _configure_player_menu() -> void:
 		styles_active_tab_button.get_parent() as HBoxContainer,
 		settings_inventory_tab_button.get_parent() as HBoxContainer,
 	]
+	var tab_order: Array[String] = ["Styles", "Skills", "Inventory", "Equipment", "Magic", "Prayer"]
 	for tab_row: HBoxContainer in tab_rows:
 		var combat_button := tab_row.get_node("Combat") as Button
-		var styles_button := tab_row.get_node("Styles") as Button
 		combat_button.visible = false
-		tab_row.move_child(styles_button, 0)
+		for tab_index: int in range(tab_order.size()):
+			tab_row.move_child(tab_row.get_node(tab_order[tab_index]), tab_index)
 		for tab_name_value: Variant in tab_icons.keys():
 			var tab_name: String = str(tab_name_value)
 			var tab_button := tab_row.get_node(tab_name) as Button
 			tab_button.custom_minimum_size = Vector2(84, 64)
+			tab_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			tab_button.text = ""
 			tab_button.icon = tab_icons[tab_name] as Texture2D
 			tab_button.expand_icon = true
+			tab_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			tab_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 			tab_button.add_theme_constant_override("icon_max_width", 52)
-			tab_button.tooltip_text = tab_name
+			tab_button.tooltip_text = "%s  •  %d" % [tab_name, int(HUD_TAB_HOTKEYS[tab_name])]
+		tab_row.visible = false
+	(inventory_settings_button.get_parent().get_parent().get_parent() as PanelContainer).visible = false
+	($UI/SettingsHUD/Margin/VBox/UtilityTabs as PanelContainer).visible = false
+	var persistent_tabs: Dictionary = {
+		"Styles": menu_styles_tab,
+		"Skills": menu_skills_tab,
+		"Inventory": menu_inventory_tab,
+		"Equipment": menu_equipment_tab,
+		"Magic": menu_magic_tab,
+		"Prayer": menu_prayer_tab,
+		"Settings": menu_settings_tab,
+	}
+	for tab_name_value: Variant in persistent_tabs.keys():
+		var tab_name: String = str(tab_name_value)
+		var tab_button := persistent_tabs[tab_name] as Button
+		tab_button.icon = TAB_SETTINGS_ICON if tab_name == "Settings" else tab_icons[tab_name] as Texture2D
+		tab_button.expand_icon = true
+		tab_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tab_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		tab_button.add_theme_constant_override("icon_max_width", 42)
+		tab_button.tooltip_text = (
+			"%s  •  %d" % [tab_name, int(HUD_TAB_HOTKEYS[tab_name])]
+			if HUD_TAB_HOTKEYS.has(tab_name)
+			else tab_name
+		)
 	(combat_tab_button.get_parent() as HBoxContainer).visible = false
 	_show_styles_tab()
+
+
+func _show_hud_tab_hotkey(hotkey: int) -> void:
+	match hotkey:
+		1: _show_styles_tab()
+		2: _show_skills_tab()
+		3: _show_inventory_tab()
+		4: _show_equipment_tab()
+		5: _show_magic_tab()
+		6: _show_prayer_tab()
+
+
+func _configure_detailed_stats_button() -> void:
+	detailed_stats_button.icon = TAB_STYLES_ICON
+	detailed_stats_button.expand_icon = true
+	detailed_stats_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detailed_stats_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	detailed_stats_button.add_theme_constant_override("icon_max_width", 46)
+	var normal_style := StyleBoxFlat.new()
+	normal_style.bg_color = Color(0.055, 0.07, 0.085, 0.96)
+	normal_style.border_width_left = 2
+	normal_style.border_width_top = 2
+	normal_style.border_width_right = 2
+	normal_style.border_width_bottom = 2
+	normal_style.border_color = Color(0.28, 0.34, 0.4, 0.95)
+	normal_style.corner_radius_top_left = 7
+	normal_style.corner_radius_top_right = 7
+	normal_style.corner_radius_bottom_left = 7
+	normal_style.corner_radius_bottom_right = 7
+	detailed_stats_button.add_theme_stylebox_override("normal", normal_style)
+	var hover_style := normal_style.duplicate() as StyleBoxFlat
+	hover_style.border_color = Color(0.42, 0.7, 0.88, 1.0)
+	detailed_stats_button.add_theme_stylebox_override("hover", hover_style)
 
 
 func _toggle_combat_debug_hud() -> void:
@@ -2868,20 +3643,25 @@ func _load_client_settings() -> void:
 	var config := ConfigFile.new()
 	var music_volume: float = 40.0
 	var show_diagnostics: bool = true
+	var show_xp_tracker: bool = true
 	if config.load(CLIENT_SETTINGS_PATH) == OK:
 		music_volume = clampf(float(config.get_value("audio", "music_volume", music_volume)), 0.0, 100.0)
 		show_diagnostics = bool(config.get_value("interface", "show_diagnostics", show_diagnostics))
+		show_xp_tracker = bool(config.get_value("interface", "show_xp_tracker", show_xp_tracker))
 	settings_music_slider.set_value_no_signal(music_volume)
 	settings_diagnostics_toggle.set_pressed_no_signal(show_diagnostics)
+	settings_xp_tracker_toggle.set_pressed_no_signal(show_xp_tracker)
 	_apply_music_volume(music_volume)
 	settings_music_value.text = "%d%%" % roundi(music_volume)
 	diagnostics_label.visible = show_diagnostics
+	xp_tracker_hud.visible = show_xp_tracker
 
 
 func _save_client_settings() -> void:
 	var config := ConfigFile.new()
 	config.set_value("audio", "music_volume", settings_music_slider.value)
 	config.set_value("interface", "show_diagnostics", settings_diagnostics_toggle.button_pressed)
+	config.set_value("interface", "show_xp_tracker", settings_xp_tracker_toggle.button_pressed)
 	config.save(CLIENT_SETTINGS_PATH)
 
 
@@ -2906,6 +3686,22 @@ func _on_diagnostics_toggled(visible: bool) -> void:
 	_save_client_settings()
 
 
+func _on_xp_tracker_toggled(visible: bool) -> void:
+	xp_tracker_hud.visible = visible
+	_save_client_settings()
+
+
+func _on_experience_lock_toggled(locked: bool) -> void:
+	if _last_experience_lock_sequence < _next_experience_lock_sequence - 1:
+		settings_disable_xp_toggle.set_pressed_no_signal(_experience_locked)
+		return
+	if network.send_experience_lock(_next_experience_lock_sequence, locked):
+		_next_experience_lock_sequence += 1
+		status_label.text = "Disabling all XP gain…" if locked else "Enabling XP gain…"
+	else:
+		settings_disable_xp_toggle.set_pressed_no_signal(_experience_locked)
+
+
 func _begin_hud_editing_from_settings() -> void:
 	_set_hud_edit_mode(true)
 	status_label.text = "HUD editing enabled • F10 saves and closes"
@@ -2920,9 +3716,24 @@ func _setup_hud_layout() -> void:
 	var menu_panels: Array[Control] = [
 		combat_hud, inventory_hud, skills_hud, equipment_hud, magic_hud, prayer_hud, styles_hud, settings_hud,
 	]
+	var default_menu_position: Vector2 = inventory_hud.global_position - Vector2(
+		0.0,
+		menu_tabs_hud.size.y + MENU_TAB_BAR_GAP,
+	)
 	for panel: Control in menu_panels:
 		panel.size = MENU_HUD_BASE_SIZE
+		panel.global_position = default_menu_position
+	menu_tabs_hud.global_position = default_menu_position - Vector2(
+		0.0,
+		menu_tabs_hud.size.y + MENU_TAB_BAR_GAP,
+	)
+	menu_utility_tabs_hud.global_position = default_menu_position + Vector2(
+		0.0,
+		MENU_HUD_BASE_SIZE.y + MENU_TAB_BAR_GAP,
+	)
 	_register_hud_group("player", [player_vitals_hud], player_vitals_hud)
+	_register_hud_group("chat", [chat_hud], chat_hud)
+	_register_hud_group("xp", [xp_tracker_hud], xp_tracker_hud)
 	_register_hud_group("target", [target_hud], target_hud)
 	_register_hud_group(
 		"menu",
@@ -2964,22 +3775,39 @@ func _create_hud_edit_handles() -> void:
 		move_handle.gui_input.connect(_on_hud_move_handle_input.bind(group_id))
 		$UI.add_child(move_handle)
 
-		var resize_handle := Button.new()
-		resize_handle.name = "HudResize_%s" % group_id
-		resize_handle.text = "↘"
-		resize_handle.focus_mode = Control.FOCUS_NONE
-		resize_handle.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
-		resize_handle.z_index = 101
-		resize_handle.visible = false
-		resize_handle.gui_input.connect(_on_hud_resize_handle_input.bind(group_id))
-		$UI.add_child(resize_handle)
-		_hud_handles[group_id] = {"move": move_handle, "resize": resize_handle}
+
+		var resize_handles: Dictionary = {}
+		for corner_data: Dictionary in [
+			{"id": "top_left", "corner": Vector2(-1.0, -1.0), "cursor": Control.CURSOR_FDIAGSIZE},
+			{"id": "top_right", "corner": Vector2(1.0, -1.0), "cursor": Control.CURSOR_BDIAGSIZE},
+			{"id": "bottom_left", "corner": Vector2(-1.0, 1.0), "cursor": Control.CURSOR_BDIAGSIZE},
+			{"id": "bottom_right", "corner": Vector2(1.0, 1.0), "cursor": Control.CURSOR_FDIAGSIZE},
+		]:
+			var resize_handle := Button.new()
+			var handle_id: String = str(corner_data["id"])
+			var corner: Vector2 = corner_data["corner"] as Vector2
+			resize_handle.name = "HudResize_%s_%s" % [group_id, handle_id]
+			resize_handle.text = ""
+			resize_handle.flat = true
+			resize_handle.self_modulate = Color(1, 1, 1, 0)
+			resize_handle.focus_mode = Control.FOCUS_NONE
+			resize_handle.mouse_default_cursor_shape = int(corner_data["cursor"])
+			resize_handle.z_index = 101
+			resize_handle.visible = false
+			resize_handle.gui_input.connect(_on_hud_resize_handle_input.bind(group_id, corner))
+			$UI.add_child(resize_handle)
+			resize_handles[handle_id] = resize_handle
+		_hud_handles[group_id] = {"move": move_handle, "resize": resize_handles}
 
 
 func _set_hud_edit_mode(enabled: bool) -> void:
 	_hud_edit_mode = enabled
 	hud_edit_hint.visible = enabled
 	target_hud.visible = _target_hud_active or enabled
+	player_details_hud.visible = enabled or (_target_hud_active and _player_details_open)
+	target_details_hud.visible = enabled or (_target_hud_active and _target_details_open)
+	_position_player_details_hud()
+	_position_target_details_hud()
 	if not enabled:
 		_hud_drag_group = ""
 		_hud_scale_group = ""
@@ -2994,18 +3822,36 @@ func _refresh_hud_edit_handles() -> void:
 		var group_id: String = str(group_id_value)
 		var handles: Dictionary = _hud_handles[group_id]
 		var move_handle := handles["move"] as Button
-		var resize_handle := handles["resize"] as Button
+		var resize_handles: Dictionary = handles["resize"] as Dictionary
 		var panel: Control = _get_visible_hud_panel(group_id)
 		var show_handles: bool = _hud_edit_mode and panel != null
 		move_handle.visible = show_handles
-		resize_handle.visible = show_handles
+		for resize_handle_value: Variant in resize_handles.values():
+			(resize_handle_value as Button).visible = show_handles
 		if not show_handles:
 			continue
 		var scaled_size: Vector2 = panel.size * panel.scale
-		move_handle.global_position = panel.global_position
+		var bounds_position: Vector2 = panel.global_position
+		if group_id == "menu":
+			var top_extent: float = (MENU_TAB_BAR_GAP + menu_tabs_hud.size.y) * panel.scale.y
+			var bottom_extent: float = (MENU_TAB_BAR_GAP + menu_utility_tabs_hud.size.y) * panel.scale.y
+			bounds_position.y -= top_extent
+			scaled_size.x = maxf(scaled_size.x, menu_tabs_hud.size.x * panel.scale.x)
+			scaled_size.x = maxf(scaled_size.x, menu_utility_tabs_hud.size.x * panel.scale.x)
+			scaled_size.y += top_extent + bottom_extent
+		move_handle.global_position = bounds_position
 		move_handle.size = Vector2(scaled_size.x, HUD_HANDLE_HEIGHT)
-		resize_handle.global_position = panel.global_position + scaled_size - Vector2.ONE * HUD_RESIZE_HANDLE_SIZE
-		resize_handle.size = Vector2.ONE * HUD_RESIZE_HANDLE_SIZE
+		var half_handle := Vector2.ONE * HUD_RESIZE_HANDLE_SIZE * 0.5
+		var corner_positions: Dictionary = {
+			"top_left": bounds_position,
+			"top_right": bounds_position + Vector2(scaled_size.x, 0.0),
+			"bottom_left": bounds_position + Vector2(0.0, scaled_size.y),
+			"bottom_right": bounds_position + scaled_size,
+		}
+		for handle_id: String in resize_handles:
+			var resize_handle := resize_handles[handle_id] as Button
+			resize_handle.global_position = (corner_positions[handle_id] as Vector2) - half_handle
+			resize_handle.size = Vector2.ONE * HUD_RESIZE_HANDLE_SIZE
 
 
 func _get_visible_hud_panel(group_id: String) -> Control:
@@ -3039,7 +3885,7 @@ func _on_hud_move_handle_input(event: InputEvent, group_id: String) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _on_hud_resize_handle_input(event: InputEvent, group_id: String) -> void:
+func _on_hud_resize_handle_input(event: InputEvent, group_id: String, corner: Vector2) -> void:
 	if event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
@@ -3051,14 +3897,42 @@ func _on_hud_resize_handle_input(event: InputEvent, group_id: String) -> void:
 			var group: Dictionary = _hud_groups[group_id]
 			_hud_position_start = group["position"] as Vector2
 			_hud_scale_start = float(group["scale"])
+			_hud_resize_corner = corner
+			var panel: Control = _get_visible_hud_panel(group_id)
+			if panel == null:
+				return
+			_hud_resize_top_extent = MENU_TAB_BAR_GAP + menu_tabs_hud.size.y if group_id == "menu" else 0.0
+			var bottom_extent: float = MENU_TAB_BAR_GAP + menu_utility_tabs_hud.size.y if group_id == "menu" else 0.0
+			var resize_base_width: float = panel.size.x
+			if group_id == "menu":
+				resize_base_width = maxf(resize_base_width, menu_tabs_hud.size.x)
+				resize_base_width = maxf(resize_base_width, menu_utility_tabs_hud.size.x)
+			_hud_resize_base_size = Vector2(
+				resize_base_width,
+				panel.size.y + _hud_resize_top_extent + bottom_extent,
+			)
+			var start_bounds_position := _hud_position_start - Vector2(0.0, _hud_resize_top_extent * _hud_scale_start)
+			_hud_resize_opposite = start_bounds_position + Vector2(
+				_hud_resize_base_size.x * _hud_scale_start if corner.x < 0.0 else 0.0,
+				_hud_resize_base_size.y * _hud_scale_start if corner.y < 0.0 else 0.0,
+			)
 		else:
 			_hud_scale_group = ""
 			_save_hud_layout()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and _hud_scale_group == group_id:
 		var pointer_delta: Vector2 = get_viewport().get_mouse_position() - _hud_pointer_start
-		var scale_delta: float = (pointer_delta.x + pointer_delta.y) / 600.0
-		_set_hud_group_layout(group_id, _hud_position_start, _hud_scale_start + scale_delta)
+		var horizontal_delta: float = pointer_delta.x * _hud_resize_corner.x / maxf(1.0, _hud_resize_base_size.x)
+		var vertical_delta: float = pointer_delta.y * _hud_resize_corner.y / maxf(1.0, _hud_resize_base_size.y)
+		var scale_delta: float = horizontal_delta if absf(horizontal_delta) >= absf(vertical_delta) else vertical_delta
+		var next_scale: float = clampf(_hud_scale_start + scale_delta, HUD_MINIMUM_SCALE, HUD_MAXIMUM_SCALE)
+		var next_bounds_position := _hud_resize_opposite
+		if _hud_resize_corner.x < 0.0:
+			next_bounds_position.x -= _hud_resize_base_size.x * next_scale
+		if _hud_resize_corner.y < 0.0:
+			next_bounds_position.y -= _hud_resize_base_size.y * next_scale
+		var next_panel_position := next_bounds_position + Vector2(0.0, _hud_resize_top_extent * next_scale)
+		_set_hud_group_layout(group_id, next_panel_position, next_scale)
 		get_viewport().set_input_as_handled()
 
 
@@ -3068,15 +3942,30 @@ func _set_hud_group_layout(group_id: String, requested_position: Vector2, reques
 	if requested_scale >= 0.0:
 		layout_scale = clampf(requested_scale, HUD_MINIMUM_SCALE, HUD_MAXIMUM_SCALE)
 	var maximum_size := Vector2.ZERO
+	var menu_top_extent: float = 0.0
+	var menu_bottom_extent: float = 0.0
 	var panels: Array = group["panels"]
-	for panel_value: Variant in panels:
+	var bounds_panels: Array = panels
+	var visible_panel: Control = _get_visible_hud_panel(group_id)
+	if visible_panel != null:
+		bounds_panels = [visible_panel]
+	for panel_value: Variant in bounds_panels:
 		var panel := panel_value as Control
 		maximum_size.x = maxf(maximum_size.x, panel.size.x * layout_scale)
 		maximum_size.y = maxf(maximum_size.y, panel.size.y * layout_scale)
+	if group_id == "menu":
+		maximum_size.x = maxf(maximum_size.x, menu_tabs_hud.size.x * layout_scale)
+		maximum_size.x = maxf(maximum_size.x, menu_utility_tabs_hud.size.x * layout_scale)
+		menu_top_extent = (MENU_TAB_BAR_GAP + menu_tabs_hud.size.y) * layout_scale
+		menu_bottom_extent = (MENU_TAB_BAR_GAP + menu_utility_tabs_hud.size.y) * layout_scale
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var clamped_position := Vector2(
 		clampf(requested_position.x, 0.0, maxf(0.0, viewport_size.x - maximum_size.x)),
-		clampf(requested_position.y, 0.0, maxf(0.0, viewport_size.y - maximum_size.y)),
+		clampf(
+			requested_position.y,
+			menu_top_extent,
+			maxf(menu_top_extent, viewport_size.y - maximum_size.y - menu_bottom_extent),
+		),
 	)
 	group["position"] = clamped_position
 	group["scale"] = layout_scale
@@ -3085,6 +3974,23 @@ func _set_hud_group_layout(group_id: String, requested_position: Vector2, reques
 		var panel := panel_value as Control
 		panel.scale = Vector2.ONE * layout_scale
 		panel.global_position = clamped_position
+	if group_id == "menu":
+		var active_menu_panel: Control = _get_visible_hud_panel(group_id)
+		var panel_height: float = active_menu_panel.size.y if active_menu_panel != null else MENU_HUD_BASE_SIZE.y
+		menu_tabs_hud.scale = Vector2.ONE * layout_scale
+		menu_tabs_hud.global_position = clamped_position - Vector2(
+			0.0,
+			(menu_tabs_hud.size.y + MENU_TAB_BAR_GAP) * layout_scale,
+		)
+		menu_utility_tabs_hud.scale = Vector2.ONE * layout_scale
+		menu_utility_tabs_hud.global_position = clamped_position + Vector2(
+			0.0,
+			(panel_height + MENU_TAB_BAR_GAP) * layout_scale,
+		)
+	if group_id == "target":
+		_position_target_details_hud()
+	elif group_id == "player":
+		_position_player_details_hud()
 	_refresh_hud_edit_handles()
 
 
@@ -3146,6 +4052,24 @@ func _on_hud_viewport_resized() -> void:
 	_clamp_all_hud_groups()
 
 
+func _set_active_menu_tab(active_tab: String) -> void:
+	var tabs: Dictionary = {
+		"styles": menu_styles_tab,
+		"skills": menu_skills_tab,
+		"inventory": menu_inventory_tab,
+		"equipment": menu_equipment_tab,
+		"magic": menu_magic_tab,
+		"prayer": menu_prayer_tab,
+		"settings": menu_settings_tab,
+	}
+	for tab_id_value: Variant in tabs.keys():
+		var tab_id: String = str(tab_id_value)
+		(tabs[tab_id] as Button).set_pressed_no_signal(tab_id == active_tab)
+	if _hud_groups.has("menu"):
+		var menu_group: Dictionary = _hud_groups["menu"]
+		_set_hud_group_layout("menu", menu_group["position"] as Vector2, -1.0)
+
+
 func _show_combat_tab() -> void:
 	_combat_debug_hud_visible = true
 	combat_hud.visible = true
@@ -3162,6 +4086,7 @@ func _show_combat_tab() -> void:
 	combat_equipment_tab_button.set_pressed_no_signal(false)
 	combat_magic_tab_button.set_pressed_no_signal(false)
 	combat_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("")
 	_refresh_hud_edit_handles()
 
 
@@ -3182,6 +4107,7 @@ func _show_inventory_tab() -> void:
 	inventory_magic_tab_button.set_pressed_no_signal(false)
 	inventory_prayer_tab_button.set_pressed_no_signal(false)
 	inventory_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("inventory")
 	_refresh_hud_edit_handles()
 
 
@@ -3202,6 +4128,7 @@ func _show_skills_tab() -> void:
 	skills_magic_tab_button.set_pressed_no_signal(false)
 	skills_prayer_tab_button.set_pressed_no_signal(false)
 	skills_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("skills")
 	_refresh_hud_edit_handles()
 
 
@@ -3222,6 +4149,7 @@ func _show_equipment_tab() -> void:
 	equipment_magic_tab_button.set_pressed_no_signal(false)
 	equipment_prayer_tab_button.set_pressed_no_signal(false)
 	equipment_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("equipment")
 	_refresh_hud_edit_handles()
 
 
@@ -3242,6 +4170,7 @@ func _show_magic_tab() -> void:
 	magic_active_tab_button.set_pressed_no_signal(true)
 	magic_prayer_tab_button.set_pressed_no_signal(false)
 	magic_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("magic")
 	_refresh_hud_edit_handles()
 
 
@@ -3261,6 +4190,7 @@ func _show_prayer_tab() -> void:
 	prayer_magic_tab_button.set_pressed_no_signal(false)
 	prayer_active_tab_button.set_pressed_no_signal(true)
 	prayer_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("prayer")
 	_refresh_hud_edit_handles()
 
 
@@ -3281,6 +4211,7 @@ func _show_styles_tab() -> void:
 	styles_magic_tab_button.set_pressed_no_signal(false)
 	styles_prayer_tab_button.set_pressed_no_signal(false)
 	styles_active_tab_button.set_pressed_no_signal(true)
+	_set_active_menu_tab("styles")
 	_refresh_hud_edit_handles()
 
 
@@ -3302,6 +4233,7 @@ func _show_settings_tab() -> void:
 	settings_magic_tab_button.set_pressed_no_signal(false)
 	settings_prayer_tab_button.set_pressed_no_signal(false)
 	settings_styles_tab_button.set_pressed_no_signal(false)
+	_set_active_menu_tab("settings")
 	_refresh_hud_edit_handles()
 
 
@@ -3328,23 +4260,153 @@ func _populate_placeholder_skills() -> void:
 		level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		skill_tile.add_child(level_label)
 		var skill_id: String = str(ACTIVE_SKILL_IDS.get(skill_name, ""))
+		skill_tile.pressed.connect(_open_skill_details.bind(skill_name, skill_id))
+		skill_tile.gui_input.connect(_on_skill_tile_input.bind(skill_name, skill_id))
 		if not skill_id.is_empty():
 			_skill_tiles[skill_id] = {
 				"tile": skill_tile,
 				"level_label": level_label,
 			}
-			if skill_id == "herblore":
-				skill_tile.pressed.connect(_open_brewing_window)
-			elif skill_id == "fletching":
-				skill_tile.pressed.connect(_open_fletching_window)
 		else:
 			skill_tile.tooltip_text = "Current XP: 0\nNext level XP: unavailable"
 		skills_grid.add_child(skill_tile)
 	_update_active_skills_hud()
 
 
+func _setup_skill_details_interface() -> void:
+	_skill_details_window = Window.new()
+	_style_interface_window(_skill_details_window)
+	_skill_details_window.title = "Skill Details"
+	_skill_details_window.min_size = Vector2i(430, 360)
+	_skill_details_window.size = Vector2i(430, 360)
+	_skill_details_window.visible = false
+	_skill_details_window.close_requested.connect(_skill_details_window.hide)
+	_skill_details_window.window_input.connect(_on_skill_details_window_input)
+	add_child(_skill_details_window)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	_skill_details_window.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 12)
+	margin.add_child(content)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 14)
+	content.add_child(header)
+	_skill_details_icon = TextureRect.new()
+	_skill_details_icon.custom_minimum_size = Vector2(64, 64)
+	_skill_details_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_skill_details_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header.add_child(_skill_details_icon)
+	_skill_details_title = Label.new()
+	_skill_details_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_skill_details_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_skill_details_title.add_theme_font_size_override("font_size", 25)
+	header.add_child(_skill_details_title)
+
+	_skill_details_level = Label.new()
+	_skill_details_level.add_theme_font_size_override("font_size", 18)
+	content.add_child(_skill_details_level)
+	_skill_details_progress = ProgressBar.new()
+	_skill_details_progress.custom_minimum_size = Vector2(0, 24)
+	_skill_details_progress.show_percentage = false
+	content.add_child(_skill_details_progress)
+	_skill_details_xp = Label.new()
+	_skill_details_xp.add_theme_color_override("font_color", Color(0.72, 0.78, 0.86))
+	content.add_child(_skill_details_xp)
+	content.add_child(HSeparator.new())
+	_skill_details_description = Label.new()
+	_skill_details_description.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_skill_details_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(_skill_details_description)
+	_skill_details_action = Button.new()
+	_skill_details_action.custom_minimum_size = Vector2(0, 46)
+	_skill_details_action.pressed.connect(_on_skill_details_action)
+	content.add_child(_skill_details_action)
+
+	_skill_context_menu = PopupMenu.new()
+	_skill_context_menu.add_item("Open", 0)
+	_skill_context_menu.id_pressed.connect(_on_skill_context_action)
+	add_child(_skill_context_menu)
+
+
+func _open_skill_details(skill_name: String, skill_id: String) -> void:
+	_open_skill_name = skill_name
+	_open_skill_id = skill_id
+	_refresh_skill_details_interface()
+	_skill_details_window.popup_centered()
+
+
+func _refresh_skill_details_interface() -> void:
+	if _skill_details_window == null or _open_skill_name.is_empty():
+		return
+	_skill_details_window.title = "%s Skill" % _open_skill_name
+	_skill_details_title.text = _open_skill_name
+	_skill_details_icon.texture = SKILL_ICONS.get(_open_skill_name, TAB_SKILLS_ICON) as Texture2D
+	var progress: Dictionary = _skill_progress.get(_open_skill_id, {}) as Dictionary
+	var level: int = int(progress.get("level", 1))
+	var experience: int = int(progress.get("experience", 0))
+	var current_level_xp: int = int(progress.get("current", 0))
+	var next_level_xp: int = int(progress.get("next", 0))
+	_skill_details_level.text = "Level %d" % level
+	if _open_skill_id.is_empty():
+		_skill_details_progress.max_value = 1
+		_skill_details_progress.value = 0
+		_skill_details_xp.text = "XP progression unavailable"
+		_skill_details_description.text = "This skill is planned but is not trainable yet. Training methods and unlocks can be added here when its first gameplay slice is implemented."
+	else:
+		var level_xp_span: int = maxi(1, next_level_xp - current_level_xp)
+		_skill_details_progress.max_value = level_xp_span
+		_skill_details_progress.value = clampi(experience - current_level_xp, 0, level_xp_span)
+		_skill_details_xp.text = "XP %d / %s" % [experience, str(next_level_xp) if next_level_xp > 0 else "maximum"]
+		_skill_details_description.text = "Training methods, level unlocks, and future skill guidance will appear in this panel."
+	_skill_details_action.visible = _open_skill_id in ["herblore", "fletching"]
+	_skill_details_action.text = "Open Brewing" if _open_skill_id == "herblore" else "Open Fletching"
+
+
+func _on_skill_tile_input(event: InputEvent, skill_name: String, skill_id: String) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_button := event as InputEventMouseButton
+	if not mouse_button.pressed or mouse_button.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	_skill_context_name = skill_name
+	_skill_context_id = skill_id
+	_skill_context_menu.position = Vector2i(mouse_button.global_position)
+	_skill_context_menu.popup()
+	get_viewport().set_input_as_handled()
+
+
+func _on_skill_context_action(_menu_id: int) -> void:
+	_open_skill_details(_skill_context_name, _skill_context_id)
+
+
+func _on_skill_details_action() -> void:
+	_skill_details_window.hide()
+	if _open_skill_id == "herblore":
+		_open_brewing_window()
+	elif _open_skill_id == "fletching":
+		_open_fletching_window()
+
+
+func _on_skill_details_window_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			_skill_details_window.hide()
+			_skill_details_window.set_input_as_handled()
+
+
 func _apply_skills_snapshot(skills: Array) -> void:
 	var changed: bool = false
+	var latest_gain: int = 0
+	var latest_gain_skill: String = ""
+	var latest_skill_total: int = 0
 	for payload: Variant in skills:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
@@ -3353,6 +4415,7 @@ func _apply_skills_snapshot(skills: Array) -> void:
 		if not _skill_progress.has(skill_id):
 			continue
 		var current_progress: Dictionary = _skill_progress[skill_id] as Dictionary
+		var previous_experience: int = int(current_progress.get("experience", 0))
 		var experience: int = int(skill.get("experience", current_progress.get("experience", 0)))
 		var level: int = int(skill.get("level", current_progress.get("level", 1)))
 		var current_level_experience: int = int(skill.get(
@@ -3368,6 +4431,12 @@ func _apply_skills_snapshot(skills: Array) -> void:
 			current_level_experience == int(current_progress.get("current", 0)) and \
 			next_level_experience == int(current_progress.get("next", 100)):
 			continue
+		if _xp_tracker_initialized and experience > previous_experience:
+			var gain: int = experience - previous_experience
+			if gain > latest_gain:
+				latest_gain = gain
+				latest_gain_skill = skill_id
+				latest_skill_total = experience
 		_skill_progress[skill_id] = {
 			"experience": experience,
 			"level": level,
@@ -3375,9 +4444,28 @@ func _apply_skills_snapshot(skills: Array) -> void:
 			"next": next_level_experience,
 		}
 		changed = true
+	_xp_tracker_initialized = true
+	if latest_gain > 0:
+		_show_xp_gain(latest_gain_skill, latest_gain, latest_skill_total)
 	if changed:
 		_update_active_skills_hud()
 		_update_magic_hud()
+
+
+func _show_xp_gain(skill_id: String, gained_xp: int, total_xp: int) -> void:
+	_xp_gain_generation += 1
+	var generation: int = _xp_gain_generation
+	var skill_name: String = str(ACTIVE_SKILL_NAMES.get(skill_id, skill_id.capitalize()))
+	xp_tracker_icon.texture = SKILL_ICONS.get(skill_name) as Texture2D
+	xp_tracker_icon.tooltip_text = skill_name
+	xp_tracker_total.text = "Total %s XP  %d" % [skill_name, total_xp]
+	xp_tracker_gain.text = "+%d XP" % gained_xp
+	xp_tracker_gain_row.modulate = Color.WHITE
+	await get_tree().create_timer(3.0).timeout
+	if generation != _xp_gain_generation or not is_instance_valid(xp_tracker_gain_row):
+		return
+	var fade := create_tween()
+	fade.tween_property(xp_tracker_gain_row, "modulate:a", 0.0, 0.35)
 
 
 func _update_active_skills_hud() -> void:
@@ -3398,8 +4486,12 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 	level_label.text = "%d/%d" % [level, level]
 	if next_level_experience <= 0:
 		tile.tooltip_text = "Current XP: %d\nNext level XP: maximum" % experience
+		if _skill_details_window != null and _skill_details_window.visible and _open_skill_id == skill_id:
+			_refresh_skill_details_interface()
 		return
 	tile.tooltip_text = "Current XP: %d\nNext level XP: %d" % [experience, next_level_experience]
+	if _skill_details_window != null and _skill_details_window.visible and _open_skill_id == skill_id:
+		_refresh_skill_details_interface()
 
 
 func _populate_placeholder_spells() -> void:
@@ -3419,32 +4511,74 @@ func _update_magic_hud() -> void:
 		var required_book: String = str(spell.get("book_id", ""))
 		if required_book != _active_spellbook:
 			continue
-		var spell_button := Button.new()
-		spell_button.custom_minimum_size = Vector2(104, 88)
+		var spell_button: Variant = SPELL_SLOT_SCRIPT.new()
+		spell_button.custom_minimum_size = Vector2(116, 116)
 		spell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		spell_button.focus_mode = Control.FOCUS_NONE
 		spell_button.toggle_mode = not spell_id.is_empty()
 		spell_button.disabled = spell_id.is_empty() or _player_defeated or magic_level < required_level or (
 			not required_book.is_empty() and required_book != _active_spellbook
 		)
-		spell_button.icon = spell.get("icon") as Texture2D
+		spell_button.icon = IconCatalog.centered_icon(spell.get("icon") as Texture2D)
 		spell_button.expand_icon = true
+		spell_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		spell_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		if spell_id.is_empty():
-			spell_button.tooltip_text = "%s (coming later)" % spell.get("name", "Spell")
+			var no_costs: Array[Dictionary] = []
+			spell_button.configure_spell_tooltip(str(spell.get("name", "Spell")), required_level, no_costs, true)
 		else:
 			var displayed_spell: String = _queued_spell if _spell_selection_pending else _selected_spell
 			var displayed_selected: bool = spell_id == displayed_spell
+			var tooltip_costs: Array[Dictionary] = []
+			var costs_value: Variant = spell.get("costs", [])
+			if typeof(costs_value) == TYPE_ARRAY:
+				for cost_value: Variant in costs_value as Array:
+					if typeof(cost_value) != TYPE_DICTIONARY:
+						continue
+					var cost: Dictionary = cost_value as Dictionary
+					var cost_item_id: String = str(cost.get("item_id", ""))
+					var cost_quantity: int = int(cost.get("quantity", 0))
+					if cost_item_id.is_empty() or cost_quantity <= 0:
+						continue
+					var cost_name: String = cost_item_id.replace("_", " ").capitalize()
+					var available_runes: int = _available_rune_quantity(cost_item_id)
+					tooltip_costs.append({
+						"name": cost_name,
+						"quantity": cost_quantity,
+						"available": available_runes,
+						"missing": available_runes < cost_quantity,
+						"icon": ITEM_ICONS.get(cost_item_id, EMPTY_SLOT_ICON),
+					})
+			var missing_runes: bool = tooltip_costs.any(func(cost: Dictionary) -> bool: return bool(cost.get("missing", false)))
 			spell_button.set_pressed_no_signal(displayed_selected)
-			var cost_item_id: String = str(spell.get("cost_item_id", ""))
-			var cost_quantity: int = int(spell.get("cost_quantity", 0))
-			spell_button.tooltip_text = "%s • Magic level %d • costs %d %s per cast • you have %d • click again to stop autocasting" % [
-				spell.get("name", "Spell"), required_level, cost_quantity,
-				cost_item_id.capitalize(), _available_rune_quantity(cost_item_id),
-			]
-			if not required_book.is_empty() and required_book != _active_spellbook:
-				spell_button.tooltip_text += " • requires the %s spellbook" % required_book.capitalize()
+			if displayed_selected:
+				_style_selected_spell_button(spell_button, _spell_selection_pending)
+			if missing_runes:
+				spell_button.modulate = Color(0.64, 0.64, 0.7, 0.78)
+			spell_button.configure_spell_tooltip(
+				str(spell.get("name", "Spell")), required_level, tooltip_costs, false,
+			)
 			spell_button.pressed.connect(_request_spell.bind(spell_id))
 		magic_grid.add_child(spell_button)
+
+
+func _style_selected_spell_button(spell_button: Button, pending: bool) -> void:
+	var border_color := Color(0.35, 0.78, 1.0) if pending else Color(0.95, 0.72, 0.2)
+	var selected_style := StyleBoxFlat.new()
+	selected_style.bg_color = Color(0.07, 0.16, 0.23, 0.98) if pending else Color(0.16, 0.13, 0.06, 0.98)
+	selected_style.border_width_left = 4
+	selected_style.border_width_top = 4
+	selected_style.border_width_right = 4
+	selected_style.border_width_bottom = 4
+	selected_style.border_color = border_color
+	selected_style.corner_radius_top_left = 7
+	selected_style.corner_radius_top_right = 7
+	selected_style.corner_radius_bottom_left = 7
+	selected_style.corner_radius_bottom_right = 7
+	spell_button.add_theme_stylebox_override("normal", selected_style)
+	spell_button.add_theme_stylebox_override("pressed", selected_style)
+	spell_button.add_theme_stylebox_override("hover_pressed", selected_style)
+	spell_button.add_theme_stylebox_override("disabled", selected_style)
 
 
 func _populate_placeholder_prayers() -> void:
@@ -3507,22 +4641,6 @@ func _style_active_prayer_button(prayer_button: Button, pending: bool) -> void:
 	prayer_button.add_theme_stylebox_override("hover_pressed", active_style)
 	prayer_button.add_theme_stylebox_override("disabled", active_style)
 
-	var active_badge := Label.new()
-	active_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	active_badge.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	active_badge.offset_left = 5.0
-	active_badge.offset_top = -25.0
-	active_badge.offset_right = -5.0
-	active_badge.offset_bottom = -4.0
-	active_badge.text = "ACTIVATING…" if pending else "● ACTIVE"
-	active_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	active_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	active_badge.add_theme_color_override("font_color", active_color)
-	active_badge.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.04, 0.95))
-	active_badge.add_theme_constant_override("outline_size", 5)
-	active_badge.add_theme_font_size_override("font_size", 13)
-	prayer_button.add_child(active_badge)
-
 
 func _update_combat_styles_hud() -> void:
 	for child: Node in styles_grid.get_children():
@@ -3571,16 +4689,21 @@ func _update_combat_styles_hud() -> void:
 		style_button.add_theme_stylebox_override("hover_pressed", selected_style_box)
 		style_button.text = "%s\n%s" % [
 			style.get("name", style_id.capitalize()),
-			"No XP" if training.is_empty() else "%s XP" % training,
+			"%s XP" % training,
 		]
-		style_button.tooltip_text = "Combat XP is locked" if training.is_empty() else "Successful hits train %s" % training
+		style_button.tooltip_text = "Successful hits train %s" % training
 		var accuracy_note: String = ""
+		var uses_projectile_styles: bool = _equipped_weapon == "bow" or _equipped_weapon == "crossbow" or _equipped_weapon == "staff"
 		match style_id:
 			"accurate":
-				accuracy_note = "Improves accuracy"
+				accuracy_note = "Highest accuracy • tighter damage range" if uses_projectile_styles else "Improves accuracy"
 			"stab", "crush":
 				accuracy_note = "Small accuracy bonus"
-			"rapid", "heavy_crush":
+			"rapid":
+				accuracy_note = "Faster attacks • standard range • wider damage range • lowers accuracy" if uses_projectile_styles else "Slightly lowers accuracy"
+			"long_range":
+				accuracy_note = "Long range • standard cadence • wider damage range" if uses_projectile_styles else "Extended attack range"
+			"heavy_crush":
 				accuracy_note = "Slightly lowers accuracy"
 			"defensive":
 				accuracy_note = "Slightly lowers accuracy while training Defence"
@@ -3602,7 +4725,7 @@ func _update_equipment_hud() -> void:
 		{"slot": "ammunition", "name": "Ammunition Pouch", "item": ""},
 		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", "")), "instance": str(_equipped_armour_instances.get("head", "")), "reinforcement": int(_equipped_armour_reinforcements.get("head", 0))},
 		{"slot": "rune_pouch", "name": "Rune Pouch", "item": ""},
-		{"slot": "cape", "name": "Cape", "item": ""},
+		{"slot": "cape", "name": "Cape", "item": str(_equipped_armour.get("cape", "")), "instance": str(_equipped_armour_instances.get("cape", "")), "reinforcement": int(_equipped_armour_reinforcements.get("cape", 0))},
 		{"slot": "neck", "name": "Neck", "item": str(_equipped_armour.get("neck", "")), "instance": str(_equipped_armour_instances.get("neck", "")), "reinforcement": int(_equipped_armour_reinforcements.get("neck", 0))},
 		{"slot": "spellbook", "name": "Spellbook", "item": _equipped_spellbook},
 		{"slot": "main_hand", "name": "Main Hand", "item": "" if _equipped_weapon == "unarmed" else _equipped_weapon, "instance": _equipped_weapon_instance_id, "reinforcement": _equipped_weapon_reinforcement},
@@ -3619,7 +4742,7 @@ func _update_equipment_hud() -> void:
 		var slot: Dictionary = slot_data
 		if bool(slot.get("spacer", false)):
 			var spacer := Control.new()
-			spacer.custom_minimum_size = Vector2(168, 82)
+			spacer.custom_minimum_size = Vector2(100, 100)
 			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			equipment_grid.add_child(spacer)
 			continue
@@ -3628,7 +4751,7 @@ func _update_equipment_hud() -> void:
 		var reinforcement: int = int(slot.get("reinforcement", 0))
 		var slot_id: String = str(slot.get("slot", ""))
 		var slot_panel := Button.new()
-		slot_panel.custom_minimum_size = Vector2(168, 82)
+		slot_panel.custom_minimum_size = Vector2(100, 100)
 		slot_panel.focus_mode = Control.FOCUS_NONE
 		var unequip_pending: bool = (
 			not item_id.is_empty()
@@ -3650,8 +4773,8 @@ func _update_equipment_hud() -> void:
 				_ring_rack_items.size(), _ring_rack_capacity,
 			]
 		elif slot_id == "rune_pouch":
-			slot_panel.tooltip_text = "Rune Pouch • %d/%d rune types stored • left-click to open" % [
-				_rune_pouch_items.size(), _rune_pouch_capacity,
+			slot_panel.tooltip_text = "Rune Pouch • %d/%d types stored • %d/%d slots unlocked • left-click to open" % [
+				_rune_pouch_items.size(), _rune_pouch_unlocked, _rune_pouch_unlocked, _rune_pouch_capacity,
 			]
 		elif ITEM_COMBAT_BONUSES.has(item_id):
 			slot_panel.tooltip_text += " • %s" % str(ITEM_COMBAT_BONUSES[item_id])
@@ -3697,7 +4820,7 @@ func _update_equipment_hud() -> void:
 		)
 		slot_panel.expand_icon = true
 		slot_panel.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		slot_panel.add_theme_constant_override("icon_max_width", 56)
+		slot_panel.add_theme_constant_override("icon_max_width", 64)
 		if slot_id == "ammunition":
 			slot_panel.disabled = false
 			slot_panel.pressed.connect(_toggle_ammunition_pouch)
@@ -3754,67 +4877,65 @@ func _update_detailed_combat_stats() -> void:
 
 func _detailed_offence_text() -> String:
 	var spell_id: String = str(_combat_stats.get("spell", ""))
-	var loadout_text: String = "%s  •  %s style" % [
+	var loadout_text: String = "%s • %s" % [
 		str(_combat_stats.get("weapon", "unarmed")).capitalize(),
 		str(_combat_stats.get("style", "crush")).capitalize(),
 	]
-	var accuracy_breakdown: String = "Weapon accuracy: %s\nStyle modifier: %s" % [
+	var accuracy_breakdown: String = "Weapon: %s\nStyle: %s\nGear: %s" % [
 		_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
 		_signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0))),
+		_signed_stat(int(_combat_stats.get("equipment_accuracy_bonus", 0))),
 	]
-	accuracy_breakdown += "\nAccessory accuracy: %s" % _signed_stat(
-		int(_combat_stats.get("equipment_accuracy_bonus", 0)),
-	)
 	var prayer_accuracy_bonus: int = int(_combat_stats.get("prayer_accuracy_bonus", 0))
 	if prayer_accuracy_bonus != 0:
-		accuracy_breakdown += "\nPrayer accuracy: %s" % _signed_stat(prayer_accuracy_bonus)
-	var damage_breakdown: String = "Weapon strength: %s" % _signed_stat(
+		accuracy_breakdown += "\nPrayer: %s" % _signed_stat(prayer_accuracy_bonus)
+	var damage_breakdown: String = "Weapon: %s" % _signed_stat(
 		int(_combat_stats.get("strength_bonus", 0)),
 	)
-	damage_breakdown += "\nAccessory strength: %s" % _signed_stat(
+	damage_breakdown += "\nGear: %s" % _signed_stat(
 		int(_combat_stats.get("equipment_strength_bonus", 0)),
 	)
 	if not spell_id.is_empty():
-		loadout_text = "%s  •  %s equipped" % [
+		loadout_text = "%s • %s" % [
 			spell_id.capitalize(), str(_combat_stats.get("weapon", "unarmed")).capitalize(),
 		]
-		accuracy_breakdown = "Spell accuracy: %s\nWeapon focus accuracy: %s\nAccessory magic accuracy: %s" % [
+		accuracy_breakdown = "Spell: %s\nFocus: %s\nGear: %s" % [
 			_signed_stat(int(_combat_stats.get("spell_accuracy_bonus", 0))),
 			_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
 			_signed_stat(int(_combat_stats.get("equipment_accuracy_bonus", 0))),
 		]
-		damage_breakdown = "Spell power: %s\nWeapon focus strength: %s\nAccessory magic strength: %s" % [
+		damage_breakdown = "Spell: %s\nFocus: %s\nGear: %s" % [
 			_signed_stat(int(_combat_stats.get("spell_power", 0))),
 			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
 			_signed_stat(int(_combat_stats.get("equipment_strength_bonus", 0))),
 		]
 	var prayer_damage_bonus: float = float(_combat_stats.get("prayer_damage_bonus", 0.0))
 	if prayer_damage_bonus > 0.0 and spell_id.is_empty():
-		damage_breakdown += "\nPrayer damage: +%.0f%%" % (prayer_damage_bonus * 100.0)
+		damage_breakdown += "\nPrayer: +%.0f%%" % (prayer_damage_bonus * 100.0)
 	var attack_interval: int = int(_combat_stats.get("attack_interval", 0))
 	var base_attack_interval: int = int(_combat_stats.get("base_attack_interval", attack_interval))
-	var attack_speed_text: String = "%d pulses (%.1f seconds)" % [
-		attack_interval, attack_interval * 0.6,
+	var attack_speed_text: String = "Current: %d pulses / %.1fs\nBase: %d pulses\nGear mod: %s" % [
+		attack_interval, attack_interval * 0.6, base_attack_interval,
+		_signed_stat(int(_combat_stats.get("attack_interval_modifier", 0))),
 	]
-	if attack_interval < base_attack_interval:
-		attack_speed_text += "  •  equipment modifier active"
 	return (
-		"CURRENT LOADOUT\n%s\n\n" % loadout_text
-		+"ACCURACY\nTotal accuracy score: %d\n" % int(_combat_stats.get("total_accuracy", 0))
-		+"%s level: %d\n%s\n\n" % [
+		"[table=2]"
+		+"[cell][b]LOADOUT[/b]\n%s\n\n" % loadout_text
+		+"[b]ACCURACY[/b]\nTotal: %d\n" % int(_combat_stats.get("total_accuracy", 0))
+		+"%s Lv: %d\n%s[/cell]" % [
 			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
 			int(_combat_stats.get("accuracy_level", 1)), accuracy_breakdown,
 		]
-		+"DAMAGE\nCurrent damage range: %d–%d\n" % [
+		+"[cell][b]DAMAGE[/b]\nRange: %d–%d\n" % [
 			int(_combat_stats.get("minimum_damage", 0)),
 			int(_combat_stats.get("maximum_damage", 0)),
 		]
-		+"%s level: %d\n%s\nSkill damage: +%.1f\n\n" % [
+		+"%s Lv: %d\n%s\nSkill: +%.1f\n\n" % [
 			str(_combat_stats.get("damage_skill", "strength")).capitalize(),
 			int(_combat_stats.get("damage_level", 1)), damage_breakdown,
 			float(_combat_stats.get("skill_damage_bonus", 0.0)),
 		]
-		+"ATTACK SPEED\n%s" % attack_speed_text
+		+"[b]SPEED[/b]\n%s[/cell][/table]" % attack_speed_text
 	)
 
 
@@ -3822,26 +4943,25 @@ func _detailed_defence_text() -> String:
 	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
 	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
 	return (
-		"DEFENCE OVERVIEW\n"
-		+"Defence level: %d\n" % int(_combat_stats.get("defence_level", 1))
-		+"Prayer damage reduction: %.0f%%\n" % (
-			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
-		)
-		+"Armour reduction vs crush: %.1f%%\n" % (
-			float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0
-		)
-		+"Maximum health from armour: +%d\n" % int(_combat_stats.get("maximum_health_bonus", 0))
-		+"\nEQUIPMENT DEFENCE BONUSES\n"
-		+"Stab: %s\nSlash: %s\nCrush: %s\n" % [
+		"[table=2]"
+		+"[cell][b]DEFENCE BONUSES[/b]\n"
+		+"Stab Def: %s\nSlash Def: %s\nCrush Def: %s\n" % [
 			_signed_stat(int(defence.get("stab", 0))),
 			_signed_stat(int(defence.get("slash", 0))),
 			_signed_stat(int(defence.get("crush", 0))),
 		]
-		+"Ranged: %s\nMagic: %s\n\n" % [
+		+"Range Def: %s\nMagic Def: %s[/cell]" % [
 			_signed_stat(int(defence.get("ranged", 0))),
 			_signed_stat(int(defence.get("magic", 0))),
 		]
-		+"Matching defence uses diminishing returns for damage reduction."
+		+"[cell][b]OVERVIEW[/b]\n"
+		+"Prayer DR: %.0f%%\n" % (
+			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
+		)
+		+"Crush DR: %.1f%%\n" % (
+			float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0
+		)
+		+"Bonus HP: +%d[/cell][/table]" % int(_combat_stats.get("maximum_health_bonus", 0))
 	)
 
 
@@ -3850,31 +4970,11 @@ func _detailed_effects_text() -> String:
 	for item_id: String in _equipped_armour.values():
 		if item_id in ["swift_helm", "swift_body", "swift_boots"]:
 			swift_pieces += 1
-	var interval_modifier: int = int(_combat_stats.get("attack_interval_modifier", 0))
-	var swift_status: String = "Active" if swift_pieces >= 3 else "Inactive"
-	var spellbook_text: String = _equipped_spellbook.capitalize() if not _equipped_spellbook.is_empty() else "None"
-	return (
-		"EQUIPPED ITEMS\n"
-		+"Main hand: %s\n" % _equipped_weapon.capitalize()
-		+"Spellbook: %s\n" % spellbook_text
-		+"Neck: %s\n" % _equipment_item_name("neck")
-		+"Head: %s\n" % _equipment_item_name("head")
-		+"Body: %s\n" % _equipment_item_name("body")
-		+"Left hand: %s\n" % _equipment_item_name("left_hand")
-		+"Hands: %s\n" % _equipment_item_name("hands")
-		+"Legs: %s\n" % _equipment_item_name("legs")
-		+"Feet: %s\n\n" % _equipment_item_name("feet")
-		+"SET EFFECTS\n"
-		+"Swift set: %s (%d/3 pieces)\n" % [swift_status, swift_pieces]
-		+"Three pieces reduce the attack interval by 1 pulse.\n"
-		+"Current equipment interval modifier: %s pulses\n\n" % _signed_stat(interval_modifier)
-		+"Future equipment sets will be listed on this page."
-	)
-
-
-func _equipment_item_name(slot: String) -> String:
-	var item_id: String = str(_equipped_armour.get(slot, ""))
-	return item_id.capitalize() if not item_id.is_empty() else "None"
+	var active_sets := PackedStringArray()
+	if swift_pieces >= 3:
+		active_sets.append("Swift set • attack interval -1 pulse")
+	var active_set_text: String = "No active set effects" if active_sets.is_empty() else "\n".join(active_sets)
+	return "SET EFFECTS\n%s" % active_set_text
 
 
 func _signed_stat(value: int) -> String:
@@ -3935,11 +5035,13 @@ func _apply_ammunition_pouch_snapshot(pouch: Dictionary) -> void:
 
 func _setup_ammunition_pouch_window() -> void:
 	_ammunition_pouch_window = Window.new()
+	_style_interface_window(_ammunition_pouch_window)
 	_ammunition_pouch_window.title = "Ammunition Pouch"
 	_ammunition_pouch_window.min_size = Vector2i(570, 300)
 	_ammunition_pouch_window.size = Vector2i(570, 300)
 	_ammunition_pouch_window.visible = false
 	_ammunition_pouch_window.close_requested.connect(_close_ammunition_pouch)
+	_ammunition_pouch_window.window_input.connect(_on_ammunition_pouch_window_input)
 	add_child(_ammunition_pouch_window)
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 18)
@@ -3954,11 +5056,6 @@ func _setup_ammunition_pouch_window() -> void:
 	_ammunition_pouch_summary = Label.new()
 	_ammunition_pouch_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_ammunition_pouch_summary)
-	var close_button := Button.new()
-	close_button.text = "Close"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.pressed.connect(_close_ammunition_pouch)
-	header.add_child(close_button)
 	_ammunition_pouch_grid = GridContainer.new()
 	_ammunition_pouch_grid.columns = 5
 	_ammunition_pouch_grid.add_theme_constant_override("h_separation", 8)
@@ -3979,6 +5076,14 @@ func _toggle_ammunition_pouch() -> void:
 func _close_ammunition_pouch() -> void:
 	_ammunition_pouch_window.hide()
 	_update_inventory_hud()
+
+
+func _on_ammunition_pouch_window_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			_close_ammunition_pouch()
+			_ammunition_pouch_window.set_input_as_handled()
 
 
 func _request_ammunition_deposit(inventory_slot: int) -> void:
@@ -4052,8 +5157,32 @@ func _apply_ring_rack_snapshot(rack: Dictionary) -> void:
 	_update_equipment_hud()
 
 
+func _style_interface_close_button(button: Button) -> void:
+	button.text = "×"
+	button.custom_minimum_size = Vector2(48, 48)
+	button.focus_mode = Control.FOCUS_NONE
+	button.flat = true
+	button.add_theme_font_size_override("font_size", 32)
+	button.add_theme_color_override("font_color", Color(0.88, 0.27, 0.3))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.42, 0.44))
+	button.add_theme_color_override("font_pressed_color", Color(0.68, 0.12, 0.15))
+	var transparent := StyleBoxEmpty.new()
+	button.add_theme_stylebox_override("normal", transparent)
+	button.add_theme_stylebox_override("hover", transparent)
+	button.add_theme_stylebox_override("pressed", transparent)
+	button.add_theme_stylebox_override("focus", transparent)
+
+
+func _style_interface_window(window: Window) -> void:
+	var interface_theme := Theme.new()
+	interface_theme.set_icon("close", "Window", CLOSE_WINDOW_ICON)
+	interface_theme.set_icon("close_pressed", "Window", CLOSE_WINDOW_ICON)
+	window.theme = interface_theme
+
+
 func _setup_ring_rack_window() -> void:
 	_ring_rack_window = Window.new()
+	_style_interface_window(_ring_rack_window)
 	_ring_rack_window.title = "Equipped Rings"
 	_ring_rack_window.min_size = Vector2i(570, 210)
 	_ring_rack_window.size = Vector2i(570, 210)
@@ -4074,8 +5203,7 @@ func _setup_ring_rack_window() -> void:
 	_ring_rack_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_ring_rack_summary)
 	var close_button := Button.new()
-	close_button.text = "Close"
-	close_button.focus_mode = Control.FOCUS_NONE
+	_style_interface_close_button(close_button)
 	close_button.pressed.connect(_close_ring_rack)
 	header.add_child(close_button)
 	_ring_rack_grid = GridContainer.new()
@@ -4145,15 +5273,17 @@ func _update_ring_rack_window() -> void:
 
 
 func _apply_rune_pouch_snapshot(pouch: Dictionary) -> void:
-	var capacity: int = int(pouch.get("capacity", 6))
+	var capacity: int = int(pouch.get("capacity", 9))
+	var unlocked: int = int(pouch.get("unlocked_slots", 2))
 	var items_data: Variant = pouch.get("items", [])
 	if typeof(items_data) != TYPE_ARRAY:
 		return
-	var signature := "%d:%s" % [capacity, JSON.stringify(items_data)]
+	var signature := "%d:%d:%s" % [capacity, unlocked, JSON.stringify(items_data)]
 	if signature == _rune_pouch_signature:
 		return
 	_rune_pouch_signature = signature
 	_rune_pouch_capacity = capacity
+	_rune_pouch_unlocked = unlocked
 	_rune_pouch_items = (items_data as Array).duplicate(true)
 	_update_rune_pouch_window()
 	_update_inventory_hud()
@@ -4163,11 +5293,13 @@ func _apply_rune_pouch_snapshot(pouch: Dictionary) -> void:
 
 func _setup_rune_pouch_window() -> void:
 	_rune_pouch_window = Window.new()
+	_style_interface_window(_rune_pouch_window)
 	_rune_pouch_window.title = "Rune Pouch"
-	_rune_pouch_window.min_size = Vector2i(670, 210)
-	_rune_pouch_window.size = Vector2i(670, 210)
+	_rune_pouch_window.min_size = Vector2i(390, 400)
+	_rune_pouch_window.size = Vector2i(390, 400)
 	_rune_pouch_window.visible = false
 	_rune_pouch_window.close_requested.connect(_close_rune_pouch)
+	_rune_pouch_window.window_input.connect(_on_rune_pouch_window_input)
 	add_child(_rune_pouch_window)
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 18)
@@ -4182,14 +5314,10 @@ func _setup_rune_pouch_window() -> void:
 	_rune_pouch_summary = Label.new()
 	_rune_pouch_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_rune_pouch_summary)
-	var close_button := Button.new()
-	close_button.text = "Close"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.pressed.connect(_close_rune_pouch)
-	header.add_child(close_button)
 	_rune_pouch_grid = GridContainer.new()
-	_rune_pouch_grid.columns = 6
+	_rune_pouch_grid.columns = 3
 	_rune_pouch_grid.add_theme_constant_override("h_separation", 8)
+	_rune_pouch_grid.add_theme_constant_override("v_separation", 8)
 	layout.add_child(_rune_pouch_grid)
 	_update_rune_pouch_window()
 
@@ -4206,6 +5334,14 @@ func _toggle_rune_pouch() -> void:
 func _close_rune_pouch() -> void:
 	_rune_pouch_window.hide()
 	_update_inventory_hud()
+
+
+func _on_rune_pouch_window_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			_close_rune_pouch()
+			_rune_pouch_window.set_input_as_handled()
 
 
 func _request_rune_deposit(inventory_slot: int) -> void:
@@ -4230,13 +5366,22 @@ func _update_rune_pouch_window() -> void:
 	for payload: Variant in _rune_pouch_items:
 		if typeof(payload) == TYPE_DICTIONARY:
 			items_by_slot[int((payload as Dictionary).get("slot", -1))] = payload
-	_rune_pouch_summary.text = "%d/%d rune types stored • spells use pouch runes first" % [items_by_slot.size(), _rune_pouch_capacity]
+	_rune_pouch_summary.text = "%d/%d types stored • %d/%d slots unlocked" % [
+		items_by_slot.size(), _rune_pouch_unlocked, _rune_pouch_unlocked, _rune_pouch_capacity,
+	]
 	for slot: int in range(_rune_pouch_capacity):
 		var button: Variant = INVENTORY_SLOT_SCRIPT.new()
 		button.custom_minimum_size = Vector2(96, 88)
 		button.focus_mode = Control.FOCUS_NONE
 		button.text = ""
-		if items_by_slot.has(slot):
+		if slot >= _rune_pouch_unlocked:
+			button.configure(slot, false, false)
+			button.icon = EMPTY_SLOT_ICON
+			button.expand_icon = true
+			button.disabled = true
+			button.modulate = Color(0.28, 0.31, 0.34)
+			button.tooltip_text = "Locked rune slot"
+		elif items_by_slot.has(slot):
 			var item: Dictionary = items_by_slot[slot]
 			var item_id: String = str(item.get("item_id", ""))
 			var quantity: int = int(item.get("quantity", 0))
@@ -4248,9 +5393,9 @@ func _update_rune_pouch_window() -> void:
 			button.pressed.connect(_request_rune_withdraw.bind(slot))
 		else:
 			button.configure(slot, false, true)
-			button.icon = EQUIPMENT_SLOT_ICONS.get("rune_pouch", EMPTY_SLOT_ICON) as Texture2D
+			button.icon = EMPTY_SLOT_ICON
 			button.expand_icon = true
-			button.tooltip_text = "Empty rune slot • click runes in your inventory to store them"
+			button.tooltip_text = "Unlocked rune slot • click runes in your inventory to store them"
 		_rune_pouch_grid.add_child(button)
 
 
@@ -4286,6 +5431,7 @@ func _request_bank_expansion() -> void:
 
 func _setup_bank_withdraw_dialog() -> void:
 	_bank_withdraw_dialog = ConfirmationDialog.new()
+	_style_interface_window(_bank_withdraw_dialog)
 	_bank_withdraw_dialog.title = "Withdraw items"
 	_bank_withdraw_dialog.dialog_text = "Choose an amount to withdraw:"
 	_bank_withdraw_dialog.min_size = Vector2i(360, 180)
@@ -4436,6 +5582,24 @@ func _change_inventory_page(direction: int) -> void:
 	_update_inventory_hud()
 
 
+func _style_inventory_slot(slot_button: Button) -> void:
+	var slot_style := StyleBoxFlat.new()
+	slot_style.bg_color = Color(0.055, 0.065, 0.075, 0.94)
+	slot_style.border_width_left = 1
+	slot_style.border_width_top = 1
+	slot_style.border_width_right = 1
+	slot_style.border_width_bottom = 1
+	slot_style.border_color = Color(0.2, 0.23, 0.26, 0.95)
+	slot_style.corner_radius_top_left = 5
+	slot_style.corner_radius_top_right = 5
+	slot_style.corner_radius_bottom_left = 5
+	slot_style.corner_radius_bottom_right = 5
+	slot_button.add_theme_stylebox_override("normal", slot_style)
+	# Inventory slots deliberately keep the same background on hover. Tooltips
+	# and the pointer communicate the hover without flashing the entire slot.
+	slot_button.add_theme_stylebox_override("hover", slot_style.duplicate())
+
+
 func _update_inventory_hud() -> void:
 	for child: Node in inventory_grid.get_children():
 		inventory_grid.remove_child(child)
@@ -4458,11 +5622,9 @@ func _update_inventory_hud() -> void:
 	var first_slot: int = _inventory_page * INVENTORY_PAGE_SIZE
 	var final_slot: int = mini(first_slot + INVENTORY_PAGE_SIZE, INVENTORY_TOTAL_SLOTS)
 	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), unlocked_slots]
-	inventory_page_label.text = "Page %d/%d  •  %d/%d unlocked" % [
+	inventory_page_label.text = "Page %d/%d" % [
 		_inventory_page + 1,
 		page_count,
-		unlocked_slots,
-		INVENTORY_TOTAL_SLOTS,
 	]
 	inventory_previous_page_button.disabled = _inventory_page == 0
 	inventory_next_page_button.disabled = _inventory_page >= page_count - 1
@@ -4471,11 +5633,12 @@ func _update_inventory_hud() -> void:
 	var is_storing_runes: bool = _rune_pouch_window != null and _rune_pouch_window.visible
 	for slot: int in range(first_slot, final_slot):
 		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
-		slot_button.custom_minimum_size = Vector2(104, 92)
-		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot_button.custom_minimum_size = Vector2(96, 96)
+		slot_button.size_flags_horizontal = Control.SIZE_FILL
 		slot_button.focus_mode = Control.FOCUS_NONE
 		slot_button.mouse_filter = Control.MOUSE_FILTER_STOP
 		slot_button.text = ""
+		_style_inventory_slot(slot_button)
 		if slot >= _inventory_capacity:
 			slot_button.configure(slot, false, false)
 			slot_button.icon = EMPTY_SLOT_ICON
@@ -4550,6 +5713,10 @@ func _update_inventory_hud() -> void:
 				interaction_text = "left-click to move the whole stack into the ammunition pouch"
 			elif is_storing_runes and RUNE_ITEMS.has(item_id):
 				interaction_text = "left-click to move the whole stack into the rune pouch"
+			elif AMMUNITION_ITEMS.has(item_id):
+				interaction_text = "left-click to move the whole stack into the ammunition pouch • %s" % interaction_text
+			elif RUNE_ITEMS.has(item_id):
+				interaction_text = "left-click to move the whole stack into the rune pouch • %s" % interaction_text
 			slot_button.tooltip_text = "%s%s%s%s • slot %d%s" % [
 				str(ITEM_DISPLAY_NAMES.get(item_id, item_id.capitalize())), reinforcement_text, quantity_text, status_text,
 				slot + 1,
@@ -4576,33 +5743,16 @@ func _update_inventory_hud() -> void:
 				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
 			if is_banking:
 				slot_button.pressed.connect(_request_bank_deposit.bind(item_id, instance_id, slot, quantity))
-			elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
-				slot_button.pressed.connect(_request_ammunition_deposit.bind(slot))
-			elif is_storing_runes and RUNE_ITEMS.has(item_id):
-				slot_button.pressed.connect(_request_rune_deposit.bind(slot))
 			else:
-				var inventory_action: String = ""
-				if item_id == "tinderbox":
-					inventory_action = "firemaking"
-				elif str(ARMOUR_SLOTS.get(item_id, "")) == "ring":
-					inventory_action = "ring"
-				elif is_equipable:
-					inventory_action = "equip"
-				elif is_consumable:
-					inventory_action = "consume"
-				elif is_brewing_ingredient:
-					inventory_action = "brew"
-				elif is_fletching_input:
-					inventory_action = "fletch"
-				elif is_uncut_gem:
-					inventory_action = "cut_gem"
-				slot_button.pressed.connect(_on_inventory_item_pressed.bind(item_id, instance_id, inventory_action))
+				var inventory_action: String = _inventory_action_for_item(item_id)
+				slot_button.pressed.connect(_on_inventory_item_pressed.bind(item_id, instance_id, inventory_action, slot))
 		else:
 			slot_button.configure(slot, false, true)
 			slot_button.icon = EMPTY_SLOT_ICON
 			slot_button.expand_icon = true
 			slot_button.modulate = Color(0.9, 0.93, 0.96)
 		slot_button.swap_requested.connect(_request_inventory_swap)
+		slot_button.context_requested.connect(_open_inventory_context_menu)
 		inventory_grid.add_child(slot_button)
 
 
@@ -4640,16 +5790,113 @@ func _sync_fires(fire_payloads: Variant) -> void:
 		_fire_views.erase(fire_id)
 
 
+func _format_damage_range(minimum_damage: int, maximum_damage: int) -> String:
+	if minimum_damage == maximum_damage:
+		return str(minimum_damage)
+	return "%d–%d" % [minimum_damage, maximum_damage]
+
+
+func _ensure_attack_range_indicator(player_view: PlayerView) -> void:
+	if _attack_range_indicator == null:
+		_attack_range_indicator = Node3D.new()
+		_attack_range_indicator.name = "AttackRangeIndicator"
+		_attack_range_fill = MeshInstance3D.new()
+		_attack_range_fill.name = "Fill"
+		_attack_range_fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_attack_range_indicator.add_child(_attack_range_fill)
+		_attack_range_indicator.visible = false
+		player_view.add_child(_attack_range_indicator)
+	elif _attack_range_indicator.get_parent() != player_view:
+		_attack_range_indicator.reparent(player_view, false)
+
+
+func _update_attack_range_indicator(target_id: String) -> void:
+	if _attack_range_indicator == null:
+		return
+	var attack_range: float = float(_combat_matchup.get("player_attack_range", 0.0))
+	var should_show: bool = not target_id.is_empty() and attack_range > 0.0 and not _player_defeated
+	_attack_range_indicator.visible = should_show
+	if not should_show or is_equal_approx(attack_range, _displayed_attack_range):
+		return
+	_displayed_attack_range = attack_range
+	var fill_mesh := CylinderMesh.new()
+	fill_mesh.top_radius = attack_range
+	fill_mesh.bottom_radius = attack_range
+	fill_mesh.height = 0.025
+	fill_mesh.radial_segments = 96
+	var fill_material := StandardMaterial3D.new()
+	fill_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fill_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_material.albedo_color = Color(0.16, 0.62, 0.92, 0.2)
+	fill_material.emission_enabled = true
+	fill_material.emission = Color(0.05, 0.24, 0.42, 1.0)
+	fill_material.emission_energy_multiplier = 1.15
+	fill_mesh.material = fill_material
+	_attack_range_fill.mesh = fill_mesh
+	_attack_range_fill.position.y = 0.065
+
+
+func _on_target_details_toggled(open: bool) -> void:
+	_target_details_open = open
+	target_details_button.text = "‹" if open else "›"
+	target_details_hud.visible = open and _target_hud_active
+	_position_target_details_hud()
+
+
+func _on_player_details_toggled(open: bool) -> void:
+	_player_details_open = open
+	player_details_button.text = "‹" if open else "›"
+	player_details_hud.visible = open and _target_hud_active
+	_position_player_details_hud()
+
+
+func _position_player_details_hud() -> void:
+	if player_details_hud == null or player_vitals_hud == null:
+		return
+	player_details_hud.scale = player_vitals_hud.scale
+	var gap: float = 10.0
+	var details_size: Vector2 = player_details_hud.size * player_details_hud.scale
+	var vitals_size: Vector2 = player_vitals_hud.size * player_vitals_hud.scale
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var position := Vector2(
+		player_vitals_hud.global_position.x + vitals_size.x + gap,
+		player_vitals_hud.global_position.y,
+	)
+	if position.x + details_size.x > viewport_size.x:
+		position.x = player_vitals_hud.global_position.x - details_size.x - gap
+	position.x = clampf(position.x, 0.0, maxf(0.0, viewport_size.x - details_size.x))
+	position.y = clampf(position.y, 0.0, maxf(0.0, viewport_size.y - details_size.y))
+	player_details_hud.global_position = position
+
+
+func _position_target_details_hud() -> void:
+	if target_details_hud == null or target_hud == null:
+		return
+	target_details_hud.scale = target_hud.scale
+	var gap: float = 10.0
+	var details_size: Vector2 = target_details_hud.size * target_details_hud.scale
+	var target_size: Vector2 = target_hud.size * target_hud.scale
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var position := Vector2(
+		target_hud.global_position.x + target_size.x + gap,
+		target_hud.global_position.y,
+	)
+	if position.x + details_size.x > viewport_size.x:
+		position.x = target_hud.global_position.x - details_size.x - gap
+	position.x = clampf(position.x, 0.0, maxf(0.0, viewport_size.x - details_size.x))
+	position.y = clampf(position.y, 0.0, maxf(0.0, viewport_size.y - details_size.y))
+	target_details_hud.global_position = position
+
+
 func _update_combat_hud() -> void:
 	var state: String = "queued" if _last_action_sequence < _next_action_sequence - 1 else _last_action_result
 	if _player_defeated:
 		state = "respawn in %d" % maxi(0, _player_respawn_at_pulse - _action_pulse)
 	player_health_bar.max_value = maxi(1, _player_maximum_health)
 	player_health_bar.value = _player_health
-	player_health_label.text = "Health  %d/%d  •  Dodge %d%%" % [
+	player_health_label.text = "Health  %d/%d" % [
 		_player_health,
 		_player_maximum_health,
-		roundi(_player_dodge_rate * 100.0),
 	]
 	player_prayer_bar.max_value = maxi(1, _player_maximum_prayer)
 	player_prayer_bar.value = _player_prayer
@@ -4667,20 +5914,64 @@ func _update_combat_hud() -> void:
 	var displayed_target: Dictionary = _target_states.get(displayed_target_key, {})
 	_target_hud_active = not displayed_target_key.is_empty() and not displayed_target.is_empty()
 	target_hud.visible = _target_hud_active or _hud_edit_mode
+	player_details_button.disabled = not _target_hud_active and not _hud_edit_mode
+	player_details_hud.visible = _hud_edit_mode or (_target_hud_active and _player_details_open)
+	target_details_hud.visible = _hud_edit_mode or (_target_hud_active and _target_details_open)
+	_position_player_details_hud()
+	_position_target_details_hud()
 	var displayed_health: int = int(displayed_target.get("health", 0))
 	var displayed_maximum_health: int = int(displayed_target.get("maximum_health", 100))
 	var displayed_defeated: bool = bool(displayed_target.get("defeated", false))
 	var displayed_respawn_pulse: int = int(displayed_target.get("respawn_at_pulse", 0))
 	var displayed_target_id: String = str(displayed_target.get("target_id", ""))
 	var target_name: String = str(displayed_target.get("name", "No Target"))
+	var target_combat_level: int = int(displayed_target.get("combat_level", 1))
 	var target_attack_type: String = str(displayed_target.get("attack_type", "crush")).capitalize()
 	target_health_bar.max_value = maxi(1, displayed_maximum_health)
 	target_health_bar.value = displayed_health
-	target_health_label.text = "%s  %d/%d" % [target_name, displayed_health, displayed_maximum_health]
+	target_health_label.text = "%s  •  Lv %d" % [target_name, target_combat_level]
+	target_health_value.text = "%d/%d" % [displayed_health, displayed_maximum_health]
+	var target_health_ratio: float = clampf(
+		float(displayed_health) / float(maxi(1, displayed_maximum_health)), 0.0, 1.0,
+	)
+	var low_health_colour := Color(0.86, 0.16, 0.14)
+	var medium_health_colour := Color(0.95, 0.65, 0.12)
+	var full_health_colour := Color(0.14, 0.72, 0.28)
+	_target_health_fill_style.bg_color = (
+		medium_health_colour.lerp(full_health_colour, (target_health_ratio - 0.5) * 2.0)
+		if target_health_ratio >= 0.5
+		else low_health_colour.lerp(medium_health_colour, target_health_ratio * 2.0)
+	)
+	var matchup_matches: bool = (
+		str(_combat_matchup.get("target_id", "")) == displayed_target_key
+		and not displayed_target_key.is_empty()
+	)
+	target_details_title.text = "%s Details" % target_name
+	player_details_combat_level.text = str(_player_combat_level)
+	player_details_dodge.text = "%d%%" % roundi(_player_dodge_rate * 100.0)
+	target_details_attack_type.text = target_attack_type
+	if matchup_matches:
+		player_details_accuracy.text = "%d%%" % roundi(float(_combat_matchup.get("player_hit_chance", 0.0)) * 100.0)
+		player_details_damage.text = _format_damage_range(
+			int(_combat_matchup.get("player_minimum_damage", 0)),
+			int(_combat_matchup.get("player_maximum_damage", 0)),
+		)
+		target_details_target_accuracy.text = "%d%%" % roundi(float(_combat_matchup.get("target_hit_chance", 0.0)) * 100.0)
+		target_details_target_damage.text = _format_damage_range(
+			int(_combat_matchup.get("target_minimum_damage", 0)),
+			int(_combat_matchup.get("target_maximum_damage", 0)),
+		)
+	else:
+		player_details_accuracy.text = "—"
+		player_details_damage.text = "—"
+		target_details_target_accuracy.text = "—"
+		target_details_target_damage.text = "—"
+	_update_attack_range_indicator(displayed_target_key if matchup_matches else "")
 
 	var has_aggro: bool = displayed_target_id == _local_player_id
-	aggro_label.text = "%s • ENEMY AGGRO" % target_attack_type if has_aggro else "%s attacks • No aggro" % target_attack_type
-	aggro_label.modulate = Color(1.0, 0.42, 0.32) if has_aggro else Color(0.65, 0.72, 0.78)
+	aggro_icon.visible = has_aggro
+	aggro_icon.modulate = Color(1.0, 0.22, 0.18)
+	aggro_icon.tooltip_text = "Enemy is targeting you"
 	if _player_defeated:
 		combat_state_label.text = "Defeated — %s" % state
 	elif displayed_defeated:
@@ -4695,9 +5986,6 @@ func _update_combat_hud() -> void:
 		combat_state_label.text = "Not attacking — create distance to escape"
 	else:
 		combat_state_label.text = "Out of combat"
-	if _combat_style == "unfocused":
-		combat_state_label.text += "  •  COMBAT XP LOCKED"
-
 	var weapon_interval: int = int(_combat_stats.get("attack_interval", 4))
 	if _equipped_weapon == "dagger":
 		weapon_interval = int(_combat_stats.get("attack_interval", 3))

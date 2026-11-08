@@ -4,6 +4,12 @@ extends Node3D
 @onready var body: StaticBody3D = $Body
 @onready var default_collision: CollisionShape3D = $Body/CollisionShape3D
 @onready var tree_collision: CollisionShape3D = $Body/TreeCollision
+@onready var large_tree_collision: CollisionShape3D = $Body/LargeTreeCollision
+@onready var fishing_collision: CollisionShape3D = $Body/FishingCollision
+@onready var agility_collision: CollisionShape3D = $Body/AgilityCollision
+@onready var altar_collision: CollisionShape3D = $Body/AltarCollision
+@onready var furnace_collision: CollisionShape3D = $Body/FurnaceCollision
+@onready var cooking_range_collision: CollisionShape3D = $Body/CookingRangeCollision
 @onready var label: Label3D = $Label
 @onready var pond_visual: Node3D = $PondVisual
 @onready var range_visual: Node3D = $RangeVisual
@@ -15,8 +21,20 @@ extends Node3D
 @onready var altar_visual: Node3D = $AltarVisual
 @onready var full_tree_visual: Node3D = $TreeVisual/FullTree
 @onready var stump_visual: Node3D = $TreeVisual/Stump
+@onready var tree_trunk: MeshInstance3D = $TreeVisual/FullTree/Trunk
+@onready var canopy_a: MeshInstance3D = $TreeVisual/FullTree/CanopyA
+@onready var canopy_b: MeshInstance3D = $TreeVisual/FullTree/CanopyB
+@onready var yew_top: MeshInstance3D = $TreeVisual/FullTree/YewTop
+@onready var willow_drapes: Array[MeshInstance3D] = [
+	$TreeVisual/FullTree/WillowDrapeLeft,
+	$TreeVisual/FullTree/WillowDrapeRight,
+	$TreeVisual/FullTree/WillowDrapeRear,
+]
 @onready var ore_meshes: Array[MeshInstance3D] = [$MineVisual/CopperA, $MineVisual/CopperB]
-@onready var foliage_meshes: Array[MeshInstance3D] = [$TreeVisual/FullTree/CanopyA, $TreeVisual/FullTree/CanopyB]
+@onready var foliage_meshes: Array[MeshInstance3D] = [
+	canopy_a, canopy_b, yew_top,
+	willow_drapes[0], willow_drapes[1], willow_drapes[2],
+]
 
 
 func set_spot(id: String, display_name: String, skill: String, station: String = "") -> void:
@@ -27,6 +45,8 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 	var is_furnace: bool = station == "smelting"
 	var is_anvil: bool = station == "forging"
 	var is_tree: bool = skill == "woodcutting"
+	var is_fishing: bool = skill == "fishing"
+	var is_large_tree: bool = is_tree and id in ["starter_oak_tree", "starter_willow_tree", "starter_yew_tree"]
 	var is_agility: bool = skill == "agility"
 	var is_prayer_altar: bool = station == "prayer_altar"
 	pond_visual.visible = not is_cooking_range and not is_mine and not is_furnace and not is_anvil and not is_tree and not is_agility and not is_prayer_altar
@@ -37,10 +57,17 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 	tree_visual.visible = is_tree
 	agility_visual.visible = is_agility
 	altar_visual.visible = is_prayer_altar
-	default_collision.disabled = is_tree
-	tree_collision.disabled = not is_tree
-	label.position.y = 3.65 if is_tree else 2.45 if is_furnace else 2.15 if is_prayer_altar else 1.6 if is_agility else 1.4 if is_anvil else 1.15
+	default_collision.disabled = is_tree or is_agility or is_prayer_altar or is_furnace or is_fishing or is_cooking_range
+	tree_collision.disabled = not is_tree or is_large_tree
+	large_tree_collision.disabled = not is_large_tree
+	fishing_collision.disabled = not is_fishing
+	agility_collision.disabled = not is_agility
+	altar_collision.disabled = not is_prayer_altar
+	furnace_collision.disabled = not is_furnace
+	cooking_range_collision.disabled = not is_cooking_range
+	label.position.y = 3.65 if is_tree else 3.35 if is_furnace else 2.15 if is_prayer_altar else 1.6 if is_agility else 1.4 if is_anvil else 1.15
 	if is_tree:
+		_configure_tree_shape(id)
 		var foliage_material := StandardMaterial3D.new()
 		match id:
 			"starter_oak_tree": foliage_material.albedo_color = Color(0.24, 0.48, 0.16)
@@ -64,6 +91,37 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 		ore_material.roughness = 0.4
 		for ore_mesh: MeshInstance3D in ore_meshes:
 			ore_mesh.material_override = ore_material
+
+
+func _configure_tree_shape(id: String) -> void:
+	if id == "starter_oak_tree":
+		tree_trunk.position = Vector3(0, 1.5, 0)
+		tree_trunk.scale = Vector3(1.55, 1.35, 1.55)
+		canopy_a.position = Vector3(-0.5, 2.85, 0)
+		canopy_a.scale = Vector3(1.35, 1.1, 1.35)
+		canopy_b.position = Vector3(0.65, 3.0, 0.2)
+		canopy_b.scale = Vector3(1.15, 1.05, 1.15)
+		label.position.y = 4.25
+	elif id == "starter_willow_tree":
+		full_tree_visual.rotation_degrees.z = 10.0
+		tree_trunk.position = Vector3(0, 1.45, 0)
+		tree_trunk.scale = Vector3(0.85, 1.35, 0.85)
+		canopy_a.position = Vector3(-0.45, 2.8, 0)
+		canopy_a.scale = Vector3(1.2, 0.9, 1.2)
+		canopy_b.position = Vector3(0.55, 2.9, 0.16)
+		canopy_b.scale = Vector3(1.08, 0.85, 1.08)
+		for drape: MeshInstance3D in willow_drapes:
+			drape.visible = true
+		label.position.y = 4.2
+	elif id == "starter_yew_tree":
+		tree_trunk.position = Vector3(0, 1.9, 0)
+		tree_trunk.scale = Vector3(1.3, 1.7, 1.3)
+		canopy_a.position = Vector3(-0.55, 3.65, 0)
+		canopy_a.scale = Vector3(1.45, 0.9, 1.45)
+		canopy_b.position = Vector3(0.7, 3.9, 0.1)
+		canopy_b.scale = Vector3(1.25, 0.85, 1.25)
+		yew_top.visible = true
+		label.position.y = 5.65
 
 
 func set_amount(current_amount: int, maximum_amount: int) -> void:

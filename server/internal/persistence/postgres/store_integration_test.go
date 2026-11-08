@@ -87,6 +87,7 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	want.RunePouch.Items = []simulation.InventoryItem{
 		{Slot: 0, ItemID: simulation.ItemFireRune, Quantity: 75},
 	}
+	want.RunePouch.UnlockedSlots = 4
 	want.EquippedSpellbook = simulation.ItemStandardSpellbook
 	if err := store.Save(ctx, guest.PlayerID, want); err != nil {
 		t.Fatalf("Save() returned an unexpected error: %v", err)

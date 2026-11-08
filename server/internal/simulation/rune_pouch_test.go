@@ -5,6 +5,21 @@ import (
 	"time"
 )
 
+func TestRunePouchStartsWithTwoOfNineSlotsUnlocked(t *testing.T) {
+	snapshot := snapshotRunePouch(newRunePouch())
+	if snapshot.Capacity != RunePouchCapacity || snapshot.UnlockedSlots != BaseRunePouchUnlockedSlots {
+		t.Fatalf("rune pouch capacity = %d/%d, want %d/%d", snapshot.UnlockedSlots, snapshot.Capacity, BaseRunePouchUnlockedSlots, RunePouchCapacity)
+	}
+
+	pouch := newRunePouch()
+	if !pouch.add(ItemAirRune, 1) || !pouch.add(ItemWaterRune, 1) {
+		t.Fatal("rune pouch rejected one of its first two rune types")
+	}
+	if pouch.add(ItemEarthRune, 1) {
+		t.Fatal("rune pouch accepted a third rune type while only two slots are unlocked")
+	}
+}
+
 func TestRunePouchMovesWholeStacksAndRejectsOtherResources(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
@@ -46,5 +61,18 @@ func TestSpellCostsUseRunePouchBeforeInventory(t *testing.T) {
 	}
 	if player.inventory.quantity(ItemFireRune) != before {
 		t.Fatal("failed payment consumed runes")
+	}
+}
+
+func TestRunePouchAcceptsFocusRunes(t *testing.T) {
+	player := &playerState{inventory: newEmptyInventory(), runePouch: newRunePouch()}
+	player.inventory.add(ItemFocusRune, 25)
+
+	_, pouch, err := runeTransferAfter(player, RuneTransferCommand{Deposit: true, InventorySlot: 0})
+	if err != nil {
+		t.Fatalf("deposit Focus Runes: %v", err)
+	}
+	if got := pouch.quantity(ItemFocusRune); got != 25 {
+		t.Fatalf("Focus Runes in pouch = %d, want 25", got)
 	}
 }

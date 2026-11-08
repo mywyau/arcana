@@ -161,12 +161,14 @@ func (store *Store) Load(
 	err := store.database.QueryRowContext(ctx, `
 		SELECT position_x, position_y, position_z, health,
 		       equipped_weapon, COALESCE(equipped_weapon_instance_id, ''), equipped_weapon_reinforcement,
-		       combat_style, inventory_capacity, bank_capacity
+		       combat_style, inventory_capacity, bank_capacity, experience_locked,
+		       rune_pouch_unlocked_slots
 		FROM characters WHERE player_id = $1`, playerID,
 	).Scan(
 		&state.Position.X, &state.Position.Y, &state.Position.Z, &state.Health,
 		&state.EquippedWeapon, &state.EquippedWeaponInstanceID, &state.EquippedWeaponReinforcement,
-		&state.CombatStyle, &state.Inventory.Capacity, &state.Bank.Capacity,
+		&state.CombatStyle, &state.Inventory.Capacity, &state.Bank.Capacity, &state.ExperienceLocked,
+		&state.RunePouch.UnlockedSlots,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return simulation.PersistentPlayerState{}, false, nil
@@ -347,8 +349,9 @@ func (store *Store) Save(
 		INSERT INTO characters (
 			player_id, position_x, position_y, position_z, health,
 			equipped_weapon, equipped_weapon_instance_id, equipped_weapon_reinforcement,
-			combat_style, inventory_capacity, bank_capacity, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+			combat_style, inventory_capacity, bank_capacity, experience_locked,
+			rune_pouch_unlocked_slots, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
 		ON CONFLICT (player_id) DO UPDATE SET
 			position_x = EXCLUDED.position_x,
 			position_y = EXCLUDED.position_y,
@@ -360,10 +363,13 @@ func (store *Store) Save(
 			combat_style = EXCLUDED.combat_style,
 			inventory_capacity = EXCLUDED.inventory_capacity,
 			bank_capacity = EXCLUDED.bank_capacity,
+			experience_locked = EXCLUDED.experience_locked,
+			rune_pouch_unlocked_slots = EXCLUDED.rune_pouch_unlocked_slots,
 			updated_at = now()`,
 		playerID, state.Position.X, state.Position.Y, state.Position.Z, state.Health,
 		state.EquippedWeapon, nullableString(state.EquippedWeaponInstanceID), state.EquippedWeaponReinforcement,
-		state.CombatStyle, state.Inventory.Capacity, state.Bank.Capacity,
+		state.CombatStyle, state.Inventory.Capacity, state.Bank.Capacity, state.ExperienceLocked,
+		state.RunePouch.UnlockedSlots,
 	); err != nil {
 		return fmt.Errorf("upsert character: %w", err)
 	}

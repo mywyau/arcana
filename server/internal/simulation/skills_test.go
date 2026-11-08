@@ -47,7 +47,6 @@ func TestWeaponsTrainExpectedSkills(t *testing.T) {
 		{WeaponUnarmed, CombatStyleCrush, SkillAttack, true},
 		{WeaponUnarmed, CombatStyleHeavyCrush, SkillStrength, true},
 		{WeaponUnarmed, CombatStyleDefensive, SkillDefence, true},
-		{WeaponSword, CombatStyleUnfocused, "", false},
 	}
 	for _, test := range tests {
 		got, trains := skillForCombatStyle(test.weapon, test.style)
@@ -55,6 +54,35 @@ func TestWeaponsTrainExpectedSkills(t *testing.T) {
 			t.Errorf("skillForCombatStyle(%q, %q) = %q, %t; want %q, %t",
 				test.weapon, test.style, got, trains, test.skill, test.trains)
 		}
+	}
+}
+
+func TestExperienceLockPreventsAllSkillExperience(t *testing.T) {
+	player := &playerState{skills: newDefaultSkills(), experienceLocked: true}
+	grantSkillExperience(player, SkillAttack, 10)
+	grantSkillExperience(player, SkillCooking, 25)
+	if player.skills[SkillAttack] != 0 || player.skills[SkillCooking] != 0 {
+		t.Fatalf("locked skills gained XP: %+v", player.skills)
+	}
+	player.experienceLocked = false
+	grantSkillExperience(player, SkillCooking, 25)
+	if player.skills[SkillCooking] != 25 {
+		t.Fatalf("unlocked Cooking XP = %d, want 25", player.skills[SkillCooking])
+	}
+}
+
+func TestExperienceLockCommandAppliesOnSimulationStep(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	if err := world.QueueExperienceLock(ExperienceLockCommand{
+		PlayerID: "player-one", Sequence: 1, Locked: true,
+	}); err != nil {
+		t.Fatalf("QueueExperienceLock() returned an unexpected error: %v", err)
+	}
+	world.Step(50)
+	player := mustPlayer(t, world, "player-one")
+	if !player.ExperienceLocked || player.LastExperienceLockSequence != 1 {
+		t.Fatalf("experience lock snapshot = %+v", player)
 	}
 }
 

@@ -108,6 +108,10 @@ type PlayerSnapshot struct {
 	LastCombatStyleSequence      uint64
 	DodgeRate                    float64
 	CombatStats                  CombatStatsSnapshot
+	CombatLevel                  int
+	CombatMatchup                CombatMatchupSnapshot
+	ExperienceLocked             bool
+	LastExperienceLockSequence   uint64
 	Inventory                    InventorySnapshot
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	LastAmmunitionSequence       uint64
@@ -191,6 +195,8 @@ type playerState struct {
 	lastEquipmentPulse           uint64
 	combatStyle                  CombatStyleID
 	lastCombatStyleSequence      uint64
+	experienceLocked             bool
+	lastExperienceLockSequence   uint64
 	dodgeRate                    float64
 	inventory                    inventoryState
 	ammunitionPouch              inventoryState
@@ -219,7 +225,11 @@ type playerState struct {
 	gatheringSpot                string
 	gatheringRecipe              string
 	gatheringInstanceID          string
+	gatheringRemaining           int
 	gatheringResult              string
+	gatheringInteractionPosition Position
+	gatheringCompletionPosition  Position
+	gatheringTraversal           bool
 	nextGatherPulse              uint64
 	lastGatherSequence           uint64
 	skills                       skillState
@@ -244,6 +254,7 @@ type World struct {
 	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
 	pendingRingTransfers       map[PlayerID]RingTransferCommand
 	pendingRuneTransfers       map[PlayerID]RuneTransferCommand
+	pendingExperienceLocks     map[PlayerID]ExperienceLockCommand
 	drops                      map[string]DropSnapshot
 	dropLifetimes              map[string]time.Duration
 	fires                      map[string]FireSnapshot
@@ -292,6 +303,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
 		pendingRingTransfers:       make(map[PlayerID]RingTransferCommand),
 		pendingRuneTransfers:       make(map[PlayerID]RuneTransferCommand),
+		pendingExperienceLocks:     make(map[PlayerID]ExperienceLockCommand),
 		drops:                      make(map[string]DropSnapshot),
 		dropLifetimes:              make(map[string]time.Duration),
 		fires:                      make(map[string]FireSnapshot),
@@ -403,6 +415,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingAmmunitionTransfers, id)
 	delete(w.pendingRingTransfers, id)
 	delete(w.pendingRuneTransfers, id)
+	delete(w.pendingExperienceLocks, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -485,6 +498,7 @@ func (w *World) Step(elapsed time.Duration) {
 		w.players[id] = player
 		delete(w.pendingJoins, id)
 	}
+	w.applyPendingExperienceLocks()
 
 	for id, move := range w.pendingMoves {
 		player := w.players[id]
@@ -497,18 +511,7 @@ func (w *World) Step(elapsed time.Duration) {
 	}
 	w.startPendingPickupApproaches()
 	w.startPendingGathering()
-
-	// A target click supersedes an existing movement route immediately on the
-	// next simulation step. Combat still begins on an action pulse, but the
-	// player does not continue walking while that intention waits to apply.
-	for id, command := range w.combat.pendingTargets {
-		if command.TargetID == "" {
-			continue
-		}
-		if player, exists := w.players[id]; exists && !player.defeated {
-			stopPlayer(player)
-		}
-	}
+	w.applyTargetCommands()
 
 	seconds := elapsed.Seconds()
 	for _, player := range w.players {
@@ -605,7 +608,9 @@ func (w *World) Snapshot() Snapshot {
 		snapshot.Drops = append(snapshot.Drops, w.drops[id])
 	}
 	for _, player := range w.players {
-		snapshot.Players = append(snapshot.Players, snapshotPlayer(player))
+		playerSnapshot := snapshotPlayer(player)
+		playerSnapshot.CombatMatchup = w.combatMatchupForPlayer(player)
+		snapshot.Players = append(snapshot.Players, playerSnapshot)
 	}
 	sort.Slice(snapshot.Players, func(i, j int) bool {
 		return snapshot.Players[i].ID < snapshot.Players[j].ID
@@ -692,6 +697,9 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastCombatStyleSequence:      player.lastCombatStyleSequence,
 		DodgeRate:                    playerDodgeChance(dummyAccuracyScore, player),
 		CombatStats:                  derivedCombatStats(player),
+		CombatLevel:                  playerCombatLevel(player),
+		ExperienceLocked:             player.experienceLocked,
+		LastExperienceLockSequence:   player.lastExperienceLockSequence,
 		Inventory:                    snapshotInventory(player.inventory),
 		AmmunitionPouch:              snapshotAmmunitionPouch(player.ammunitionPouch),
 		LastAmmunitionSequence:       player.lastAmmunitionSequence,

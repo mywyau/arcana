@@ -5,11 +5,15 @@ import (
 	"sort"
 )
 
-const RunePouchCapacity = 6
+const (
+	RunePouchCapacity          = 9
+	BaseRunePouchUnlockedSlots = 2
+)
 
 type RunePouchSnapshot struct {
-	Capacity int
-	Items    []InventoryItem
+	Capacity      int
+	UnlockedSlots int
+	Items         []InventoryItem
 }
 
 type RuneTransferCommand struct {
@@ -22,31 +26,38 @@ type RuneTransferCommand struct {
 
 func isRune(itemID string) bool {
 	switch itemID {
-	case ItemAirRune, ItemWaterRune, ItemEarthRune, ItemFireRune, ItemHolyRune, ItemDarkRune:
+	case ItemAirRune, ItemWaterRune, ItemEarthRune, ItemFireRune, ItemHolyRune, ItemDarkRune, ItemFocusRune:
 		return true
 	default:
 		return false
 	}
 }
 
-func newRunePouch() inventoryState { return inventoryState{capacity: RunePouchCapacity} }
+func newRunePouch() inventoryState { return inventoryState{capacity: BaseRunePouchUnlockedSlots} }
 
 func snapshotRunePouch(pouch inventoryState) RunePouchSnapshot {
-	return RunePouchSnapshot{Capacity: RunePouchCapacity, Items: append([]InventoryItem(nil), pouch.items...)}
+	return RunePouchSnapshot{
+		Capacity: RunePouchCapacity, UnlockedSlots: pouch.capacity,
+		Items: append([]InventoryItem(nil), pouch.items...),
+	}
 }
 
 func runePouchFromSnapshot(snapshot RunePouchSnapshot) (inventoryState, error) {
-	if snapshot.Capacity == 0 && len(snapshot.Items) == 0 {
+	if snapshot.Capacity == 0 && snapshot.UnlockedSlots == 0 && len(snapshot.Items) == 0 {
 		return newRunePouch(), nil
 	}
-	if snapshot.Capacity != RunePouchCapacity {
-		return inventoryState{}, fmt.Errorf("rune pouch capacity must be %d", RunePouchCapacity)
+	if snapshot.Capacity != RunePouchCapacity || snapshot.UnlockedSlots < BaseRunePouchUnlockedSlots ||
+		snapshot.UnlockedSlots > snapshot.Capacity {
+		return inventoryState{}, fmt.Errorf(
+			"rune pouch must have %d total slots and between %d and %d unlocked slots",
+			RunePouchCapacity, BaseRunePouchUnlockedSlots, RunePouchCapacity,
+		)
 	}
-	pouch := inventoryState{capacity: RunePouchCapacity, items: append([]InventoryItem(nil), snapshot.Items...)}
+	pouch := inventoryState{capacity: snapshot.UnlockedSlots, items: append([]InventoryItem(nil), snapshot.Items...)}
 	seenItems := make(map[string]bool, len(pouch.items))
 	seenSlots := make(map[int]bool, len(pouch.items))
 	for _, item := range pouch.items {
-		if !isRune(item.ItemID) || item.Slot < 0 || item.Slot >= RunePouchCapacity || item.Quantity <= 0 ||
+		if !isRune(item.ItemID) || item.Slot < 0 || item.Slot >= pouch.capacity || item.Quantity <= 0 ||
 			item.InstanceID != "" || item.Reinforcement != 0 || seenItems[item.ItemID] || seenSlots[item.Slot] {
 			return inventoryState{}, fmt.Errorf("rune pouch slot %d is invalid", item.Slot)
 		}
