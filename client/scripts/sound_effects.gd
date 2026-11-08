@@ -28,6 +28,11 @@ const RANGED_IMPACTS: Array[AudioStream] = [
 	preload("res://assets/sound_effects/arrow_pierce_02.ogg"),
 	preload("res://assets/sound_effects/arrow_pierce_03.ogg"),
 ]
+const ARMOURED_IMPACTS: Array[AudioStream] = [
+	preload("res://assets/sound_effects/shield_block_01.ogg"),
+	preload("res://assets/sound_effects/shield_block_02.ogg"),
+	preload("res://assets/sound_effects/shield_block_03.ogg"),
+]
 
 var _voices: Array[AudioStreamPlayer] = []
 var _next_voice: int = 0
@@ -57,8 +62,10 @@ func play_weapon_attack(weapon_id: String) -> void:
 		_play_variant(SWORD_SWINGS, -2.0, 0.9, 1.04)
 
 
-func play_combat_impact(weapon_id: String) -> void:
-	if weapon_id in ["bow", "crossbow"]:
+func play_combat_impact(weapon_id: String, armoured: bool = false) -> void:
+	if armoured:
+		_play_variant(ARMOURED_IMPACTS, -1.5, 0.92, 1.06)
+	elif weapon_id in ["bow", "crossbow"]:
 		_play_variant(RANGED_IMPACTS, -1.5, 0.96, 1.06)
 	else:
 		_play_variant(MELEE_IMPACTS, -2.5, 0.94, 1.05)

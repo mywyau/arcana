@@ -25,6 +25,7 @@ const (
 	ItemHolyRune           = "holy_rune"
 	ItemDarkRune           = "dark_rune"
 	ItemFocusRune          = "focus_rune"
+	ItemBlankRune          = "blank_rune"
 	ItemLeather            = "leather"
 	ItemGoldOre            = "gold_ore"
 	ItemUncutSapphire      = "uncut_sapphire"
@@ -309,6 +310,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemHolyRune, Name: "Holy Rune", Kind: ItemKindResource},
 	{ID: ItemDarkRune, Name: "Dark Rune", Kind: ItemKindResource},
 	{ID: ItemFocusRune, Name: "Focus Rune", Kind: ItemKindResource},
+	{ID: ItemBlankRune, Name: "Blank Rune", Kind: ItemKindResource},
 	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource},
 	{ID: ItemUncutSapphire, Name: "Uncut Sapphire", Kind: ItemKindResource, StackLimit: 10},

@@ -389,6 +389,11 @@ func equipped_weapon() -> String:
 	return _equipped_weapon
 
 
+func wears_plate_armour() -> bool:
+	var body_item: String = str(_equipped_armour.get("body", ""))
+	return body_item == "training_plate" or body_item.ends_with("_platebody")
+
+
 func set_armour(equipped_armour: Dictionary) -> void:
 	if equipped_armour == _equipped_armour:
 		return

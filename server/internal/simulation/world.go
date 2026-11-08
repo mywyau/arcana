@@ -121,6 +121,7 @@ type PlayerSnapshot struct {
 	LastRuneSequence             uint64
 	Bank                         BankSnapshot
 	LastBankSequence             uint64
+	LastMerchantSequence         uint64
 	LastPickupSequence           uint64
 	LastConsumeSequence          uint64
 	NextConsumePulse             uint64
@@ -152,6 +153,7 @@ type Snapshot struct {
 	CombatEvents   []CombatEvent
 	GatheringSpots []GatheringSpotSnapshot
 	BankChests     []BankChestSnapshot
+	Merchants      []MerchantSnapshot
 }
 
 type playerState struct {
@@ -207,6 +209,7 @@ type playerState struct {
 	lastRuneSequence             uint64
 	bank                         bankState
 	lastBankSequence             uint64
+	lastMerchantSequence         uint64
 	lastPickupSequence           uint64
 	lastDropSequence             uint64
 	lastInventoryMoveSequence    uint64
@@ -251,6 +254,7 @@ type World struct {
 	pendingFletches            map[PlayerID]pendingFletch
 	pendingGathering           map[PlayerID]pendingGather
 	pendingBankTransfers       map[PlayerID]BankTransferCommand
+	pendingMerchantSales       map[PlayerID]MerchantSellCommand
 	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
 	pendingRingTransfers       map[PlayerID]RingTransferCommand
 	pendingRuneTransfers       map[PlayerID]RuneTransferCommand
@@ -265,6 +269,7 @@ type World struct {
 	combat                     *combatState
 	rollSource                 RollSource
 	gatheringSpots             map[string]gatheringSpotDefinition
+	merchantStock              []merchantStockEntry
 }
 
 type pendingMove struct {
@@ -300,6 +305,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingFletches:            make(map[PlayerID]pendingFletch),
 		pendingGathering:           make(map[PlayerID]pendingGather),
 		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
+		pendingMerchantSales:       make(map[PlayerID]MerchantSellCommand),
 		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
 		pendingRingTransfers:       make(map[PlayerID]RingTransferCommand),
 		pendingRuneTransfers:       make(map[PlayerID]RuneTransferCommand),
@@ -412,6 +418,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingFletches, id)
 	delete(w.pendingGathering, id)
 	delete(w.pendingBankTransfers, id)
+	delete(w.pendingMerchantSales, id)
 	delete(w.pendingAmmunitionTransfers, id)
 	delete(w.pendingRingTransfers, id)
 	delete(w.pendingRuneTransfers, id)
@@ -493,6 +500,7 @@ func (w *World) Step(elapsed time.Duration) {
 	}
 	w.advanceDropLifetimes(elapsed)
 	w.advanceFireLifetimes(elapsed)
+	w.advanceMerchantStock(elapsed)
 
 	for id, player := range w.pendingJoins {
 		w.players[id] = player
@@ -526,6 +534,7 @@ func (w *World) Step(elapsed time.Duration) {
 	w.applyPendingRingTransfers()
 	w.applyPendingRuneTransfers()
 	w.applyPendingBankTransfers()
+	w.applyPendingMerchantSales()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
 	w.applyPendingItemDrops()
@@ -594,6 +603,7 @@ func (w *World) Snapshot() Snapshot {
 		Fires:          w.fireSnapshots(),
 		GatheringSpots: w.gatheringSpotSnapshots(),
 		BankChests:     append([]BankChestSnapshot{starterBankChest}, testSupplyChests...),
+		Merchants:      []MerchantSnapshot{starterMerchant},
 		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {
@@ -709,6 +719,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastRuneSequence:             player.lastRuneSequence,
 		Bank:                         snapshotBank(player.bank),
 		LastBankSequence:             player.lastBankSequence,
+		LastMerchantSequence:         player.lastMerchantSequence,
 		LastPickupSequence:           player.lastPickupSequence,
 		LastConsumeSequence:          player.lastConsumeSequence,
 		NextConsumePulse:             player.nextConsumePulse,

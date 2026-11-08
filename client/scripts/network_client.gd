@@ -312,6 +312,19 @@ func send_bank_expand(sequence: int) -> bool:
 	return true
 
 
+func send_merchant_sell(sequence: int, inventory_slot: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the shop while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "merchant_sell", "sequence": sequence, "inventory_slot": inventory_slot,
+	}))
+	if result != OK:
+		status_changed.emit("Could not sell item: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_ammunition_deposit(sequence: int, inventory_slot: int) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot use the ammunition pouch while disconnected")

@@ -206,6 +206,7 @@ const ITEMS: Dictionary = {
 	"holy_rune": preload("res://assets/icons/runes/holy_rune.png"),
 	"dark_rune": preload("res://assets/icons/runes/death_rune.png"),
 	"focus_rune": preload("res://assets/icons/runes/mind_rune.png"),
+	"blank_rune": preload("res://assets/icons/runes/blank_rune.svg"),
 	"iron_arrow": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
 	"iron_bolt": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
 	"leather": preload("res://assets/icons/items/materials/leather.svg"),

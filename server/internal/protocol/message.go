@@ -30,6 +30,7 @@ const (
 	MessageBankDeposit        = "bank_deposit"
 	MessageBankWithdraw       = "bank_withdraw"
 	MessageBankExpand         = "bank_expand"
+	MessageMerchantSell       = "merchant_sell"
 	MessageAmmunitionDeposit  = "ammunition_deposit"
 	MessageAmmunitionWithdraw = "ammunition_withdraw"
 	MessageRingDeposit        = "ring_deposit"
@@ -90,6 +91,7 @@ type WorldSnapshot struct {
 	CombatEvents   []CombatEvent           `json:"combat_events"`
 	GatheringSpots []GatheringSpotSnapshot `json:"gathering_spots"`
 	BankChests     []BankChestSnapshot     `json:"bank_chests"`
+	Merchants      []MerchantSnapshot      `json:"merchants"`
 	Players        []PlayerSnapshot        `json:"players"`
 }
 
@@ -157,6 +159,13 @@ type BankChestSnapshot struct {
 	Range    float64  `json:"range"`
 }
 
+type MerchantSnapshot struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Position Position `json:"position"`
+	Range    float64  `json:"range"`
+}
+
 type PlayerSnapshot struct {
 	ID                           string                  `json:"id"`
 	Position                     Position                `json:"position"`
@@ -211,6 +220,7 @@ type PlayerSnapshot struct {
 	RunePouch                    RunePouchSnapshot       `json:"rune_pouch"`
 	LastRuneSequence             uint64                  `json:"last_rune_sequence,omitempty"`
 	LastBankSequence             uint64                  `json:"last_bank_sequence,omitempty"`
+	LastMerchantSequence         uint64                  `json:"last_merchant_sequence,omitempty"`
 	LastPickupSequence           uint64                  `json:"last_pickup_sequence"`
 	LastConsumeSequence          uint64                  `json:"last_consume_sequence"`
 	NextConsumePulse             uint64                  `json:"next_consume_pulse"`
@@ -317,6 +327,7 @@ type InventoryItem struct {
 	Quantity      int    `json:"quantity"`
 	InstanceID    string `json:"instance_id,omitempty"`
 	Reinforcement int    `json:"reinforcement,omitempty"`
+	SellPrice     int    `json:"sell_price,omitempty"`
 }
 
 type NavigationLocation struct {
@@ -348,7 +359,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageExperienceLock &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
 		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
-		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand &&
+		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand && message.Type != MessageMerchantSell &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw &&
 		message.Type != MessageRingDeposit && message.Type != MessageRingWithdraw &&
 		message.Type != MessageRuneDeposit && message.Type != MessageRuneWithdraw {
@@ -420,6 +431,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageBankWithdraw && message.Quantity < 0 {
 		return ClientMessage{}, fmt.Errorf("withdraw quantity cannot be negative")
+	}
+	if message.Type == MessageMerchantSell && message.InventorySlot < 0 {
+		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
 	}
 	if message.Type == MessageAmmunitionDeposit && message.InventorySlot < 0 {
 		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")

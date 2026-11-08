@@ -58,6 +58,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemHolyRune, ItemKindResource},
 		{ItemDarkRune, ItemKindResource},
 		{ItemFocusRune, ItemKindResource},
+		{ItemBlankRune, ItemKindResource},
 		{ItemLeather, ItemKindResource},
 		{ItemGoldOre, ItemKindResource},
 		{ItemUncutSapphire, ItemKindResource}, {ItemSapphire, ItemKindResource},

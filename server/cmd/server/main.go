@@ -75,6 +75,7 @@ func main() {
 		{simulation.ItemAirRune, 50}, {simulation.ItemWaterRune, 50}, {simulation.ItemEarthRune, 50},
 		{simulation.ItemFireRune, 50}, {simulation.ItemHolyRune, 50}, {simulation.ItemDarkRune, 50},
 		{simulation.ItemFocusRune, 250},
+		{simulation.ItemBlankRune, 100},
 		{simulation.ItemNoviceRobeHood, 1}, {simulation.ItemNoviceRobeTop, 1},
 		{simulation.ItemNoviceRobeGloves, 1}, {simulation.ItemNoviceRobeBottoms, 1}, {simulation.ItemNoviceRobeBoots, 1},
 		{simulation.ItemAmuletEmbers, 1},

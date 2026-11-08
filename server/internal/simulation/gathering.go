@@ -34,6 +34,7 @@ const (
 	starterAgilityObstacleID  = "starter_balance_beam"
 	starterPrayerAltarID      = "starter_prayer_altar"
 	warPrayerAltarID          = "war_prayer_altar"
+	starterAirRuneAltarID     = "starter_air_rune_altar"
 	miningInterval            = 4
 	miningExperience          = 10
 	copperVeinCapacity        = 20
@@ -57,16 +58,19 @@ const (
 	prayerSacrificeBonesID    = "sacrifice_bones"
 	prayerAdoptCommonID       = "adopt_common_litany"
 	prayerAdoptWarID          = "adopt_war_covenant"
+	runecraftingInterval      = 3
+	runecraftingExperience    = 12
 )
 
 type craftingStationID string
 
 const (
-	craftingStationFishing  craftingStationID = "fishing"
-	craftingStationCooking  craftingStationID = "cooking"
-	craftingStationSmelting craftingStationID = "smelting"
-	craftingStationForging  craftingStationID = "forging"
-	craftingStationPrayer   craftingStationID = "prayer_altar"
+	craftingStationFishing      craftingStationID = "fishing"
+	craftingStationCooking      craftingStationID = "cooking"
+	craftingStationSmelting     craftingStationID = "smelting"
+	craftingStationForging      craftingStationID = "forging"
+	craftingStationPrayer       craftingStationID = "prayer_altar"
+	craftingStationRunecrafting craftingStationID = "runecrafting"
 )
 
 type GatheringSpotSnapshot struct {
@@ -199,6 +203,17 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Station: craftingStationPrayer, RecipeID: prayerAdoptWarID,
 			},
 			Interval: 1, ActiveResult: "praying", RewardResult: "prayer_restored",
+		},
+		starterAirRuneAltarID: {
+			GatheringSpotSnapshot: GatheringSpotSnapshot{
+				ID: starterAirRuneAltarID, Name: "Air Rune Altar", Skill: SkillRunecrafting,
+				Position: Position{X: 32, Z: -12}, Range: gatheringRange, RequiredLevel: 1,
+				Station: craftingStationRunecrafting,
+			},
+			RewardItem: ItemAirRune, RewardQuantity: 5, RewardXP: runecraftingExperience,
+			Interval: runecraftingInterval, Costs: []ItemCost{{ItemID: ItemBlankRune, Quantity: 1}},
+			ActiveResult: "runecrafting", RewardResult: "crafted_air_runes",
+			MissingResult: "missing_blank_runes",
 		},
 	}
 }

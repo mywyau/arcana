@@ -388,6 +388,51 @@ func TestCookingRangeRequiresRawMinnow(t *testing.T) {
 	}
 }
 
+func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterAirRuneAltarID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if !world.players["player-one"].inventory.add(ItemBlankRune, 2) {
+		t.Fatal("failed to add Blank Runes to test inventory")
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterAirRuneAltarID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	started := mustPlayer(t, world, "player-one")
+	if started.GatheringSpot != starterAirRuneAltarID || started.GatheringResult != "runecrafting" {
+		t.Fatalf("started runecrafting state = %+v", started)
+	}
+	world.Step(runecraftingInterval * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(ItemBlankRune) != 1 || player.Inventory.itemsQuantity(ItemAirRune) != 5 {
+		t.Fatalf("inventory after first craft = %+v", player.Inventory)
+	}
+	if skill := mustSkill(t, player, SkillRunecrafting); skill.Experience != runecraftingExperience {
+		t.Fatalf("Runecrafting after first craft = %+v", skill)
+	}
+	if player.GatheringResult != "crafted_air_runes" {
+		t.Fatalf("gathering result after first craft = %q", player.GatheringResult)
+	}
+
+	world.Step(runecraftingInterval * actionPulseInterval)
+	player = mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(ItemBlankRune) != 0 || player.Inventory.itemsQuantity(ItemAirRune) != 10 ||
+		mustSkill(t, player, SkillRunecrafting).Experience != 2*runecraftingExperience {
+		t.Fatalf("player after repeated runecrafting = %+v", player)
+	}
+	world.Step(runecraftingInterval * actionPulseInterval)
+	player = mustPlayer(t, world, "player-one")
+	if player.GatheringSpot != "" || player.GatheringResult != "missing_blank_runes" {
+		t.Fatalf("runecrafting did not stop after inputs ran out: %+v", player)
+	}
+}
+
 func TestCookingCanReplaceLastRawMinnowInFullInventory(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterCookingRangeID]

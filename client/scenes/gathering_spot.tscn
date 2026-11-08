@@ -350,6 +350,12 @@ scale = Vector3(0.26, 0.075, 0.025)
 material_override = SubResource("AltarLightMaterial")
 mesh = SubResource("AltarDetailMesh")
 
+[node name="RuneOrb" type="MeshInstance3D" parent="AltarVisual"]
+visible = false
+position = Vector3(0, 1.55, 0)
+scale = Vector3(0.34, 0.34, 0.34)
+mesh = SubResource("TreeCanopyMesh")
+
 [node name="Horn" type="MeshInstance3D" parent="AnvilVisual"]
 position = Vector3(0.82, 0.87, 0)
 rotation_degrees = Vector3(0, 0, -10)

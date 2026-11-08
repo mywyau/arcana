@@ -395,6 +395,11 @@ func (h *Handler) readCommands(
 		case protocol.MessageBankExpand:
 			rejectionCode = "bank_rejected"
 			err = h.world.PurchaseBankExpansion(playerID, message.Sequence)
+		case protocol.MessageMerchantSell:
+			rejectionCode = "merchant_rejected"
+			err = h.world.QueueMerchantSale(simulation.MerchantSellCommand{
+				PlayerID: playerID, Sequence: message.Sequence, InventorySlot: message.InventorySlot,
+			})
 		case protocol.MessageAmmunitionDeposit:
 			rejectionCode = "ammunition_rejected"
 			err = h.world.QueueAmmunitionTransfer(simulation.AmmunitionTransferCommand{
@@ -466,6 +471,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 		CombatEvents:   make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
 		GatheringSpots: make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots)),
 		BankChests:     make([]protocol.BankChestSnapshot, 0, len(snapshot.BankChests)),
+		Merchants:      make([]protocol.MerchantSnapshot, 0, len(snapshot.Merchants)),
 		Players:        make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
 	}
 	for _, target := range snapshot.Targets {
@@ -513,6 +519,13 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			ID: chest.ID, Name: chest.Name,
 			Position: protocol.Position{X: chest.Position.X, Y: chest.Position.Y, Z: chest.Position.Z},
 			Range:    chest.Range,
+		})
+	}
+	for _, merchant := range snapshot.Merchants {
+		message.Merchants = append(message.Merchants, protocol.MerchantSnapshot{
+			ID: merchant.ID, Name: merchant.Name,
+			Position: protocol.Position{X: merchant.Position.X, Y: merchant.Position.Y, Z: merchant.Position.Z},
+			Range:    merchant.Range,
 		})
 	}
 	for _, player := range snapshot.Players {
@@ -613,24 +626,25 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 			},
-			LastBankSequence:    player.LastBankSequence,
-			LastPickupSequence:  player.LastPickupSequence,
-			LastConsumeSequence: player.LastConsumeSequence,
-			NextConsumePulse:    player.NextConsumePulse,
-			LastBrewSequence:    player.LastBrewSequence,
-			BrewRemaining:       player.BrewRemaining,
-			NextBrewPulse:       player.NextBrewPulse,
-			BrewingResult:       player.BrewingResult,
-			LastFletchSequence:  player.LastFletchSequence,
-			FletchRemaining:     player.FletchRemaining,
-			NextFletchPulse:     player.NextFletchPulse,
-			FletchingResult:     player.FletchingResult,
-			GatheringSpot:       player.GatheringSpot,
-			GatheringResult:     player.GatheringResult,
-			NextGatherPulse:     player.NextGatherPulse,
-			LastGatherSequence:  player.LastGatherSequence,
-			Skills:              make([]protocol.SkillSnapshot, 0, len(player.Skills)),
-			Path:                make([]protocol.Position, 0, len(player.Path)),
+			LastBankSequence:     player.LastBankSequence,
+			LastMerchantSequence: player.LastMerchantSequence,
+			LastPickupSequence:   player.LastPickupSequence,
+			LastConsumeSequence:  player.LastConsumeSequence,
+			NextConsumePulse:     player.NextConsumePulse,
+			LastBrewSequence:     player.LastBrewSequence,
+			BrewRemaining:        player.BrewRemaining,
+			NextBrewPulse:        player.NextBrewPulse,
+			BrewingResult:        player.BrewingResult,
+			LastFletchSequence:   player.LastFletchSequence,
+			FletchRemaining:      player.FletchRemaining,
+			NextFletchPulse:      player.NextFletchPulse,
+			FletchingResult:      player.FletchingResult,
+			GatheringSpot:        player.GatheringSpot,
+			GatheringResult:      player.GatheringResult,
+			NextGatherPulse:      player.NextGatherPulse,
+			LastGatherSequence:   player.LastGatherSequence,
+			Skills:               make([]protocol.SkillSnapshot, 0, len(player.Skills)),
+			Path:                 make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, prayerID := range player.ActivePrayers {
 			playerMessage.ActivePrayers = append(playerMessage.ActivePrayers, string(prayerID))
@@ -648,6 +662,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{
 				Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 				InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
+				SellPrice: simulation.MerchantSellPrice(item),
 			})
 		}
 		if player.ID == localPlayerID {

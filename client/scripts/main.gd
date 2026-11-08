@@ -6,6 +6,7 @@ const LOOT_SCENE: PackedScene = preload("res://scenes/loot_drop.tscn")
 const GATHERING_SCENE: PackedScene = preload("res://scenes/gathering_spot.tscn")
 const WORLD_FIRE_SCRIPT: Script = preload("res://scripts/world_fire.gd")
 const BANK_CHEST_SCENE: PackedScene = preload("res://scenes/bank_chest.tscn")
+const MERCHANT_SCENE: PackedScene = preload("res://scenes/merchant_view.tscn")
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
 const SPELL_SLOT_SCRIPT: Script = preload("res://scripts/spell_slot.gd")
 const CLOSE_WINDOW_ICON: Texture2D = preload("res://assets/icons/navigation/close_window.svg")
@@ -17,6 +18,7 @@ const TARGET_COLLISION_MASK: int = 8
 const LOOT_COLLISION_MASK: int = 16
 const GATHERING_COLLISION_MASK: int = 32
 const BANK_COLLISION_MASK: int = 64
+const MERCHANT_COLLISION_MASK: int = 128
 const ALL_WORLD_COLLISION_MASK: int = 7
 const HUD_LAYOUT_PATH: String = "user://hud_layout.cfg"
 const CLIENT_SETTINGS_PATH: String = "user://client_settings.cfg"
@@ -158,6 +160,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Herblore": "herblore",
 	"Fletching": "fletching",
 	"Prayer": "prayer",
+	"Runecrafting": "runecrafting",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -174,6 +177,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"herblore": "Herblore",
 	"fletching": "Fletching",
 	"prayer": "Prayer",
+	"runecrafting": "Runecrafting",
 }
 const HUD_TAB_HOTKEYS: Dictionary = {
 	"Styles": 1,
@@ -401,13 +405,17 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var network: NetworkClient = $NetworkClient
 @onready var sound_effects: SoundEffects = $SoundEffects
 @onready var smithing_window: Window = $SmithingWindow
+@onready var smithing_close_button: Button = $SmithingWindow/Panel/Margin/VBox/Header/Close
 @onready var smithing_tabs: TabContainer = $SmithingWindow/Panel/Margin/VBox/Tabs
 @onready var smelting_window: Window = $SmeltingWindow
+@onready var smelting_close_button: Button = $SmeltingWindow/Panel/Margin/VBox/Header/Close
 @onready var smelting_grid: GridContainer = $SmeltingWindow/Panel/Margin/VBox/RecipeScroll/Grid
 @onready var cooking_window: Window = $CookingWindow
+@onready var cooking_close_button: Button = $CookingWindow/Panel/Margin/VBox/Header/Close
 @onready var cooking_ingredients_toggle: Button = $CookingWindow/Panel/Margin/VBox/IngredientsToggle
 @onready var cooking_grid: GridContainer = $CookingWindow/Panel/Margin/VBox/RecipeScroll/Grid
 @onready var brewing_window: Window = $BrewingWindow
+@onready var brewing_close_button: Button = $BrewingWindow/Panel/Margin/VBox/Header/Close
 @onready var brewing_slots: Array[Button] = [
 	$BrewingWindow/Panel/Margin/VBox/Selected/Slot1,
 	$BrewingWindow/Panel/Margin/VBox/Selected/Slot2,
@@ -420,6 +428,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var brewing_make_x_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeX
 @onready var brewing_make_all_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeAll
 @onready var fletching_window: Window = $FletchingWindow
+@onready var fletching_close_button: Button = $FletchingWindow/Panel/Margin/VBox/Header/Close
 @onready var fletching_shafts_button: Button = $FletchingWindow/Panel/Margin/VBox/Recipes/Shafts
 @onready var fletching_arrows_button: Button = $FletchingWindow/Panel/Margin/VBox/Recipes/Arrows
 @onready var fletching_selection: Label = $FletchingWindow/Panel/Margin/VBox/Selection
@@ -432,6 +441,8 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var fires: Node3D = $Fires
 @onready var gathering_spots: Node3D = $GatheringSpots
 @onready var bank_chests: Node3D = $BankChests
+@onready var merchants: Node3D = $Merchants
+@onready var merchant_window: MerchantWindow = $MerchantWindow
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var xp_tracker_hud: XPTracker = $UI/XPTrackerHUD
@@ -605,6 +616,12 @@ var _gathering_views: Dictionary = {}
 var _gathering_states: Dictionary = {}
 var _bank_chest_views: Dictionary = {}
 var _bank_chest_states: Dictionary = {}
+var _merchant_views: Dictionary = {}
+var _merchant_states: Dictionary = {}
+var _active_merchant_id: String = ""
+var _pending_merchant_id: String = ""
+var _next_merchant_sequence: int = 1
+var _last_merchant_sequence: int = 0
 var _bank_items: Array = []
 var _bank_capacity: int = 100
 var _bank_next_expansion_cost: int = 1000
@@ -706,6 +723,7 @@ var _skill_progress: Dictionary = {
 	"herblore": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"fletching": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"prayer": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"runecrafting": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _skill_details_window: Window
@@ -799,6 +817,19 @@ func _ready() -> void:
 		smithing_window, smelting_window, cooking_window, brewing_window, fletching_window,
 	]:
 		_style_interface_window(interface_window)
+	for close_button: Button in [
+		smithing_close_button,
+		smelting_close_button,
+		cooking_close_button,
+		brewing_close_button,
+		fletching_close_button,
+	]:
+		_style_interface_close_button(close_button)
+	smithing_close_button.pressed.connect(smithing_window.hide)
+	smelting_close_button.pressed.connect(smelting_window.hide)
+	cooking_close_button.pressed.connect(cooking_window.hide)
+	brewing_close_button.pressed.connect(brewing_window.hide)
+	fletching_close_button.pressed.connect(fletching_window.hide)
 	_world_context_menu = PopupPanel.new()
 	_world_context_menu.name = "WorldContextMenu"
 	var context_panel_style := StyleBoxFlat.new()
@@ -858,6 +889,8 @@ func _ready() -> void:
 	bank_title.gui_input.connect(_on_bank_title_input)
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_expand_button.pressed.connect(_request_bank_expansion)
+	merchant_window.sell_requested.connect(_request_merchant_sale)
+	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
 	_setup_bank_withdraw_dialog()
 	_setup_ammunition_pouch_window()
 	_setup_ring_rack_window()
@@ -1057,6 +1090,10 @@ func _unhandled_input(event: InputEvent) -> void:
 						_hide_detailed_combat_stats()
 						get_viewport().set_input_as_handled()
 						return
+					if merchant_window.visible or not _active_merchant_id.is_empty():
+						_close_merchant()
+						get_viewport().set_input_as_handled()
+						return
 					if bank_hud.visible or not _active_bank_chest_id.is_empty():
 						_close_bank()
 						get_viewport().set_input_as_handled()
@@ -1116,6 +1153,21 @@ func _physics_process(_delta: float) -> void:
 		if target_body != null and target_body.has_meta(&"combat_target_id"):
 			var target_id: String = str(target_body.get_meta(&"combat_target_id"))
 			if _request_engage_target(target_id, target_body.global_position):
+				_play_interaction_click_feedback(_pending_click)
+			return
+
+	var merchant_query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	merchant_query.collision_mask = MERCHANT_COLLISION_MASK
+	var merchant_result: Dictionary = get_world_3d().direct_space_state.intersect_ray(merchant_query)
+	if not merchant_result.is_empty():
+		var merchant_body := merchant_result.get("collider") as CollisionObject3D
+		if merchant_body != null and merchant_body.has_meta(&"merchant_id"):
+			var merchant_id: String = str(merchant_body.get_meta(&"merchant_id"))
+			if _request_open_merchant(
+				merchant_id,
+				merchant_body.global_position,
+				float(merchant_body.get_meta(&"merchant_range", 3.0)),
+			):
 				_play_interaction_click_feedback(_pending_click)
 			return
 
@@ -1248,6 +1300,73 @@ func _request_open_bank(chest_id: String, chest_position: Vector3, interaction_r
 			_request_disengage()
 		return true
 	return false
+
+
+func _request_open_merchant(merchant_id: String, merchant_position: Vector3, interaction_range: float) -> bool:
+	if merchant_id.is_empty() or _player_defeated:
+		return false
+	_pending_merchant_id = merchant_id
+	var local_view: PlayerView = _player_views.get(_local_player_id)
+	if local_view != null and local_view.global_position.distance_to(merchant_position) <= interaction_range:
+		_open_merchant(merchant_id)
+		return true
+	if network.send_move(_next_sequence, merchant_position):
+		_next_sequence += 1
+		status_label.text = "Walking to the shopkeeper…"
+		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
+			_request_disengage()
+		return true
+	return false
+
+
+func _open_merchant(merchant_id: String) -> void:
+	_active_merchant_id = merchant_id
+	_pending_merchant_id = ""
+	camera_rig.set_zoom_blocked(true)
+	merchant_window.show_inventory(_inventory_items)
+	status_label.text = "Shop opened"
+
+
+func _close_merchant() -> void:
+	_active_merchant_id = ""
+	_pending_merchant_id = ""
+	merchant_window.hide()
+	camera_rig.set_zoom_blocked(false)
+
+
+func _on_merchant_visibility_changed() -> void:
+	if not merchant_window.visible and not _active_merchant_id.is_empty():
+		_close_merchant()
+
+
+func _update_merchant_proximity(player_position: Vector3) -> void:
+	var merchant_id: String = _active_merchant_id if not _active_merchant_id.is_empty() else _pending_merchant_id
+	if merchant_id.is_empty():
+		return
+	var state: Dictionary = _merchant_states.get(merchant_id, {}) as Dictionary
+	var position_data: Variant = state.get("position", {})
+	if typeof(position_data) != TYPE_DICTIONARY:
+		_close_merchant()
+		return
+	var coordinates := position_data as Dictionary
+	var merchant_position := Vector3(
+		float(coordinates.get("x", 0.0)),
+		float(coordinates.get("y", 0.0)),
+		float(coordinates.get("z", 0.0)),
+	)
+	if player_position.distance_to(merchant_position) <= float(state.get("range", 3.0)):
+		if _active_merchant_id.is_empty():
+			_open_merchant(merchant_id)
+	elif not _active_merchant_id.is_empty():
+		_close_merchant()
+
+
+func _request_merchant_sale(inventory_slot: int) -> void:
+	if _active_merchant_id.is_empty() or _player_defeated:
+		return
+	if network.send_merchant_sell(_next_merchant_sequence, inventory_slot):
+		_next_merchant_sequence += 1
+		status_label.text = "Selling item stack…"
 
 
 func _open_bank(chest_id: String) -> void:
@@ -2014,6 +2133,18 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 		child.queue_free()
 	_context_menu_actions.clear()
 	var next_menu_id: int = 0
+	var merchant_hit: Dictionary = _merchant_at_screen_position(screen_position)
+	if not merchant_hit.is_empty():
+		var merchant_id: String = str(merchant_hit.get("merchant_id", ""))
+		var merchant_state: Dictionary = _merchant_states.get(merchant_id, {}) as Dictionary
+		_add_world_context_action("Trade", str(merchant_state.get("name", "Shopkeeper")), next_menu_id)
+		_context_menu_actions[next_menu_id] = {
+			"type": "open_merchant",
+			"merchant_id": merchant_id,
+			"position": merchant_hit.get("position", Vector3.ZERO),
+			"range": float(merchant_hit.get("range", 3.0)),
+		}
+		next_menu_id += 1
 	var bank_hit: Dictionary = _bank_at_screen_position(screen_position)
 	if not bank_hit.is_empty():
 		var chest_id: String = str(bank_hit.get("chest_id", ""))
@@ -2065,6 +2196,7 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 			"forging": action_verb = "Smith"; action_target = spot_name
 			"cooking": action_verb = "Cook"; action_target = spot_name
 			"fishing": action_verb = "Fish"; action_target = spot_name
+			"runecrafting": action_verb = "Craft"; action_target = "Air Runes"
 			_:
 				match skill:
 					"mining": action_verb = "Mine"; action_target = spot_name
@@ -2186,6 +2318,24 @@ func _bank_at_screen_position(screen_position: Vector2) -> Dictionary:
 	}
 
 
+func _merchant_at_screen_position(screen_position: Vector2) -> Dictionary:
+	var ray_origin: Vector3 = camera.project_ray_origin(screen_position)
+	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	query.collision_mask = MERCHANT_COLLISION_MASK
+	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return {}
+	var body := result.get("collider") as CollisionObject3D
+	if body == null or not body.has_meta(&"merchant_id"):
+		return {}
+	return {
+		"merchant_id": str(body.get_meta(&"merchant_id")),
+		"position": body.global_position,
+		"range": float(body.get_meta(&"merchant_range", 3.0)),
+	}
+
+
 func _gathering_at_screen_position(screen_position: Vector2) -> Dictionary:
 	var ray_origin: Vector3 = camera.project_ray_origin(screen_position)
 	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
@@ -2266,6 +2416,12 @@ func _on_world_context_action(menu_id: int) -> void:
 	_world_context_menu.hide()
 	var action: Dictionary = _context_menu_actions.get(menu_id, {})
 	match str(action.get("type", "")):
+		"open_merchant":
+			_request_open_merchant(
+				str(action.get("merchant_id", "")),
+				action.get("position", Vector3.ZERO) as Vector3,
+				float(action.get("range", 3.0)),
+			)
 		"open_chest":
 			_request_open_bank(
 				str(action.get("chest_id", "")),
@@ -2710,6 +2866,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 	_sync_fires(snapshot.get("fires", []))
 	_sync_gathering_spots(snapshot.get("gathering_spots", []))
 	_sync_bank_chests(snapshot.get("bank_chests", []))
+	_sync_merchants(snapshot.get("merchants", []))
 	var player_payloads: Variant = snapshot.get("players", [])
 	if typeof(player_payloads) != TYPE_ARRAY:
 		return
@@ -2863,6 +3020,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			var last_bank_sequence: int = int(player_data.get("last_bank_sequence", 0))
 			_next_bank_sequence = maxi(_next_bank_sequence, last_bank_sequence + 1)
 			_update_bank_proximity(position)
+			_last_merchant_sequence = int(player_data.get("last_merchant_sequence", 0))
+			_next_merchant_sequence = maxi(_next_merchant_sequence, _last_merchant_sequence + 1)
+			_update_merchant_proximity(position)
 			_update_crafting_station_proximity(position)
 			_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
 			_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
@@ -3008,6 +3168,12 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Mining stopped: the vein is depleted"
 					"inventory_full":
 						status_label.text = "Gathering stopped: inventory is full"
+					"runecrafting":
+						status_label.text = "Binding air runes…"
+					"crafted_air_runes":
+						status_label.text = "Crafted 5 Air Runes • Runecrafting continues…"
+					"missing_blank_runes":
+						status_label.text = "Runecrafting stopped: no Blank Runes"
 					_:
 						if _gathering_result.begins_with("requires_"):
 							var requirement_parts: PackedStringArray = _gathering_result.trim_prefix("requires_").rsplit("_level_", true, 1)
@@ -3344,6 +3510,45 @@ func _sync_bank_chests(chest_payloads: Variant) -> void:
 			_close_bank()
 
 
+func _sync_merchants(payloads: Variant) -> void:
+	if typeof(payloads) != TYPE_ARRAY:
+		return
+	var active_ids: Dictionary = {}
+	for payload: Variant in payloads as Array:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var data := payload as Dictionary
+		var merchant_id: String = str(data.get("id", ""))
+		var position_data: Variant = data.get("position", {})
+		if merchant_id.is_empty() or typeof(position_data) != TYPE_DICTIONARY:
+			continue
+		var view := _merchant_views.get(merchant_id) as MerchantView
+		if view == null:
+			view = MERCHANT_SCENE.instantiate() as MerchantView
+			view.name = "Merchant_%s" % merchant_id
+			merchants.add_child(view)
+			view.configure(merchant_id, str(data.get("name", "Shopkeeper")), float(data.get("range", 3.0)))
+			_merchant_views[merchant_id] = view
+		var coordinates := position_data as Dictionary
+		view.position = Vector3(
+			float(coordinates.get("x", 0.0)),
+			float(coordinates.get("y", 0.0)),
+			float(coordinates.get("z", 0.0)),
+		)
+		_merchant_states[merchant_id] = data.duplicate(true)
+		active_ids[merchant_id] = true
+	for merchant_id: String in _merchant_views.keys():
+		if active_ids.has(merchant_id):
+			continue
+		var departed := _merchant_views.get(merchant_id) as MerchantView
+		if departed != null:
+			departed.queue_free()
+		_merchant_views.erase(merchant_id)
+		_merchant_states.erase(merchant_id)
+		if merchant_id == _active_merchant_id or merchant_id == _pending_merchant_id:
+			_close_merchant()
+
+
 func _play_gathering_sound(result: String) -> void:
 	if result.begins_with("mined_"):
 		sound_effects.play_action(&"mining")
@@ -3420,7 +3625,7 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 			if event_type == "damage":
 				target.play_hit(amount)
 				if local_combat and spell_id.is_empty():
-					sound_effects.play_combat_impact(weapon_id)
+					sound_effects.play_combat_impact(weapon_id, target.wears_plate_armour())
 			else:
 				target.play_dodge()
 
@@ -3492,6 +3697,8 @@ func _on_server_error(code: String, message: String) -> void:
 			_refresh_fletching_window()
 	if code == "gather_rejected":
 		_next_gather_sequence = _last_gather_sequence + 1
+	if code == "merchant_rejected":
+		_next_merchant_sequence = _last_merchant_sequence + 1
 	if code == "command_rejected":
 		var local_view: PlayerView = _player_views.get(_local_player_id)
 		if local_view != null:
@@ -3542,6 +3749,7 @@ func _gather_error_activity() -> String:
 		"cooking": return "cooking"
 		"fishing": return "fishing"
 		"prayer_altar": return "prayer"
+		"runecrafting": return "runecrafting"
 	match str(state.get("skill", "")):
 		"mining": return "mining"
 		"woodcutting": return "woodcutting"
@@ -4318,8 +4526,8 @@ func _populate_placeholder_skills() -> void:
 
 func _setup_skill_details_interface() -> void:
 	_skill_details_window = Window.new()
-	_style_interface_window(_skill_details_window)
 	_skill_details_window.title = "Skill Details"
+	_skill_details_window.borderless = true
 	_skill_details_window.min_size = Vector2i(430, 360)
 	_skill_details_window.size = Vector2i(430, 360)
 	_skill_details_window.visible = false
@@ -4327,13 +4535,22 @@ func _setup_skill_details_interface() -> void:
 	_skill_details_window.window_input.connect(_on_skill_details_window_input)
 	add_child(_skill_details_window)
 
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.055, 0.07, 0.085, 0.98)
+	panel_style.border_color = Color(0.25, 0.32, 0.38, 0.95)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(8)
+	panel.add_theme_stylebox_override("panel", panel_style)
+	_skill_details_window.add_child(panel)
+
 	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 20)
 	margin.add_theme_constant_override("margin_top", 18)
 	margin.add_theme_constant_override("margin_right", 20)
 	margin.add_theme_constant_override("margin_bottom", 18)
-	_skill_details_window.add_child(margin)
+	panel.add_child(margin)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 12)
 	margin.add_child(content)
@@ -4351,6 +4568,11 @@ func _setup_skill_details_interface() -> void:
 	_skill_details_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_skill_details_title.add_theme_font_size_override("font_size", 25)
 	header.add_child(_skill_details_title)
+	var close_button := Button.new()
+	_style_interface_close_button(close_button)
+	close_button.tooltip_text = "Close"
+	close_button.pressed.connect(_skill_details_window.hide)
+	header.add_child(close_button)
 
 	_skill_details_level = Label.new()
 	_skill_details_level.add_theme_font_size_override("font_size", 18)
@@ -4388,7 +4610,6 @@ func _open_skill_details(skill_name: String, skill_id: String) -> void:
 func _refresh_skill_details_interface() -> void:
 	if _skill_details_window == null or _open_skill_name.is_empty():
 		return
-	_skill_details_window.title = "%s Skill" % _open_skill_name
 	_skill_details_title.text = _open_skill_name
 	_skill_details_icon.texture = SKILL_ICONS.get(_open_skill_name, TAB_SKILLS_ICON) as Texture2D
 	var progress: Dictionary = _skill_progress.get(_open_skill_id, {}) as Dictionary
@@ -5035,6 +5256,8 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_update_magic_hud()
 	if bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id):
 		_update_bank_hud()
+	if merchant_window.visible:
+		merchant_window.show_inventory(_inventory_items)
 
 
 func _apply_bank_snapshot(bank: Dictionary) -> void:
@@ -5195,14 +5418,18 @@ func _apply_ring_rack_snapshot(rack: Dictionary) -> void:
 
 
 func _style_interface_close_button(button: Button) -> void:
-	button.text = "×"
-	button.custom_minimum_size = Vector2(48, 48)
+	button.text = ""
+	button.icon = CLOSE_WINDOW_ICON
+	button.expand_icon = true
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	button.custom_minimum_size = Vector2(44, 44)
 	button.focus_mode = Control.FOCUS_NONE
 	button.flat = true
-	button.add_theme_font_size_override("font_size", 32)
-	button.add_theme_color_override("font_color", Color(0.88, 0.27, 0.3))
-	button.add_theme_color_override("font_hover_color", Color(1.0, 0.42, 0.44))
-	button.add_theme_color_override("font_pressed_color", Color(0.68, 0.12, 0.15))
+	button.add_theme_constant_override("icon_max_width", 28)
+	button.modulate = Color(1.0, 1.0, 1.0, 0.92)
+	button.mouse_entered.connect(func() -> void: button.modulate = Color.WHITE)
+	button.mouse_exited.connect(func() -> void: button.modulate = Color(1.0, 1.0, 1.0, 0.92))
 	var transparent := StyleBoxEmpty.new()
 	button.add_theme_stylebox_override("normal", transparent)
 	button.add_theme_stylebox_override("hover", transparent)

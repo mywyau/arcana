@@ -19,6 +19,16 @@ extends Node3D
 @onready var tree_visual: Node3D = $TreeVisual
 @onready var agility_visual: Node3D = $AgilityVisual
 @onready var altar_visual: Node3D = $AltarVisual
+@onready var altar_holy_mark_vertical: MeshInstance3D = $AltarVisual/HolyMarkVertical
+@onready var altar_holy_mark_horizontal: MeshInstance3D = $AltarVisual/HolyMarkHorizontal
+@onready var altar_rune_orb: MeshInstance3D = $AltarVisual/RuneOrb
+@onready var altar_surfaces: Array[MeshInstance3D] = [
+	$AltarVisual/TableTop,
+	$AltarVisual/LeftSupport,
+	$AltarVisual/RightSupport,
+	$AltarVisual/ClothTop,
+	$AltarVisual/ClothFront,
+]
 @onready var full_tree_visual: Node3D = $TreeVisual/FullTree
 @onready var stump_visual: Node3D = $TreeVisual/Stump
 @onready var tree_trunk: MeshInstance3D = $TreeVisual/FullTree/Trunk
@@ -49,23 +59,41 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 	var is_large_tree: bool = is_tree and id in ["starter_oak_tree", "starter_willow_tree", "starter_yew_tree"]
 	var is_agility: bool = skill == "agility"
 	var is_prayer_altar: bool = station == "prayer_altar"
-	pond_visual.visible = not is_cooking_range and not is_mine and not is_furnace and not is_anvil and not is_tree and not is_agility and not is_prayer_altar
+	var is_runecrafting_altar: bool = station == "runecrafting"
+	var is_altar: bool = is_prayer_altar or is_runecrafting_altar
+	pond_visual.visible = not is_cooking_range and not is_mine and not is_furnace and not is_anvil and not is_tree and not is_agility and not is_altar
 	range_visual.visible = is_cooking_range
 	mine_visual.visible = is_mine
 	furnace_visual.visible = is_furnace
 	anvil_visual.visible = is_anvil
 	tree_visual.visible = is_tree
 	agility_visual.visible = is_agility
-	altar_visual.visible = is_prayer_altar
-	default_collision.disabled = is_tree or is_agility or is_prayer_altar or is_furnace or is_fishing or is_cooking_range
+	altar_visual.visible = is_altar
+	default_collision.disabled = is_tree or is_agility or is_altar or is_furnace or is_fishing or is_cooking_range
 	tree_collision.disabled = not is_tree or is_large_tree
 	large_tree_collision.disabled = not is_large_tree
 	fishing_collision.disabled = not is_fishing
 	agility_collision.disabled = not is_agility
-	altar_collision.disabled = not is_prayer_altar
+	altar_collision.disabled = not is_altar
 	furnace_collision.disabled = not is_furnace
 	cooking_range_collision.disabled = not is_cooking_range
-	label.position.y = 3.65 if is_tree else 3.35 if is_furnace else 2.15 if is_prayer_altar else 1.6 if is_agility else 1.4 if is_anvil else 1.15
+	label.position.y = 3.65 if is_tree else 3.35 if is_furnace else 2.15 if is_altar else 1.6 if is_agility else 1.4 if is_anvil else 1.15
+	altar_holy_mark_vertical.visible = is_prayer_altar
+	altar_holy_mark_horizontal.visible = is_prayer_altar
+	altar_rune_orb.visible = is_runecrafting_altar
+	if is_runecrafting_altar:
+		var altar_material := StandardMaterial3D.new()
+		altar_material.albedo_color = Color(0.18, 0.42, 0.62)
+		altar_material.metallic = 0.25
+		altar_material.roughness = 0.5
+		for altar_surface: MeshInstance3D in altar_surfaces:
+			altar_surface.material_override = altar_material
+		var orb_material := StandardMaterial3D.new()
+		orb_material.albedo_color = Color(0.72, 0.92, 1.0)
+		orb_material.emission_enabled = true
+		orb_material.emission = Color(0.28, 0.72, 1.0)
+		orb_material.emission_energy_multiplier = 2.0
+		altar_rune_orb.material_override = orb_material
 	if is_tree:
 		_configure_tree_shape(id)
 		var foliage_material := StandardMaterial3D.new()
