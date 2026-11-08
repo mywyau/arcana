@@ -31,18 +31,36 @@ type Handler struct {
 	snapshotInterval time.Duration
 	guestIdentities  *identity.GuestManager
 	characters       character.Repository
+	allowDebug       bool
+	acceptOptions    websocket.AcceptOptions
+}
+
+type HandlerOptions struct {
+	AllowDebugCommands bool
+	AllowedOrigins     []string
 }
 
 func NewHandler(world *simulation.World, snapshotInterval time.Duration) (*Handler, error) {
+	return NewHandlerWithOptions(
+		world, snapshotInterval, HandlerOptions{AllowDebugCommands: true},
+	)
+}
+
+func NewHandlerWithOptions(
+	world *simulation.World,
+	snapshotInterval time.Duration,
+	options HandlerOptions,
+) (*Handler, error) {
 	guestIdentities, err := identity.NewGuestManager(identity.NewMemoryGuestRepository())
 	if err != nil {
 		return nil, err
 	}
-	return NewHandlerWithRepositories(
+	return NewHandlerWithRepositoriesAndOptions(
 		world,
 		snapshotInterval,
 		guestIdentities,
 		character.NewMemoryRepository(),
+		options,
 	)
 }
 
@@ -65,6 +83,19 @@ func NewHandlerWithRepositories(
 	guestIdentities *identity.GuestManager,
 	characters character.Repository,
 ) (*Handler, error) {
+	return NewHandlerWithRepositoriesAndOptions(
+		world, snapshotInterval, guestIdentities, characters,
+		HandlerOptions{AllowDebugCommands: true},
+	)
+}
+
+func NewHandlerWithRepositoriesAndOptions(
+	world *simulation.World,
+	snapshotInterval time.Duration,
+	guestIdentities *identity.GuestManager,
+	characters character.Repository,
+	options HandlerOptions,
+) (*Handler, error) {
 	if world == nil {
 		return nil, fmt.Errorf("world is required")
 	}
@@ -80,11 +111,15 @@ func NewHandlerWithRepositories(
 	return &Handler{
 		world: world, snapshotInterval: snapshotInterval,
 		guestIdentities: guestIdentities, characters: characters,
+		allowDebug: options.AllowDebugCommands,
+		acceptOptions: websocket.AcceptOptions{
+			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
+		},
 	}, nil
 }
 
 func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-	connection, err := websocket.Accept(response, request, nil)
+	connection, err := websocket.Accept(response, request, &h.acceptOptions)
 	if err != nil {
 		return
 	}
@@ -385,14 +420,18 @@ func (h *Handler) readCommands(
 			})
 		case protocol.MessageDebugSetSkill:
 			rejectionCode = "debug_skill_rejected"
-			err = h.world.QueueDebugSetSkill(simulation.DebugSetSkillCommand{
-				PlayerID:      playerID,
-				Sequence:      message.Sequence,
-				Skill:         simulation.SkillID(message.SkillID),
-				Level:         message.Level,
-				Experience:    message.Experience,
-				SetExperience: message.SetExperience,
-			})
+			if !h.allowDebug {
+				err = fmt.Errorf("debug commands are disabled")
+			} else {
+				err = h.world.QueueDebugSetSkill(simulation.DebugSetSkillCommand{
+					PlayerID:      playerID,
+					Sequence:      message.Sequence,
+					Skill:         simulation.SkillID(message.SkillID),
+					Level:         message.Level,
+					Experience:    message.Experience,
+					SetExperience: message.SetExperience,
+				})
+			}
 		case protocol.MessageSetPrayer:
 			rejectionCode = "prayer_rejected"
 			err = h.world.QueuePrayer(simulation.PrayerCommand{

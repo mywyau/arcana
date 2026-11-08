@@ -30,6 +30,20 @@ func TestSupplyChestsAreSplitAndDoNotOverlap(t *testing.T) {
 	}
 }
 
+func TestProductionWorldSnapshotHidesDebugFixtures(t *testing.T) {
+	world := NewWorld()
+	world.SetDebugContentEnabled(false)
+	snapshot := world.Snapshot()
+	if len(snapshot.BankChests) != 1 || snapshot.BankChests[0].ID != StarterBankChestID {
+		t.Fatalf("production bank chests = %+v", snapshot.BankChests)
+	}
+	for _, spot := range snapshot.GatheringSpots {
+		if spot.Station == craftingStationDebugSkills {
+			t.Fatalf("production gathering spots include debug shrine: %+v", spot)
+		}
+	}
+}
+
 func TestBankExpansionPricesCompoundTowardFiveMillion(t *testing.T) {
 	want := []int{1000, 1700, 2900, 4800, 8000}
 	for index, wantCost := range want {

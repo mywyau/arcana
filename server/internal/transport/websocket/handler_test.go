@@ -144,6 +144,42 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsDebugCommandsWhenDisabled(t *testing.T) {
+	world := simulation.NewWorld()
+	handler, err := NewHandlerWithOptions(
+		world, 5*time.Millisecond, HandlerOptions{AllowDebugCommands: false},
+	)
+	if err != nil {
+		t.Fatalf("NewHandlerWithOptions() error = %v", err)
+	}
+	server := startTestServer(t, handler)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	connection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("websocket.Dial() error = %v", err)
+	}
+	defer connection.CloseNow()
+	authenticateGuest(t, ctx, connection, "")
+	_ = readServerMessage(t, ctx, connection)
+	if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
+		Type: protocol.MessageDebugSetSkill, Sequence: 1, SkillID: "attack", Level: 50,
+	}); err != nil {
+		t.Fatalf("write debug command: %v", err)
+	}
+	for {
+		message := readServerMessage(t, ctx, connection)
+		if message.Type != protocol.MessageError {
+			continue
+		}
+		if message.Error == nil || message.Error.Code != "debug_skill_rejected" {
+			t.Fatalf("error message = %+v", message)
+		}
+		break
+	}
+}
+
 func TestHandlerSavesCharacterOnDisconnect(t *testing.T) {
 	world := simulation.NewWorld()
 	const interval = 5 * time.Millisecond

@@ -274,6 +274,7 @@ type World struct {
 	rollSource                 RollSource
 	gatheringSpots             map[string]gatheringSpotDefinition
 	merchantStock              []merchantStockEntry
+	debugContentEnabled        bool
 }
 
 type pendingMove struct {
@@ -322,6 +323,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		combat:                     newCombatState(),
 		rollSource:                 rollSource,
 		gatheringSpots:             newGatheringSpots(),
+		debugContentEnabled:        true,
 	}
 }
 
@@ -329,6 +331,14 @@ func NewWorldWithPathfinder(pathfinder Pathfinder) *World {
 	world := NewWorld()
 	world.pathfinder = pathfinder
 	return world
+}
+
+// SetDebugContentEnabled controls whether development-only world fixtures are
+// exposed to clients. Local worlds default to enabled for existing workflows.
+func (w *World) SetDebugContentEnabled(enabled bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.debugContentEnabled = enabled
 }
 
 // AddPlayer registers a player before it enters the active simulation.
@@ -602,6 +612,10 @@ func (w *World) Snapshot() Snapshot {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	bankChests := []BankChestSnapshot{starterBankChest}
+	if w.debugContentEnabled {
+		bankChests = append(bankChests, testSupplyChests...)
+	}
 	snapshot := Snapshot{
 		Tick:           w.tick,
 		Players:        make([]PlayerSnapshot, 0, len(w.players)),
@@ -610,7 +624,7 @@ func (w *World) Snapshot() Snapshot {
 		Drops:          make([]DropSnapshot, 0, len(w.drops)),
 		Fires:          w.fireSnapshots(),
 		GatheringSpots: w.gatheringSpotSnapshots(),
-		BankChests:     append([]BankChestSnapshot{starterBankChest}, testSupplyChests...),
+		BankChests:     bankChests,
 		Merchants:      []MerchantSnapshot{starterMerchant},
 		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}

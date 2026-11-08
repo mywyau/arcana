@@ -80,6 +80,49 @@ The test creates a random guest identity, verifies identity and character data
 through a second database connection, links an email account, and removes its
 records afterward.
 
+### Hosted server
+
+The repository includes a production server image in `server/Dockerfile` and a
+Render Blueprint in `render.yaml`. The Blueprint creates one Frankfurt web
+service and one managed PostgreSQL database. Keep the service at one instance:
+the active world is owned by one server process and is not horizontally shared.
+
+Create a Render Blueprint from this repository, review the paid service and
+database plans, and deploy it. Render supplies `PORT` and `DATABASE_URL`; the
+server applies its embedded migrations and exposes `/ready` for the health
+check. Production mode refuses to start without PostgreSQL and refuses to
+enable development content.
+
+The relevant environment variables are:
+
+- `ARCANA_ENV`: `development`, `staging`, or `production`.
+- `DATABASE_URL`: required outside development.
+- `PORT`: hosting platform HTTP port; defaults to `8080` locally.
+- `ARCANA_ENABLE_DEBUG_CONTENT`: defaults on only in development and cannot be
+  enabled in production.
+- `ARCANA_ALLOWED_ORIGINS`: optional comma-separated WebSocket origin hosts for
+  future browser clients. Native Godot clients do not send a browser origin.
+
+Build and exercise the same container locally with:
+
+```sh
+docker build -t arcana-server ./server
+docker run --rm -p 8080:8080 \
+  -e ARCANA_ENV=development \
+  arcana-server
+```
+
+The Godot client reads `network/server_url` from `client/project.godot`. It can
+also be overridden for staging tests without editing the project:
+
+```sh
+ARCANA_SERVER_URL=wss://arcana-beta-server.onrender.com/ws ./run-client.sh beta
+```
+
+An exported build can use the project setting or a user argument such as
+`-- --server-url=wss://arcana-beta-server.onrender.com/ws`. Public deployments
+must use `wss://`, not `ws://`.
+
 ### Account foundation
 
 The server database separates private account credentials from character state.

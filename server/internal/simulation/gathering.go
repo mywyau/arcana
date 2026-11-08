@@ -538,6 +538,9 @@ func clearGathering(player *playerState, result string) {
 func (w *World) gatheringSpotSnapshots() []GatheringSpotSnapshot {
 	spots := make([]GatheringSpotSnapshot, 0, len(w.gatheringSpots))
 	for _, spot := range w.gatheringSpots {
+		if !w.debugContentEnabled && spot.Station == craftingStationDebugSkills {
+			continue
+		}
 		spots = append(spots, spot.GatheringSpotSnapshot)
 	}
 	sort.Slice(spots, func(i, j int) bool { return spots[i].ID < spots[j].ID })

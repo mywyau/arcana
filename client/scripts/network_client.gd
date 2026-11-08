@@ -9,7 +9,7 @@ signal prayer_catalog_received(prayers: Array, prayer_sets: Array)
 signal snapshot_received(snapshot: Dictionary)
 signal server_error(code: String, message: String)
 
-@export var server_url: String = "ws://localhost:8080/ws"
+@export var server_url: String = ""
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
@@ -19,8 +19,23 @@ var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg
 
 
 func _ready() -> void:
+	_configure_server_url()
 	_load_guest_token()
 	_connect_to_server.call_deferred()
+
+
+func _configure_server_url() -> void:
+	if server_url.is_empty():
+		server_url = str(ProjectSettings.get_setting("network/server_url", "ws://localhost:8080/ws"))
+	var environment_url := OS.get_environment("ARCANA_SERVER_URL").strip_edges()
+	if not environment_url.is_empty():
+		server_url = environment_url
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--server-url="):
+			server_url = argument.trim_prefix("--server-url=").strip_edges()
+	if not server_url.begins_with("ws://") and not server_url.begins_with("wss://"):
+		push_error("Configured server URL must begin with ws:// or wss://")
+		server_url = "ws://localhost:8080/ws"
 
 
 func _connect_to_server() -> void:

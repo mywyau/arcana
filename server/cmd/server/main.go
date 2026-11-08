@@ -13,14 +13,14 @@ import (
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/navigation"
 	postgrespersistence "github.com/mywyau/arcana/server/internal/persistence/postgres"
+	"github.com/mywyau/arcana/server/internal/serverconfig"
 	"github.com/mywyau/arcana/server/internal/serverhealth"
 	"github.com/mywyau/arcana/server/internal/simulation"
 	websockettransport "github.com/mywyau/arcana/server/internal/transport/websocket"
 )
 
 const (
-	tickInterval  = 50 * time.Millisecond
-	listenAddress = ":8080"
+	tickInterval = 50 * time.Millisecond
 )
 
 type testSupply struct {
@@ -29,10 +29,15 @@ type testSupply struct {
 }
 
 func main() {
+	config, err := serverconfig.Load(os.Getenv)
+	if err != nil {
+		log.Fatal(err)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
+	world.SetDebugContentEnabled(config.DebugContentEnabled)
 	meleeSupplies := []testSupply{
 		{itemID: string(simulation.WeaponSword), quantity: 1},
 		{itemID: string(simulation.WeaponDagger), quantity: 1},
@@ -131,7 +136,7 @@ func main() {
 		{simulation.ItemRawTuna, 10}, {simulation.ItemCookedTuna, 10},
 		{simulation.ItemRawLobster, 10}, {simulation.ItemCookedLobster, 10},
 	}
-	for _, group := range []struct {
+	debugSupplyGroups := []struct {
 		position simulation.Position
 		items    []testSupply
 	}{
@@ -144,10 +149,13 @@ func main() {
 		{simulation.TestHerbsChestPosition, herbsSupplies},
 		{simulation.TestCraftingChestPosition, craftingSupplies},
 		{simulation.TestFoodChestPosition, foodSupplies},
-	} {
-		for _, supply := range group.items {
-			if err := world.AddTestSupply(group.position, supply.itemID, supply.quantity); err != nil {
-				log.Fatal(err)
+	}
+	if config.DebugContentEnabled {
+		for _, group := range debugSupplyGroups {
+			for _, supply := range group.items {
+				if err := world.AddTestSupply(group.position, supply.itemID, supply.quantity); err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 	}
@@ -157,9 +165,14 @@ func main() {
 	}
 	var handler *websockettransport.Handler
 	var readinessChecker serverhealth.Checker
-	databaseURL := os.Getenv("DATABASE_URL")
+	databaseURL := config.DatabaseURL
 	if databaseURL == "" {
-		handler, err = websockettransport.NewHandler(world, tickInterval)
+		handler, err = websockettransport.NewHandlerWithOptions(
+			world, tickInterval, websockettransport.HandlerOptions{
+				AllowDebugCommands: config.DebugContentEnabled,
+				AllowedOrigins:     config.AllowedOrigins,
+			},
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -184,11 +197,15 @@ func main() {
 		if identityErr != nil {
 			log.Fatal(identityErr)
 		}
-		handler, err = websockettransport.NewHandlerWithRepositories(
+		handler, err = websockettransport.NewHandlerWithRepositoriesAndOptions(
 			world,
 			tickInterval,
 			guestIdentities,
 			store,
+			websockettransport.HandlerOptions{
+				AllowDebugCommands: config.DebugContentEnabled,
+				AllowedOrigins:     config.AllowedOrigins,
+			},
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -201,20 +218,23 @@ func main() {
 	mux.Handle("/health", serverhealth.Liveness())
 	mux.Handle("/ready", serverhealth.Readiness(readinessChecker))
 	server := &http.Server{
-		Addr:              listenAddress,
+		Addr:              config.ListenAddress,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Printf("simulation started with a %s tick interval", tickInterval)
+	log.Printf(
+		"simulation started in %s mode with a %s tick interval (debug content: %t)",
+		config.Environment, tickInterval, config.DebugContentEnabled,
+	)
 	go runner.Run(ctx)
 
 	serverErrors := make(chan error, 1)
 	go func() {
 		serverErrors <- server.ListenAndServe()
 	}()
-	log.Printf("WebSocket endpoint listening on ws://localhost%s/ws", listenAddress)
-	log.Printf("Health endpoints listening on http://localhost%s/health and /ready", listenAddress)
+	log.Printf("WebSocket endpoint listening on %s/ws", config.ListenAddress)
+	log.Printf("Health endpoints listening on %s/health and /ready", config.ListenAddress)
 
 	select {
 	case <-ctx.Done():
