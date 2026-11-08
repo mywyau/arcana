@@ -82,8 +82,7 @@ func (w *World) resolveCookingAction(player *playerState, spot gatheringSpotDefi
 		}
 		return
 	}
-	player.gatheringResult = recipe.RewardItem
-	player.nextGatherPulse = w.combat.pulse + recipe.Interval
+	w.finishProductionStep(player, recipe.RewardItem, recipe.Interval)
 }
 
 func (w *World) resolveSmeltingAction(player *playerState) {
@@ -154,6 +153,14 @@ func (w *World) resolveIngredientProduction(player *playerState, spot gatheringS
 	}
 	player.inventory = candidate
 	grantSkillExperience(player, spot.Skill, spot.RewardXP)
-	player.gatheringResult = spot.RewardResult
-	player.nextGatherPulse = w.combat.pulse + spot.Interval
+	w.finishProductionStep(player, spot.RewardResult, spot.Interval)
+}
+
+func (w *World) finishProductionStep(player *playerState, result string, interval uint64) {
+	if player.productionBatch.completeStep() {
+		clearGathering(player, result)
+		return
+	}
+	player.gatheringResult = result
+	player.nextGatherPulse = w.combat.pulse + interval
 }

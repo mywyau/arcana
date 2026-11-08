@@ -317,8 +317,8 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if err := w.validateTimedAction(player, spot, &command); err != nil {
 		return err
 	}
-	if spot.Station != craftingStationSmelting && command.Quantity > 0 {
-		return fmt.Errorf("gather quantity is only supported for smelting")
+	if command.Quantity > 0 && spot.Station != craftingStationSmelting && !usesProductionBatch(spot.Station) {
+		return fmt.Errorf("quantity is not supported for gathering spot %q", spot.ID)
 	}
 	if spot.Station != "" && spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
 		return fmt.Errorf("gathering spot %q is depleted", spot.ID)
@@ -383,6 +383,10 @@ func (w *World) startPendingGathering() {
 		player.gatheringRecipe = pending.command.RecipeID
 		player.gatheringInstanceID = pending.command.InstanceID
 		player.gatheringRemaining = pending.command.Quantity
+		player.productionBatch = productionBatch{}
+		if usesProductionBatch(spot.Station) {
+			player.productionBatch = newProductionBatch(pending.command.Quantity)
+		}
 		player.gatheringInteractionPosition = pending.interactionPosition
 		player.gatheringCompletionPosition = pending.completionPosition
 		player.gatheringTraversal = pending.traversal
@@ -503,6 +507,7 @@ func clearGathering(player *playerState, result string) {
 	player.gatheringRecipe = ""
 	player.gatheringInstanceID = ""
 	player.gatheringRemaining = 0
+	player.productionBatch = productionBatch{}
 	player.gatheringInteractionPosition = Position{}
 	player.gatheringCompletionPosition = Position{}
 	player.gatheringTraversal = false
