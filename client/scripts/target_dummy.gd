@@ -3,6 +3,7 @@ extends Node3D
 
 const REST_COLOR := Color(0.75, 0.16, 0.12, 1.0)
 const CREATURE_COLOR := Color(0.34, 0.52, 0.2, 1.0)
+const BIRD_COLOR := Color(0.76, 0.62, 0.25, 1.0)
 
 @onready var visual: Node3D = $Visual
 @onready var attack_pivot: Node3D = $Visual/AttackPivot
@@ -40,9 +41,22 @@ func set_target_id(target_id: String) -> void:
 
 
 func set_target_kind(kind: String) -> void:
-	_mobile = kind == "creature"
-	_rest_color = CREATURE_COLOR if _mobile else REST_COLOR
-	attack_pivot.scale = Vector3(1.15, 0.75, 1.25) if _mobile else Vector3.ONE
+	_mobile = kind in ["creature", "bird"]
+	if kind == "bird":
+		_rest_color = BIRD_COLOR
+		attack_pivot.scale = Vector3(0.82, 0.48, 1.0)
+		collision_shape.position = Vector3(0.0, 0.55, 0.0)
+		collision_shape.scale = Vector3(0.8, 0.5, 0.8)
+	elif kind == "creature":
+		_rest_color = CREATURE_COLOR
+		attack_pivot.scale = Vector3(1.15, 0.75, 1.25)
+		collision_shape.position = Vector3(0.0, 1.0, 0.0)
+		collision_shape.scale = Vector3.ONE
+	else:
+		_rest_color = REST_COLOR
+		attack_pivot.scale = Vector3.ONE
+		collision_shape.position = Vector3(0.0, 1.0, 0.0)
+		collision_shape.scale = Vector3.ONE
 	if _material != null and not _defeated:
 		_material.albedo_color = _rest_color
 

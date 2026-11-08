@@ -18,6 +18,7 @@ const (
 	ForgingBronzePlate   ForgingRecipeID = "bronze_platebody"
 	ForgingBronzePickaxe ForgingRecipeID = "bronze_pickaxe"
 	ForgingIronSword     ForgingRecipeID = "iron_sword"
+	ForgingIronArrowTips ForgingRecipeID = "iron_arrow_tips"
 	ForgingIronHelm      ForgingRecipeID = "iron_helm"
 	ForgingIronPlate     ForgingRecipeID = "iron_platebody"
 	ForgingMithrilSword  ForgingRecipeID = "mithril_sword"
@@ -56,6 +57,11 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		ID: ForgingBronzePickaxe, Name: "Bronze Pickaxe", RequiredLevel: 1,
 		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}},
 		RewardItem: ItemBronzePickaxe, RewardQuantity: 1, RewardXP: 30, Interval: 5,
+	},
+	{
+		ID: ForgingIronArrowTips, Name: "20 Iron Arrow Tips", RequiredLevel: 2,
+		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 1}},
+		RewardItem: ItemIronArrowTips, RewardQuantity: 20, RewardXP: 18, Interval: 3,
 	},
 	{
 		ID: ForgingIronSword, Name: "Iron Sword", RequiredLevel: 3,

@@ -46,6 +46,8 @@ const (
 	playerMaximumPrayer           = 100
 	playerDodgeRate               = defaultBaseDodgeBonus
 	dummyMaximumHealth            = 100
+	wildFowlMaximumHealth         = 30
+	wildFowlAttackDamage          = 4
 	dummyDodgeRate                = defaultBaseDodgeBonus
 	dummyAttackDamage             = 15
 	dummyAttackIntervalPulses     = 4
@@ -60,12 +62,14 @@ const (
 	upperDummyTargetID            = "upper_dummy"
 	overlookDummyTargetID         = "overlook_dummy"
 	hillWardenTargetID            = "hill_warden"
+	wildFowlTargetID              = "wild_fowl"
 	combatEventHistoryLimit       = 32
 )
 
 const (
 	targetKindDummy    = "dummy"
 	targetKindCreature = "creature"
+	targetKindBird     = "bird"
 )
 
 type WeaponID string
@@ -290,6 +294,7 @@ func (combat *combatState) dummyByID(id string) (*TargetSnapshot, bool) {
 
 func newCombatState() *combatState {
 	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
+	wildFowlHome := Position{X: -20, Z: -5}
 	hillWarden := &TargetSnapshot{
 		ID:            hillWardenTargetID,
 		Name:          "Hill Warden",
@@ -300,6 +305,17 @@ func newCombatState() *combatState {
 		DodgeRate:     dummyDodgeRate,
 		Accuracy:      dummyAccuracyScore,
 		Evasion:       dummyEvasionScore,
+	}
+	wildFowl := &TargetSnapshot{
+		ID:            wildFowlTargetID,
+		Name:          "Wild Fowl",
+		Kind:          targetKindBird,
+		Position:      wildFowlHome,
+		Health:        wildFowlMaximumHealth,
+		MaximumHealth: wildFowlMaximumHealth,
+		DodgeRate:     0.05,
+		Accuracy:      5,
+		Evasion:       1,
 	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
@@ -337,6 +353,7 @@ func newCombatState() *combatState {
 				Evasion:       dummyEvasionScore,
 			},
 			hillWardenTargetID: hillWarden,
+			wildFowlTargetID:   wildFowl,
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
@@ -348,6 +365,11 @@ func newCombatState() *combatState {
 				target: hillWarden,
 				home:   hillWardenHome,
 				speed:  roamingEnemySpeed,
+			},
+			wildFowlTargetID: {
+				target: wildFowl,
+				home:   wildFowlHome,
+				speed:  roamingEnemySpeed * 0.8,
 			},
 		},
 	}
@@ -1072,7 +1094,11 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
-	damageDealt := reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush)
+	attackDamage := dummyAttackDamage
+	if dummyID == wildFowlTargetID {
+		attackDamage = wildFowlAttackDamage
+	}
+	damageDealt := reduceIncomingDamage(player, attackDamage, DamageTypeCrush)
 	player.health = max(0, player.health-damageDealt)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,

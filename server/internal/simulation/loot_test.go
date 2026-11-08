@@ -384,6 +384,16 @@ func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
 	}
 }
 
+func TestWildFowlDropsFeathersInConfiguredRange(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	target := world.combat.targets[wildFowlTargetID]
+	world.defeatDummy(wildFowlTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != ItemFeathers || drops[0].Quantity != 13 || drops[0].Position != target.Position {
+		t.Fatalf("Wild Fowl drops = %+v, want 13 feathers", drops)
+	}
+}
+
 func TestPickedUpAirRunesStackInExistingInventorySlot(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)

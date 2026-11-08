@@ -57,10 +57,10 @@ func mustGiveIronArrows(t *testing.T, world *World, id PlayerID, quantity int) {
 func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	world := newCombatTestWorld()
 	snapshot := world.Snapshot()
-	if got, want := len(snapshot.Targets), 4; got != want {
+	if got, want := len(snapshot.Targets), 5; got != want {
 		t.Fatalf("len(Targets) = %d, want %d", got, want)
 	}
-	wantIDs := []string{dummyTargetID, hillWardenTargetID, overlookDummyTargetID, upperDummyTargetID}
+	wantIDs := []string{dummyTargetID, hillWardenTargetID, overlookDummyTargetID, upperDummyTargetID, wildFowlTargetID}
 	for index, want := range wantIDs {
 		if got := snapshot.Targets[index].ID; got != want {
 			t.Fatalf("Targets[%d].ID = %q, want %q", index, got, want)

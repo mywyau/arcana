@@ -55,6 +55,7 @@ const CRAFTING_RECIPES: Dictionary = {
 		{"id": "bronze_platebody", "name": "Bronze Platebody", "tier": "bronze", "level": 2, "inputs": "5 Bronze Bars"},
 		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "tier": "bronze", "level": 1, "inputs": "3 Bronze Bars"},
 		{"id": "iron_sword", "name": "Iron Sword", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
+		{"id": "iron_arrow_tips", "name": "20 Iron Arrow Tips", "tier": "iron", "level": 2, "inputs": "1 Iron Bar"},
 		{"id": "iron_helm", "name": "Iron Helm", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
 		{"id": "iron_platebody", "name": "Iron Platebody", "tier": "iron", "level": 4, "inputs": "5 Iron Bars"},
 		{"id": "mithril_sword", "name": "Mithril Sword", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
@@ -2037,6 +2038,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Forged a Bronze Helm • Smithing continues…"
 					"forged_bronze_pickaxe":
 						status_label.text = "Forged a Bronze Pickaxe • Smithing continues…"
+					"forged_iron_arrow_tips":
+						status_label.text = "Forged 20 Iron Arrow Tips • Smithing continues…"
 					"missing_forging_inputs":
 						status_label.text = "Smithing stopped: required bars are missing"
 					"reinforced_bronze_sword":

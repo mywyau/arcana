@@ -39,6 +39,25 @@ func TestApplyForgingRecipeAtomicallyConsumesBarsAndGrantsXP(t *testing.T) {
 	}
 }
 
+func TestForgeIronArrowTipsCreatesTwentyFromOneBar(t *testing.T) {
+	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	player.skills[SkillSmithing] = SkillExperienceForLevel(2)
+	player.inventory.add(ItemIronBar, 1)
+	recipe, exists := forgingRecipe(ForgingIronArrowTips)
+	if !exists {
+		t.Fatal("iron arrow tip recipe is missing")
+	}
+	if err := applyForgingRecipe(player, recipe); err != nil {
+		t.Fatalf("applyForgingRecipe() returned an unexpected error: %v", err)
+	}
+	if player.inventory.quantity(ItemIronBar) != 0 || player.inventory.quantity(ItemIronArrowTips) != 20 {
+		t.Fatalf("inventory after forging arrow tips = %+v", player.inventory)
+	}
+	if got := player.skills[SkillSmithing]; got != SkillExperienceForLevel(2)+recipe.RewardXP {
+		t.Fatalf("Smithing XP = %d, want %d", got, SkillExperienceForLevel(2)+recipe.RewardXP)
+	}
+}
+
 func TestApplyForgingRecipeDoesNotConsumePartialInputs(t *testing.T) {
 	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
 	player.inventory.add(ItemBronzeBar, 1)
