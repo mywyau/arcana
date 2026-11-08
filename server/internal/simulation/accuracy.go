@@ -3,8 +3,10 @@ package simulation
 const (
 	minimumDodgeChance    = 0.0
 	maximumDodgeChance    = 0.90
+	baseMissChance        = 0.45
+	baseMissCurveScale    = 30.0
 	accuracyCurveScale    = 50.0
-	evasionCurveStrength  = 0.50
+	evasionCurveStrength  = 0.30
 	dummyAccuracyScore    = 11
 	dummyEvasionScore     = 5
 	defaultBaseDodgeBonus = 0.0
@@ -58,7 +60,11 @@ func combatStyleAccuracyBonus(style CombatStyleID) int {
 func calculatedDodgeChance(accuracyScore, evasionScore int, dodgeBonus float64) float64 {
 	accuracy := float64(max(0, accuracyScore))
 	evasion := float64(max(0, evasionScore))
-	chance := dodgeBonus
+	// Accuracy first overcomes an inherent chance to miss. This keeps early
+	// combat from approaching guaranteed hits while allowing levels and gear to
+	// steadily improve reliability. Evasion is a separate, smaller contribution
+	// which still accounts for both the defender and the attacker's accuracy.
+	chance := dodgeBonus + baseMissChance*baseMissCurveScale/(accuracy+baseMissCurveScale)
 	if evasion > 0 {
 		chance += evasionCurveStrength * evasion / (accuracy + evasion + accuracyCurveScale)
 	}
