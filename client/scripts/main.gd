@@ -622,7 +622,6 @@ var _queued_combat_style: String = ""
 var _inventory_capacity: int = 8
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
-var _inventory_page: int = 0
 var _skill_progress: Dictionary = {
 	"attack": {"experience": 0, "level": 1, "current": 0, "next": 41},
 	"strength": {"experience": 0, "level": 1, "current": 0, "next": 41},
@@ -694,6 +693,7 @@ var _fletch_remaining: int = 0
 var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
 var _fletching_ui: FletchingWindow
+var _inventory_window: InventoryWindow
 var _production_windows: ProductionWindows
 var _production_recipes: Dictionary = {}
 var _spellbooks: Dictionary = {}
@@ -786,6 +786,16 @@ func _ready() -> void:
 	_bank_window.item_context_requested.connect(_bank_withdraw_controls.open_context_menu)
 	_bank_window.expansion_requested.connect(_request_bank_expansion)
 	_bank_window.supply_requested.connect(_take_test_supply)
+	_inventory_window = InventoryWindow.new()
+	add_child(_inventory_window)
+	_inventory_window.configure(
+		inventory_summary, inventory_previous_page_button, inventory_page_label,
+		inventory_next_page_button, inventory_grid, EMPTY_SLOT_ICON,
+		INVENTORY_TOTAL_SLOTS, INVENTORY_PAGE_SIZE,
+	)
+	_inventory_window.item_pressed.connect(_on_inventory_slot_pressed)
+	_inventory_window.swap_requested.connect(_request_inventory_swap)
+	_inventory_window.context_requested.connect(_open_inventory_context_menu)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
 	bank_header.gui_input.connect(_on_bank_header_input)
@@ -832,8 +842,6 @@ func _ready() -> void:
 	inventory_magic_tab_button.pressed.connect(_show_magic_tab)
 	inventory_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	inventory_styles_tab_button.pressed.connect(_show_styles_tab)
-	inventory_previous_page_button.pressed.connect(_change_inventory_page.bind(-1))
-	inventory_next_page_button.pressed.connect(_change_inventory_page.bind(1))
 	skills_combat_tab_button.pressed.connect(_show_combat_tab)
 	skills_inventory_tab_button.pressed.connect(_show_inventory_tab)
 	skills_active_tab_button.pressed.connect(_show_skills_tab)
@@ -5540,36 +5548,13 @@ func _available_rune_quantity(item_id: String) -> int:
 	return total
 
 
-func _change_inventory_page(direction: int) -> void:
-	var page_count: int = ceili(float(INVENTORY_TOTAL_SLOTS) / float(INVENTORY_PAGE_SIZE))
-	_inventory_page = clampi(_inventory_page + direction, 0, page_count - 1)
-	_update_inventory_hud()
-
-
-func _style_inventory_slot(slot_button: Button) -> void:
-	var slot_style := StyleBoxFlat.new()
-	slot_style.bg_color = Color(0.055, 0.065, 0.075, 0.94)
-	slot_style.border_width_left = 1
-	slot_style.border_width_top = 1
-	slot_style.border_width_right = 1
-	slot_style.border_width_bottom = 1
-	slot_style.border_color = Color(0.2, 0.23, 0.26, 0.95)
-	slot_style.corner_radius_top_left = 5
-	slot_style.corner_radius_top_right = 5
-	slot_style.corner_radius_bottom_left = 5
-	slot_style.corner_radius_bottom_right = 5
-	slot_button.add_theme_stylebox_override("normal", slot_style)
-	# Inventory slots deliberately keep the same background on hover. Tooltips
-	# and the pointer communicate the hover without flashing the entire slot.
-	slot_button.add_theme_stylebox_override("hover", slot_style.duplicate())
-
-
 func _update_inventory_hud() -> void:
-	for child: Node in inventory_grid.get_children():
-		inventory_grid.remove_child(child)
-		child.queue_free()
-
-	var items_by_slot: Dictionary = {}
+	if _inventory_window == null:
+		return
+	var presentations: Dictionary = {}
+	var is_banking: bool = bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id)
+	var is_storing_ammunition: bool = _ammunition_pouch_window != null and _ammunition_pouch_window.visible
+	var is_storing_runes: bool = _rune_pouch_window != null and _rune_pouch_window.visible
 	for payload: Variant in _inventory_items:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
@@ -5577,151 +5562,115 @@ func _update_inventory_hud() -> void:
 		var slot: int = int(item.get("slot", -1))
 		var item_id: String = str(item.get("item_id", ""))
 		var quantity: int = int(item.get("quantity", 0))
-		if slot >= 0 and slot < _inventory_capacity and not item_id.is_empty() and quantity > 0:
-			items_by_slot[slot] = item
-
-	var unlocked_slots: int = mini(_inventory_capacity, INVENTORY_TOTAL_SLOTS)
-	var page_count: int = ceili(float(INVENTORY_TOTAL_SLOTS) / float(INVENTORY_PAGE_SIZE))
-	_inventory_page = clampi(_inventory_page, 0, page_count - 1)
-	var first_slot: int = _inventory_page * INVENTORY_PAGE_SIZE
-	var final_slot: int = mini(first_slot + INVENTORY_PAGE_SIZE, INVENTORY_TOTAL_SLOTS)
-	inventory_summary.text = "Inventory  •  %d/%d slots used" % [items_by_slot.size(), unlocked_slots]
-	inventory_page_label.text = "Page %d/%d" % [
-		_inventory_page + 1,
-		page_count,
-	]
-	inventory_previous_page_button.disabled = _inventory_page == 0
-	inventory_next_page_button.disabled = _inventory_page >= page_count - 1
-	var is_banking: bool = bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id)
-	var is_storing_ammunition: bool = _ammunition_pouch_window != null and _ammunition_pouch_window.visible
-	var is_storing_runes: bool = _rune_pouch_window != null and _rune_pouch_window.visible
-	for slot: int in range(first_slot, final_slot):
-		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
-		slot_button.custom_minimum_size = Vector2(96, 96)
-		slot_button.size_flags_horizontal = Control.SIZE_FILL
-		slot_button.focus_mode = Control.FOCUS_NONE
-		slot_button.mouse_filter = Control.MOUSE_FILTER_STOP
-		slot_button.text = ""
-		_style_inventory_slot(slot_button)
-		if slot >= _inventory_capacity:
-			slot_button.configure(slot, false, false)
-			slot_button.icon = EMPTY_SLOT_ICON
-			slot_button.expand_icon = true
-			slot_button.disabled = true
-			slot_button.modulate = Color(0.28, 0.31, 0.34)
-			slot_button.tooltip_text = "Locked inventory slot"
-		elif items_by_slot.has(slot):
-			slot_button.configure(slot, true, true)
-			var item: Dictionary = items_by_slot[slot]
-			var item_id: String = str(item.get("item_id", ""))
-			var quantity: int = int(item.get("quantity", 1))
-			var instance_id: String = str(item.get("instance_id", ""))
-			var reinforcement: int = int(item.get("reinforcement", 0))
-			slot_button.set_stack_quantity(quantity)
-			slot_button.set_reinforcement(reinforcement)
-			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id)
-			var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
-			var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
-			var is_fletching_input: bool = _is_fletching_input(item_id)
-			var is_uncut_gem: bool = UNCUT_GEMS.has(item_id)
-			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
-			var is_queued: bool = equipment_pending and _queued_item == item_id and (
-				_queued_instance_id.is_empty() or _queued_instance_id == instance_id
-			)
-			var is_consume_queued: bool = _queued_consume_item == item_id and _queued_consume_slot == slot
-			var is_equipped: bool = _is_item_equipped(item_id, instance_id)
-			slot_button.toggle_mode = is_equipable and not is_banking
-			var displayed_equipped: bool = not _queued_unequip if is_queued else is_equipped
-			slot_button.set_pressed_no_signal(displayed_equipped)
-			slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
-			slot_button.expand_icon = true
-			var item_status: String = ""
-			if is_queued:
-				item_status = "Queued"
-			elif is_consume_queued:
-				item_status = "Using"
-			elif is_equipped:
-				item_status = "Equipped"
-			var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
-			var reinforcement_text: String = " +%d" % reinforcement if reinforcement > 0 else ""
-			var status_text: String = " • %s" % item_status if not item_status.is_empty() else ""
-			var equip_action: String = "left-click to unequip" if is_equipped else "left-click to equip"
-			var interaction_text: String = "Shift-click to drop" if not instance_id.is_empty() else "Shift-click to drop all"
-			if is_equipable:
-				interaction_text = "%s • %s" % [equip_action, interaction_text]
-			elif is_consumable:
-				var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
-				if int(consumable.get("healing", 0)) > 0:
-					interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
-						int(consumable.get("healing", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
-					]
-				elif int(consumable.get("prayer_restore", 0)) > 0:
-					interaction_text = "left-click to drink one dose (+%d prayer, max %d doses/slot) • %s" % [
-						int(consumable.get("prayer_restore", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
-					]
-				else:
-					interaction_text = "left-click to drink (%s, max %d doses/slot) • %s" % [
-						str(consumable.get("boost", "combat boost")), int(consumable.get("stack_limit", 1)), interaction_text,
-					]
-			elif is_brewing_ingredient:
-				interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text
-			elif is_fletching_input:
-				interaction_text = "left-click to open Fletching • %s" % interaction_text
-			elif is_uncut_gem:
-				interaction_text = "left-click to cut with a Chisel • %s" % interaction_text
-			if item_id == "tinderbox":
-				interaction_text = "left-click to select Firemaking • %s" % interaction_text
-			elif FIREMAKING_LOGS.has(item_id):
-				interaction_text += " • select a Tinderbox first to light"
-			if is_equipped and _spellbook_items.has(item_id):
-				interaction_text = "left-click to unequip • Shift-click to unequip and drop"
-			if is_banking:
-				interaction_text = "left-click to deposit whole stack"
-			elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
-				interaction_text = "left-click to move the whole stack into the ammunition pouch"
-			elif is_storing_runes and RUNE_ITEMS.has(item_id):
-				interaction_text = "left-click to move the whole stack into the rune pouch"
-			elif AMMUNITION_ITEMS.has(item_id):
-				interaction_text = "left-click to move the whole stack into the ammunition pouch • %s" % interaction_text
-			elif RUNE_ITEMS.has(item_id):
-				interaction_text = "left-click to move the whole stack into the rune pouch • %s" % interaction_text
-			slot_button.tooltip_text = "%s%s%s%s • slot %d%s" % [
-				str(ITEM_DISPLAY_NAMES.get(item_id, item_id.capitalize())), reinforcement_text, quantity_text, status_text,
-				slot + 1,
-				" — %s" % interaction_text,
-			]
-			if ITEM_COMBAT_BONUSES.has(item_id):
-				slot_button.tooltip_text += " • %s" % str(ITEM_COMBAT_BONUSES[item_id])
-			if EQUIPMENT_REQUIREMENTS.has(item_id):
-				slot_button.tooltip_text += " • requires %s" % str(EQUIPMENT_REQUIREMENTS[item_id])
-			slot_button.disabled = _player_defeated and is_equipable
-			if is_equipped or is_queued or is_consume_queued:
-				var selection_style := StyleBoxFlat.new()
-				selection_style.bg_color = Color(0.06, 0.09, 0.12, 0.96)
-				selection_style.border_width_left = 4
-				selection_style.border_width_top = 4
-				selection_style.border_width_right = 4
-				selection_style.border_width_bottom = 4
-				selection_style.border_color = Color(0.35, 0.7, 1.0) if is_queued or is_consume_queued else Color(0.95, 0.72, 0.2)
-				selection_style.corner_radius_top_left = 6
-				selection_style.corner_radius_top_right = 6
-				selection_style.corner_radius_bottom_left = 6
-				selection_style.corner_radius_bottom_right = 6
-				slot_button.add_theme_stylebox_override("pressed", selection_style)
-				slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
-			if is_banking:
-				slot_button.pressed.connect(_request_bank_deposit.bind(item_id, instance_id, slot, quantity))
+		if slot < 0 or slot >= _inventory_capacity or item_id.is_empty() or quantity <= 0:
+			continue
+		var instance_id: String = str(item.get("instance_id", ""))
+		var reinforcement: int = int(item.get("reinforcement", 0))
+		var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id)
+		var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
+		var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
+		var is_fletching_input: bool = _is_fletching_input(item_id)
+		var is_uncut_gem: bool = UNCUT_GEMS.has(item_id)
+		var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
+		var is_queued: bool = equipment_pending and _queued_item == item_id and (
+			_queued_instance_id.is_empty() or _queued_instance_id == instance_id
+		)
+		var is_consume_queued: bool = _queued_consume_item == item_id and _queued_consume_slot == slot
+		var is_equipped: bool = _is_item_equipped(item_id, instance_id)
+		var item_status: String = ""
+		if is_queued:
+			item_status = "Queued"
+		elif is_consume_queued:
+			item_status = "Using"
+		elif is_equipped:
+			item_status = "Equipped"
+		var quantity_text: String = " ×%d" % quantity if quantity > 1 else ""
+		var reinforcement_text: String = " +%d" % reinforcement if reinforcement > 0 else ""
+		var status_text: String = " • %s" % item_status if not item_status.is_empty() else ""
+		var equip_action: String = "left-click to unequip" if is_equipped else "left-click to equip"
+		var interaction_text: String = "Shift-click to drop" if not instance_id.is_empty() else "Shift-click to drop all"
+		if is_equipable:
+			interaction_text = "%s • %s" % [equip_action, interaction_text]
+		elif is_consumable:
+			var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
+			if int(consumable.get("healing", 0)) > 0:
+				interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
+					int(consumable.get("healing", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
+				]
+			elif int(consumable.get("prayer_restore", 0)) > 0:
+				interaction_text = "left-click to drink one dose (+%d prayer, max %d doses/slot) • %s" % [
+					int(consumable.get("prayer_restore", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
+				]
 			else:
-				var inventory_action: String = _inventory_action_for_item(item_id)
-				slot_button.pressed.connect(_on_inventory_item_pressed.bind(item_id, instance_id, inventory_action, slot))
-		else:
-			slot_button.configure(slot, false, true)
-			slot_button.icon = EMPTY_SLOT_ICON
-			slot_button.expand_icon = true
-			slot_button.modulate = Color(0.9, 0.93, 0.96)
-		slot_button.swap_requested.connect(_request_inventory_swap)
-		slot_button.context_requested.connect(_open_inventory_context_menu)
-		inventory_grid.add_child(slot_button)
+				interaction_text = "left-click to drink (%s, max %d doses/slot) • %s" % [
+					str(consumable.get("boost", "combat boost")), int(consumable.get("stack_limit", 1)), interaction_text,
+				]
+		elif is_brewing_ingredient:
+			interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text
+		elif is_fletching_input:
+			interaction_text = "left-click to open Fletching • %s" % interaction_text
+		elif is_uncut_gem:
+			interaction_text = "left-click to cut with a Chisel • %s" % interaction_text
+		if item_id == "tinderbox":
+			interaction_text = "left-click to select Firemaking • %s" % interaction_text
+		elif FIREMAKING_LOGS.has(item_id):
+			interaction_text += " • select a Tinderbox first to light"
+		if is_equipped and _spellbook_items.has(item_id):
+			interaction_text = "left-click to unequip • Shift-click to unequip and drop"
+		if is_banking:
+			interaction_text = "left-click to deposit whole stack"
+		elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
+			interaction_text = "left-click to move the whole stack into the ammunition pouch"
+		elif is_storing_runes and RUNE_ITEMS.has(item_id):
+			interaction_text = "left-click to move the whole stack into the rune pouch"
+		elif AMMUNITION_ITEMS.has(item_id):
+			interaction_text = "left-click to move the whole stack into the ammunition pouch • %s" % interaction_text
+		elif RUNE_ITEMS.has(item_id):
+			interaction_text = "left-click to move the whole stack into the rune pouch • %s" % interaction_text
+		var tooltip := "%s%s%s%s • slot %d — %s" % [
+			str(ITEM_DISPLAY_NAMES.get(item_id, item_id.capitalize())), reinforcement_text,
+			quantity_text, status_text, slot + 1, interaction_text,
+		]
+		if ITEM_COMBAT_BONUSES.has(item_id):
+			tooltip += " • %s" % str(ITEM_COMBAT_BONUSES[item_id])
+		if EQUIPMENT_REQUIREMENTS.has(item_id):
+			tooltip += " • requires %s" % str(EQUIPMENT_REQUIREMENTS[item_id])
+		presentations[slot] = {
+			"icon": ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON),
+			"quantity": quantity,
+			"reinforcement": reinforcement,
+			"toggle_mode": is_equipable and not is_banking,
+			"pressed": not _queued_unequip if is_queued else is_equipped,
+			"tooltip": tooltip,
+			"disabled": _player_defeated and is_equipable,
+			"highlight": "pending" if is_queued or is_consume_queued else "equipped" if is_equipped else "",
+		}
+	_inventory_window.render(presentations, _inventory_capacity)
+
+
+func _on_inventory_slot_pressed(inventory_slot: int) -> void:
+	var item := _inventory_item_at_slot(inventory_slot)
+	if item.is_empty():
+		return
+	var item_id: String = str(item.get("item_id", ""))
+	var instance_id: String = str(item.get("instance_id", ""))
+	var quantity: int = int(item.get("quantity", 1))
+	if bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id):
+		_request_bank_deposit(item_id, instance_id, inventory_slot, quantity)
+		return
+	_on_inventory_item_pressed(
+		item_id, instance_id, _inventory_action_for_item(item_id), inventory_slot,
+	)
+
+
+func _inventory_item_at_slot(inventory_slot: int) -> Dictionary:
+	for payload: Variant in _inventory_items:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var item := payload as Dictionary
+		if int(item.get("slot", -1)) == inventory_slot:
+			return item
+	return {}
 
 
 func _sync_fires(fire_payloads: Variant) -> void:
