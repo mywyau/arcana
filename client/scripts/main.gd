@@ -685,10 +685,7 @@ var _skill_details_action: Button
 var _skill_context_menu: PopupMenu
 var _skill_context_name: String = ""
 var _skill_context_id: String = ""
-var _debug_skill_window: Window
-var _debug_skill_selector: OptionButton
-var _debug_skill_level: SpinBox
-var _debug_skill_experience: SpinBox
+var _debug_skill_window: DebugSkillWindow
 var _next_debug_skill_sequence: int = 1
 var _open_skill_name: String = ""
 var _open_skill_id: String = ""
@@ -1108,116 +1105,23 @@ func _on_crafting_window_input(event: InputEvent, crafting_window: Window) -> vo
 
 
 func _setup_debug_skill_interface() -> void:
-	_debug_skill_window = Window.new()
-	_debug_skill_window.name = "DebugSkillWindow"
-	_debug_skill_window.title = ""
-	_debug_skill_window.size = Vector2i(460, 300)
-	_debug_skill_window.unresizable = true
-	_debug_skill_window.transient = true
-	_style_interface_window(_debug_skill_window)
+	_debug_skill_window = DebugSkillWindow.new()
 	add_child(_debug_skill_window)
-	_debug_skill_window.close_requested.connect(_debug_skill_window.hide)
-	_debug_skill_window.window_input.connect(_on_crafting_window_input.bind(_debug_skill_window))
-
-	var panel := PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_debug_skill_window.add_child(panel)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
-	margin.add_child(content)
-	var header := HBoxContainer.new()
-	content.add_child(header)
-	var title := Label.new()
-	title.text = "Test Skill Shrine"
-	title.add_theme_font_size_override("font_size", 22)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	var close := Button.new()
-	_style_interface_close_button(close)
-	close.pressed.connect(_debug_skill_window.hide)
-	header.add_child(close)
-
-	_debug_skill_selector = OptionButton.new()
-	for skill_id: String in _skill_progress.keys():
-		_debug_skill_selector.add_item(skill_id.capitalize())
-		_debug_skill_selector.set_item_metadata(_debug_skill_selector.item_count - 1, skill_id)
-	_debug_skill_selector.item_selected.connect(_refresh_debug_skill_inputs.unbind(1))
-	content.add_child(_debug_skill_selector)
-
-	var level_row := HBoxContainer.new()
-	content.add_child(level_row)
-	var level_label := Label.new()
-	level_label.text = "Level"
-	level_label.custom_minimum_size.x = 90
-	level_row.add_child(level_label)
-	_debug_skill_level = SpinBox.new()
-	_debug_skill_level.min_value = 1
-	_debug_skill_level.max_value = 100
-	_debug_skill_level.rounded = true
-	_debug_skill_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	level_row.add_child(_debug_skill_level)
-	var set_level := Button.new()
-	set_level.text = "Set level"
-	set_level.pressed.connect(_request_debug_skill_level)
-	level_row.add_child(set_level)
-
-	var xp_row := HBoxContainer.new()
-	content.add_child(xp_row)
-	var xp_label := Label.new()
-	xp_label.text = "Exact XP"
-	xp_label.custom_minimum_size.x = 90
-	xp_row.add_child(xp_label)
-	_debug_skill_experience = SpinBox.new()
-	_debug_skill_experience.min_value = 0
-	_debug_skill_experience.max_value = 10000000
-	_debug_skill_experience.rounded = true
-	_debug_skill_experience.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	xp_row.add_child(_debug_skill_experience)
-	var set_xp := Button.new()
-	set_xp.text = "Set XP"
-	set_xp.pressed.connect(_request_debug_skill_experience)
-	xp_row.add_child(set_xp)
-
-	var warning := Label.new()
-	warning.text = "Debug only — changes are saved to this character."
-	warning.modulate = Color(0.95, 0.72, 0.38)
-	content.add_child(warning)
-
-
-func _selected_debug_skill_id() -> String:
-	if _debug_skill_selector == null or _debug_skill_selector.item_count == 0:
-		return ""
-	return str(_debug_skill_selector.get_item_metadata(_debug_skill_selector.selected))
-
-
-func _refresh_debug_skill_inputs() -> void:
-	var progress: Dictionary = _skill_progress.get(_selected_debug_skill_id(), {}) as Dictionary
-	_debug_skill_level.value = int(progress.get("level", 1))
-	_debug_skill_experience.value = int(progress.get("experience", 0))
+	_debug_skill_window.set_level_requested.connect(_request_debug_skill_level)
+	_debug_skill_window.set_experience_requested.connect(_request_debug_skill_experience)
 
 
 func _open_debug_skill_window() -> void:
-	_refresh_debug_skill_inputs()
-	_debug_skill_window.popup_centered(Vector2i(460, 300))
+	_debug_skill_window.show_for_skills(_skill_progress)
 
 
-func _request_debug_skill_level() -> void:
-	var skill_id := _selected_debug_skill_id()
-	var level := int(_debug_skill_level.value)
+func _request_debug_skill_level(skill_id: String, level: int) -> void:
 	if network.send_debug_set_skill(_next_debug_skill_sequence, skill_id, level):
 		_next_debug_skill_sequence += 1
 		status_label.text = "Set %s to level %d" % [skill_id.capitalize(), level]
 
 
-func _request_debug_skill_experience() -> void:
-	var skill_id := _selected_debug_skill_id()
-	var experience := int(_debug_skill_experience.value)
+func _request_debug_skill_experience(skill_id: String, experience: int) -> void:
 	if network.send_debug_set_skill(_next_debug_skill_sequence, skill_id, 1, experience, true):
 		_next_debug_skill_sequence += 1
 		status_label.text = "Set %s to %d XP" % [skill_id.capitalize(), experience]
@@ -6028,30 +5932,11 @@ func _apply_ring_rack_snapshot(rack: Dictionary) -> void:
 
 
 func _style_interface_close_button(button: Button) -> void:
-	button.text = ""
-	button.icon = CLOSE_WINDOW_ICON
-	button.expand_icon = true
-	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-	button.custom_minimum_size = Vector2(44, 44)
-	button.focus_mode = Control.FOCUS_NONE
-	button.flat = true
-	button.add_theme_constant_override("icon_max_width", 28)
-	button.modulate = Color(1.0, 1.0, 1.0, 0.92)
-	button.mouse_entered.connect(func() -> void: button.modulate = Color.WHITE)
-	button.mouse_exited.connect(func() -> void: button.modulate = Color(1.0, 1.0, 1.0, 0.92))
-	var transparent := StyleBoxEmpty.new()
-	button.add_theme_stylebox_override("normal", transparent)
-	button.add_theme_stylebox_override("hover", transparent)
-	button.add_theme_stylebox_override("pressed", transparent)
-	button.add_theme_stylebox_override("focus", transparent)
+	InterfaceStyle.configure_close_button(button)
 
 
 func _style_interface_window(window: Window) -> void:
-	var interface_theme := Theme.new()
-	interface_theme.set_icon("close", "Window", CLOSE_WINDOW_ICON)
-	interface_theme.set_icon("close_pressed", "Window", CLOSE_WINDOW_ICON)
-	window.theme = interface_theme
+	InterfaceStyle.configure_window(window)
 
 
 func _setup_ring_rack_window() -> void:
