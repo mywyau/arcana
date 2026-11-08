@@ -209,13 +209,21 @@ func TestAccuracyPrayerBoostsOnlyMeleeAccuracy(t *testing.T) {
 		skills:         newDefaultSkills(),
 	}
 	sword, _ := weaponDefinition(WeaponSword)
-	if got, want := playerAccuracyScore(player, sword), 18; got != want {
+	if got, want := playerAccuracyScore(player, sword), 13; got != want {
 		t.Fatalf("melee accuracy with Accuracy prayer = %d, want %d", got, want)
 	}
 	stats := derivedCombatStats(player)
-	if stats.PrayerAccuracyBonus != accuracyPrayerMeleeScoreBonus || stats.TotalAccuracy != 18 {
+	if stats.PrayerHitChanceBonus != accuracyPrayerMeleeHitChanceBonus || stats.TotalAccuracy != 13 {
 		t.Fatalf("Accuracy combat stats = %+v", stats)
 	}
+	target := &TargetSnapshot{Evasion: hillWardenEvasionScore, DodgeRate: defaultBaseDodgeBonus}
+	withPrayer := 1 - targetDodgeChance(player, target, sword)
+	player.activePrayers = nil
+	withoutPrayer := 1 - targetDodgeChance(player, target, sword)
+	if math.Abs(withPrayer-withoutPrayer-accuracyPrayerMeleeHitChanceBonus) > 0.000_001 {
+		t.Fatalf("Accuracy prayer hit chance change = %.3f, want %.3f", withPrayer-withoutPrayer, accuracyPrayerMeleeHitChanceBonus)
+	}
+	player.activePrayers = map[PrayerID]bool{PrayerAccuracy: true}
 	player.equippedWeapon = WeaponBow
 	player.combatStyle = CombatStyleAccurate
 	bow, _ := weaponDefinitionForStyle(WeaponBow, CombatStyleAccurate)

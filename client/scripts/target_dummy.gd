@@ -21,6 +21,8 @@ var _mobile: bool = false
 var _has_position: bool = false
 var _authoritative_position: Vector3
 var _rest_color: Color = REST_COLOR
+var _target_kind: String = "dummy"
+var _rest_attack_scale: Vector3 = Vector3.ONE
 
 
 func _ready() -> void:
@@ -42,27 +44,29 @@ func set_target_id(target_id: String) -> void:
 
 
 func set_target_kind(kind: String) -> void:
+	_target_kind = kind
 	_mobile = kind in ["creature", "bird", "cow"]
 	if kind == "bird":
 		_rest_color = BIRD_COLOR
-		attack_pivot.scale = Vector3(0.82, 0.48, 1.0)
+		_rest_attack_scale = Vector3(0.82, 0.48, 1.0)
 		collision_shape.position = Vector3(0.0, 0.55, 0.0)
 		collision_shape.scale = Vector3(0.8, 0.5, 0.8)
 	elif kind == "creature":
 		_rest_color = CREATURE_COLOR
-		attack_pivot.scale = Vector3(1.15, 0.75, 1.25)
+		_rest_attack_scale = Vector3(1.15, 0.75, 1.25)
 		collision_shape.position = Vector3(0.0, 1.0, 0.0)
 		collision_shape.scale = Vector3.ONE
 	elif kind == "cow":
 		_rest_color = COW_COLOR
-		attack_pivot.scale = Vector3(1.35, 0.8, 1.65)
+		_rest_attack_scale = Vector3(1.35, 0.8, 1.65)
 		collision_shape.position = Vector3(0.0, 0.8, 0.0)
 		collision_shape.scale = Vector3(1.15, 0.75, 1.35)
 	else:
 		_rest_color = REST_COLOR
-		attack_pivot.scale = Vector3.ONE
+		_rest_attack_scale = Vector3.ONE
 		collision_shape.position = Vector3(0.0, 1.0, 0.0)
 		collision_shape.scale = Vector3.ONE
+	attack_pivot.scale = _rest_attack_scale
 	if _material != null and not _defeated:
 		_material.albedo_color = _rest_color
 
@@ -74,7 +78,11 @@ func set_authoritative_position(authoritative_position: Vector3) -> void:
 	_has_position = true
 
 
-func play_hit(damage: int, attacker_position: Vector3) -> void:
+func play_hit(
+	damage: int,
+	attacker_position: Vector3,
+	feedback_color: Color = Color(1.0, 0.25, 0.18, 1.0),
+) -> void:
 	if _hit_tween != null:
 		_hit_tween.kill()
 
@@ -82,7 +90,7 @@ func play_hit(damage: int, attacker_position: Vector3) -> void:
 	visual.scale = Vector3.ONE
 	damage_label.text = "-%d" % damage
 	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = Color(1.0, 0.25, 0.18, 1.0)
+	damage_label.modulate = feedback_color
 	damage_label.visible = true
 	if _material != null:
 		_material.albedo_color = Color(1.0, 0.9, 0.82, 1.0)
@@ -106,10 +114,10 @@ func play_hit(damage: int, attacker_position: Vector3) -> void:
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
-func play_dodge() -> void:
+func play_dodge(label_text: String = "DODGE") -> void:
 	if _hit_tween != null:
 		_hit_tween.kill()
-	damage_label.text = "DODGE"
+	damage_label.text = label_text
 	damage_label.position = Vector3(0.0, 2.1, 0.0)
 	damage_label.modulate = Color(0.4, 0.85, 1.0, 1.0)
 	damage_label.visible = true
@@ -120,20 +128,46 @@ func play_dodge() -> void:
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
+func play_block() -> void:
+	play_dodge("BLOCK")
+	damage_label.modulate = Color(0.72, 0.78, 0.84, 1.0)
+
+
 func play_attack(target_position: Vector3) -> void:
 	if _defeated:
 		return
 	if _attack_tween != null:
 		_attack_tween.kill()
 	attack_pivot.position = Vector3.ZERO
+	attack_pivot.rotation_degrees = Vector3.ZERO
+	attack_pivot.scale = _rest_attack_scale
 	var direction: Vector3 = visual.to_local(target_position)
 	direction.y = 0.0
 	if direction.is_zero_approx():
 		direction = Vector3.FORWARD
-	direction = direction.normalized() * 0.18
+	direction = direction.normalized()
+	var windup: Vector3 = -direction * (0.16 if _target_kind == "bird" else 0.22)
+	var strike: Vector3 = direction * (0.28 if _target_kind == "bird" else 0.42)
 	_attack_tween = create_tween()
-	_attack_tween.tween_property(attack_pivot, "position", direction, 0.1)
-	_attack_tween.tween_property(attack_pivot, "position", Vector3.ZERO, 0.16)
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(attack_pivot, "position", windup, 0.12)
+	_attack_tween.parallel().tween_property(
+		attack_pivot,
+		"scale",
+		_rest_attack_scale * (
+			Vector3(1.08, 0.88, 1.08)
+			if _target_kind == "bird"
+			else Vector3(0.94, 1.06, 0.94)
+		),
+		0.12,
+	)
+	_attack_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_attack_tween.tween_property(attack_pivot, "position", strike, 0.1)
+	_attack_tween.parallel().tween_property(attack_pivot, "rotation_degrees:x", -18.0, 0.1)
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(attack_pivot, "position", Vector3.ZERO, 0.18)
+	_attack_tween.parallel().tween_property(attack_pivot, "rotation_degrees", Vector3.ZERO, 0.18)
+	_attack_tween.parallel().tween_property(attack_pivot, "scale", _rest_attack_scale, 0.18)
 
 
 func set_defeated(defeated: bool) -> void:

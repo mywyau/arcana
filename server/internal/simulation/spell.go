@@ -61,7 +61,7 @@ func spellAccuracyScore(player *playerState, spell SpellDefinition) int {
 func targetSpellDodgeChance(player *playerState, target *TargetSnapshot, spell SpellDefinition) float64 {
 	return calculatedDodgeChance(
 		spellAccuracyScore(player, spell),
-		targetEvasionForDamageType(target, DamageTypeMagic),
+		targetEvasion(target),
 		target.DodgeRate,
 	)
 }

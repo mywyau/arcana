@@ -8,7 +8,7 @@ type PrayerCatalogSnapshot struct {
 	RangedDamageBonus    float64
 	MagicDamageBonus     float64
 	HealthRegeneration   float64
-	MeleeAccuracyBonus   int
+	MeleeHitChanceBonus  float64
 	DamageReduction      float64
 	DodgeBonus           float64
 	DrainAmount          int
@@ -34,7 +34,7 @@ func PrayerCatalog() []PrayerCatalogSnapshot {
 			ID: string(prayer.ID), Name: prayer.Name, RequiredLevel: prayer.RequiredLevel,
 			MeleeDamageBonus: prayer.MeleeDamageBonus, RangedDamageBonus: prayer.RangedDamageBonus,
 			MagicDamageBonus: prayer.MagicDamageBonus, HealthRegeneration: prayer.HealthRegeneration,
-			MeleeAccuracyBonus: prayer.MeleeAccuracyBonus, DamageReduction: prayer.DamageReduction,
+			MeleeHitChanceBonus: prayer.MeleeHitChanceBonus, DamageReduction: prayer.DamageReduction,
 			DodgeBonus: prayer.DodgeBonus, DrainAmount: prayer.DrainAmount,
 			DrainIntervalPulses:  prayer.DrainIntervalPulses,
 			DrainIntervalSeconds: float64(prayer.DrainIntervalPulses) * actionPulseInterval.Seconds(),

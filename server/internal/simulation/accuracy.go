@@ -3,9 +3,10 @@ package simulation
 const (
 	minimumDodgeChance    = 0.05
 	maximumDodgeChance    = 0.90
-	dodgeChancePerScore   = 0.002
+	accuracyCurveScale    = 50.0
+	accuracyCurveStrength = 0.30
 	dummyAccuracyScore    = 11
-	dummyEvasionScore     = 1
+	dummyEvasionScore     = 5
 	defaultBaseDodgeBonus = 0.12
 )
 
@@ -27,7 +28,7 @@ func playerAccuracyScore(player *playerState, weapon WeaponDefinition) int {
 		style = player.combatStyle
 	}
 	equipmentAccuracy, _ := equipmentOffenceForWeapon(player, weapon)
-	return level + weapon.AccuracyBonus + equipmentAccuracy + combatStyleAccuracyBonus(style) + prayerAccuracyBonus(player, weapon)
+	return level + weapon.AccuracyBonus + equipmentAccuracy + combatStyleAccuracyBonus(style)
 }
 
 func playerEvasionScore(player *playerState) int {
@@ -55,29 +56,28 @@ func combatStyleAccuracyBonus(style CombatStyleID) int {
 }
 
 func calculatedDodgeChance(accuracyScore, evasionScore int, dodgeBonus float64) float64 {
-	chance := dodgeBonus + float64(evasionScore-accuracyScore)*dodgeChancePerScore
-	return max(minimumDodgeChance, min(chance, maximumDodgeChance))
+	accuracy := float64(max(1, accuracyScore))
+	evasion := float64(max(1, evasionScore))
+	relativeAdvantage := (accuracy - evasion) / (accuracy + evasion + accuracyCurveScale)
+	hitChance := 1 - dodgeBonus + relativeAdvantage*accuracyCurveStrength
+	hitChance = max(1-maximumDodgeChance, min(hitChance, 1-minimumDodgeChance))
+	return 1 - hitChance
 }
 
 func targetDodgeChance(player *playerState, target *TargetSnapshot, weapon WeaponDefinition) float64 {
-	damageType := DamageTypeCrush
-	if player != nil {
-		if styleDamageType, exists := weaponDamageTypeForStyle(weapon, player.combatStyle); exists {
-			damageType = styleDamageType
-		}
-	}
-	return calculatedDodgeChance(
+	dodgeChance := calculatedDodgeChance(
 		playerAccuracyScore(player, weapon),
-		targetEvasionForDamageType(target, damageType),
+		targetEvasion(target),
 		target.DodgeRate,
 	)
+	return max(minimumDodgeChance, dodgeChance-prayerHitChanceBonus(player, weapon))
 }
 
-func targetEvasionForDamageType(target *TargetSnapshot, damageType DamageType) int {
+func targetEvasion(target *TargetSnapshot) int {
 	if target == nil {
 		return 1
 	}
-	return target.Evasion + max(0, defenceBonusForDamageType(target.Defence, damageType))
+	return target.Evasion
 }
 
 func playerDodgeChance(attackerAccuracy int, player *playerState) float64 {

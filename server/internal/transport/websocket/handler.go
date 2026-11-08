@@ -238,7 +238,7 @@ func prayerCatalogMessages(prayers []simulation.PrayerCatalogSnapshot) []protoco
 			ID: prayer.ID, Name: prayer.Name, RequiredLevel: prayer.RequiredLevel,
 			MeleeDamageBonus: prayer.MeleeDamageBonus, RangedDamageBonus: prayer.RangedDamageBonus,
 			MagicDamageBonus: prayer.MagicDamageBonus, HealthRegeneration: prayer.HealthRegeneration,
-			MeleeAccuracyBonus: prayer.MeleeAccuracyBonus, DamageReduction: prayer.DamageReduction,
+			MeleeHitChanceBonus: prayer.MeleeHitChanceBonus, DamageReduction: prayer.DamageReduction,
 			DodgeBonus: prayer.DodgeBonus, DrainAmount: prayer.DrainAmount,
 			DrainIntervalPulses:  prayer.DrainIntervalPulses,
 			DrainIntervalSeconds: prayer.DrainIntervalSeconds,
@@ -430,9 +430,10 @@ func (h *Handler) readCommands(
 		case protocol.MessageConsumeItem:
 			rejectionCode = "consume_rejected"
 			err = h.world.QueueConsumeItem(simulation.ConsumeItemCommand{
-				PlayerID: playerID,
-				Sequence: message.Sequence,
-				ItemID:   message.ItemID,
+				PlayerID:      playerID,
+				Sequence:      message.Sequence,
+				ItemID:        message.ItemID,
+				InventorySlot: message.InventorySlot,
 			})
 		case protocol.MessageBrew:
 			rejectionCode = "brew_rejected"
@@ -677,7 +678,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				EquipmentAccuracyBonus: player.CombatStats.EquipmentAccuracyBonus,
 				StyleAccuracyBonus:     player.CombatStats.StyleAccuracyBonus,
 				SpellAccuracyBonus:     player.CombatStats.SpellAccuracyBonus,
-				PrayerAccuracyBonus:    player.CombatStats.PrayerAccuracyBonus,
+				PrayerHitChanceBonus:   player.CombatStats.PrayerHitChanceBonus,
 				TotalAccuracy:          player.CombatStats.TotalAccuracy,
 				DamageSkill:            string(player.CombatStats.DamageSkill),
 				DamageLevel:            player.CombatStats.DamageLevel,

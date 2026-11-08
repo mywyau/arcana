@@ -95,7 +95,7 @@ type PrayerCatalogSnapshot struct {
 	RangedDamageBonus    float64 `json:"ranged_damage_bonus"`
 	MagicDamageBonus     float64 `json:"magic_damage_bonus"`
 	HealthRegeneration   float64 `json:"health_regeneration"`
-	MeleeAccuracyBonus   int     `json:"melee_accuracy_bonus"`
+	MeleeHitChanceBonus  float64 `json:"melee_hit_chance_bonus"`
 	DamageReduction      float64 `json:"damage_reduction"`
 	DodgeBonus           float64 `json:"dodge_bonus"`
 	DrainAmount          int     `json:"drain_amount"`
@@ -326,7 +326,7 @@ type CombatStatsSnapshot struct {
 	EquipmentAccuracyBonus int            `json:"equipment_accuracy_bonus"`
 	StyleAccuracyBonus     int            `json:"style_accuracy_bonus"`
 	SpellAccuracyBonus     int            `json:"spell_accuracy_bonus"`
-	PrayerAccuracyBonus    int            `json:"prayer_accuracy_bonus"`
+	PrayerHitChanceBonus   float64        `json:"prayer_hit_chance_bonus"`
 	TotalAccuracy          int            `json:"total_accuracy"`
 	DamageSkill            string         `json:"damage_skill"`
 	DamageLevel            int            `json:"damage_level"`
@@ -454,6 +454,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if (message.Type == MessageEquipItem || message.Type == MessageUnequipItem ||
 		message.Type == MessageConsumeItem || message.Type == MessageCutGem || message.Type == MessageLightFire) && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
+	}
+	if message.Type == MessageConsumeItem && message.InventorySlot < 0 {
+		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {
 		return ClientMessage{}, fmt.Errorf("drop ID is required")

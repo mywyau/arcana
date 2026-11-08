@@ -211,6 +211,24 @@ func (inventory *inventoryState) remove(itemID string, quantity int) bool {
 	return true
 }
 
+func (inventory *inventoryState) removeFromSlot(slot int, itemID string, quantity int) bool {
+	if slot < 0 || itemID == "" || quantity <= 0 {
+		return false
+	}
+	for index := range inventory.items {
+		item := inventory.items[index]
+		if item.Slot != slot || item.ItemID != itemID || item.Quantity < quantity {
+			continue
+		}
+		inventory.items[index].Quantity -= quantity
+		if inventory.items[index].Quantity == 0 {
+			inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
+		}
+		return true
+	}
+	return false
+}
+
 func (inventory *inventoryState) swapSlots(fromSlot, toSlot int) bool {
 	if fromSlot < 0 || fromSlot >= inventory.capacity || toSlot < 0 || toSlot >= inventory.capacity || fromSlot == toSlot {
 		return false

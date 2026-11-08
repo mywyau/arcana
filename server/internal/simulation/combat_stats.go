@@ -12,7 +12,7 @@ type CombatStatsSnapshot struct {
 	EquipmentAccuracyBonus int
 	StyleAccuracyBonus     int
 	SpellAccuracyBonus     int
-	PrayerAccuracyBonus    int
+	PrayerHitChanceBonus   float64
 	TotalAccuracy          int
 	DamageSkill            SkillID
 	DamageLevel            int
@@ -76,13 +76,19 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	poweredDamage := weaponPoweredDamage(player, weapon)
 	variance := weapon.DamageVariance
 	playerAttackRange := weapon.Range
+	damageType := DamageTypeCrush
+	if styleDamageType, hasDamageType := weaponDamageTypeForStyle(weapon, player.combatStyle); hasDamageType {
+		damageType = styleDamageType
+	}
 	if spell, casting := spellDefinition(player.selectedSpell); casting {
 		spell = spellDefinitionForStyle(player, spell)
 		playerDodge = targetSpellDodgeChance(player, target, spell)
 		poweredDamage = spellPoweredDamage(player, spell) * elementalDamageMultiplier(target, spell.Element)
 		variance = spell.DamageVariance
 		playerAttackRange = spell.Range
+		damageType = DamageTypeMagic
 	}
+	poweredDamage *= 1 - targetDamageReduction(target, damageType)
 	playerMinimum, playerMaximum := damageRange(poweredDamage, variance)
 	profile := combatProfileForEnemy(target.ID)
 	targetDamage := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType)
@@ -189,7 +195,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		WeaponAccuracyBonus:    weapon.AccuracyBonus,
 		EquipmentAccuracyBonus: equipmentAccuracy,
 		StyleAccuracyBonus:     combatStyleAccuracyBonus(player.combatStyle),
-		PrayerAccuracyBonus:    prayerAccuracyBonus(player, weapon),
+		PrayerHitChanceBonus:   prayerHitChanceBonus(player, weapon),
 		TotalAccuracy:          playerAccuracyScore(player, weapon),
 		DamageSkill:            damageSkill,
 		DamageLevel:            effectiveCombatSkillLevel(player, damageSkill),

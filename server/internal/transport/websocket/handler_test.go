@@ -301,7 +301,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 			CombatStats: simulation.CombatStatsSnapshot{
 				Weapon: simulation.WeaponDagger, Style: simulation.CombatStyleStab, Spell: simulation.SpellWindBolt,
 				AccuracySkill: simulation.SkillAttack, AccuracyLevel: 2,
-				WeaponAccuracyBonus: 14, StyleAccuracyBonus: 2, SpellAccuracyBonus: 10, PrayerAccuracyBonus: 5, TotalAccuracy: 18,
+				WeaponAccuracyBonus: 14, StyleAccuracyBonus: 2, SpellAccuracyBonus: 10, PrayerHitChanceBonus: 0.05, TotalAccuracy: 18,
 				DamageSkill: simulation.SkillStrength, DamageLevel: 3, StrengthBonus: 7, SpellPower: 4, SkillDamageBonus: 1,
 				PrayerDamageBonus: 0.1, PrayerDamageReduction: 0.2,
 				BaseAttackInterval: 4, AttackInterval: 3, AttackIntervalModifier: -1,
@@ -367,7 +367,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	}
 	if player.CombatStats.Weapon != "dagger" || player.CombatStats.Style != "stab" || player.CombatStats.Spell != "wind_bolt" ||
 		player.CombatStats.AccuracySkill != "attack" || player.CombatStats.AccuracyLevel != 2 ||
-		player.CombatStats.WeaponAccuracyBonus != 14 || player.CombatStats.StyleAccuracyBonus != 2 || player.CombatStats.SpellAccuracyBonus != 10 || player.CombatStats.PrayerAccuracyBonus != 5 ||
+		player.CombatStats.WeaponAccuracyBonus != 14 || player.CombatStats.StyleAccuracyBonus != 2 || player.CombatStats.SpellAccuracyBonus != 10 || player.CombatStats.PrayerHitChanceBonus != 0.05 ||
 		player.CombatStats.TotalAccuracy != 18 || player.CombatStats.DamageSkill != "strength" ||
 		player.CombatStats.DamageLevel != 3 || player.CombatStats.StrengthBonus != 7 || player.CombatStats.SpellPower != 4 || player.CombatStats.SkillDamageBonus != 1 ||
 		player.CombatStats.PrayerDamageBonus != 0.1 || player.CombatStats.PrayerDamageReduction != 0.2 ||

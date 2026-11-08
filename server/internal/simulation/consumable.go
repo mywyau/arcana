@@ -22,9 +22,10 @@ type ActiveCombatBoostSnapshot struct {
 }
 
 type ConsumeItemCommand struct {
-	PlayerID PlayerID
-	Sequence uint64
-	ItemID   string
+	PlayerID      PlayerID
+	Sequence      uint64
+	ItemID        string
+	InventorySlot int
 }
 
 func (w *World) QueueConsumeItem(command ConsumeItemCommand) error {
@@ -51,8 +52,9 @@ func (w *World) QueueConsumeItem(command ConsumeItemCommand) error {
 	if pending, exists := w.pendingConsumables[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
 		return fmt.Errorf("consume sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
 	}
-	if !player.inventory.contains(command.ItemID) {
-		return fmt.Errorf("player %q does not own item %q", command.PlayerID, command.ItemID)
+	itemAtSlot, exists := inventoryItemAt(player.inventory, command.InventorySlot)
+	if !exists || itemAtSlot.ItemID != command.ItemID || itemAtSlot.Quantity <= 0 {
+		return fmt.Errorf("inventory slot %d does not contain item %q", command.InventorySlot, command.ItemID)
 	}
 	if !playerCanBenefitFromConsumable(player, item.Consumable) {
 		return fmt.Errorf("player %q is already full for item %q", command.PlayerID, command.ItemID)
@@ -81,7 +83,7 @@ func (w *World) applyPendingConsumables() {
 		item, exists := itemDefinition(command.ItemID)
 		if !exists || item.Kind != ItemKindConsumable ||
 			!playerCanBenefitFromConsumable(player, item.Consumable) ||
-			!player.inventory.remove(command.ItemID, 1) {
+			!player.inventory.removeFromSlot(command.InventorySlot, command.ItemID, 1) {
 			continue
 		}
 		player.health = min(player.maximumHealth, player.health+item.Consumable.Healing)

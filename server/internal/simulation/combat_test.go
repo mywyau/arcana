@@ -183,6 +183,27 @@ func TestEngagedSwordAutoAttacksOnWeaponCadence(t *testing.T) {
 	}
 }
 
+func TestEnemyDefenceMitigatesSuccessfulPlayerHit(t *testing.T) {
+	world := newCombatTestWorld()
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	target := world.combat.targets[dummyTargetID]
+	target.Defence = DefenceBonuses{Stab: 100}
+	if err := world.QueueTarget(TargetCommand{
+		PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID,
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	if got, want := target.Health, dummyMaximumHealth-5; got != want {
+		t.Fatalf("target health after 50%% mitigation = %d, want %d", got, want)
+	}
+	events := world.Snapshot().CombatEvents
+	if len(events) != 1 || events[0].Type != CombatEventDamage || events[0].Amount != 5 {
+		t.Fatalf("mitigated combat events = %+v", events)
+	}
+}
+
 func TestOverkillAwardsOnlyActualDamageAsXP(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)

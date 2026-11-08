@@ -504,13 +504,13 @@ func _apply_material_to_meshes(node: Node, material: StandardMaterial3D) -> void
 		_apply_material_to_meshes(child, material)
 
 
-func play_hit(damage: int) -> void:
+func play_hit(damage: int, feedback_color: Color = Color(1.0, 0.25, 0.18, 1.0)) -> void:
 	if _hit_tween != null:
 		_hit_tween.kill()
 	visual_root.scale = Vector3.ONE
 	damage_label.text = "-%d" % damage
 	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = Color(1.0, 0.25, 0.18, 1.0)
+	damage_label.modulate = feedback_color
 	damage_label.visible = true
 	if _body_material != null:
 		_body_material.albedo_color = Color(1.0, 0.9, 0.82, 1.0)
@@ -526,10 +526,10 @@ func play_hit(damage: int) -> void:
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
-func play_dodge() -> void:
+func play_dodge(label_text: String = "DODGE") -> void:
 	if _hit_tween != null:
 		_hit_tween.kill()
-	damage_label.text = "DODGE"
+	damage_label.text = label_text
 	damage_label.position = Vector3(0.0, 2.1, 0.0)
 	damage_label.modulate = Color(0.4, 0.85, 1.0, 1.0)
 	damage_label.visible = true
@@ -537,6 +537,29 @@ func play_dodge() -> void:
 	_hit_tween.set_parallel(true)
 	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
 	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
+	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+
+
+func play_block() -> void:
+	play_status_feedback("BLOCK", Color(0.72, 0.78, 0.84, 1.0))
+
+
+func play_heal(amount: int) -> void:
+	if amount > 0:
+		play_status_feedback("+%d" % amount, Color(0.28, 1.0, 0.48, 1.0))
+
+
+func play_status_feedback(label_text: String, feedback_color: Color) -> void:
+	if _hit_tween != null:
+		_hit_tween.kill()
+	damage_label.text = label_text
+	damage_label.position = Vector3(0.0, 2.1, 0.0)
+	damage_label.modulate = feedback_color
+	damage_label.visible = true
+	_hit_tween = create_tween()
+	_hit_tween.set_parallel(true)
+	_hit_tween.tween_property(damage_label, "position:y", 2.9, 0.7)
+	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.7).set_delay(0.22)
 	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 

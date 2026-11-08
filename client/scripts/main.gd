@@ -406,6 +406,8 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var chat_hud: PanelContainer = $UI/ChatHUD
 @onready var game_message_log: RichTextLabel = $UI/ChatHUD/Margin/VBox/Messages
 @onready var player_vitals_hud: PanelContainer = $UI/PlayerVitalsHUD
+@onready var combat_boost_hud: PanelContainer = $UI/CombatBoostHUD
+@onready var combat_boost_row: HBoxContainer = $UI/CombatBoostHUD/Margin/Boosts
 @onready var player_details_hud: PanelContainer = $UI/PlayerDetailsHUD
 @onready var combat_hud: PanelContainer = $UI/CombatHUD
 @onready var inventory_hud: PanelContainer = $UI/InventoryHUD
@@ -526,6 +528,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var target_health_bar: ProgressBar = $UI/TargetHUD/Margin/VBox/Health
 @onready var target_health_value: Label = $UI/TargetHUD/Margin/VBox/Health/Value
 @onready var target_health_label: Label = $UI/TargetHUD/Margin/VBox/Header/HealthLabel
+@onready var attack_ready_indicator: Label = $UI/TargetHUD/Margin/VBox/Header/AttackReady
 @onready var aggro_icon: TextureRect = $UI/TargetHUD/Margin/VBox/Header/AggroIcon
 @onready var target_details_button: Button = $UI/TargetHUD/Margin/VBox/Header/Details
 @onready var target_details_hud: PanelContainer = $UI/TargetDetailsHUD
@@ -564,6 +567,7 @@ var _action_pulse: int = 0
 var _last_consume_sequence: int = 0
 var _next_consume_pulse: int = 0
 var _queued_consume_item: String = ""
+var _queued_consume_slot: int = -1
 var _last_gather_sequence: int = 0
 var _gathering_spot: String = ""
 var _gathering_result: String = ""
@@ -626,9 +630,14 @@ var _next_fire_sequence: int = 1
 var _firemaking_mode: bool = false
 var _player_health: int = 100
 var _player_maximum_health: int = 100
+var _player_health_initialized: bool = false
 var _player_prayer: int = 100
 var _player_maximum_prayer: int = 100
 var _active_prayers: Array[String] = []
+var _prayer_feedback_initialized: bool = false
+var _active_combat_boosts: Array = []
+var _combat_boost_feedback_initialized: bool = false
+var _combat_boost_widgets: Dictionary = {}
 var _active_prayer_set: String = "common_litany"
 var _last_prayer_sequence: int = 0
 var _next_prayer_sequence: int = 1
@@ -2789,7 +2798,7 @@ func _on_inventory_item_pressed(
 				_request_rune_deposit(inventory_slot)
 		"equip": _request_equip(item_id, instance_id)
 		"ring": _request_ring_deposit(item_id, instance_id)
-		"consume": _request_consume_item(item_id)
+		"consume": _request_consume_item(item_id, inventory_slot)
 		"brew": _open_brewing_window(item_id)
 		"fletch": _open_fletching_window(item_id)
 		"cut_gem": _request_cut_gem(item_id)
@@ -2812,8 +2821,13 @@ func _request_drop_item(item_id: String, instance_id: String = "") -> void:
 		_next_drop_sequence += 1
 
 
-func _request_consume_item(item_id: String) -> void:
-	if _player_defeated or not CONSUMABLE_ITEMS.has(item_id) or not _queued_consume_item.is_empty():
+func _request_consume_item(item_id: String, inventory_slot: int) -> void:
+	if (
+		_player_defeated
+		or inventory_slot < 0
+		or not CONSUMABLE_ITEMS.has(item_id)
+		or not _queued_consume_item.is_empty()
+	):
 		return
 	var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
 	var restores_health: bool = int(consumable.get("healing", 0)) > 0
@@ -2830,8 +2844,9 @@ func _request_consume_item(item_id: String) -> void:
 	if _action_pulse < _next_consume_pulse:
 		status_label.text = "Consumable cooldown: %d pulse(s) remaining" % (_next_consume_pulse - _action_pulse)
 		return
-	if network.send_consume_item(_next_consume_sequence, item_id):
+	if network.send_consume_item(_next_consume_sequence, item_id, inventory_slot):
 		_queued_consume_item = item_id
+		_queued_consume_slot = inventory_slot
 		_next_consume_sequence += 1
 		_update_inventory_hud()
 
@@ -3107,7 +3122,11 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_combat_target = str(player_data.get("combat_target", ""))
 			_next_attack_pulse = int(player_data.get("next_attack_pulse", 0))
 			_auto_approaching = bool(player_data.get("auto_approaching", false))
-			_player_health = int(player_data.get("health", _player_health))
+			var updated_health: int = int(player_data.get("health", _player_health))
+			if _player_health_initialized and updated_health > _player_health and _player_health > 0:
+				view.play_heal(updated_health - _player_health)
+			_player_health = updated_health
+			_player_health_initialized = true
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
 			_player_combat_level = int(player_data.get("combat_level", _player_combat_level))
 			_experience_locked = bool(player_data.get("experience_locked", _experience_locked))
@@ -3133,8 +3152,27 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				for prayer_id_data: Variant in active_prayers_data as Array:
 					active_prayers.append(str(prayer_id_data))
 				if active_prayers != _active_prayers:
+					if _prayer_feedback_initialized:
+						if active_prayers.size() > _active_prayers.size():
+							view.play_status_feedback("PRAYER ON", Color(1.0, 0.82, 0.22))
+							sound_effects.play_feedback(&"prayer_on")
+						elif active_prayers.size() < _active_prayers.size():
+							view.play_status_feedback("PRAYER OFF", Color(0.72, 0.76, 0.82))
 					_active_prayers = active_prayers
 					prayer_changed = true
+				_prayer_feedback_initialized = true
+			var combat_boosts_data: Variant = player_data.get("active_combat_boosts", [])
+			if typeof(combat_boosts_data) == TYPE_ARRAY:
+				var combat_boosts: Array = (combat_boosts_data as Array).duplicate(true)
+				if combat_boosts != _active_combat_boosts:
+					if _combat_boost_feedback_initialized:
+						if combat_boosts.size() > _active_combat_boosts.size():
+							sound_effects.play_feedback(&"boost")
+						elif combat_boosts.size() == _active_combat_boosts.size() and not combat_boosts.is_empty():
+							sound_effects.play_feedback(&"boost")
+					_active_combat_boosts = combat_boosts
+				_combat_boost_feedback_initialized = true
+				_update_combat_boost_hud()
 			_last_prayer_sequence = int(player_data.get("last_prayer_sequence", 0))
 			if _last_prayer_sequence >= _next_prayer_sequence - 1 and not _queued_prayer_id.is_empty():
 				_queued_prayer_id = ""
@@ -3199,6 +3237,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
 				var consumed_item_id: String = _queued_consume_item
 				_queued_consume_item = ""
+				_queued_consume_slot = -1
 				inventory_selection_changed = true
 				var consumed_definition: Dictionary = CONSUMABLE_ITEMS.get(consumed_item_id, {}) as Dictionary
 				var boost_description: String = str(consumed_definition.get("boost", ""))
@@ -3822,8 +3861,13 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		var dummy_view: TargetDummy = _dummy_view_for_id(target_id)
 		var local_combat: bool = source_id == _local_player_id or target_id == _local_player_id
 		var weapon_id: String = source.equipped_weapon() if source != null else "unarmed"
-		if local_combat and source != null and spell_id.is_empty():
-			sound_effects.play_weapon_attack(weapon_id)
+		var feedback_color: Color = _combat_damage_color(source_id, weapon_id, spell_id)
+		var avoidance_text: String = "MISS" if source_id == _local_player_id else "DODGE"
+		if local_combat and source != null:
+			if spell_id.is_empty():
+				sound_effects.play_weapon_attack(weapon_id)
+			else:
+				sound_effects.play_spell_cast()
 		if dummy_view != null:
 			if source == null:
 				continue
@@ -3838,8 +3882,11 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 				amount,
 				source.global_position,
 				impact_delay,
-				local_combat and spell_id.is_empty(),
+				local_combat,
 				weapon_id,
+				spell_id,
+				feedback_color,
+				avoidance_text,
 			)
 		elif target != null:
 			if source != null:
@@ -3851,11 +3898,37 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 				var attacking_dummy: TargetDummy = _dummy_view_for_id(source_id)
 				attacking_dummy.play_attack(target.global_position)
 			if event_type == "damage":
-				target.play_hit(amount)
-				if local_combat and spell_id.is_empty():
-					sound_effects.play_combat_impact(weapon_id, target.wears_plate_armour())
+				if amount <= 0:
+					target.play_block()
+					if local_combat:
+						sound_effects.play_feedback(&"block")
+				else:
+					target.play_hit(amount, feedback_color)
+					if local_combat:
+						sound_effects.play_combat_impact(weapon_id, target.wears_plate_armour(), spell_id)
 			else:
-				target.play_dodge()
+				target.play_dodge(avoidance_text)
+				if local_combat:
+					var avoidance_sound: StringName = &"miss" if avoidance_text == "MISS" else &"dodge"
+					sound_effects.play_feedback(avoidance_sound)
+
+
+func _combat_damage_color(source_id: String, weapon_id: String, spell_id: String) -> Color:
+	if not spell_id.is_empty():
+		match spell_id:
+			"fire_bolt": return Color(1.0, 0.24, 0.08)
+			"water_bolt": return Color(0.2, 0.58, 1.0)
+			"earth_bolt": return Color(0.3, 0.82, 0.32)
+			"holy_bolt": return Color(1.0, 0.82, 0.15)
+			"dark_bolt": return Color(0.68, 0.3, 0.92)
+			_: return Color(0.86, 0.9, 1.0)
+	if weapon_id in ["bow", "crossbow"]:
+		return Color(1.0, 0.72, 0.18)
+	var source_state: Dictionary = _target_states.get(source_id, {}) as Dictionary
+	match str(source_state.get("attack_type", "")):
+		"magic": return Color(0.62, 0.38, 1.0)
+		"ranged": return Color(1.0, 0.72, 0.18)
+		_: return Color(1.0, 0.26, 0.18)
 
 
 func _dummy_view_for_id(target_id: String) -> TargetDummy:
@@ -3870,17 +3943,28 @@ func _play_dummy_impact_after_delay(
 	delay: float,
 	play_sound: bool,
 	weapon_id: String,
+	spell_id: String,
+	feedback_color: Color,
+	avoidance_text: String,
 ) -> void:
 	if delay > 0.0:
 		await get_tree().create_timer(delay).timeout
 	if not is_instance_valid(dummy_view):
 		return
 	if event_type == "damage":
-		dummy_view.play_hit(amount, source_position)
-		if play_sound:
-			sound_effects.play_combat_impact(weapon_id)
+		if amount <= 0:
+			dummy_view.play_block()
+			if play_sound:
+				sound_effects.play_feedback(&"block")
+		else:
+			dummy_view.play_hit(amount, source_position, feedback_color)
+			if play_sound:
+				sound_effects.play_combat_impact(weapon_id, false, spell_id)
 	else:
-		dummy_view.play_dodge()
+		dummy_view.play_dodge(avoidance_text)
+		if play_sound:
+			var avoidance_sound: StringName = &"miss" if avoidance_text == "MISS" else &"dodge"
+			sound_effects.play_feedback(avoidance_sound)
 
 
 func _on_server_error(code: String, message: String) -> void:
@@ -3908,6 +3992,7 @@ func _on_server_error(code: String, message: String) -> void:
 	if code == "consume_rejected":
 		_next_consume_sequence = _last_consume_sequence + 1
 		_queued_consume_item = ""
+		_queued_consume_slot = -1
 		_update_inventory_hud()
 	if code == "brew_rejected":
 		_brew_pending = false
@@ -5136,7 +5221,7 @@ func _update_prayer_hud() -> void:
 func _prayer_description(prayer: Dictionary) -> String:
 	var lines: PackedStringArray = []
 	var effects: Array[Dictionary] = [
-		{"key": "melee_accuracy_bonus", "label": "+%d melee accuracy score", "percentage": false},
+		{"key": "melee_hit_chance_bonus", "label": "+%d%% melee hit chance", "percentage": true},
 		{"key": "melee_damage_bonus", "label": "+%d%% melee damage", "percentage": true},
 		{"key": "ranged_damage_bonus", "label": "+%d%% ranged damage", "percentage": true},
 		{"key": "magic_damage_bonus", "label": "+%d%% magic damage", "percentage": true},
@@ -5428,9 +5513,9 @@ func _detailed_offence_text() -> String:
 		_signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0))),
 		_signed_stat(int(_combat_stats.get("equipment_accuracy_bonus", 0))),
 	]
-	var prayer_accuracy_bonus: int = int(_combat_stats.get("prayer_accuracy_bonus", 0))
-	if prayer_accuracy_bonus != 0:
-		accuracy_breakdown += "\nPrayer: %s" % _signed_stat(prayer_accuracy_bonus)
+	var prayer_hit_chance_bonus: float = float(_combat_stats.get("prayer_hit_chance_bonus", 0.0))
+	if prayer_hit_chance_bonus > 0.0:
+		accuracy_breakdown += "\nPrayer hit: +%.0f%%" % (prayer_hit_chance_bonus * 100.0)
 	var damage_breakdown: String = "Weapon: %s" % _signed_stat(
 		int(_combat_stats.get("strength_bonus", 0)),
 	)
@@ -6212,7 +6297,7 @@ func _update_inventory_hud() -> void:
 			var is_queued: bool = equipment_pending and _queued_item == item_id and (
 				_queued_instance_id.is_empty() or _queued_instance_id == instance_id
 			)
-			var is_consume_queued: bool = _queued_consume_item == item_id
+			var is_consume_queued: bool = _queued_consume_item == item_id and _queued_consume_slot == slot
 			var is_equipped: bool = _is_item_equipped(item_id, instance_id)
 			slot_button.toggle_mode = is_equipable and not is_banking
 			var displayed_equipped: bool = not _queued_unequip if is_queued else is_equipped
@@ -6440,6 +6525,118 @@ func _position_target_details_hud() -> void:
 	target_details_hud.global_position = position
 
 
+func _update_combat_boost_hud() -> void:
+	var entries: Array[Dictionary] = _combat_boost_display_entries()
+	combat_boost_hud.visible = not entries.is_empty()
+	var active_potion_ids: Array[String] = []
+	for entry_index: int in range(entries.size()):
+		var entry: Dictionary = entries[entry_index]
+		var potion_id: String = str(entry.get("potion_id", ""))
+		active_potion_ids.append(potion_id)
+		if not _combat_boost_widgets.has(potion_id):
+			_combat_boost_widgets[potion_id] = _create_combat_boost_timer(entry)
+		var timer: VBoxContainer = _combat_boost_widgets[potion_id] as VBoxContainer
+		combat_boost_row.move_child(timer, entry_index)
+		var expires_at_pulse: int = int(entry.get("expires_at_pulse", _action_pulse))
+		var remaining_pulses: int = maxi(0, expires_at_pulse - _action_pulse)
+		var remaining_seconds: int = ceili(remaining_pulses * 0.6)
+		var minutes: int = remaining_seconds / 60
+		var seconds: int = remaining_seconds % 60
+		var time_label: Label = timer.get_node("Time") as Label
+		time_label.text = "%d:%02d" % [minutes, seconds]
+
+	for potion_id_data: Variant in _combat_boost_widgets.keys():
+		var potion_id: String = str(potion_id_data)
+		if potion_id in active_potion_ids:
+			continue
+		var expired_timer: VBoxContainer = _combat_boost_widgets[potion_id] as VBoxContainer
+		_combat_boost_widgets.erase(potion_id)
+		combat_boost_row.remove_child(expired_timer)
+		expired_timer.queue_free()
+
+
+func _create_combat_boost_timer(entry: Dictionary) -> VBoxContainer:
+	var potion_id: String = str(entry.get("potion_id", ""))
+	var timer := VBoxContainer.new()
+	timer.custom_minimum_size = Vector2(48.0, 52.0)
+	timer.alignment = BoxContainer.ALIGNMENT_CENTER
+	timer.tooltip_text = "%s • +%d levels" % [
+		str(entry.get("name", "Combat boost")),
+		int(entry.get("levels", 0)),
+	]
+	combat_boost_row.add_child(timer)
+
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(36.0, 34.0)
+	icon.texture = IconCatalog.centered_icon(
+		ITEM_ICONS.get(potion_id, EMPTY_SLOT_ICON) as Texture2D,
+	)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	timer.add_child(icon)
+
+	var time_label := Label.new()
+	time_label.name = "Time"
+	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	time_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.78))
+	time_label.add_theme_color_override("font_outline_color", Color(0.03, 0.035, 0.04))
+	time_label.add_theme_constant_override("outline_size", 3)
+	time_label.add_theme_font_size_override("font_size", 14)
+	time_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	timer.add_child(time_label)
+	return timer
+
+
+func _combat_boost_display_entries() -> Array[Dictionary]:
+	var melee_expiry: int = 0
+	var melee_levels: int = 0
+	var range_expiry: int = 0
+	var range_levels: int = 0
+	var magic_expiry: int = 0
+	var magic_levels: int = 0
+	for boost_data: Variant in _active_combat_boosts:
+		if typeof(boost_data) != TYPE_DICTIONARY:
+			continue
+		var boost: Dictionary = boost_data
+		var skill: String = str(boost.get("skill", ""))
+		var expiry: int = int(boost.get("expires_at_pulse", 0))
+		var levels: int = int(boost.get("levels", 0))
+		if skill in ["attack", "strength", "defence"]:
+			melee_expiry = maxi(melee_expiry, expiry)
+			melee_levels = maxi(melee_levels, levels)
+		elif skill == "range":
+			range_expiry = expiry
+			range_levels = levels
+		elif skill == "magic":
+			magic_expiry = expiry
+			magic_levels = levels
+
+	var entries: Array[Dictionary] = []
+	if melee_expiry > _action_pulse:
+		entries.append({
+			"potion_id": "melee_potion",
+			"name": "Melee potion",
+			"expires_at_pulse": melee_expiry,
+			"levels": melee_levels,
+		})
+	if range_expiry > _action_pulse:
+		entries.append({
+			"potion_id": "ranging_potion",
+			"name": "Ranging potion",
+			"expires_at_pulse": range_expiry,
+			"levels": range_levels,
+		})
+	if magic_expiry > _action_pulse:
+		entries.append({
+			"potion_id": "magic_potion",
+			"name": "Magic potion",
+			"expires_at_pulse": magic_expiry,
+			"levels": magic_levels,
+		})
+	return entries
+
+
 func _update_combat_hud() -> void:
 	var state: String = "queued" if _last_action_sequence < _next_action_sequence - 1 else _last_action_result
 	if _player_defeated:
@@ -6552,14 +6749,27 @@ func _update_combat_hud() -> void:
 	var remaining: int = maxi(0, _next_attack_pulse - _action_pulse)
 	cooldown_bar.max_value = weapon_interval
 	cooldown_bar.value = weapon_interval - mini(weapon_interval, remaining)
+	attack_ready_indicator.visible = _target_hud_active or _hud_edit_mode
 	if _auto_approaching:
 		cooldown_label.text = "Attack: closing distance"
+		attack_ready_indicator.text = "◆"
+		attack_ready_indicator.add_theme_color_override("font_color", Color(0.3, 0.72, 1.0))
+		attack_ready_indicator.tooltip_text = "Closing distance"
 	elif _combat_target.is_empty():
 		cooldown_label.text = "Attack: idle"
+		attack_ready_indicator.text = "●"
+		attack_ready_indicator.add_theme_color_override("font_color", Color(0.5, 0.54, 0.6))
+		attack_ready_indicator.tooltip_text = "Not attacking"
 	elif remaining > 0:
 		cooldown_label.text = "Next attack in %d pulse%s" % [remaining, "" if remaining == 1 else "s"]
+		attack_ready_indicator.text = "◌"
+		attack_ready_indicator.add_theme_color_override("font_color", Color(1.0, 0.68, 0.2))
+		attack_ready_indicator.tooltip_text = "Attack recovering • %.1fs" % (remaining * 0.6)
 	else:
 		cooldown_label.text = "Attack ready"
+		attack_ready_indicator.text = "●"
+		attack_ready_indicator.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
+		attack_ready_indicator.tooltip_text = "Attack ready"
 
 	var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 	var queued_weapon: String = _queued_item if EQUIPMENT_ICONS.has(_queued_item) else ""

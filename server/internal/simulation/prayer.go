@@ -23,7 +23,7 @@ const (
 	evasionDrainIntervalPulses         = 10 // Ten 600 ms action pulses is six seconds.
 	strengthPrayerMeleeDamageBonus     = 0.05
 	strengthPrayerDrainIntervalPulses  = 10 // Ten 600 ms action pulses is six seconds.
-	accuracyPrayerMeleeScoreBonus      = 5
+	accuracyPrayerMeleeHitChanceBonus  = 0.05
 	accuracyPrayerDrainIntervalPulses  = 10 // Ten 600 ms action pulses is six seconds.
 	defencePrayerDamageReduction       = 0.05
 	defencePrayerDrainIntervalPulses   = 10 // Ten 600 ms action pulses is six seconds.
@@ -82,7 +82,7 @@ type prayerDefinition struct {
 	RangedDamageBonus   float64
 	MagicDamageBonus    float64
 	HealthRegeneration  float64
-	MeleeAccuracyBonus  int
+	MeleeHitChanceBonus float64
 	DamageReduction     float64
 	DodgeBonus          float64
 	DrainAmount         int
@@ -94,7 +94,7 @@ type prayerBonuses struct {
 	MeleeDamage     float64
 	RangedDamage    float64
 	MagicDamage     float64
-	MeleeAccuracy   int
+	MeleeHitChance  float64
 	DamageReduction float64
 	Dodge           float64
 }
@@ -114,7 +114,7 @@ var prayerDefinitions = map[PrayerID]prayerDefinition{
 	},
 	PrayerAccuracy: {
 		ID: PrayerAccuracy, Name: "Accuracy", RequiredLevel: 1,
-		MeleeAccuracyBonus:  accuracyPrayerMeleeScoreBonus,
+		MeleeHitChanceBonus: accuracyPrayerMeleeHitChanceBonus,
 		DrainAmount:         1,
 		DrainIntervalPulses: accuracyPrayerDrainIntervalPulses,
 	},
@@ -277,7 +277,7 @@ func activePrayerBonuses(player *playerState) prayerBonuses {
 			bonuses.MeleeDamage += definition.MeleeDamageBonus
 			bonuses.RangedDamage += definition.RangedDamageBonus
 			bonuses.MagicDamage += definition.MagicDamageBonus
-			bonuses.MeleeAccuracy += definition.MeleeAccuracyBonus
+			bonuses.MeleeHitChance += definition.MeleeHitChanceBonus
 			bonuses.DamageReduction += definition.DamageReduction
 			bonuses.Dodge += definition.DodgeBonus
 		}
@@ -285,11 +285,11 @@ func activePrayerBonuses(player *playerState) prayerBonuses {
 	return bonuses
 }
 
-func prayerAccuracyBonus(player *playerState, weapon WeaponDefinition) int {
+func prayerHitChanceBonus(player *playerState, weapon WeaponDefinition) float64 {
 	if weapon.MeleeStrength <= 0 {
 		return 0
 	}
-	return activePrayerBonuses(player).MeleeAccuracy
+	return activePrayerBonuses(player).MeleeHitChance
 }
 
 func reduceIncomingDamage(player *playerState, damage int, damageType DamageType) int {

@@ -33,12 +33,12 @@ func TestAttackLevelReducesTargetDodgeChance(t *testing.T) {
 	player := &playerState{skills: newDefaultSkills(), combatStyle: CombatStyleStab}
 	target := &TargetSnapshot{Evasion: dummyEvasionScore, DodgeRate: dummyDodgeRate}
 	levelOneChance := targetDodgeChance(player, target, weapon)
-	if math.Abs(levelOneChance-0.096) > 0.000_001 {
-		t.Fatalf("level-one target dodge chance = %.3f, want 0.096", levelOneChance)
+	if math.Abs(levelOneChance-0.084_705_882) > 0.000_001 {
+		t.Fatalf("level-one target dodge chance = %.3f, want 0.085", levelOneChance)
 	}
 
 	player.skills[SkillAttack] = SkillExperienceForLevel(50)
-	if got := targetDodgeChance(player, target, weapon); got != minimumDodgeChance {
+	if got := targetDodgeChance(player, target, weapon); math.Abs(got-minimumDodgeChance) > 0.000_001 {
 		t.Fatalf("level-50 target dodge chance = %.3f, want floor %.3f", got, minimumDodgeChance)
 	}
 }
@@ -50,14 +50,14 @@ func TestAgilityAndPrayerIncreasePlayerDodgeChance(t *testing.T) {
 		activePrayers:       make(map[PrayerID]bool),
 		prayerDrainProgress: make(map[PrayerID]uint64),
 	}
-	if got := playerDodgeChance(dummyAccuracyScore, player); math.Abs(got-0.10) > 0.000_001 {
-		t.Fatalf("level-one player dodge chance = %.3f, want 0.100", got)
+	if got := playerDodgeChance(dummyAccuracyScore, player); math.Abs(got-0.071_612_903) > 0.000_001 {
+		t.Fatalf("level-one player dodge chance = %.3f, want 0.072", got)
 	}
 
 	player.skills[SkillAgility] = SkillExperienceForLevel(50)
 	withoutPrayer := playerDodgeChance(dummyAccuracyScore, player)
-	if math.Abs(withoutPrayer-0.198) > 0.000_001 {
-		t.Fatalf("level-50 Agility dodge chance = %.3f, want 0.198", withoutPrayer)
+	if math.Abs(withoutPrayer-0.225_405_405) > 0.000_001 {
+		t.Fatalf("level-50 Agility dodge chance = %.3f, want 0.225", withoutPrayer)
 	}
 	player.activePrayers[PrayerEvasion] = true
 	withPrayer := playerDodgeChance(dummyAccuracyScore, player)
@@ -78,17 +78,21 @@ func TestCombatStylesModifyAccuracyScore(t *testing.T) {
 	}
 }
 
-func TestEnemyDefenceUsesWeaponStyleDamageType(t *testing.T) {
+func TestEnemyDefenceMitigatesDamageWithoutChangingEvasion(t *testing.T) {
 	weapon, _ := weaponDefinition(WeaponSword)
 	player := &playerState{skills: newDefaultSkills(), combatStyle: CombatStyleStab}
 	target := &TargetSnapshot{
-		Evasion: 1, DodgeRate: defaultBaseDodgeBonus,
+		Evasion: 5, DodgeRate: defaultBaseDodgeBonus,
 		Defence: DefenceBonuses{Stab: 20, Slash: 0},
 	}
-	stabChance := targetDodgeChance(player, target, weapon)
-	player.combatStyle = CombatStyleSlash
-	slashChance := targetDodgeChance(player, target, weapon)
-	if stabChance <= slashChance {
-		t.Fatalf("stab dodge chance %.3f <= slash dodge chance %.3f against stab defence", stabChance, slashChance)
+	withDefence := targetDodgeChance(player, target, weapon)
+	target.Defence = DefenceBonuses{}
+	withoutDefence := targetDodgeChance(player, target, weapon)
+	if withDefence != withoutDefence {
+		t.Fatalf("target defence changed dodge chance from %.3f to %.3f", withoutDefence, withDefence)
+	}
+	target.Defence = DefenceBonuses{Stab: 20, Slash: 0}
+	if stabReduction, slashReduction := targetDamageReduction(target, DamageTypeStab), targetDamageReduction(target, DamageTypeSlash); stabReduction <= slashReduction {
+		t.Fatalf("stab reduction %.3f <= slash reduction %.3f", stabReduction, slashReduction)
 	}
 }

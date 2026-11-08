@@ -84,6 +84,53 @@ func TestPrayerPotionRestoresPrayerAndConsumesOneDose(t *testing.T) {
 	}
 }
 
+func TestConsumableIsRemovedFromSelectedInventoryStack(t *testing.T) {
+	tests := []struct {
+		name   string
+		itemID string
+		setup  func(*playerState)
+	}{
+		{
+			name:   "food",
+			itemID: ItemCookedMinnow,
+			setup:  func(player *playerState) { player.health = 50 },
+		},
+		{
+			name:   "potion",
+			itemID: ItemPrayerPotion,
+			setup:  func(player *playerState) { player.prayer = 50 },
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			world := NewWorld()
+			mustAddPlayer(t, world, "player-one", Position{}, 4)
+			player := world.players["player-one"]
+			player.inventory.items = []InventoryItem{
+				{Slot: 0, ItemID: test.itemID, Quantity: 2},
+				{Slot: 4, ItemID: test.itemID, Quantity: 3},
+			}
+			test.setup(player)
+
+			if err := world.QueueConsumeItem(ConsumeItemCommand{
+				PlayerID: "player-one", Sequence: 1, ItemID: test.itemID, InventorySlot: 4,
+			}); err != nil {
+				t.Fatalf("QueueConsumeItem() returned an unexpected error: %v", err)
+			}
+			world.Step(actionPulseInterval)
+
+			firstStack, firstExists := inventoryItemAt(player.inventory, 0)
+			selectedStack, selectedExists := inventoryItemAt(player.inventory, 4)
+			if !firstExists || firstStack.Quantity != 2 {
+				t.Fatalf("first stack changed: %+v", firstStack)
+			}
+			if !selectedExists || selectedStack.Quantity != 2 {
+				t.Fatalf("selected stack was not consumed: %+v", selectedStack)
+			}
+		})
+	}
+}
+
 func TestCombatPotionsApplyLowLevelBoostsForFiveMinutes(t *testing.T) {
 	tests := []struct {
 		itemID string

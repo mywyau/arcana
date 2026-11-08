@@ -241,6 +241,14 @@ func armourDamageReduction(player *playerState, damageType DamageType) float64 {
 	return float64(bonus) / float64(bonus+100)
 }
 
+func targetDamageReduction(target *TargetSnapshot, damageType DamageType) float64 {
+	if target == nil {
+		return 0
+	}
+	bonus := max(0, defenceBonusForDamageType(target.Defence, damageType))
+	return float64(bonus) / float64(bonus+100)
+}
+
 func equippedHealthBonus(equipped map[ArmourSlot]string) int {
 	bonus := 0
 	for _, itemID := range equipped {

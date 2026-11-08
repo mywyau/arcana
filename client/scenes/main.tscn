@@ -752,6 +752,31 @@ show_percentage = false
 theme_override_styles/background = SubResource("HUDBarBackground")
 theme_override_styles/fill = SubResource("PrayerFill")
 
+[node name="CombatBoostHUD" type="PanelContainer" parent="UI"]
+visible = false
+mouse_filter = 2
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -214.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 86.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/CombatBoostHUD"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="Boosts" type="HBoxContainer" parent="UI/CombatBoostHUD/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 2
+
 [node name="PlayerDetailsHUD" type="PanelContainer" parent="UI"]
 visible = false
 offset_left = 350.0
@@ -856,6 +881,16 @@ text = "Target  •  Lv 1"
 [node name="Spacer" type="Control" parent="UI/TargetHUD/Margin/VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="AttackReady" type="Label" parent="UI/TargetHUD/Margin/VBox/Header"]
+custom_minimum_size = Vector2(22, 26)
+layout_mode = 2
+text = "●"
+tooltip_text = "Attack ready"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.3, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 18
 
 [node name="AggroIcon" type="TextureRect" parent="UI/TargetHUD/Margin/VBox/Header"]
 visible = false

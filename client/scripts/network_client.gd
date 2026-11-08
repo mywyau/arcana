@@ -192,7 +192,7 @@ func send_move_inventory_item(sequence: int, from_slot: int, to_slot: int) -> bo
 	return true
 
 
-func send_consume_item(sequence: int, item_id: String) -> bool:
+func send_consume_item(sequence: int, item_id: String, inventory_slot: int) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot consume items while disconnected")
 		return false
@@ -201,6 +201,7 @@ func send_consume_item(sequence: int, item_id: String) -> bool:
 		"type": "consume_item",
 		"sequence": sequence,
 		"item_id": item_id,
+		"inventory_slot": inventory_slot,
 	}
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:

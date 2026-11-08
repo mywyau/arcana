@@ -78,6 +78,9 @@ const (
 	hillWardenTargetID                   = "hill_warden"
 	wildFowlTargetID                     = "wild_fowl"
 	cowTargetID                          = "cow"
+	hillWardenEvasionScore               = 18
+	wildFowlEvasionScore                 = 2
+	cowEvasionScore                      = 4
 	combatEventHistoryLimit              = 32
 )
 
@@ -347,7 +350,7 @@ func newCombatState() *combatState {
 		MaximumHealth: dummyMaximumHealth,
 		DodgeRate:     dummyDodgeRate,
 		Accuracy:      dummyAccuracyScore,
-		Evasion:       dummyEvasionScore,
+		Evasion:       hillWardenEvasionScore,
 		AttackType:    hillWardenProfile.DamageType,
 		Defence:       hillWardenProfile.Defence,
 		Elements:      hillWardenProfile.Elements,
@@ -363,7 +366,7 @@ func newCombatState() *combatState {
 		MaximumHealth: wildFowlMaximumHealth,
 		DodgeRate:     0.05,
 		Accuracy:      5,
-		Evasion:       1,
+		Evasion:       wildFowlEvasionScore,
 		AttackType:    wildFowlProfile.DamageType,
 		Defence:       wildFowlProfile.Defence,
 		Elements:      wildFowlProfile.Elements,
@@ -373,7 +376,7 @@ func newCombatState() *combatState {
 	cow := &TargetSnapshot{
 		ID: cowTargetID, Name: "Cow", Kind: targetKindCow, Position: cowHome,
 		Health: cowMaximumHealth, MaximumHealth: cowMaximumHealth,
-		DodgeRate: 0.06, Accuracy: 7, Evasion: 2,
+		DodgeRate: 0.06, Accuracy: 7, Evasion: cowEvasionScore,
 		AttackType: cowProfile.DamageType, Defence: cowProfile.Defence, Elements: cowProfile.Elements,
 		CombatLevel: cowProfile.CombatLevel,
 	}
@@ -1015,13 +1018,19 @@ func (w *World) resolveAutoAttacks() {
 
 		poweredDamage := weaponPoweredDamage(player, weapon)
 		damageVariance := weapon.DamageVariance
+		damageType := DamageTypeCrush
+		if styleDamageType, hasDamageType := weaponDamageTypeForStyle(weapon, player.combatStyle); hasDamageType {
+			damageType = styleDamageType
+		}
 		if castingSpell {
 			poweredDamage = spellPoweredDamage(player, spell)
 			poweredDamage *= elementalDamageMultiplier(target, spell.Element)
 			damageVariance = spell.DamageVariance
+			damageType = DamageTypeMagic
 		}
-		// Defence and armour mitigation will reduce poweredDamage here. Variance
-		// deliberately remains the final damage stage before overkill clamping.
+		poweredDamage *= 1 - targetDamageReduction(target, damageType)
+		// Defence mitigation happens before variance so the weapon's damage feel
+		// remains the final stage before overkill clamping.
 		rolledDamage := rollDamageWithVariance(poweredDamage, damageVariance, w.rollSource.Float64())
 		damageDealt := min(rolledDamage, target.Health)
 		target.Health -= damageDealt
