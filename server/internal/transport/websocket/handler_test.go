@@ -49,6 +49,27 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 	if welcome.Type != protocol.MessageWelcome || welcome.PlayerID == "" || welcome.GuestToken == "" {
 		t.Fatalf("welcome message = %+v", welcome)
 	}
+	if len(welcome.ProductionRecipes) != len(simulation.ProductionRecipeCatalog()) {
+		t.Fatalf("welcome production recipe count = %d, want %d", len(welcome.ProductionRecipes), len(simulation.ProductionRecipeCatalog()))
+	}
+	if recipe := welcome.ProductionRecipes[0]; recipe.Station == "" || recipe.ID == "" || len(recipe.Costs) == 0 {
+		t.Fatalf("welcome production recipe is incomplete: %+v", recipe)
+	}
+	if len(welcome.Spellbooks) != len(simulation.SpellbookCatalog()) || len(welcome.Spells) != len(simulation.SpellCatalog()) {
+		t.Fatalf("welcome spell catalogue has %d books and %d spells", len(welcome.Spellbooks), len(welcome.Spells))
+	}
+	if spell := welcome.Spells[0]; spell.ID == "" || spell.BookID == "" || spell.IconID == "" || len(spell.Costs) == 0 {
+		t.Fatalf("welcome spell is incomplete: %+v", spell)
+	}
+	if len(welcome.Prayers) != len(simulation.PrayerCatalog()) || len(welcome.PrayerSets) != len(simulation.PrayerSetCatalog()) {
+		t.Fatalf("welcome prayer catalogue has %d prayers and %d sets", len(welcome.Prayers), len(welcome.PrayerSets))
+	}
+	if prayer := welcome.Prayers[0]; prayer.ID == "" || prayer.Name == "" || prayer.DrainAmount <= 0 || prayer.DrainIntervalSeconds <= 0 {
+		t.Fatalf("welcome prayer is incomplete: %+v", prayer)
+	}
+	if set := welcome.PrayerSets[0]; set.ID == "" || set.Name == "" || len(set.PrayerIDs) == 0 {
+		t.Fatalf("welcome prayer set is incomplete: %+v", set)
+	}
 
 	command := protocol.ClientMessage{
 		Type:        protocol.MessageMoveTo,

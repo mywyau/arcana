@@ -34,17 +34,28 @@ const (
 	regenerationDrainIntervalPulses    = 10
 )
 
-var prayerSets = map[PrayerSetID]map[PrayerID]bool{
+type prayerSetDefinition struct {
+	Name      string
+	PrayerIDs map[PrayerID]bool
+}
+
+var prayerSets = map[PrayerSetID]prayerSetDefinition{
 	PrayerSetCommon: {
-		PrayerEvasion: true, PrayerStrength: true, PrayerAccuracy: true, PrayerDefence: true,
-		PrayerRangedStrength: true, PrayerMagicStrength: true, PrayerRegeneration: true,
+		Name: "Common Litany",
+		PrayerIDs: map[PrayerID]bool{
+			PrayerEvasion: true, PrayerStrength: true, PrayerAccuracy: true, PrayerDefence: true,
+			PrayerRangedStrength: true, PrayerMagicStrength: true, PrayerRegeneration: true,
+		},
 	},
 	// The first alternate covenant intentionally keeps the starter prayers. It
 	// establishes safe switching now; future god-specific prayers can diverge
 	// without changing the network or altar interaction model.
 	PrayerSetWar: {
-		PrayerEvasion: true, PrayerStrength: true, PrayerAccuracy: true, PrayerDefence: true,
-		PrayerRangedStrength: true, PrayerMagicStrength: true, PrayerRegeneration: true,
+		Name: "War Covenant",
+		PrayerIDs: map[PrayerID]bool{
+			PrayerEvasion: true, PrayerStrength: true, PrayerAccuracy: true, PrayerDefence: true,
+			PrayerRangedStrength: true, PrayerMagicStrength: true, PrayerRegeneration: true,
+		},
 	},
 }
 
@@ -52,8 +63,8 @@ func prayerAllowedInSet(setID PrayerSetID, prayerID PrayerID) bool {
 	if setID == "" {
 		setID = PrayerSetCommon
 	}
-	prayers, exists := prayerSets[setID]
-	return exists && prayers[prayerID]
+	set, exists := prayerSets[setID]
+	return exists && set.PrayerIDs[prayerID]
 }
 
 type PrayerCommand struct {
@@ -64,6 +75,9 @@ type PrayerCommand struct {
 }
 
 type prayerDefinition struct {
+	ID                  PrayerID
+	Name                string
+	RequiredLevel       int
 	MeleeDamageBonus    float64
 	RangedDamageBonus   float64
 	MagicDamageBonus    float64
@@ -71,7 +85,9 @@ type prayerDefinition struct {
 	MeleeAccuracyBonus  int
 	DamageReduction     float64
 	DodgeBonus          float64
+	DrainAmount         int
 	DrainIntervalPulses uint64
+	ExclusiveGroup      string
 }
 
 type prayerBonuses struct {
@@ -83,37 +99,66 @@ type prayerBonuses struct {
 	Dodge           float64
 }
 
+var prayerDefinitions = map[PrayerID]prayerDefinition{
+	PrayerEvasion: {
+		ID: PrayerEvasion, Name: "Evasion", RequiredLevel: 1,
+		DodgeBonus:          evasionDodgeBonus,
+		DrainAmount:         1,
+		DrainIntervalPulses: evasionDrainIntervalPulses,
+	},
+	PrayerStrength: {
+		ID: PrayerStrength, Name: "Strength", RequiredLevel: 1,
+		MeleeDamageBonus:    strengthPrayerMeleeDamageBonus,
+		DrainAmount:         1,
+		DrainIntervalPulses: strengthPrayerDrainIntervalPulses,
+	},
+	PrayerAccuracy: {
+		ID: PrayerAccuracy, Name: "Accuracy", RequiredLevel: 1,
+		MeleeAccuracyBonus:  accuracyPrayerMeleeScoreBonus,
+		DrainAmount:         1,
+		DrainIntervalPulses: accuracyPrayerDrainIntervalPulses,
+	},
+	PrayerDefence: {
+		ID: PrayerDefence, Name: "Defence", RequiredLevel: 1,
+		DamageReduction:     defencePrayerDamageReduction,
+		DrainAmount:         1,
+		DrainIntervalPulses: defencePrayerDrainIntervalPulses,
+	},
+	PrayerRangedStrength: {
+		ID: PrayerRangedStrength, Name: "Ranged Strength", RequiredLevel: 1,
+		RangedDamageBonus: rangedPrayerDamageBonus, DrainAmount: 1,
+		DrainIntervalPulses: offensivePrayerDrainIntervalPulses,
+	},
+	PrayerMagicStrength: {
+		ID: PrayerMagicStrength, Name: "Magic Strength", RequiredLevel: 1,
+		MagicDamageBonus: magicPrayerDamageBonus, DrainAmount: 1,
+		DrainIntervalPulses: offensivePrayerDrainIntervalPulses,
+	},
+	PrayerRegeneration: {
+		ID: PrayerRegeneration, Name: "Regeneration", RequiredLevel: 1,
+		HealthRegeneration: regenerationHealthFraction, DrainAmount: 1,
+		DrainIntervalPulses: regenerationDrainIntervalPulses,
+	},
+}
+
+var prayerCatalogOrder = []PrayerID{
+	PrayerAccuracy,
+	PrayerStrength,
+	PrayerDefence,
+	PrayerEvasion,
+	PrayerRangedStrength,
+	PrayerMagicStrength,
+	PrayerRegeneration,
+}
+
+var prayerSetCatalogOrder = []PrayerSetID{
+	PrayerSetCommon,
+	PrayerSetWar,
+}
+
 func prayerDefinitionFor(id PrayerID) (prayerDefinition, bool) {
-	switch id {
-	case PrayerEvasion:
-		return prayerDefinition{
-			DodgeBonus:          evasionDodgeBonus,
-			DrainIntervalPulses: evasionDrainIntervalPulses,
-		}, true
-	case PrayerStrength:
-		return prayerDefinition{
-			MeleeDamageBonus:    strengthPrayerMeleeDamageBonus,
-			DrainIntervalPulses: strengthPrayerDrainIntervalPulses,
-		}, true
-	case PrayerAccuracy:
-		return prayerDefinition{
-			MeleeAccuracyBonus:  accuracyPrayerMeleeScoreBonus,
-			DrainIntervalPulses: accuracyPrayerDrainIntervalPulses,
-		}, true
-	case PrayerDefence:
-		return prayerDefinition{
-			DamageReduction:     defencePrayerDamageReduction,
-			DrainIntervalPulses: defencePrayerDrainIntervalPulses,
-		}, true
-	case PrayerRangedStrength:
-		return prayerDefinition{RangedDamageBonus: rangedPrayerDamageBonus, DrainIntervalPulses: offensivePrayerDrainIntervalPulses}, true
-	case PrayerMagicStrength:
-		return prayerDefinition{MagicDamageBonus: magicPrayerDamageBonus, DrainIntervalPulses: offensivePrayerDrainIntervalPulses}, true
-	case PrayerRegeneration:
-		return prayerDefinition{HealthRegeneration: regenerationHealthFraction, DrainIntervalPulses: regenerationDrainIntervalPulses}, true
-	default:
-		return prayerDefinition{}, false
-	}
+	definition, exists := prayerDefinitions[id]
+	return definition, exists
 }
 
 // QueuePrayer records an authoritative prayer toggle for the next action pulse.
@@ -121,7 +166,8 @@ func (w *World) QueuePrayer(command PrayerCommand) error {
 	if command.Sequence == 0 {
 		return fmt.Errorf("prayer sequence must be positive")
 	}
-	if _, exists := prayerDefinitionFor(command.PrayerID); !exists {
+	definition, exists := prayerDefinitionFor(command.PrayerID)
+	if !exists {
 		return fmt.Errorf("prayer %q does not exist", command.PrayerID)
 	}
 
@@ -139,6 +185,9 @@ func (w *World) QueuePrayer(command PrayerCommand) error {
 	}
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if SkillLevelForExperience(player.skills[SkillPrayer]) < definition.RequiredLevel {
+		return fmt.Errorf("prayer %q requires Prayer level %d", command.PrayerID, definition.RequiredLevel)
 	}
 	if !prayerAllowedInSet(player.activePrayerSet, command.PrayerID) {
 		return fmt.Errorf("prayer %q is not part of prayer set %q", command.PrayerID, player.activePrayerSet)
@@ -199,7 +248,7 @@ func (w *World) drainActivePrayers() {
 				healing := max(1, int(float64(player.maximumHealth)*definition.HealthRegeneration+0.5))
 				player.health = min(player.maximumHealth, player.health+healing)
 			}
-			player.prayer = max(0, player.prayer-1)
+			player.prayer = max(0, player.prayer-definition.DrainAmount)
 			if player.prayer == 0 {
 				clearActivePrayers(player)
 				break

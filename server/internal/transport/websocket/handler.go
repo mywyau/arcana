@@ -144,9 +144,14 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	responses := make(chan protocol.ServerMessage, 8)
 
 	if err := writeMessage(ctx, connection, protocol.ServerMessage{
-		Type:       protocol.MessageWelcome,
-		PlayerID:   string(playerID),
-		GuestToken: guestIdentity.Token,
+		Type:              protocol.MessageWelcome,
+		PlayerID:          string(playerID),
+		GuestToken:        guestIdentity.Token,
+		ProductionRecipes: productionRecipeMessages(simulation.ProductionRecipeCatalog()),
+		Spellbooks:        spellbookCatalogMessages(simulation.SpellbookCatalog()),
+		Spells:            spellCatalogMessages(simulation.SpellCatalog()),
+		Prayers:           prayerCatalogMessages(simulation.PrayerCatalog()),
+		PrayerSets:        prayerSetCatalogMessages(simulation.PrayerSetCatalog()),
 	}); err != nil {
 		return
 	}
@@ -177,6 +182,79 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 			h.saveCharacter(playerID)
 		}
 	}
+}
+
+func productionRecipeMessages(recipes []simulation.ProductionRecipeSnapshot) []protocol.ProductionRecipeSnapshot {
+	messages := make([]protocol.ProductionRecipeSnapshot, 0, len(recipes))
+	for _, recipe := range recipes {
+		message := protocol.ProductionRecipeSnapshot{
+			Station: recipe.Station, Group: recipe.Group, ID: recipe.ID, Name: recipe.Name,
+			RequiredLevel: recipe.RequiredLevel, RewardItem: recipe.RewardItem,
+			RewardQuantity: recipe.RewardQuantity, Interval: recipe.Interval,
+			Costs: make([]protocol.ItemCost, 0, len(recipe.Costs)),
+		}
+		for _, cost := range recipe.Costs {
+			message.Costs = append(message.Costs, protocol.ItemCost{ItemID: cost.ItemID, Quantity: cost.Quantity})
+		}
+		messages = append(messages, message)
+	}
+	return messages
+}
+
+func spellbookCatalogMessages(books []simulation.SpellbookCatalogSnapshot) []protocol.SpellbookCatalogSnapshot {
+	messages := make([]protocol.SpellbookCatalogSnapshot, 0, len(books))
+	for _, book := range books {
+		messages = append(messages, protocol.SpellbookCatalogSnapshot{
+			ID: book.ID, Name: book.Name, EquipmentItemID: book.EquipmentItemID,
+		})
+	}
+	return messages
+}
+
+func spellCatalogMessages(spells []simulation.SpellCatalogSnapshot) []protocol.SpellCatalogSnapshot {
+	messages := make([]protocol.SpellCatalogSnapshot, 0, len(spells))
+	for _, spell := range spells {
+		message := protocol.SpellCatalogSnapshot{
+			ID: spell.ID, BookID: spell.BookID, Name: spell.Name, IconID: spell.IconID,
+			CastMode: spell.CastMode, TargetType: spell.TargetType, EffectType: spell.EffectType,
+			Element: spell.Element, RequiredMagicLevel: spell.RequiredMagicLevel,
+			BasePower: spell.BasePower, AccuracyBonus: spell.AccuracyBonus, Range: spell.Range,
+			DamageVariance: spell.DamageVariance, AttackInterval: spell.AttackInterval,
+			Costs: make([]protocol.ItemCost, 0, len(spell.Costs)),
+		}
+		for _, cost := range spell.Costs {
+			message.Costs = append(message.Costs, protocol.ItemCost{ItemID: cost.ItemID, Quantity: cost.Quantity})
+		}
+		messages = append(messages, message)
+	}
+	return messages
+}
+
+func prayerCatalogMessages(prayers []simulation.PrayerCatalogSnapshot) []protocol.PrayerCatalogSnapshot {
+	messages := make([]protocol.PrayerCatalogSnapshot, 0, len(prayers))
+	for _, prayer := range prayers {
+		messages = append(messages, protocol.PrayerCatalogSnapshot{
+			ID: prayer.ID, Name: prayer.Name, RequiredLevel: prayer.RequiredLevel,
+			MeleeDamageBonus: prayer.MeleeDamageBonus, RangedDamageBonus: prayer.RangedDamageBonus,
+			MagicDamageBonus: prayer.MagicDamageBonus, HealthRegeneration: prayer.HealthRegeneration,
+			MeleeAccuracyBonus: prayer.MeleeAccuracyBonus, DamageReduction: prayer.DamageReduction,
+			DodgeBonus: prayer.DodgeBonus, DrainAmount: prayer.DrainAmount,
+			DrainIntervalPulses:  prayer.DrainIntervalPulses,
+			DrainIntervalSeconds: prayer.DrainIntervalSeconds,
+			ExclusiveGroup:       prayer.ExclusiveGroup,
+		})
+	}
+	return messages
+}
+
+func prayerSetCatalogMessages(sets []simulation.PrayerSetCatalogSnapshot) []protocol.PrayerSetCatalogSnapshot {
+	messages := make([]protocol.PrayerSetCatalogSnapshot, 0, len(sets))
+	for _, set := range sets {
+		messages = append(messages, protocol.PrayerSetCatalogSnapshot{
+			ID: set.ID, Name: set.Name, PrayerIDs: append([]string(nil), set.PrayerIDs...),
+		})
+	}
+	return messages
 }
 
 func (h *Handler) saveCharacter(playerID simulation.PlayerID) {

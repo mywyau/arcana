@@ -112,13 +112,16 @@ const TAB_MAGIC: Texture2D = preload("res://assets/icons/navigation/tab_magic.sv
 const TAB_PRAYER: Texture2D = preload("res://assets/icons/navigation/tab_prayer.svg")
 const TAB_SETTINGS: Texture2D = preload("res://assets/icons/navigation/tab_settings.svg")
 
-const SPELLS: Array = [
-	{"id": "wind_bolt", "book_id": "standard", "name": "Wind Bolt", "required_magic_level": 1, "costs": [{"item_id": "air_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}], "icon": preload("res://assets/icons/spells/wind_blade.svg")},
-	{"id": "water_bolt", "book_id": "standard", "name": "Water Bolt", "required_magic_level": 2, "costs": [{"item_id": "water_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}], "icon": preload("res://assets/icons/spells/frost_shard.svg")},
-	{"id": "earth_bolt", "book_id": "standard", "name": "Earth Bolt", "required_magic_level": 3, "costs": [{"item_id": "earth_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}], "icon": preload("res://assets/icons/spells/pebble.svg")},
-	{"id": "fire_bolt", "book_id": "standard", "name": "Fire Bolt", "required_magic_level": 4, "costs": [{"item_id": "fire_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}], "icon": preload("res://assets/icons/spells/ember.svg")},
-	{"id": "holy_bolt", "book_id": "holy", "name": "Holy Bolt", "required_magic_level": 5, "costs": [{"item_id": "holy_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}], "icon": preload("res://assets/icons/spells/light.png")},
-	{"id": "dark_bolt", "book_id": "dark", "name": "Dark Bolt", "required_magic_level": 6, "costs": [{"item_id": "dark_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}], "icon": preload("res://assets/icons/spells/miasma.png")},
+const SPELL_ICONS: Dictionary = {
+	"wind_bolt": preload("res://assets/icons/spells/wind_blade.svg"),
+	"water_bolt": preload("res://assets/icons/spells/frost_shard.svg"),
+	"earth_bolt": preload("res://assets/icons/spells/pebble.svg"),
+	"fire_bolt": preload("res://assets/icons/spells/ember.svg"),
+	"holy_bolt": preload("res://assets/icons/spells/light.png"),
+	"dark_bolt": preload("res://assets/icons/spells/miasma.png"),
+}
+
+const SPELL_PLACEHOLDERS: Array = [
 	{"book_id": "dark", "name": "Flux", "icon": preload("res://assets/icons/spells/acid.png")},
 	{"book_id": "dark", "name": "Eclipse", "icon": preload("res://assets/icons/spells/absolute_zero.svg")},
 	{"book_id": "dark", "name": "Nightmare", "icon": preload("res://assets/icons/spells/plague_bloom.png")},
@@ -127,34 +130,23 @@ const SPELLS: Array = [
 	{"book_id": "cleric", "name": "Cleanse", "icon": preload("res://assets/icons/spells/aura.png")},
 	{"book_id": "cleric", "name": "Sanctuary", "icon": preload("res://assets/icons/spells/divine.png")},
 	{"book_id": "cleric", "name": "Renew", "icon": preload("res://assets/icons/spells/luce.png")},
-	{"name": "Ice Lance", "icon": preload("res://assets/icons/spells/ice_lance.svg")},
-	{"name": "Frost Nova", "icon": preload("res://assets/icons/spells/frost_nova.svg")},
-	{"name": "Glacier", "icon": preload("res://assets/icons/spells/glacier.svg")},
-	{"name": "Absolute Zero", "icon": preload("res://assets/icons/spells/absolute_zero.svg")},
-	{"name": "Pebble", "icon": preload("res://assets/icons/spells/pebble.svg")},
-	{"name": "Stone Spike", "icon": preload("res://assets/icons/spells/stone_spike.svg")},
-	{"name": "Rock Fall", "icon": preload("res://assets/icons/spells/rock_fall.svg")},
-	{"name": "Earthquake", "icon": preload("res://assets/icons/spells/earthquake.svg")},
-	{"name": "Mountain Wrath", "icon": preload("res://assets/icons/spells/mountain_wrath.svg")},
-	{"name": "Light", "icon": preload("res://assets/icons/spells/light.png")},
 	{"book_id": "holy", "name": "Shine", "icon": preload("res://assets/icons/spells/shine.png")},
 	{"book_id": "holy", "name": "Divine", "icon": preload("res://assets/icons/spells/divine.png")},
 	{"book_id": "holy", "name": "Aura", "icon": preload("res://assets/icons/spells/aura.png")},
 	{"book_id": "holy", "name": "Luce", "icon": preload("res://assets/icons/spells/luce.png")},
-	{"name": "Bio", "icon": preload("res://assets/icons/spells/bio.png")},
-	{"name": "Acid", "icon": preload("res://assets/icons/spells/acid.png")},
-	{"name": "Miasma", "icon": preload("res://assets/icons/spells/miasma.png")},
-	{"name": "Plague Bloom", "icon": preload("res://assets/icons/spells/plague_bloom.png")},
 ]
 
-const PRAYERS: Array = [
-	{"id": "accuracy", "name": "Accuracy", "description": "+5 melee accuracy score\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/18_accuracy.png")},
-	{"id": "strength", "name": "Strength", "description": "+5% melee damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/03_strength.png")},
-	{"id": "defence", "name": "Defence", "description": "5% incoming damage reduction\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/14_defence_boost.png")},
-	{"id": "evasion", "name": "Evasion", "description": "+5% dodge chance\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/04_agility.png")},
-	{"id": "ranged_strength", "name": "Ranged Strength", "description": "+5% ranged damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/16_ranged_boost.png")},
-	{"id": "magic_strength", "name": "Magic Strength", "description": "+5% magic damage\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/17_magic_boost.png")},
-	{"id": "regeneration", "name": "Regeneration", "description": "Restores 5% maximum health every 6 seconds\nDrains 1 prayer point every 6 seconds", "icon": preload("res://assets/icons/prayers/20_regeneration.svg")},
+const PRAYER_ICONS: Dictionary = {
+	"accuracy": preload("res://assets/icons/prayers/18_accuracy.png"),
+	"strength": preload("res://assets/icons/prayers/03_strength.png"),
+	"defence": preload("res://assets/icons/prayers/14_defence_boost.png"),
+	"evasion": preload("res://assets/icons/prayers/04_agility.png"),
+	"ranged_strength": preload("res://assets/icons/prayers/16_ranged_boost.png"),
+	"magic_strength": preload("res://assets/icons/prayers/17_magic_boost.png"),
+	"regeneration": preload("res://assets/icons/prayers/20_regeneration.svg"),
+}
+
+const PRAYER_PLACEHOLDERS: Array = [
 	{"name": "Wisdom", "icon": preload("res://assets/icons/prayers/06_wisdom.png")},
 	{"name": "Protection", "icon": preload("res://assets/icons/prayers/02_protection.png")},
 	{"name": "Vision", "icon": preload("res://assets/icons/prayers/05_vision.png")},

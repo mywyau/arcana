@@ -1,6 +1,9 @@
 package simulation
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type SpellbookID string
 type SpellCastMode string
@@ -64,6 +67,30 @@ type SpellDefinition struct {
 	TargetType         SpellTargetType
 	EffectType         SpellEffectType
 	Element            MagicElement
+	RequiredMagicLevel int
+	Costs              []ItemCost
+	BasePower          int
+	AccuracyBonus      int
+	Range              float64
+	DamageVariance     float64
+	AttackInterval     uint64
+}
+
+type SpellbookCatalogSnapshot struct {
+	ID              string
+	Name            string
+	EquipmentItemID string
+}
+
+type SpellCatalogSnapshot struct {
+	ID                 string
+	BookID             string
+	Name               string
+	IconID             string
+	CastMode           string
+	TargetType         string
+	EffectType         string
+	Element            string
 	RequiredMagicLevel int
 	Costs              []ItemCost
 	BasePower          int
@@ -288,4 +315,39 @@ func spellDefinitionsForBook(id SpellbookID) []SpellDefinition {
 		}
 	}
 	return definitions
+}
+
+func SpellbookCatalog() []SpellbookCatalogSnapshot {
+	books := make([]SpellbookCatalogSnapshot, 0, len(configuredSpellCatalog.books))
+	for _, book := range configuredSpellCatalog.books {
+		books = append(books, SpellbookCatalogSnapshot{
+			ID: string(book.ID), Name: book.Name, EquipmentItemID: book.EquipmentItemID,
+		})
+	}
+	sort.Slice(books, func(i, j int) bool { return books[i].ID < books[j].ID })
+	return books
+}
+
+func SpellCatalog() []SpellCatalogSnapshot {
+	spells := make([]SpellCatalogSnapshot, 0, len(configuredSpellCatalog.spells))
+	for _, spell := range configuredSpellCatalog.spells {
+		spells = append(spells, SpellCatalogSnapshot{
+			ID: string(spell.ID), BookID: string(spell.BookID), Name: spell.Name, IconID: spell.IconID,
+			CastMode: string(spell.CastMode), TargetType: string(spell.TargetType), EffectType: string(spell.EffectType),
+			Element: string(spell.Element), RequiredMagicLevel: spell.RequiredMagicLevel,
+			Costs: append([]ItemCost(nil), spell.Costs...), BasePower: spell.BasePower,
+			AccuracyBonus: spell.AccuracyBonus, Range: spell.Range, DamageVariance: spell.DamageVariance,
+			AttackInterval: spell.AttackInterval,
+		})
+	}
+	sort.Slice(spells, func(i, j int) bool {
+		if spells[i].BookID != spells[j].BookID {
+			return spells[i].BookID < spells[j].BookID
+		}
+		if spells[i].RequiredMagicLevel != spells[j].RequiredMagicLevel {
+			return spells[i].RequiredMagicLevel < spells[j].RequiredMagicLevel
+		}
+		return spells[i].ID < spells[j].ID
+	})
+	return spells
 }

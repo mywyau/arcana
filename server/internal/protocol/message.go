@@ -75,11 +75,80 @@ type ClientMessage struct {
 }
 
 type ServerMessage struct {
-	Type       string         `json:"type"`
-	PlayerID   string         `json:"player_id,omitempty"`
-	GuestToken string         `json:"guest_token,omitempty"`
-	Snapshot   *WorldSnapshot `json:"snapshot,omitempty"`
-	Error      *ErrorMessage  `json:"error,omitempty"`
+	Type              string                     `json:"type"`
+	PlayerID          string                     `json:"player_id,omitempty"`
+	GuestToken        string                     `json:"guest_token,omitempty"`
+	ProductionRecipes []ProductionRecipeSnapshot `json:"production_recipes,omitempty"`
+	Spellbooks        []SpellbookCatalogSnapshot `json:"spellbooks,omitempty"`
+	Spells            []SpellCatalogSnapshot     `json:"spells,omitempty"`
+	Prayers           []PrayerCatalogSnapshot    `json:"prayers,omitempty"`
+	PrayerSets        []PrayerSetCatalogSnapshot `json:"prayer_sets,omitempty"`
+	Snapshot          *WorldSnapshot             `json:"snapshot,omitempty"`
+	Error             *ErrorMessage              `json:"error,omitempty"`
+}
+
+type PrayerCatalogSnapshot struct {
+	ID                   string  `json:"id"`
+	Name                 string  `json:"name"`
+	RequiredLevel        int     `json:"required_level"`
+	MeleeDamageBonus     float64 `json:"melee_damage_bonus"`
+	RangedDamageBonus    float64 `json:"ranged_damage_bonus"`
+	MagicDamageBonus     float64 `json:"magic_damage_bonus"`
+	HealthRegeneration   float64 `json:"health_regeneration"`
+	MeleeAccuracyBonus   int     `json:"melee_accuracy_bonus"`
+	DamageReduction      float64 `json:"damage_reduction"`
+	DodgeBonus           float64 `json:"dodge_bonus"`
+	DrainAmount          int     `json:"drain_amount"`
+	DrainIntervalPulses  uint64  `json:"drain_interval_pulses"`
+	DrainIntervalSeconds float64 `json:"drain_interval_seconds"`
+	ExclusiveGroup       string  `json:"exclusive_group,omitempty"`
+}
+
+type PrayerSetCatalogSnapshot struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	PrayerIDs []string `json:"prayer_ids"`
+}
+
+type SpellbookCatalogSnapshot struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	EquipmentItemID string `json:"equipment_item_id,omitempty"`
+}
+
+type SpellCatalogSnapshot struct {
+	ID                 string     `json:"id"`
+	BookID             string     `json:"book_id"`
+	Name               string     `json:"name"`
+	IconID             string     `json:"icon_id"`
+	CastMode           string     `json:"cast_mode"`
+	TargetType         string     `json:"target_type"`
+	EffectType         string     `json:"effect_type"`
+	Element            string     `json:"element"`
+	RequiredMagicLevel int        `json:"required_magic_level"`
+	Costs              []ItemCost `json:"costs"`
+	BasePower          int        `json:"base_power"`
+	AccuracyBonus      int        `json:"accuracy_bonus"`
+	Range              float64    `json:"range"`
+	DamageVariance     float64    `json:"damage_variance"`
+	AttackInterval     uint64     `json:"attack_interval"`
+}
+
+type ProductionRecipeSnapshot struct {
+	Station        string     `json:"station"`
+	Group          string     `json:"group,omitempty"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	RequiredLevel  int        `json:"required_level"`
+	Costs          []ItemCost `json:"costs"`
+	RewardItem     string     `json:"reward_item"`
+	RewardQuantity int        `json:"reward_quantity"`
+	Interval       uint64     `json:"interval"`
+}
+
+type ItemCost struct {
+	ItemID   string `json:"item_id"`
+	Quantity int    `json:"quantity"`
 }
 
 type WorldSnapshot struct {

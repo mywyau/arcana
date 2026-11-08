@@ -66,6 +66,41 @@ func TestStandardSpellbookContainsWindBolt(t *testing.T) {
 	}
 }
 
+func TestSpellCatalogSnapshotsAreOrderedAndDetached(t *testing.T) {
+	books := SpellbookCatalog()
+	if len(books) != 4 {
+		t.Fatalf("spellbook catalogue count = %d, want 4", len(books))
+	}
+	for index := 1; index < len(books); index++ {
+		if books[index-1].ID > books[index].ID {
+			t.Fatalf("spellbooks are not ordered: %+v", books)
+		}
+	}
+
+	spells := SpellCatalog()
+	if len(spells) != 6 {
+		t.Fatalf("spell catalogue count = %d, want 6", len(spells))
+	}
+	for index, spell := range spells {
+		if spell.ID == "" || spell.BookID == "" || spell.IconID == "" || spell.RequiredMagicLevel < 1 || len(spell.Costs) == 0 {
+			t.Fatalf("spell catalogue entry %d is incomplete: %+v", index, spell)
+		}
+		if index > 0 {
+			previous := spells[index-1]
+			if previous.BookID > spell.BookID || previous.BookID == spell.BookID &&
+				(previous.RequiredMagicLevel > spell.RequiredMagicLevel ||
+					previous.RequiredMagicLevel == spell.RequiredMagicLevel && previous.ID > spell.ID) {
+				t.Fatalf("spell catalogue is not ordered at %q then %q", previous.ID, spell.ID)
+			}
+		}
+	}
+
+	spells[0].Costs[0].Quantity = 999
+	if SpellCatalog()[0].Costs[0].Quantity == 999 {
+		t.Fatal("SpellCatalog() returned shared cost data")
+	}
+}
+
 func TestSpecialistSpellbooksContainTheirElement(t *testing.T) {
 	tests := []struct {
 		bookID SpellbookID

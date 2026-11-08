@@ -5,6 +5,9 @@ const GUEST_IDENTITY_PATH: String = "user://guest_identity.cfg"
 
 signal status_changed(status: String)
 signal welcome_received(player_id: String)
+signal production_recipes_received(recipes: Array)
+signal spell_catalog_received(books: Array, spells: Array)
+signal prayer_catalog_received(prayers: Array, prayer_sets: Array)
 signal snapshot_received(snapshot: Dictionary)
 signal server_error(code: String, message: String)
 
@@ -543,6 +546,17 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			if not issued_token.is_empty():
 				_guest_token = issued_token
 				_save_guest_token()
+			var production_recipes: Variant = message.get("production_recipes", [])
+			if typeof(production_recipes) == TYPE_ARRAY:
+				production_recipes_received.emit(production_recipes as Array)
+			var spellbooks: Variant = message.get("spellbooks", [])
+			var spells: Variant = message.get("spells", [])
+			if typeof(spellbooks) == TYPE_ARRAY and typeof(spells) == TYPE_ARRAY:
+				spell_catalog_received.emit(spellbooks as Array, spells as Array)
+			var prayers: Variant = message.get("prayers", [])
+			var prayer_sets: Variant = message.get("prayer_sets", [])
+			if typeof(prayers) == TYPE_ARRAY and typeof(prayer_sets) == TYPE_ARRAY:
+				prayer_catalog_received.emit(prayers as Array, prayer_sets as Array)
 			welcome_received.emit(str(message.get("player_id", "")))
 		"snapshot":
 			var snapshot: Variant = message.get("snapshot")

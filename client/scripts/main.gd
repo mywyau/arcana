@@ -73,48 +73,6 @@ const CRAFTING_RECIPES: Dictionary = {
 		{"id": "raw_tuna", "name": "Tuna", "level": 4, "inputs": "Pond"},
 		{"id": "raw_lobster", "name": "Lobster", "level": 5, "inputs": "Pond"},
 	],
-	"cooking": [
-		{"id": "cooked_minnow", "name": "Minnow", "level": 1, "input_id": "raw_minnow", "inputs": "1 Raw Minnow"},
-		{"id": "cooked_trout", "name": "Trout", "level": 2, "input_id": "raw_trout", "inputs": "1 Raw Trout"},
-		{"id": "cooked_salmon", "name": "Salmon", "level": 3, "input_id": "raw_salmon", "inputs": "1 Raw Salmon"},
-		{"id": "cooked_tuna", "name": "Tuna", "level": 4, "input_id": "raw_tuna", "inputs": "1 Raw Tuna"},
-		{"id": "cooked_lobster", "name": "Lobster", "level": 5, "input_id": "raw_lobster", "inputs": "1 Raw Lobster"},
-	],
-	"smelting": [
-		{"id": "bronze_bar", "name": "Bronze Bar", "level": 1, "inputs": "1 Copper Ore + 1 Tin Ore"},
-		{"id": "iron_bar", "name": "Iron Bar", "level": 2, "inputs": "1 Iron Ore + 1 Coal"},
-		{"id": "mithril_bar", "name": "Mithril Bar", "level": 5, "inputs": "1 Mithril Ore + 2 Coal"},
-		{"id": "gold_bar", "name": "Gold Bar", "level": 4, "inputs": "1 Gold Ore"},
-	],
-	"forging": [
-		{"id": "bronze_sword", "name": "Bronze Sword", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
-		{"id": "bronze_helm", "name": "Bronze Helm", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
-		{"id": "bronze_platebody", "name": "Bronze Platebody", "tier": "bronze", "level": 2, "inputs": "5 Bronze Bars"},
-		{"id": "bronze_pickaxe", "name": "Bronze Pickaxe", "tier": "bronze", "level": 1, "inputs": "3 Bronze Bars"},
-		{"id": "bronze_shield", "name": "Bronze Shield", "tier": "bronze", "level": 2, "inputs": "3 Bronze Bars"},
-		{"id": "bronze_legs", "name": "Bronze Legs", "tier": "bronze", "level": 2, "inputs": "4 Bronze Bars"},
-		{"id": "bronze_gloves", "name": "Bronze Gloves", "tier": "bronze", "level": 1, "inputs": "1 Bronze Bar"},
-		{"id": "bronze_boots", "name": "Bronze Boots", "tier": "bronze", "level": 1, "inputs": "2 Bronze Bars"},
-		{"id": "iron_sword", "name": "Iron Sword", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
-		{"id": "iron_arrow_tips", "name": "20 Iron Arrow Tips", "tier": "iron", "level": 2, "inputs": "1 Iron Bar"},
-		{"id": "iron_helm", "name": "Iron Helm", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
-		{"id": "iron_platebody", "name": "Iron Platebody", "tier": "iron", "level": 4, "inputs": "5 Iron Bars"},
-		{"id": "iron_shield", "name": "Iron Shield", "tier": "iron", "level": 4, "inputs": "3 Iron Bars"},
-		{"id": "iron_legs", "name": "Iron Legs", "tier": "iron", "level": 4, "inputs": "4 Iron Bars"},
-		{"id": "iron_gloves", "name": "Iron Gloves", "tier": "iron", "level": 3, "inputs": "1 Iron Bar"},
-		{"id": "iron_boots", "name": "Iron Boots", "tier": "iron", "level": 3, "inputs": "2 Iron Bars"},
-		{"id": "mithril_sword", "name": "Mithril Sword", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
-		{"id": "mithril_helm", "name": "Mithril Helm", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
-		{"id": "mithril_platebody", "name": "Mithril Platebody", "tier": "mithril", "level": 7, "inputs": "6 Mithril Bars"},
-		{"id": "mithril_shield", "name": "Mithril Shield", "tier": "mithril", "level": 7, "inputs": "4 Mithril Bars"},
-		{"id": "mithril_legs", "name": "Mithril Legs", "tier": "mithril", "level": 7, "inputs": "5 Mithril Bars"},
-		{"id": "mithril_gloves", "name": "Mithril Gloves", "tier": "mithril", "level": 6, "inputs": "2 Mithril Bars"},
-		{"id": "mithril_boots", "name": "Mithril Boots", "tier": "mithril", "level": 6, "inputs": "3 Mithril Bars"},
-		{"id": "sapphire_amulet", "name": "Sapphire Amulet", "tier": "gold", "level": 3, "inputs": "1 Gold Bar + 1 Sapphire"},
-		{"id": "emerald_amulet", "name": "Emerald Amulet", "tier": "gold", "level": 4, "inputs": "1 Gold Bar + 1 Emerald"},
-		{"id": "ruby_amulet", "name": "Ruby Amulet", "tier": "gold", "level": 5, "inputs": "1 Gold Bar + 1 Ruby"},
-		{"id": "diamond_amulet", "name": "Diamond Amulet", "tier": "gold", "level": 7, "inputs": "1 Gold Bar + 1 Diamond"},
-	],
 	"prayer_altar": [
 		{"id": "restore_prayer", "name": "Restore Prayer", "level": 1, "inputs": "Restore all prayer points"},
 		{"id": "sacrifice_bones", "name": "Sacrifice All Bones", "level": 1, "inputs": "1 bone every 600 ms • 10 Prayer XP each"},
@@ -202,8 +160,6 @@ const TAB_EQUIPMENT_ICON: Texture2D = IconCatalog.TAB_EQUIPMENT
 const TAB_MAGIC_ICON: Texture2D = IconCatalog.TAB_MAGIC
 const TAB_PRAYER_ICON: Texture2D = IconCatalog.TAB_PRAYER
 const TAB_SETTINGS_ICON: Texture2D = IconCatalog.TAB_SETTINGS
-const PLACEHOLDER_SPELLS: Array = IconCatalog.SPELLS
-const PLACEHOLDER_PRAYERS: Array = IconCatalog.PRAYERS
 
 
 const COMBAT_STYLES: Dictionary = {
@@ -346,12 +302,6 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"amulet_hawk": "Range level 5",
 	"amulet_embers": "Magic level 5",
 	"amulet_fury": "Defence level 5",
-}
-const SPELLBOOK_ITEMS: Dictionary = {
-	"standard_spellbook": "standard",
-	"skin_bible": "dark",
-	"holy_book": "holy",
-	"clerics_tome": "cleric",
 }
 const CONSUMABLE_ITEMS: Dictionary = {
 	"cooked_minnow": {"healing": 8, "stack_limit": 10},
@@ -785,6 +735,12 @@ var _production_action_menu: PopupMenu
 var _production_batch_action: Dictionary = {}
 var _production_quantity_dialog: ConfirmationDialog
 var _production_quantity_input: SpinBox
+var _production_recipes: Dictionary = {}
+var _spellbooks: Dictionary = {}
+var _spellbook_items: Dictionary = {}
+var _spells: Array[Dictionary] = []
+var _prayers: Array[Dictionary] = []
+var _prayer_sets: Dictionary = {}
 var _cooking_details_visible: bool = false
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
@@ -896,6 +852,9 @@ func _ready() -> void:
 	_setup_rune_pouch_window()
 	network.status_changed.connect(_on_status_changed)
 	network.welcome_received.connect(_on_welcome_received)
+	network.production_recipes_received.connect(_on_production_recipes_received)
+	network.spell_catalog_received.connect(_on_spell_catalog_received)
+	network.prayer_catalog_received.connect(_on_prayer_catalog_received)
 	network.snapshot_received.connect(_on_snapshot_received)
 	network.server_error.connect(_on_server_error)
 	sword_button.pressed.connect(_request_equip.bind("sword"))
@@ -1196,7 +1155,7 @@ func _physics_process(_delta: float) -> void:
 			elif station == "prayer_altar":
 				if _request_gather(spot_id, gathering_body.global_position, "restore_prayer"):
 					_play_interaction_click_feedback(_pending_click)
-			elif CRAFTING_RECIPES.has(station):
+			elif _has_crafting_station(station):
 				_play_interaction_click_feedback(_pending_click)
 				_open_crafting_menu(spot_id, gathering_body.global_position, station, _pending_click)
 			else:
@@ -1571,7 +1530,7 @@ func _open_crafting_menu(spot_id: String, spot_position: Vector3, station: Strin
 		return
 	_crafting_menu.clear()
 	_crafting_menu_actions.clear()
-	var recipes: Array = CRAFTING_RECIPES.get(station, []) as Array
+	var recipes: Array = _recipes_for_station(station)
 	var altar_recipe: String = str((_gathering_states.get(spot_id, {}) as Dictionary).get("recipe_id", ""))
 	for recipe_index: int in recipes.size():
 		var recipe: Dictionary = recipes[recipe_index]
@@ -1623,18 +1582,63 @@ func _open_cooking_window() -> void:
 	cooking_window.popup_centered()
 
 
+func _recipes_for_station(station: String) -> Array:
+	var authoritative: Variant = _production_recipes.get(station, [])
+	if typeof(authoritative) == TYPE_ARRAY and not (authoritative as Array).is_empty():
+		return authoritative as Array
+	var local_recipes: Variant = CRAFTING_RECIPES.get(station, [])
+	return local_recipes as Array if typeof(local_recipes) == TYPE_ARRAY else []
+
+
+func _has_crafting_station(station: String) -> bool:
+	return _production_recipes.has(station) or CRAFTING_RECIPES.has(station)
+
+
+func _format_recipe_costs(costs: Array, separator: String) -> String:
+	var labels: PackedStringArray = []
+	for cost_data: Variant in costs:
+		if typeof(cost_data) != TYPE_DICTIONARY:
+			continue
+		var cost := cost_data as Dictionary
+		var item_id: String = str(cost.get("item_id", ""))
+		var quantity: int = int(cost.get("quantity", 0))
+		if item_id.is_empty() or quantity < 1:
+			continue
+		var item_name: String = str(ITEM_DISPLAY_NAMES.get(item_id, item_id.replace("_", " ").capitalize()))
+		labels.append("%d %s" % [quantity, item_name])
+	return separator.join(labels)
+
+
+func _maximum_production_batches(costs: Array) -> int:
+	if costs.is_empty():
+		return 0
+	var maximum: int = 2_147_483_647
+	for cost_data: Variant in costs:
+		if typeof(cost_data) != TYPE_DICTIONARY:
+			return 0
+		var cost := cost_data as Dictionary
+		var item_id: String = str(cost.get("item_id", ""))
+		var quantity: int = int(cost.get("quantity", 0))
+		if item_id.is_empty() or quantity < 1:
+			return 0
+		maximum = mini(maximum, floori(float(_inventory_quantity(item_id)) / float(quantity)))
+	return maximum
+
+
 func _refresh_cooking_grid() -> void:
 	for child: Node in cooking_grid.get_children():
 		cooking_grid.remove_child(child)
 		child.queue_free()
 	var cooking_level: int = int((_skill_progress.get("cooking", {}) as Dictionary).get("level", 1))
-	var recipes: Array = CRAFTING_RECIPES.get("cooking", []) as Array
+	var recipes: Array = _recipes_for_station("cooking")
 	for recipe_data: Variant in recipes:
 		var recipe := recipe_data as Dictionary
 		var recipe_id: String = str(recipe.get("id", ""))
-		var input_id: String = str(recipe.get("input_id", ""))
-		var required_level: int = int(recipe.get("level", 1))
-		var available: int = _inventory_quantity(input_id)
+		var reward_item: String = str(recipe.get("reward_item", recipe_id))
+		var costs: Array = recipe.get("costs", []) as Array
+		var required_level: int = int(recipe.get("required_level", 1))
+		var available: int = _maximum_production_batches(costs)
+		var input_text: String = _format_recipe_costs(costs, " + ")
 		var recipe_button := Button.new()
 		recipe_button.custom_minimum_size = Vector2(260, 116 if _cooking_details_visible else 92)
 		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1644,15 +1648,15 @@ func _refresh_cooking_grid() -> void:
 			recipe.get("name", recipe_id.capitalize()), required_level,
 		]
 		if _cooking_details_visible:
-			recipe_button.text += "\n%s" % recipe.get("inputs", "Raw food")
-		recipe_button.icon = ITEM_ICONS.get(recipe_id, EMPTY_SLOT_ICON) as Texture2D
+			recipe_button.text += "\n%s" % input_text
+		recipe_button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
 		recipe_button.add_theme_constant_override("icon_max_width", 62)
 		recipe_button.disabled = cooking_level < required_level or available < 1
 		if cooking_level < required_level:
 			recipe_button.tooltip_text = "Requires Cooking level %d" % required_level
 		elif available < 1:
-			recipe_button.tooltip_text = "Requires %s" % recipe.get("inputs", "raw food")
+			recipe_button.tooltip_text = "Requires %s" % input_text
 		else:
 			recipe_button.tooltip_text = "Cook %s until you run out" % recipe.get("name", recipe_id.capitalize())
 		recipe_button.pressed.connect(_select_cooking_recipe.bind(recipe_id))
@@ -1670,11 +1674,12 @@ func _open_smelting_window() -> void:
 		smelting_grid.remove_child(child)
 		child.queue_free()
 	var smithing_level: int = int((_skill_progress.get("smithing", {}) as Dictionary).get("level", 1))
-	for recipe_data: Variant in CRAFTING_RECIPES.get("smelting", []) as Array:
+	for recipe_data: Variant in _recipes_for_station("smelting"):
 		var recipe := recipe_data as Dictionary
 		var recipe_id: String = str(recipe.get("id", ""))
-		var required_level: int = int(recipe.get("level", 1))
-		var input_lines: String = str(recipe.get("inputs", "")).replace(" + ", "\n")
+		var reward_item: String = str(recipe.get("reward_item", recipe_id))
+		var required_level: int = int(recipe.get("required_level", 1))
+		var input_lines: String = _format_recipe_costs(recipe.get("costs", []) as Array, "\n")
 		var recipe_button := Button.new()
 		recipe_button.custom_minimum_size = Vector2(260, 132)
 		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1683,7 +1688,7 @@ func _open_smelting_window() -> void:
 		recipe_button.text = "%s\n%s\nSmithing %d" % [
 			recipe.get("name", recipe_id.capitalize()), input_lines, required_level,
 		]
-		recipe_button.icon = ITEM_ICONS.get(recipe_id, EMPTY_SLOT_ICON) as Texture2D
+		recipe_button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
 		recipe_button.add_theme_constant_override("icon_max_width", 62)
 		recipe_button.disabled = smithing_level < required_level
@@ -1819,7 +1824,7 @@ func _open_smithing_window() -> void:
 		child.queue_free()
 	var smithing_progress: Dictionary = _skill_progress.get("smithing", {}) as Dictionary
 	var smithing_level: int = int(smithing_progress.get("level", 1))
-	var recipes: Array = CRAFTING_RECIPES.get("forging", []) as Array
+	var recipes: Array = _recipes_for_station("forging")
 	# Gold jewellery belongs at a future jeweller's bench, not the anvil.
 	for tier: String in ["bronze", "iron", "mithril"]:
 		var tier_scroll := ScrollContainer.new()
@@ -1834,19 +1839,20 @@ func _open_smithing_window() -> void:
 		smithing_tabs.add_child(tier_scroll)
 		for recipe_data: Variant in recipes:
 			var recipe := recipe_data as Dictionary
-			if str(recipe.get("tier", "")) != tier:
+			if str(recipe.get("group", "")) != tier:
 				continue
 			var recipe_id: String = str(recipe.get("id", ""))
-			var required_level: int = int(recipe.get("level", 1))
+			var required_level: int = int(recipe.get("required_level", 1))
+			var input_text: String = _format_recipe_costs(recipe.get("costs", []) as Array, " + ")
 			var recipe_button := Button.new()
 			recipe_button.custom_minimum_size = Vector2(300, 78)
 			recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			recipe_button.focus_mode = Control.FOCUS_NONE
 			recipe_button.text = "%s\n%s  •  Lv %d" % [
-				recipe.get("name", recipe_id.capitalize()), recipe.get("inputs", ""), required_level,
+				recipe.get("name", recipe_id.capitalize()), input_text, required_level,
 			]
 			recipe_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			var icon_id: String = "sword" if recipe_id == "iron_sword" else recipe_id
+			var icon_id: String = str(recipe.get("reward_item", recipe_id))
 			recipe_button.icon = ITEM_ICONS.get(icon_id, EMPTY_SLOT_ICON) as Texture2D
 			recipe_button.expand_icon = true
 			recipe_button.add_theme_constant_override("icon_max_width", 50)
@@ -2267,7 +2273,7 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 						_: action_verb = "Use"; action_target = spot_name
 			_add_world_context_action(action_verb, action_target, next_menu_id)
 			_context_menu_actions[next_menu_id] = {
-				"type": "station" if CRAFTING_RECIPES.has(station) and station != "fishing" else "gather",
+			"type": "station" if _has_crafting_station(station) and station != "fishing" else "gather",
 				"spot_id": str(gathering_hit.get("spot_id", "")),
 				"position": gathering_hit.get("position", Vector3.ZERO),
 				"station": station,
@@ -2717,7 +2723,7 @@ func _inventory_action_for_item(item_id: String) -> String:
 		return "firemaking"
 	if str(ARMOUR_SLOTS.get(item_id, "")) == "ring":
 		return "ring"
-	if EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id):
+	if EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id):
 		return "equip"
 	if CONSUMABLE_ITEMS.has(item_id):
 		return "consume"
@@ -2745,7 +2751,7 @@ func _on_inventory_item_pressed(
 		if equipment_pending and _queued_item == item_id:
 			return
 		if _is_item_equipped(item_id, instance_id):
-			if not SPELLBOOK_ITEMS.has(item_id):
+			if not _spellbook_items.has(item_id):
 				return
 			if _request_unequip(item_id, instance_id):
 				_queued_drop_after_unequip = item_id
@@ -2913,6 +2919,80 @@ func _on_status_changed(status: String) -> void:
 	status_label.text = status
 	if status.contains("disconnected") or status.contains("failed"):
 		_append_game_message(status, true)
+
+
+func _on_production_recipes_received(recipes: Array) -> void:
+	var grouped: Dictionary = {}
+	for payload: Variant in recipes:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var recipe := (payload as Dictionary).duplicate(true)
+		var station: String = str(recipe.get("station", ""))
+		var recipe_id: String = str(recipe.get("id", ""))
+		var costs: Variant = recipe.get("costs", [])
+		if station.is_empty() or recipe_id.is_empty() or typeof(costs) != TYPE_ARRAY:
+			continue
+		var station_recipes: Array = grouped.get(station, []) as Array
+		station_recipes.append(recipe)
+		grouped[station] = station_recipes
+	_production_recipes = grouped
+	if cooking_window.visible:
+		_refresh_cooking_grid()
+	if smelting_window.visible:
+		_open_smelting_window()
+
+
+func _on_spell_catalog_received(books: Array, spells: Array) -> void:
+	_spellbooks.clear()
+	_spellbook_items.clear()
+	_spells.clear()
+	for payload: Variant in books:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var book := (payload as Dictionary).duplicate(true)
+		var book_id: String = str(book.get("id", ""))
+		if book_id.is_empty():
+			continue
+		_spellbooks[book_id] = book
+		var equipment_item_id: String = str(book.get("equipment_item_id", ""))
+		if not equipment_item_id.is_empty():
+			_spellbook_items[equipment_item_id] = book_id
+	for payload: Variant in spells:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var spell := (payload as Dictionary).duplicate(true)
+		var spell_id: String = str(spell.get("id", ""))
+		var book_id: String = str(spell.get("book_id", ""))
+		var icon_id: String = str(spell.get("icon_id", spell_id))
+		if spell_id.is_empty() or not _spellbooks.has(book_id):
+			continue
+		spell["icon"] = IconCatalog.SPELL_ICONS.get(icon_id, EMPTY_SLOT_ICON)
+		_spells.append(spell)
+	_update_magic_hud()
+
+
+func _on_prayer_catalog_received(prayers: Array, prayer_sets: Array) -> void:
+	_prayers.clear()
+	_prayer_sets.clear()
+	for payload: Variant in prayer_sets:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var prayer_set := (payload as Dictionary).duplicate(true)
+		var set_id: String = str(prayer_set.get("id", ""))
+		var prayer_ids: Variant = prayer_set.get("prayer_ids", [])
+		if set_id.is_empty() or typeof(prayer_ids) != TYPE_ARRAY:
+			continue
+		_prayer_sets[set_id] = prayer_set
+	for payload: Variant in prayers:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var prayer := (payload as Dictionary).duplicate(true)
+		var prayer_id: String = str(prayer.get("id", ""))
+		if prayer_id.is_empty() or str(prayer.get("name", "")).is_empty():
+			continue
+		prayer["icon"] = IconCatalog.PRAYER_ICONS.get(prayer_id, EMPTY_SLOT_ICON)
+		_prayers.append(prayer)
+	_update_prayer_hud()
 
 
 func _on_welcome_received(player_id: String) -> void:
@@ -4825,6 +4905,7 @@ func _apply_skills_snapshot(skills: Array) -> void:
 	if changed:
 		_update_active_skills_hud()
 		_update_magic_hud()
+		_update_prayer_hud()
 
 
 func _show_xp_gain(skill_id: String, gained_xp: int, total_xp: int) -> void:
@@ -4873,7 +4954,17 @@ func _update_magic_hud() -> void:
 		child.queue_free()
 	var magic_progress: Dictionary = _skill_progress.get("magic", {}) as Dictionary
 	var magic_level: int = int(magic_progress.get("level", 1))
-	for spell_data: Variant in PLACEHOLDER_SPELLS:
+	var displayed_spells: Array[Dictionary] = []
+	for spell: Dictionary in _spells:
+		if str(spell.get("book_id", "")) == _active_spellbook:
+			displayed_spells.append(spell)
+	for placeholder_data: Variant in IconCatalog.SPELL_PLACEHOLDERS:
+		if typeof(placeholder_data) != TYPE_DICTIONARY:
+			continue
+		var placeholder := placeholder_data as Dictionary
+		if str(placeholder.get("book_id", "")) == _active_spellbook:
+			displayed_spells.append(placeholder)
+	for spell_data: Variant in displayed_spells:
 		var spell: Dictionary = spell_data
 		var spell_id: String = str(spell.get("id", ""))
 		var required_level: int = int(spell.get("required_magic_level", 1))
@@ -4955,19 +5046,32 @@ func _populate_placeholder_prayers() -> void:
 
 
 func _update_prayer_hud() -> void:
-	prayer_set_label.text = "Prayer set: %s" % _active_prayer_set.replace("_", " ").capitalize()
+	var active_set: Dictionary = _prayer_sets.get(_active_prayer_set, {}) as Dictionary
+	prayer_set_label.text = str(active_set.get(
+		"name",
+		_active_prayer_set.replace("_", " ").capitalize(),
+	))
 	for child: Node in prayer_grid.get_children():
 		prayer_grid.remove_child(child)
 		child.queue_free()
-	for prayer_data: Variant in PLACEHOLDER_PRAYERS:
+	var displayed_prayers: Array[Dictionary] = []
+	var active_set_prayers: Array = active_set.get("prayer_ids", []) as Array
+	for prayer: Dictionary in _prayers:
+		if active_set.is_empty() or active_set_prayers.has(str(prayer.get("id", ""))):
+			displayed_prayers.append(prayer)
+	for placeholder: Variant in IconCatalog.PRAYER_PLACEHOLDERS:
+		displayed_prayers.append((placeholder as Dictionary).duplicate())
+	var prayer_level: int = int((_skill_progress.get("prayer", {}) as Dictionary).get("level", 1))
+	for prayer_data: Dictionary in displayed_prayers:
 		var prayer: Dictionary = prayer_data
 		var prayer_id: String = str(prayer.get("id", ""))
+		var required_level: int = int(prayer.get("required_level", 1))
 		var prayer_button := Button.new()
 		prayer_button.custom_minimum_size = Vector2(104, 88)
 		prayer_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		prayer_button.focus_mode = Control.FOCUS_NONE
 		prayer_button.toggle_mode = not prayer_id.is_empty()
-		prayer_button.disabled = prayer_id.is_empty() or _player_defeated or (
+		prayer_button.disabled = prayer_id.is_empty() or prayer_level < required_level or _player_defeated or (
 			_player_prayer <= 0 and not _active_prayers.has(prayer_id)
 		)
 		prayer_button.icon = IconCatalog.centered_icon(prayer.get("icon") as Texture2D)
@@ -4981,8 +5085,8 @@ func _update_prayer_hud() -> void:
 			prayer_button.set_pressed_no_signal(displayed_active)
 			prayer_button.tooltip_text = "%s • %s\n%s" % [
 				prayer.get("name", "Prayer"),
-				"ACTIVE • click to turn off" if displayed_active else "Inactive • click to turn on",
-				prayer.get("description", ""),
+				"Click to turn off" if displayed_active else "Click to turn on",
+				_prayer_description(prayer),
 			]
 			if displayed_active:
 				_style_active_prayer_button(prayer_button, _queued_prayer_id == prayer_id)
@@ -4990,6 +5094,38 @@ func _update_prayer_hud() -> void:
 		else:
 			prayer_button.tooltip_text = "%s (coming later)" % prayer.get("name", "Prayer")
 		prayer_grid.add_child(prayer_button)
+
+
+func _prayer_description(prayer: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	var effects: Array[Dictionary] = [
+		{"key": "melee_accuracy_bonus", "label": "+%d melee accuracy score", "percentage": false},
+		{"key": "melee_damage_bonus", "label": "+%d%% melee damage", "percentage": true},
+		{"key": "ranged_damage_bonus", "label": "+%d%% ranged damage", "percentage": true},
+		{"key": "magic_damage_bonus", "label": "+%d%% magic damage", "percentage": true},
+		{"key": "damage_reduction", "label": "%d%% incoming damage reduction", "percentage": true},
+		{"key": "dodge_bonus", "label": "+%d%% dodge chance", "percentage": true},
+		{"key": "health_regeneration", "label": "Restores %d%% maximum health", "percentage": true},
+	]
+	for effect: Dictionary in effects:
+		var value: float = float(prayer.get(str(effect.get("key", "")), 0.0))
+		if is_zero_approx(value):
+			continue
+		var displayed_value: int = roundi(value * 100.0) if bool(effect.get("percentage", false)) else roundi(value)
+		lines.append(str(effect.get("label", "%d")) % displayed_value)
+	var drain_amount: int = int(prayer.get("drain_amount", 0))
+	var drain_seconds: float = float(prayer.get("drain_interval_seconds", 0.0))
+	if drain_amount > 0 and drain_seconds > 0.0:
+		var seconds_text: String = str(roundi(drain_seconds)) if is_equal_approx(drain_seconds, round(drain_seconds)) else "%.1f" % drain_seconds
+		lines.append("Drains %d prayer point%s every %s seconds" % [
+			drain_amount,
+			"" if drain_amount == 1 else "s",
+			seconds_text,
+		])
+	var required_level: int = int(prayer.get("required_level", 1))
+	if required_level > 1:
+		lines.append("Requires Prayer level %d" % required_level)
+	return "\n".join(lines)
 
 
 func _style_active_prayer_button(prayer_button: Button, pending: bool) -> void:
@@ -6030,7 +6166,7 @@ func _update_inventory_hud() -> void:
 			var reinforcement: int = int(item.get("reinforcement", 0))
 			slot_button.set_stack_quantity(quantity)
 			slot_button.set_reinforcement(reinforcement)
-			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id)
+			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id)
 			var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
 			var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
 			var is_fletching_input: bool = FLETCHING_INPUTS.has(item_id)
@@ -6080,7 +6216,7 @@ func _update_inventory_hud() -> void:
 				interaction_text = "left-click to select Firemaking • %s" % interaction_text
 			elif FIREMAKING_LOGS.has(item_id):
 				interaction_text += " • select a Tinderbox first to light"
-			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
+			if is_equipped and _spellbook_items.has(item_id):
 				interaction_text = "left-click to unequip • Shift-click to unequip and drop"
 			if is_banking:
 				interaction_text = "left-click to deposit whole stack"
