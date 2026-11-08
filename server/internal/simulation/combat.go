@@ -541,6 +541,8 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 	for w.combat.elapsed >= actionPulseInterval {
 		w.combat.elapsed -= actionPulseInterval
 		w.combat.pulse++
+		w.applyPendingBrews()
+		w.applyPendingFletches()
 		w.respawnDefeatedEntities()
 		w.applyEquipmentCommands()
 		w.applyCombatStyleCommands()

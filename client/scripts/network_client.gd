@@ -191,7 +191,7 @@ func send_consume_item(sequence: int, item_id: String) -> bool:
 	return true
 
 
-func send_brew(sequence: int, item_ids: Array[String]) -> bool:
+func send_brew(sequence: int, item_ids: Array[String], quantity: int = 1) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot brew while disconnected")
 		return false
@@ -199,10 +199,28 @@ func send_brew(sequence: int, item_ids: Array[String]) -> bool:
 		"type": "brew",
 		"sequence": sequence,
 		"item_ids": item_ids,
+		"quantity": quantity,
 	}
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not brew: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_fletch(sequence: int, recipe_id: String, quantity: int = 1) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot fletch while disconnected")
+		return false
+	var message: Dictionary = {
+		"type": "fletch",
+		"sequence": sequence,
+		"recipe_id": recipe_id,
+		"quantity": quantity,
+	}
+	var result: Error = _socket.send_text(JSON.stringify(message))
+	if result != OK:
+		status_changed.emit("Could not fletch: %s" % error_string(result))
 		return false
 	return true
 

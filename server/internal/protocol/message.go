@@ -22,6 +22,7 @@ const (
 	MessageMoveInventoryItem  = "move_inventory_item"
 	MessageConsumeItem        = "consume_item"
 	MessageBrew               = "brew"
+	MessageFletch             = "fletch"
 	MessageGather             = "gather"
 	MessageBankDeposit        = "bank_deposit"
 	MessageBankWithdraw       = "bank_withdraw"
@@ -184,6 +185,14 @@ type PlayerSnapshot struct {
 	LastPickupSequence           uint64                  `json:"last_pickup_sequence"`
 	LastConsumeSequence          uint64                  `json:"last_consume_sequence"`
 	NextConsumePulse             uint64                  `json:"next_consume_pulse"`
+	LastBrewSequence             uint64                  `json:"last_brew_sequence"`
+	BrewRemaining                int                     `json:"brew_remaining"`
+	NextBrewPulse                uint64                  `json:"next_brew_pulse"`
+	BrewingResult                string                  `json:"brewing_result"`
+	LastFletchSequence           uint64                  `json:"last_fletch_sequence"`
+	FletchRemaining              int                     `json:"fletch_remaining"`
+	NextFletchPulse              uint64                  `json:"next_fletch_pulse"`
+	FletchingResult              string                  `json:"fletching_result"`
 	GatheringSpot                string                  `json:"gathering_spot"`
 	GatheringResult              string                  `json:"gathering_result"`
 	NextGatherPulse              uint64                  `json:"next_gather_pulse"`
@@ -284,7 +293,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageGather &&
+		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageGather &&
 		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
@@ -321,6 +330,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		return ClientMessage{}, fmt.Errorf("gathering spot ID is required")
 	}
 	if message.Type == MessageBrew {
+		if message.Quantity < 0 {
+			return ClientMessage{}, fmt.Errorf("brew quantity cannot be negative")
+		}
 		if len(message.ItemIDs) < 2 || len(message.ItemIDs) > 3 {
 			return ClientMessage{}, fmt.Errorf("brewing requires two or three items")
 		}
@@ -328,6 +340,14 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 			if itemID == "" {
 				return ClientMessage{}, fmt.Errorf("brewing item IDs cannot be empty")
 			}
+		}
+	}
+	if message.Type == MessageFletch {
+		if message.RecipeID == "" {
+			return ClientMessage{}, fmt.Errorf("fletching recipe ID is required")
+		}
+		if message.Quantity < 0 {
+			return ClientMessage{}, fmt.Errorf("fletching quantity cannot be negative")
 		}
 	}
 	if message.Type == MessageBankDeposit && message.ItemID == "" {

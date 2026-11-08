@@ -10,6 +10,13 @@ type BrewCommand struct {
 	PlayerID PlayerID
 	Sequence uint64
 	ItemIDs  []string
+	Quantity int
+}
+
+type pendingBrew struct {
+	command   BrewCommand
+	remaining int
+	nextPulse uint64
 }
 
 type brewingRecipe struct {
@@ -43,14 +50,31 @@ func (w *World) QueueBrew(command BrewCommand) error {
 	if command.Sequence <= player.lastBrewSequence {
 		return fmt.Errorf("brew sequence %d is not newer than %d", command.Sequence, player.lastBrewSequence)
 	}
-	if pending, exists := w.pendingBrews[command.PlayerID]; exists && command.Sequence <= pending.Sequence {
-		return fmt.Errorf("brew sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
+	if pending, exists := w.pendingBrews[command.PlayerID]; exists && command.Sequence <= pending.command.Sequence {
+		return fmt.Errorf("brew sequence %d is not newer than pending sequence %d", command.Sequence, pending.command.Sequence)
+	}
+	if player.brewRemaining > 0 {
+		return fmt.Errorf("player is already brewing")
 	}
 	if _, _, err := brewedInventoryAfter(player.inventory, command.ItemIDs); err != nil {
 		return err
 	}
+	maximum := maximumBrewCount(player.inventory, command.ItemIDs)
+	remaining := command.Quantity
+	if remaining == 0 {
+		remaining = maximum
+	}
+	if remaining < 1 || remaining > maximum {
+		return fmt.Errorf("cannot brew %d mixture(s); ingredients allow %d", remaining, maximum)
+	}
 	command.ItemIDs = append([]string(nil), command.ItemIDs...)
-	w.pendingBrews[command.PlayerID] = command
+	w.pendingBrews[command.PlayerID] = pendingBrew{
+		command: command, remaining: remaining, nextPulse: w.combat.pulse + 1,
+	}
+	player.lastBrewSequence = command.Sequence
+	player.brewRemaining = remaining
+	player.nextBrewPulse = w.combat.pulse + 1
+	player.brewingResult = "brewing"
 	return nil
 }
 
@@ -61,20 +85,52 @@ func (w *World) applyPendingBrews() {
 	}
 	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
 	for _, id := range playerIDs {
-		command := w.pendingBrews[id]
-		delete(w.pendingBrews, id)
+		pending := w.pendingBrews[id]
 		player, exists := w.players[id]
 		if !exists || player.defeated {
+			delete(w.pendingBrews, id)
 			continue
 		}
-		inventory, recipe, err := brewedInventoryAfter(player.inventory, command.ItemIDs)
+		if w.combat.pulse < pending.nextPulse {
+			continue
+		}
+		inventory, recipe, err := brewedInventoryAfter(player.inventory, pending.command.ItemIDs)
 		if err != nil {
+			player.brewRemaining = 0
+			player.nextBrewPulse = 0
+			player.brewingResult = "brewing_stopped"
+			delete(w.pendingBrews, id)
 			continue
 		}
 		player.inventory = inventory
-		player.lastBrewSequence = command.Sequence
 		grantSkillExperience(player, SkillHerblore, recipe.Experience)
+		player.brewingResult = recipe.OutputItem
+		pending.remaining--
+		player.brewRemaining = pending.remaining
+		if pending.remaining <= 0 {
+			player.nextBrewPulse = 0
+			delete(w.pendingBrews, id)
+			continue
+		}
+		pending.nextPulse = w.combat.pulse + 1
+		player.nextBrewPulse = pending.nextPulse
+		w.pendingBrews[id] = pending
 	}
+}
+
+func maximumBrewCount(inventory inventoryState, itemIDs []string) int {
+	itemCounts := make(map[string]int, len(itemIDs))
+	for _, itemID := range itemIDs {
+		itemCounts[itemID]++
+	}
+	maximum := int(^uint(0) >> 1)
+	for itemID, cost := range itemCounts {
+		maximum = min(maximum, inventory.quantity(itemID)/cost)
+	}
+	if maximum == int(^uint(0)>>1) {
+		return 0
+	}
+	return maximum
 }
 
 func brewedInventoryAfter(inventory inventoryState, itemIDs []string) (inventoryState, brewingRecipe, error) {

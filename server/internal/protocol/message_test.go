@@ -85,6 +85,16 @@ func TestDecodeBrewMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeFletchMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"fletch","sequence":8,"recipe_id":"iron_arrows","quantity":3}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageFletch || message.Sequence != 8 || message.RecipeID != "iron_arrows" || message.Quantity != 3 {
+		t.Fatalf("decoded fletch message = %+v", message)
+	}
+}
+
 func TestDecodeGatherMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"gather","sequence":7,"spot_id":"starter_furnace","recipe_id":"bronze_bar"}`))
 	if err != nil {

@@ -115,6 +115,14 @@ type PlayerSnapshot struct {
 	LastPickupSequence           uint64
 	LastConsumeSequence          uint64
 	NextConsumePulse             uint64
+	LastBrewSequence             uint64
+	BrewRemaining                int
+	NextBrewPulse                uint64
+	BrewingResult                string
+	LastFletchSequence           uint64
+	FletchRemaining              int
+	NextFletchPulse              uint64
+	FletchingResult              string
 	GatheringSpot                string
 	GatheringResult              string
 	NextGatherPulse              uint64
@@ -186,6 +194,13 @@ type playerState struct {
 	lastConsumeSequence          uint64
 	nextConsumePulse             uint64
 	lastBrewSequence             uint64
+	brewRemaining                int
+	nextBrewPulse                uint64
+	brewingResult                string
+	lastFletchSequence           uint64
+	fletchRemaining              int
+	nextFletchPulse              uint64
+	fletchingResult              string
 	gatheringSpot                string
 	gatheringRecipe              string
 	gatheringInstanceID          string
@@ -207,7 +222,8 @@ type World struct {
 	pendingItemDrops           map[PlayerID]DropItemCommand
 	pendingInventoryMoves      map[PlayerID]MoveInventoryItemCommand
 	pendingConsumables         map[PlayerID]ConsumeItemCommand
-	pendingBrews               map[PlayerID]BrewCommand
+	pendingBrews               map[PlayerID]pendingBrew
+	pendingFletches            map[PlayerID]pendingFletch
 	pendingGathering           map[PlayerID]pendingGather
 	pendingBankTransfers       map[PlayerID]BankTransferCommand
 	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
@@ -249,7 +265,8 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingItemDrops:           make(map[PlayerID]DropItemCommand),
 		pendingInventoryMoves:      make(map[PlayerID]MoveInventoryItemCommand),
 		pendingConsumables:         make(map[PlayerID]ConsumeItemCommand),
-		pendingBrews:               make(map[PlayerID]BrewCommand),
+		pendingBrews:               make(map[PlayerID]pendingBrew),
+		pendingFletches:            make(map[PlayerID]pendingFletch),
 		pendingGathering:           make(map[PlayerID]pendingGather),
 		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
 		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
@@ -354,6 +371,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingInventoryMoves, id)
 	delete(w.pendingConsumables, id)
 	delete(w.pendingBrews, id)
+	delete(w.pendingFletches, id)
 	delete(w.pendingGathering, id)
 	delete(w.pendingBankTransfers, id)
 	delete(w.pendingAmmunitionTransfers, id)
@@ -476,7 +494,6 @@ func (w *World) Step(elapsed time.Duration) {
 	w.applyPendingBankTransfers()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
-	w.applyPendingBrews()
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
 
@@ -650,6 +667,14 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastPickupSequence:           player.lastPickupSequence,
 		LastConsumeSequence:          player.lastConsumeSequence,
 		NextConsumePulse:             player.nextConsumePulse,
+		LastBrewSequence:             player.lastBrewSequence,
+		BrewRemaining:                player.brewRemaining,
+		NextBrewPulse:                player.nextBrewPulse,
+		BrewingResult:                player.brewingResult,
+		LastFletchSequence:           player.lastFletchSequence,
+		FletchRemaining:              player.fletchRemaining,
+		NextFletchPulse:              player.nextFletchPulse,
+		FletchingResult:              player.fletchingResult,
 		GatheringSpot:                player.gatheringSpot,
 		GatheringResult:              player.gatheringResult,
 		NextGatherPulse:              player.nextGatherPulse,

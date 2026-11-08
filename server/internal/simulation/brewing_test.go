@@ -22,12 +22,38 @@ func TestKnownThreeItemBrewCreatesPrayerPotionAndGrantsHerbloreXP(t *testing.T) 
 	}); err != nil {
 		t.Fatalf("QueueBrew() returned an unexpected error: %v", err)
 	}
-	world.Step(50 * time.Millisecond)
+	world.Step(actionPulseInterval)
 	snapshot := mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemPrayerPotion) != 1 ||
 		snapshot.Inventory.itemsQuantity(ItemVialOfWater) != 1 ||
 		mustSkill(t, snapshot, SkillHerblore).Experience != 20 {
 		t.Fatalf("player after brewing = %+v", snapshot)
+	}
+}
+
+func TestMakeAllBrewsOnePotionPerSixHundredMillisecondPulse(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemVialOfWater, 3)
+	player.inventory.add(ItemSunleaf, 3)
+	if err := world.QueueBrew(BrewCommand{
+		PlayerID: "player-one", Sequence: 1, ItemIDs: []string{ItemVialOfWater, ItemSunleaf}, Quantity: 0,
+	}); err != nil {
+		t.Fatalf("QueueBrew(make all) returned an unexpected error: %v", err)
+	}
+
+	for made := 1; made <= 3; made++ {
+		world.Step(600 * time.Millisecond)
+		snapshot := mustPlayer(t, world, "player-one")
+		if got := snapshot.Inventory.itemsQuantity(ItemMinorHealingPotion); got != made {
+			t.Fatalf("potions after %d pulse(s) = %d, want %d", made, got, made)
+		}
+		if snapshot.BrewRemaining != 3-made {
+			t.Fatalf("remaining after %d pulse(s) = %d, want %d", made, snapshot.BrewRemaining, 3-made)
+		}
 	}
 }
 

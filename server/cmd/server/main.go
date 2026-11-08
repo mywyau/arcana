@@ -63,6 +63,8 @@ func main() {
 		{itemID: simulation.ItemMoonleaf, quantity: 10},
 		{itemID: simulation.ItemSacredDust, quantity: 25},
 		{itemID: simulation.ItemFishOil, quantity: 25},
+		{itemID: simulation.ItemFeathers, quantity: 200},
+		{itemID: simulation.ItemIronArrowTips, quantity: 200},
 		{itemID: simulation.ItemBronzePlate, quantity: 1},
 		{itemID: simulation.ItemIronHelm, quantity: 1},
 		{itemID: simulation.ItemIronPlate, quantity: 1},

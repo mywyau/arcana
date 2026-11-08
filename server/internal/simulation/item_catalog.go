@@ -32,6 +32,9 @@ const (
 	ItemFishOil            = "fish_oil"
 	ItemMinorHealingPotion = "minor_healing_potion"
 	ItemMurkyBrew          = "murky_brew"
+	ItemArrowShafts        = "arrow_shafts"
+	ItemFeathers           = "feathers"
+	ItemIronArrowTips      = "iron_arrow_tips"
 	ItemNormalLogs         = "normal_logs"
 	ItemOakLogs            = "oak_logs"
 	ItemCopperOre          = "copper_ore"
@@ -228,6 +231,9 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemMoonleaf, Name: "Moonleaf", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemSacredDust, Name: "Sacred Dust", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemFishOil, Name: "Fish Oil", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemArrowShafts, Name: "Arrow Shafts", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemFeathers, Name: "Feathers", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemIronArrowTips, Name: "Iron Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
 	{
 		ID: ItemPrayerPotion, Name: "Prayer Potion", Kind: ItemKindConsumable, StackLimit: 5,
 		Consumable: ConsumableDefinition{PrayerRestoration: 25, CooldownPulses: 2},

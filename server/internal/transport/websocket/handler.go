@@ -348,6 +348,15 @@ func (h *Handler) readCommands(
 				PlayerID: playerID,
 				Sequence: message.Sequence,
 				ItemIDs:  message.ItemIDs,
+				Quantity: message.Quantity,
+			})
+		case protocol.MessageFletch:
+			rejectionCode = "fletch_rejected"
+			err = h.world.QueueFletch(simulation.FletchCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				RecipeID: message.RecipeID,
+				Quantity: message.Quantity,
 			})
 		case protocol.MessageGather:
 			rejectionCode = "gather_rejected"
@@ -547,6 +556,14 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			LastPickupSequence:  player.LastPickupSequence,
 			LastConsumeSequence: player.LastConsumeSequence,
 			NextConsumePulse:    player.NextConsumePulse,
+			LastBrewSequence:    player.LastBrewSequence,
+			BrewRemaining:       player.BrewRemaining,
+			NextBrewPulse:       player.NextBrewPulse,
+			BrewingResult:       player.BrewingResult,
+			LastFletchSequence:  player.LastFletchSequence,
+			FletchRemaining:     player.FletchRemaining,
+			NextFletchPulse:     player.NextFletchPulse,
+			FletchingResult:     player.FletchingResult,
 			GatheringSpot:       player.GatheringSpot,
 			GatheringResult:     player.GatheringResult,
 			NextGatherPulse:     player.NextGatherPulse,

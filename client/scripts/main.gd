@@ -98,6 +98,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Smithing": "smithing",
 	"Woodcutting": "woodcutting",
 	"Herblore": "herblore",
+	"Fletching": "fletching",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -112,6 +113,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"smithing": "Smithing",
 	"woodcutting": "Woodcutting",
 	"herblore": "Herblore",
+	"fletching": "Fletching",
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
@@ -267,6 +269,27 @@ const KNOWN_BREWS: Dictionary = {
 	"sunleaf+vial_of_water": "Minor Healing Potion",
 	"sacred_dust+sunleaf+vial_of_water": "Prayer Potion",
 }
+const FLETCHING_RECIPES: Dictionary = {
+	"arrow_shafts": {
+		"name": "20 Arrow Shafts",
+		"costs": {"normal_logs": 1},
+		"tool": "knife",
+		"experience": 10,
+	},
+	"iron_arrows": {
+		"name": "20 Iron Arrows",
+		"costs": {"arrow_shafts": 20, "feathers": 20, "iron_arrow_tips": 20},
+		"tool": "",
+		"experience": 20,
+	},
+}
+const FLETCHING_INPUTS: Dictionary = {
+	"knife": true,
+	"normal_logs": true,
+	"arrow_shafts": true,
+	"feathers": true,
+	"iron_arrow_tips": true,
+}
 const ITEM_ICONS: Dictionary = IconCatalog.ITEMS
 const EQUIPMENT_SLOT_ICONS: Dictionary = IconCatalog.EQUIPMENT_SLOTS
 const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
@@ -287,6 +310,15 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var brewing_grid: GridContainer = $BrewingWindow/Panel/Margin/VBox/IngredientScroll/Grid
 @onready var brewing_clear_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/Clear
 @onready var brewing_brew_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/Brew
+@onready var brewing_make_x_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeX
+@onready var brewing_make_all_button: Button = $BrewingWindow/Panel/Margin/VBox/Actions/MakeAll
+@onready var fletching_window: Window = $FletchingWindow
+@onready var fletching_shafts_button: Button = $FletchingWindow/Panel/Margin/VBox/Recipes/Shafts
+@onready var fletching_arrows_button: Button = $FletchingWindow/Panel/Margin/VBox/Recipes/Arrows
+@onready var fletching_selection: Label = $FletchingWindow/Panel/Margin/VBox/Selection
+@onready var fletching_make_one_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/Make1
+@onready var fletching_make_x_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/MakeX
+@onready var fletching_make_all_button: Button = $FletchingWindow/Panel/Margin/VBox/Actions/MakeAll
 @onready var players: Node3D = $Players
 @onready var targets: Node3D = $Targets
 @onready var drops: Node3D = $Drops
@@ -505,6 +537,7 @@ var _skill_progress: Dictionary = {
 	"smithing": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"woodcutting": {"experience": 0, "level": 1, "current": 0, "next": 100},
 	"herblore": {"experience": 0, "level": 1, "current": 0, "next": 100},
+	"fletching": {"experience": 0, "level": 1, "current": 0, "next": 100},
 }
 var _skill_tiles: Dictionary = {}
 var _combat_stats: Dictionary = {}
@@ -524,6 +557,21 @@ var _selected_station_position: Vector3 = Vector3.ZERO
 var _brewing_selection: Array[String] = []
 var _next_brew_sequence: int = 1
 var _brew_pending: bool = false
+var _brew_remaining: int = 0
+var _next_brew_pulse: int = 0
+var _last_brew_sequence: int = 0
+var _brewing_result_text: String = ""
+var _brew_quantity_dialog: ConfirmationDialog
+var _brew_quantity_input: SpinBox
+var _selected_fletching_recipe: String = "arrow_shafts"
+var _next_fletch_sequence: int = 1
+var _last_fletch_sequence: int = 0
+var _fletch_pending: bool = false
+var _fletch_remaining: int = 0
+var _next_fletch_pulse: int = 0
+var _fletching_result_text: String = ""
+var _fletch_quantity_dialog: ConfirmationDialog
+var _fletch_quantity_input: SpinBox
 var _hud_groups: Dictionary = {}
 var _hud_handles: Dictionary = {}
 var _hud_edit_mode: bool = false
@@ -551,6 +599,18 @@ func _ready() -> void:
 		brewing_slots[slot_index].pressed.connect(_remove_brewing_ingredient.bind(slot_index))
 	brewing_clear_button.pressed.connect(_clear_brewing_selection)
 	brewing_brew_button.pressed.connect(_request_brew)
+	brewing_make_x_button.pressed.connect(_open_brew_quantity_dialog)
+	brewing_make_all_button.pressed.connect(_request_brew.bind(0))
+	_setup_brew_quantity_dialog()
+	fletching_window.close_requested.connect(fletching_window.hide)
+	fletching_shafts_button.toggle_mode = true
+	fletching_arrows_button.toggle_mode = true
+	fletching_shafts_button.pressed.connect(_select_fletching_recipe.bind("arrow_shafts"))
+	fletching_arrows_button.pressed.connect(_select_fletching_recipe.bind("iron_arrows"))
+	fletching_make_one_button.pressed.connect(_request_fletch)
+	fletching_make_x_button.pressed.connect(_open_fletch_quantity_dialog)
+	fletching_make_all_button.pressed.connect(_request_fletch.bind(0))
+	_setup_fletch_quantity_dialog()
 	_bank_item_menu = PopupMenu.new()
 	_bank_item_menu.name = "BankItemMenu"
 	add_child(_bank_item_menu)
@@ -659,6 +719,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			match key_event.keycode:
 				KEY_ESCAPE:
+					if fletching_window.visible:
+						fletching_window.hide()
+						get_viewport().set_input_as_handled()
+						return
 					if brewing_window.visible:
 						brewing_window.hide()
 						get_viewport().set_input_as_handled()
@@ -1201,18 +1265,162 @@ func _refresh_brewing_window() -> void:
 		brewing_result.text = "Known result: %s" % KNOWN_BREWS[mixture_key] if KNOWN_BREWS.has(mixture_key) else "Unknown mixture: experimentation may create a Murky Brew"
 	else:
 		brewing_result.text = "Requires exactly one Vial of Water and at least one herb"
+	if _brew_pending:
+		brewing_result.text = "Brewing one potion every 600 ms • %d remaining" % _brew_remaining
 	brewing_brew_button.disabled = not valid_roles or _brew_pending
-	brewing_brew_button.text = "Brewing…" if _brew_pending else "Brew mixture"
+	brewing_brew_button.text = "Brewing…" if _brew_pending else "Make 1"
+	brewing_make_x_button.disabled = not valid_roles or _brew_pending
+	brewing_make_all_button.disabled = not valid_roles or _brew_pending
 	brewing_clear_button.disabled = _brew_pending or _brewing_selection.is_empty()
 
 
-func _request_brew() -> void:
+func _maximum_selected_brews() -> int:
+	if _brewing_selection.is_empty():
+		return 0
+	var costs: Dictionary = {}
+	for item_id: String in _brewing_selection:
+		costs[item_id] = int(costs.get(item_id, 0)) + 1
+	var maximum: int = 2_147_483_647
+	for item_id: String in costs.keys():
+		maximum = mini(maximum, floori(float(_inventory_quantity(item_id)) / float(int(costs[item_id]))))
+	return 0 if maximum == 2_147_483_647 else maximum
+
+
+func _setup_brew_quantity_dialog() -> void:
+	_brew_quantity_dialog = ConfirmationDialog.new()
+	_brew_quantity_dialog.title = "Make X potions"
+	_brew_quantity_dialog.dialog_text = "Choose how many potions to brew:"
+	_brew_quantity_dialog.min_size = Vector2i(360, 180)
+	_brew_quantity_dialog.get_ok_button().text = "Start brewing"
+	_brew_quantity_input = SpinBox.new()
+	_brew_quantity_input.min_value = 1
+	_brew_quantity_input.step = 1
+	_brew_quantity_input.custom_minimum_size = Vector2(280, 44)
+	_brew_quantity_input.position = Vector2(40, 74)
+	_brew_quantity_dialog.add_child(_brew_quantity_input)
+	_brew_quantity_dialog.confirmed.connect(_confirm_brew_quantity)
+	add_child(_brew_quantity_dialog)
+
+
+func _open_brew_quantity_dialog() -> void:
+	var maximum := _maximum_selected_brews()
+	if maximum < 1 or _brew_pending:
+		return
+	_brew_quantity_input.max_value = maximum
+	_brew_quantity_input.value = mini(maximum, 5)
+	_brew_quantity_dialog.popup_centered()
+	_brew_quantity_input.grab_focus()
+	_brew_quantity_input.get_line_edit().select_all()
+
+
+func _confirm_brew_quantity() -> void:
+	_request_brew(int(_brew_quantity_input.value))
+
+
+func _request_brew(quantity: int = 1) -> void:
 	if _brew_pending or _brewing_selection.size() < 2 or _brewing_selection.size() > 3:
 		return
-	if network.send_brew(_next_brew_sequence, _brewing_selection):
+	if network.send_brew(_next_brew_sequence, _brewing_selection, quantity):
 		_next_brew_sequence += 1
 		_brew_pending = true
+		_brew_remaining = _maximum_selected_brews() if quantity == 0 else quantity
 		_refresh_brewing_window()
+
+
+func _open_fletching_window(starting_item_id: String = "") -> void:
+	if starting_item_id in ["arrow_shafts", "feathers", "iron_arrow_tips"]:
+		_selected_fletching_recipe = "iron_arrows"
+	elif starting_item_id in ["knife", "normal_logs"]:
+		_selected_fletching_recipe = "arrow_shafts"
+	_refresh_fletching_window()
+	fletching_window.popup_centered()
+
+
+func _select_fletching_recipe(recipe_id: String) -> void:
+	if _fletch_pending or not FLETCHING_RECIPES.has(recipe_id):
+		return
+	_selected_fletching_recipe = recipe_id
+	_refresh_fletching_window()
+
+
+func _maximum_fletch_batches() -> int:
+	var recipe: Dictionary = FLETCHING_RECIPES.get(_selected_fletching_recipe, {}) as Dictionary
+	if recipe.is_empty():
+		return 0
+	var tool_id: String = str(recipe.get("tool", ""))
+	if not tool_id.is_empty() and _inventory_quantity(tool_id) < 1:
+		return 0
+	var maximum: int = 2_147_483_647
+	var costs: Dictionary = recipe.get("costs", {}) as Dictionary
+	for item_id: String in costs:
+		var required: int = int(costs[item_id])
+		maximum = mini(maximum, floori(float(_inventory_quantity(item_id)) / float(required)))
+	return 0 if maximum == 2_147_483_647 else maximum
+
+
+func _refresh_fletching_window() -> void:
+	var maximum := _maximum_fletch_batches()
+	var recipe: Dictionary = FLETCHING_RECIPES.get(_selected_fletching_recipe, {}) as Dictionary
+	var recipe_name: String = str(recipe.get("name", "Select a recipe"))
+	var experience: int = int(recipe.get("experience", 0))
+	fletching_shafts_button.button_pressed = _selected_fletching_recipe == "arrow_shafts"
+	fletching_arrows_button.button_pressed = _selected_fletching_recipe == "iron_arrows"
+	fletching_shafts_button.disabled = _fletch_pending
+	fletching_arrows_button.disabled = _fletch_pending
+	if _fletch_pending:
+		fletching_selection.text = "Making %s every 600 ms • %d batch%s remaining" % [
+			recipe_name, _fletch_remaining, "" if _fletch_remaining == 1 else "es",
+		]
+	else:
+		fletching_selection.text = "%s • %d XP per batch • materials for %d batch%s" % [
+			recipe_name, experience, maximum, "" if maximum == 1 else "es",
+		]
+	var unavailable := maximum < 1 or _fletch_pending
+	fletching_make_one_button.disabled = unavailable
+	fletching_make_x_button.disabled = unavailable
+	fletching_make_all_button.disabled = unavailable
+	fletching_make_one_button.text = "Fletching…" if _fletch_pending else "Make 1"
+
+
+func _setup_fletch_quantity_dialog() -> void:
+	_fletch_quantity_dialog = ConfirmationDialog.new()
+	_fletch_quantity_dialog.title = "Fletch X batches"
+	_fletch_quantity_dialog.dialog_text = "Choose how many batches of 20 to make:"
+	_fletch_quantity_dialog.min_size = Vector2i(380, 180)
+	_fletch_quantity_dialog.get_ok_button().text = "Start fletching"
+	_fletch_quantity_input = SpinBox.new()
+	_fletch_quantity_input.min_value = 1
+	_fletch_quantity_input.step = 1
+	_fletch_quantity_input.custom_minimum_size = Vector2(300, 44)
+	_fletch_quantity_input.position = Vector2(40, 74)
+	_fletch_quantity_dialog.add_child(_fletch_quantity_input)
+	_fletch_quantity_dialog.confirmed.connect(_confirm_fletch_quantity)
+	add_child(_fletch_quantity_dialog)
+
+
+func _open_fletch_quantity_dialog() -> void:
+	var maximum := _maximum_fletch_batches()
+	if maximum < 1 or _fletch_pending:
+		return
+	_fletch_quantity_input.max_value = maximum
+	_fletch_quantity_input.value = mini(maximum, 5)
+	_fletch_quantity_dialog.popup_centered()
+	_fletch_quantity_input.grab_focus()
+	_fletch_quantity_input.get_line_edit().select_all()
+
+
+func _confirm_fletch_quantity() -> void:
+	_request_fletch(int(_fletch_quantity_input.value))
+
+
+func _request_fletch(quantity: int = 1) -> void:
+	if _fletch_pending or _maximum_fletch_batches() < 1:
+		return
+	if network.send_fletch(_next_fletch_sequence, _selected_fletching_recipe, quantity):
+		_next_fletch_sequence += 1
+		_fletch_pending = true
+		_fletch_remaining = _maximum_fletch_batches() if quantity == 0 else quantity
+		_refresh_fletching_window()
 
 
 func _on_crafting_recipe_selected(menu_id: int) -> void:
@@ -1716,6 +1924,43 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
 				_queued_consume_item = ""
 				inventory_selection_changed = true
+			_last_brew_sequence = int(player_data.get("last_brew_sequence", 0))
+			_next_brew_sequence = maxi(_next_brew_sequence, _last_brew_sequence + 1)
+			var previous_brew_remaining: int = _brew_remaining
+			_brew_remaining = int(player_data.get("brew_remaining", 0))
+			_next_brew_pulse = int(player_data.get("next_brew_pulse", 0))
+			var brewing_result_text: String = str(player_data.get("brewing_result", ""))
+			if _brew_pending and _brew_remaining <= 0 and _last_brew_sequence >= _next_brew_sequence - 1:
+				_brew_pending = false
+				_brewing_selection.clear()
+				status_label.text = "Brewing complete • Herblore XP gained"
+			elif _brew_remaining > 0:
+				_brew_pending = true
+				if brewing_result_text != _brewing_result_text or previous_brew_remaining != _brew_remaining:
+					status_label.text = "Brewing… %d potion%s remaining" % [
+						_brew_remaining, "" if _brew_remaining == 1 else "s",
+					]
+			_brewing_result_text = brewing_result_text
+			if brewing_window.visible:
+				_refresh_brewing_window()
+			_last_fletch_sequence = int(player_data.get("last_fletch_sequence", 0))
+			_next_fletch_sequence = maxi(_next_fletch_sequence, _last_fletch_sequence + 1)
+			var previous_fletch_remaining: int = _fletch_remaining
+			_fletch_remaining = int(player_data.get("fletch_remaining", 0))
+			_next_fletch_pulse = int(player_data.get("next_fletch_pulse", 0))
+			var fletching_result_text: String = str(player_data.get("fletching_result", ""))
+			if _fletch_pending and _fletch_remaining <= 0 and _last_fletch_sequence >= _next_fletch_sequence - 1:
+				_fletch_pending = false
+				status_label.text = "Fletching complete • Fletching XP gained"
+			elif _fletch_remaining > 0:
+				_fletch_pending = true
+				if fletching_result_text != _fletching_result_text or previous_fletch_remaining != _fletch_remaining:
+					status_label.text = "Fletching… %d batch%s remaining" % [
+						_fletch_remaining, "" if _fletch_remaining == 1 else "es",
+					]
+			_fletching_result_text = fletching_result_text
+			if fletching_window.visible:
+				_refresh_fletching_window()
 			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
 			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
 			_gathering_spot = str(player_data.get("gathering_spot", ""))
@@ -2233,9 +2478,18 @@ func _on_server_error(code: String, message: String) -> void:
 		_update_inventory_hud()
 	if code == "brew_rejected":
 		_brew_pending = false
+		_brew_remaining = 0
+		_next_brew_sequence = _last_brew_sequence + 1
 		status_label.text = "Brewing failed: %s" % message
 		if brewing_window.visible:
 			_refresh_brewing_window()
+	if code == "fletch_rejected":
+		_fletch_pending = false
+		_fletch_remaining = 0
+		_next_fletch_sequence = _last_fletch_sequence + 1
+		status_label.text = "Fletching failed: %s" % message
+		if fletching_window.visible:
+			_refresh_fletching_window()
 	if code == "gather_rejected":
 		_next_gather_sequence = _last_gather_sequence + 1
 	if code == "command_rejected":
@@ -2751,6 +3005,8 @@ func _populate_placeholder_skills() -> void:
 			}
 			if skill_id == "herblore":
 				skill_tile.pressed.connect(_open_brewing_window)
+			elif skill_id == "fletching":
+				skill_tile.pressed.connect(_open_fletching_window)
 		else:
 			skill_tile.tooltip_text = "%s • Level %d/%d • progression is not active yet" % [
 				skill_name, starting_level, starting_level,
@@ -2840,6 +3096,8 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 			training_description = "successfully chopped logs grant Woodcutting XP"
 		"herblore":
 			training_description = "brewing mixtures grants Herblore XP • click to open Experimental Brewing"
+		"fletching":
+			training_description = "making shafts and arrows grants Fletching XP • click to open Fletching"
 		"agility":
 			training_description = "completing Agility obstacles grants Agility XP and increases movement speed"
 	if next_level_experience <= 0:
@@ -3337,10 +3595,6 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_signature = signature
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
-	if _brew_pending:
-		_brew_pending = false
-		_brewing_selection.clear()
-		status_label.text = "Mixture brewed • Herblore XP gained"
 	if brewing_window.visible:
 		_refresh_brewing_window()
 	_update_inventory_hud()
@@ -3691,6 +3945,7 @@ func _update_inventory_hud() -> void:
 			var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or SPELLBOOK_ITEMS.has(item_id)
 			var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
 			var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
+			var is_fletching_input: bool = FLETCHING_INPUTS.has(item_id)
 			var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 			var is_queued: bool = equipment_pending and _queued_item == item_id and (
 				_queued_instance_id.is_empty() or _queued_instance_id == instance_id
@@ -3728,6 +3983,8 @@ func _update_inventory_hud() -> void:
 					]
 			elif is_brewing_ingredient:
 				interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text
+			elif is_fletching_input:
+				interaction_text = "left-click to open Fletching • %s" % interaction_text
 			if is_equipped and SPELLBOOK_ITEMS.has(item_id):
 				interaction_text = "left-click to unequip • right-click to unequip and drop"
 			if is_banking:
@@ -3768,6 +4025,8 @@ func _update_inventory_hud() -> void:
 				slot_button.pressed.connect(_request_consume_item.bind(item_id))
 			elif is_brewing_ingredient:
 				slot_button.pressed.connect(_open_brewing_window.bind(item_id))
+			elif is_fletching_input:
+				slot_button.pressed.connect(_open_fletching_window.bind(item_id))
 			slot_button.gui_input.connect(_on_inventory_item_input.bind(item_id, instance_id))
 		else:
 			slot_button.configure(slot, false, true)
