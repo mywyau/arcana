@@ -137,6 +137,21 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		state.EquippedArmourInstances[slot] = instanceID
 		state.EquippedArmourReinforcements[slot] = reinforcement
 	}
+	if weapon, _ := weaponDefinition(state.EquippedWeapon); weapon.TwoHanded {
+		if leftHandID := state.EquippedArmour[ArmourSlotLeftHand]; leftHandID != "" {
+			returned := InventoryItem{
+				ItemID: leftHandID, Quantity: 1,
+				InstanceID:    state.EquippedArmourInstances[ArmourSlotLeftHand],
+				Reinforcement: state.EquippedArmourReinforcements[ArmourSlotLeftHand],
+			}
+			if !addReturnedEquipment(&inventory, returned) && !bank.add(returned) {
+				return fmt.Errorf("restore equipment: no room to unequip left-hand item used with two-handed weapon")
+			}
+			delete(state.EquippedArmour, ArmourSlotLeftHand)
+			delete(state.EquippedArmourInstances, ArmourSlotLeftHand)
+			delete(state.EquippedArmourReinforcements, ArmourSlotLeftHand)
+		}
+	}
 	maximumHealth := playerMaximumHealth + equippedHealthBonus(state.EquippedArmour)
 	if state.Health > maximumHealth {
 		return fmt.Errorf("player health must not exceed equipped maximum of %d", maximumHealth)
@@ -190,7 +205,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		baseSpeed: speed, speed: movementSpeedForAgility(speed, SkillLevelForExperience(skills[SkillAgility])),
 		navigationLocation: location, health: state.Health, maximumHealth: maximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
-		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
+		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: state.EquippedWeapon, equippedWeaponInstanceID: state.EquippedWeaponInstanceID,
 		equippedWeaponReinforcement: state.EquippedWeaponReinforcement, equippedSpellbook: state.EquippedSpellbook,
 		dodgeRate: playerDodgeRate, inventory: inventory, ammunitionPouch: ammunitionPouch, bank: bank,

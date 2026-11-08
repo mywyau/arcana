@@ -23,49 +23,30 @@ const (
 	listenAddress = ":8080"
 )
 
+type testSupply struct {
+	itemID   string
+	quantity int
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
-	initialDrops := []struct {
-		itemID   string
-		quantity int
-	}{
+	combatSupplies := []testSupply{
 		{itemID: string(simulation.WeaponSword), quantity: 1},
 		{itemID: string(simulation.WeaponDagger), quantity: 1},
-		{itemID: string(simulation.WeaponBow), quantity: 1},
-		{itemID: simulation.ItemIronArrow, quantity: 100},
+		{itemID: string(simulation.WeaponSpear), quantity: 1},
+		{itemID: string(simulation.WeaponHalberd), quantity: 1},
 		{itemID: simulation.ItemBones, quantity: 25},
 		{itemID: string(simulation.WeaponMace), quantity: 1},
 		{itemID: string(simulation.WeaponBattleAxe), quantity: 1},
-		{itemID: string(simulation.WeaponStaff), quantity: 1},
 		{itemID: string(simulation.WeaponSteelSword), quantity: 1},
-		{itemID: simulation.ItemAirRune, quantity: 50},
 		{itemID: simulation.ItemSwiftHelm, quantity: 1},
 		{itemID: simulation.ItemSwiftBody, quantity: 1},
 		{itemID: simulation.ItemSwiftBoots, quantity: 1},
-		{itemID: simulation.ItemStandardSpellbook, quantity: 1},
-		{itemID: simulation.ItemCookedMinnow, quantity: 10},
 		{itemID: simulation.ItemCoins, quantity: 1000},
-		{itemID: simulation.ItemBronzePickaxe, quantity: 1},
-		{itemID: simulation.ItemBronzeAxe, quantity: 1},
-		{itemID: simulation.ItemKnife, quantity: 1},
-		{itemID: simulation.ItemChisel, quantity: 1},
-		{itemID: simulation.ItemSewingNeedle, quantity: 1},
-		{itemID: simulation.ItemThread, quantity: 50},
-		{itemID: simulation.ItemTinderbox, quantity: 1},
-		{itemID: simulation.ItemHammer, quantity: 1},
 		{itemID: simulation.ItemPrayerPotion, quantity: 5},
-		{itemID: simulation.ItemFishingRod, quantity: 1},
-		{itemID: simulation.ItemLobsterCage, quantity: 1},
-		{itemID: simulation.ItemVialOfWater, quantity: 25},
-		{itemID: simulation.ItemSunleaf, quantity: 10},
-		{itemID: simulation.ItemMoonleaf, quantity: 10},
-		{itemID: simulation.ItemSacredDust, quantity: 25},
-		{itemID: simulation.ItemFishOil, quantity: 25},
-		{itemID: simulation.ItemFeathers, quantity: 200},
-		{itemID: simulation.ItemIronArrowTips, quantity: 200},
 		{itemID: simulation.ItemBronzePlate, quantity: 1},
 		{itemID: simulation.ItemIronHelm, quantity: 1},
 		{itemID: simulation.ItemIronPlate, quantity: 1},
@@ -78,20 +59,44 @@ func main() {
 		{itemID: simulation.ItemIronGloves, quantity: 1}, {itemID: simulation.ItemIronBoots, quantity: 1},
 		{itemID: simulation.ItemMithrilShield, quantity: 1}, {itemID: simulation.ItemMithrilLegs, quantity: 1},
 		{itemID: simulation.ItemMithrilGloves, quantity: 1}, {itemID: simulation.ItemMithrilBoots, quantity: 1},
-		{itemID: simulation.ItemNoviceRobeHood, quantity: 1}, {itemID: simulation.ItemNoviceRobeTop, quantity: 1},
-		{itemID: simulation.ItemNoviceRobeGloves, quantity: 1}, {itemID: simulation.ItemNoviceRobeBottoms, quantity: 1},
-		{itemID: simulation.ItemNoviceRobeBoots, quantity: 1},
-		{itemID: simulation.ItemNoviceRangerHood, quantity: 1}, {itemID: simulation.ItemNoviceRangerBody, quantity: 1},
-		{itemID: simulation.ItemNoviceRangerGloves, quantity: 1}, {itemID: simulation.ItemNoviceRangerLegs, quantity: 1},
-		{itemID: simulation.ItemNoviceRangerBoots, quantity: 1},
 		{itemID: simulation.ItemAmuletFerocity, quantity: 1},
-		{itemID: simulation.ItemAmuletHawk, quantity: 1},
-		{itemID: simulation.ItemAmuletEmbers, quantity: 1},
 		{itemID: simulation.ItemAmuletFury, quantity: 1},
 	}
-	for _, drop := range initialDrops {
-		if err := world.AddWorldDrop(simulation.TestSupplyChestPosition, drop.itemID, drop.quantity); err != nil {
-			log.Fatal(err)
+	magicRangedSupplies := []testSupply{
+		{string(simulation.WeaponBow), 1}, {simulation.ItemIronArrow, 100},
+		{string(simulation.WeaponCrossbow), 1}, {simulation.ItemIronBolt, 100},
+		{string(simulation.WeaponStaff), 1}, {simulation.ItemStandardSpellbook, 1},
+		{simulation.ItemAirRune, 50}, {simulation.ItemWaterRune, 50}, {simulation.ItemEarthRune, 50},
+		{simulation.ItemFireRune, 50}, {simulation.ItemHolyRune, 50}, {simulation.ItemDarkRune, 50},
+		{simulation.ItemNoviceRobeHood, 1}, {simulation.ItemNoviceRobeTop, 1},
+		{simulation.ItemNoviceRobeGloves, 1}, {simulation.ItemNoviceRobeBottoms, 1}, {simulation.ItemNoviceRobeBoots, 1},
+		{simulation.ItemNoviceRangerHood, 1}, {simulation.ItemNoviceRangerBody, 1},
+		{simulation.ItemNoviceRangerGloves, 1}, {simulation.ItemNoviceRangerLegs, 1}, {simulation.ItemNoviceRangerBoots, 1},
+		{simulation.ItemAmuletHawk, 1}, {simulation.ItemAmuletEmbers, 1},
+	}
+	craftingSupplies := []testSupply{
+		{simulation.ItemCookedMinnow, 10}, {simulation.ItemBronzePickaxe, 1}, {simulation.ItemBronzeAxe, 1},
+		{simulation.ItemKnife, 1}, {simulation.ItemChisel, 1}, {simulation.ItemSewingNeedle, 1},
+		{simulation.ItemThread, 50}, {simulation.ItemTinderbox, 1}, {simulation.ItemHammer, 1},
+		{simulation.ItemFishingRod, 1}, {simulation.ItemLobsterCage, 1},
+		{simulation.ItemVialOfWater, 25}, {simulation.ItemSunleaf, 10}, {simulation.ItemMoonleaf, 10},
+		{simulation.ItemSacredDust, 25}, {simulation.ItemFishOil, 25},
+		{simulation.ItemFeathers, 200}, {simulation.ItemIronArrowTips, 200},
+		{simulation.ItemGoldOre, 10}, {simulation.ItemUncutSapphire, 10},
+		{simulation.ItemUncutEmerald, 10}, {simulation.ItemUncutRuby, 10}, {simulation.ItemUncutDiamond, 10},
+	}
+	for _, group := range []struct {
+		position simulation.Position
+		items    []testSupply
+	}{
+		{simulation.TestCombatChestPosition, combatSupplies},
+		{simulation.TestMagicRangedChestPosition, magicRangedSupplies},
+		{simulation.TestCraftingChestPosition, craftingSupplies},
+	} {
+		for _, supply := range group.items {
+			if err := world.AddWorldDrop(group.position, supply.itemID, supply.quantity); err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 	runner, err := simulation.NewRunner(world, tickInterval)

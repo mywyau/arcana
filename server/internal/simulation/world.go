@@ -88,6 +88,7 @@ type PlayerSnapshot struct {
 	Prayer                       int
 	MaximumPrayer                int
 	ActivePrayers                []PrayerID
+	ActivePrayerSet              PrayerSetID
 	LastPrayerSequence           uint64
 	SelectedSpell                SpellID
 	LastSpellSequence            uint64
@@ -120,6 +121,7 @@ type PlayerSnapshot struct {
 	NextBrewPulse                uint64
 	BrewingResult                string
 	LastFletchSequence           uint64
+	LastGemCutSequence           uint64
 	FletchRemaining              int
 	NextFletchPulse              uint64
 	FletchingResult              string
@@ -165,6 +167,7 @@ type playerState struct {
 	prayer                       int
 	maximumPrayer                int
 	activePrayers                map[PrayerID]bool
+	activePrayerSet              PrayerSetID
 	prayerDrainProgress          map[PrayerID]uint64
 	lastPrayerSequence           uint64
 	selectedSpell                SpellID
@@ -198,6 +201,7 @@ type playerState struct {
 	nextBrewPulse                uint64
 	brewingResult                string
 	lastFletchSequence           uint64
+	lastGemCutSequence           uint64
 	fletchRemaining              int
 	nextFletchPulse              uint64
 	fletchingResult              string
@@ -306,7 +310,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		id: id, position: position, spawnPosition: position, speed: speed, baseSpeed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
-		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
+		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponUnarmed,
 		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
@@ -342,7 +346,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		id: id, position: position, spawnPosition: position, speed: speed, baseSpeed: speed,
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
-		activePrayers: make(map[PrayerID]bool), prayerDrainProgress: make(map[PrayerID]uint64),
+		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponUnarmed,
 		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
@@ -558,8 +562,10 @@ func (w *World) Snapshot() Snapshot {
 		Targets:        make([]TargetSnapshot, 0, len(w.combat.targets)),
 		Drops:          make([]DropSnapshot, 0, len(w.drops)),
 		GatheringSpots: w.gatheringSpotSnapshots(),
-		BankChests:     []BankChestSnapshot{starterBankChest, testSupplyChest},
-		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
+		BankChests: []BankChestSnapshot{
+			starterBankChest, testCombatChest, testMagicRangedChest, testCraftingChest,
+		},
+		CombatEvents: append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {
 		snapshot.Targets = append(snapshot.Targets, *target.dummy)
@@ -640,6 +646,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		Prayer:                       player.prayer,
 		MaximumPrayer:                player.maximumPrayer,
 		ActivePrayers:                activePrayerIDs(player),
+		ActivePrayerSet:              player.activePrayerSet,
 		LastPrayerSequence:           player.lastPrayerSequence,
 		SelectedSpell:                player.selectedSpell,
 		LastSpellSequence:            player.lastSpellSequence,
@@ -672,6 +679,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		NextBrewPulse:                player.nextBrewPulse,
 		BrewingResult:                player.brewingResult,
 		LastFletchSequence:           player.lastFletchSequence,
+		LastGemCutSequence:           player.lastGemCutSequence,
 		FletchRemaining:              player.fletchRemaining,
 		NextFletchPulse:              player.nextFletchPulse,
 		FletchingResult:              player.fletchingResult,

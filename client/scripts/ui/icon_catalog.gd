@@ -48,6 +48,9 @@ const BOW: Texture2D = preload("res://assets/icons/equipment/weapons/bow.svg")
 const MACE: Texture2D = preload("res://assets/icons/equipment/weapons/mace.svg")
 const BATTLE_AXE: Texture2D = preload("res://assets/icons/equipment/weapons/battle_axe.svg")
 const STAFF: Texture2D = preload("res://assets/icons/equipment/weapons/staff.svg")
+const SPEAR: Texture2D = SWORD
+const HALBERD: Texture2D = BATTLE_AXE
+const CROSSBOW: Texture2D = BOW
 const TRAINING_HELM: Texture2D = preload("res://assets/icons/equipment/armour/training_helm.svg")
 const BRONZE_HELM: Texture2D = preload("res://assets/icons/equipment/armour/bronze_helm.svg")
 const BRONZE_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/bronze_platebody.svg")
@@ -60,7 +63,6 @@ const SWIFT_HELM: Texture2D = preload("res://assets/icons/equipment/armour/swift
 const SWIFT_BODY: Texture2D = preload("res://assets/icons/equipment/armour/swift_body.svg")
 const SWIFT_BOOTS: Texture2D = preload("res://assets/icons/equipment/armour/swift_boots.svg")
 const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
-const TRAINING_SHARD: Texture2D = preload("res://assets/icons/items/training_shard.svg")
 const COINS: Texture2D = preload("res://assets/icons/items/coins.png")
 const BRONZE_PICKAXE: Texture2D = preload("res://assets/icons/items/bronze_pickaxe.svg")
 const BRONZE_AXE: Texture2D = preload("res://assets/icons/items/bronze_axe.svg")
@@ -111,11 +113,11 @@ const TAB_SETTINGS: Texture2D = preload("res://assets/icons/navigation/tab_setti
 
 const SPELLS: Array = [
 	{"id": "wind_bolt", "book_id": "standard", "name": "Wind Bolt", "required_magic_level": 1, "cost_item_id": "air_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/wind_blade.svg")},
-	{"name": "Gale", "icon": preload("res://assets/icons/spells/gale.svg")},
-	{"name": "Tempest", "icon": preload("res://assets/icons/spells/tempest.svg")},
-	{"name": "Ember Bolt", "icon": preload("res://assets/icons/spells/ember.svg")},
-	{"name": "Inferno", "icon": preload("res://assets/icons/spells/inferno.svg")},
-	{"name": "Frost Shard", "icon": preload("res://assets/icons/spells/frost_shard.svg")},
+	{"id": "water_bolt", "book_id": "standard", "name": "Water Bolt", "required_magic_level": 2, "cost_item_id": "water_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/frost_shard.svg")},
+	{"id": "earth_bolt", "book_id": "standard", "name": "Earth Bolt", "required_magic_level": 3, "cost_item_id": "earth_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/pebble.svg")},
+	{"id": "fire_bolt", "book_id": "standard", "name": "Fire Bolt", "required_magic_level": 4, "cost_item_id": "fire_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/ember.svg")},
+	{"id": "holy_bolt", "book_id": "standard", "name": "Holy Bolt", "required_magic_level": 5, "cost_item_id": "holy_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/light.png")},
+	{"id": "dark_bolt", "book_id": "standard", "name": "Dark Bolt", "required_magic_level": 6, "cost_item_id": "dark_rune", "cost_quantity": 1, "icon": preload("res://assets/icons/spells/miasma.png")},
 	{"name": "Ice Lance", "icon": preload("res://assets/icons/spells/ice_lance.svg")},
 	{"name": "Frost Nova", "icon": preload("res://assets/icons/spells/frost_nova.svg")},
 	{"name": "Glacier", "icon": preload("res://assets/icons/spells/glacier.svg")},
@@ -169,6 +171,9 @@ const WEAPONS: Dictionary = {
 	"mace": MACE,
 	"battle_axe": BATTLE_AXE,
 	"staff": STAFF,
+	"spear": SPEAR,
+	"halberd": HALBERD,
+	"crossbow": CROSSBOW,
 }
 
 const ITEMS: Dictionary = {
@@ -182,8 +187,18 @@ const ITEMS: Dictionary = {
 	"mace": MACE,
 	"battle_axe": BATTLE_AXE,
 	"staff": STAFF,
+	"spear": SPEAR,
+	"halberd": HALBERD,
+	"crossbow": CROSSBOW,
 	"air_rune": preload("res://assets/icons/runes/air_rune.png"),
+	"water_rune": preload("res://assets/icons/runes/air_rune.png"),
+	"earth_rune": preload("res://assets/icons/runes/air_rune.png"),
+	"fire_rune": preload("res://assets/icons/runes/air_rune.png"),
+	"holy_rune": preload("res://assets/icons/runes/air_rune.png"),
+	"dark_rune": preload("res://assets/icons/runes/air_rune.png"),
 	"iron_arrow": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
+	"iron_bolt": preload("res://assets/icons/ranged/arrows/iron_arrow_150.png"),
+	"leather": preload("res://assets/icons/items/materials/leather.svg"),
 	"bones": TAB_PRAYER,
 	"arrow_shafts": preload("res://assets/icons/items/fletching/arrow_shafts.svg"),
 	"feathers": preload("res://assets/icons/items/fletching/feathers.svg"),
@@ -198,7 +213,6 @@ const ITEMS: Dictionary = {
 	"cooked_tuna": preload("res://assets/icons/items/fish/cooked_tuna.svg"),
 	"raw_lobster": preload("res://assets/icons/items/fish/raw_lobster.svg"),
 	"cooked_lobster": preload("res://assets/icons/items/fish/cooked_lobster.png"),
-	"training_shard": TRAINING_SHARD,
 	"coins": COINS,
 	"bronze_pickaxe": BRONZE_PICKAXE,
 	"bronze_axe": BRONZE_AXE,
@@ -220,7 +234,19 @@ const ITEMS: Dictionary = {
 	"murky_brew": preload("res://assets/icons/items/consumables/murky_brew.svg"),
 	"normal_logs": NORMAL_LOGS,
 	"oak_logs": OAK_LOGS,
+	"willow_logs": NORMAL_LOGS,
+	"maple_logs": OAK_LOGS,
+	"yew_logs": OAK_LOGS,
 	"copper_ore": COPPER_ORE,
+	"gold_ore": COINS,
+	"uncut_sapphire": preload("res://assets/icons/equipment/amulets/embers.svg"),
+	"sapphire": preload("res://assets/icons/equipment/amulets/embers.svg"),
+	"uncut_emerald": preload("res://assets/icons/equipment/amulets/hawk.svg"),
+	"emerald": preload("res://assets/icons/equipment/amulets/hawk.svg"),
+	"uncut_ruby": preload("res://assets/icons/equipment/amulets/ferocity.svg"),
+	"ruby": preload("res://assets/icons/equipment/amulets/ferocity.svg"),
+	"uncut_diamond": preload("res://assets/icons/equipment/amulets/fury.svg"),
+	"diamond": preload("res://assets/icons/equipment/amulets/fury.svg"),
 	"tin_ore": TIN_ORE,
 	"iron_ore": IRON_ORE,
 	"coal": COAL,
@@ -228,6 +254,7 @@ const ITEMS: Dictionary = {
 	"bronze_bar": BRONZE_BAR,
 	"iron_bar": IRON_BAR,
 	"mithril_bar": MITHRIL_BAR,
+	"gold_bar": BRONZE_BAR,
 	"training_helm": TRAINING_HELM,
 	"bronze_helm": BRONZE_HELM,
 	"bronze_platebody": BRONZE_PLATE,
@@ -248,6 +275,10 @@ const ITEMS: Dictionary = {
 	"amulet_hawk": preload("res://assets/icons/equipment/amulets/hawk.svg"),
 	"amulet_embers": preload("res://assets/icons/equipment/amulets/embers.svg"),
 	"amulet_fury": preload("res://assets/icons/equipment/amulets/fury.svg"),
+	"ruby_amulet": preload("res://assets/icons/equipment/amulets/ferocity.svg"),
+	"emerald_amulet": preload("res://assets/icons/equipment/amulets/hawk.svg"),
+	"sapphire_amulet": preload("res://assets/icons/equipment/amulets/embers.svg"),
+	"diamond_amulet": preload("res://assets/icons/equipment/amulets/fury.svg"),
 	"standard_spellbook": STANDARD_SPELLBOOK,
 }
 

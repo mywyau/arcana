@@ -7,6 +7,8 @@ type enemyCombatProfile struct {
 	DetectionRange float64
 	LeashRange     float64
 	DamageType     DamageType
+	Defence        DefenceBonuses
+	Elements       ElementalResistances
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
@@ -26,6 +28,8 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		DetectionRange: 6,
 		LeashRange:     10,
 		DamageType:     DamageTypeSlash,
+		Defence:        DefenceBonuses{Stab: 10, Slash: 18, Crush: 4, Ranged: 12, Magic: 6},
+		Elements:       ElementalResistances{Air: -10, Earth: 10},
 	},
 	wildFowlTargetID: {
 		AttackDamage:   wildFowlAttackDamage,
@@ -34,6 +38,14 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		DetectionRange: 3,
 		LeashRange:     5,
 		DamageType:     DamageTypeStab,
+		Defence:        DefenceBonuses{Stab: 1, Slash: 0, Crush: 3, Ranged: 1, Magic: 0},
+		Elements:       ElementalResistances{Air: 5, Fire: -15},
+	},
+	cowTargetID: {
+		AttackDamage: cowAttackDamage, AttackInterval: 4, AttackRange: 1.4,
+		DetectionRange: 3.5, LeashRange: 6, DamageType: DamageTypeCrush,
+		Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 2, Magic: 1},
+		Elements: ElementalResistances{Earth: 5, Fire: -10},
 	},
 }
 

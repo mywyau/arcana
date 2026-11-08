@@ -7,7 +7,7 @@ func TestWindBoltDefinition(t *testing.T) {
 	if !exists || spell.Name != "Wind Bolt" || spell.RequiredMagicLevel != 1 ||
 		spell.BookID != SpellbookStandard || spell.IconID != "wind_bolt" ||
 		spell.CastMode != SpellCastAutocast || spell.TargetType != SpellTargetEnemy ||
-		spell.EffectType != SpellEffectDirectDamage ||
+		spell.EffectType != SpellEffectDirectDamage || spell.Element != MagicElementAir ||
 		len(spell.Costs) != 1 || spell.Costs[0] != (ItemCost{ItemID: ItemAirRune, Quantity: 1}) ||
 		spell.BasePower != 4 || spell.Range != 10 || spell.DamageVariance != 0.20 {
 		t.Fatalf("Wind Bolt definition = %+v, exists %t", spell, exists)
@@ -20,8 +20,14 @@ func TestStandardSpellbookContainsWindBolt(t *testing.T) {
 		t.Fatalf("Standard spellbook = %+v, exists %t", book, exists)
 	}
 	spells := spellDefinitionsForBook(SpellbookStandard)
-	if len(spells) != 1 || spells[0].ID != SpellWindBolt {
+	wantIDs := []SpellID{SpellWindBolt, SpellWaterBolt, SpellEarthBolt, SpellFireBolt, SpellHolyBolt, SpellDarkBolt}
+	if len(spells) != len(wantIDs) {
 		t.Fatalf("Standard spells = %+v", spells)
+	}
+	for index, wantID := range wantIDs {
+		if spells[index].ID != wantID {
+			t.Fatalf("standard spell %d = %q, want %q", index, spells[index].ID, wantID)
+		}
 	}
 
 	spells[0].Costs[0].Quantity = 99
@@ -31,11 +37,25 @@ func TestStandardSpellbookContainsWindBolt(t *testing.T) {
 	}
 }
 
+func TestElementalWeaknessModifiesSpellDamage(t *testing.T) {
+	target := &TargetSnapshot{Elements: ElementalResistances{Fire: -15, Water: 20}}
+	if got := elementalDamageMultiplier(target, MagicElementFire); got != 1.15 {
+		t.Fatalf("fire weakness multiplier = %.2f, want 1.15", got)
+	}
+	if got := elementalDamageMultiplier(target, MagicElementWater); got != 0.80 {
+		t.Fatalf("water resistance multiplier = %.2f, want 0.80", got)
+	}
+	if got := elementalDamageMultiplier(target, MagicElementHoly); got != 1 {
+		t.Fatalf("neutral holy multiplier = %.2f, want 1", got)
+	}
+}
+
 func TestSpellCatalogRejectsInvalidRelationships(t *testing.T) {
 	validBook := SpellbookDefinition{ID: "test", Name: "Test", EquipmentItemID: "test_book"}
 	validSpell := SpellDefinition{
 		ID: "test_spell", BookID: validBook.ID, Name: "Test Spell", IconID: "test_spell",
 		CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
+		Element:            MagicElementAir,
 		RequiredMagicLevel: 1,
 		Costs:              []ItemCost{{ItemID: ItemAirRune, Quantity: 1}},
 		BasePower:          1,
@@ -86,11 +106,13 @@ func TestSpellCatalogAllowsInstantAndNextAttackTiming(t *testing.T) {
 		{
 			ID: "instant_heal", BookID: book.ID, Name: "Instant Heal", IconID: "instant_heal",
 			CastMode: SpellCastInstant, TargetType: SpellTargetSelf, EffectType: SpellEffectHeal,
+			Element:            MagicElementHoly,
 			RequiredMagicLevel: 1, Costs: []ItemCost{{ItemID: ItemAirRune, Quantity: 1}}, BasePower: 1,
 		},
 		{
 			ID: "charged_strike", BookID: book.ID, Name: "Charged Strike", IconID: "charged_strike",
 			CastMode: SpellCastNextAttack, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
+			Element:            MagicElementDark,
 			RequiredMagicLevel: 1, Costs: []ItemCost{{ItemID: ItemAirRune, Quantity: 1}}, BasePower: 1, Range: 1,
 		},
 	}

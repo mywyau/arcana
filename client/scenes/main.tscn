@@ -299,6 +299,54 @@ text = "Choose a material tier, then select an item to forge."
 layout_mode = 2
 size_flags_vertical = 3
 
+[node name="CookingWindow" type="Window" parent="."]
+title = "Cooking"
+initial_position = 1
+size = Vector2i(640, 520)
+min_size = Vector2i(520, 420)
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="CookingWindow"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="CookingWindow/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="CookingWindow/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="CookingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Cooking"
+theme_override_font_sizes/font_size = 26
+
+[node name="Hint" type="Label" parent="CookingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Choose a recipe. Cooking continues until you run out of raw food or inventory space."
+autowrap_mode = 2
+
+[node name="RecipeScroll" type="ScrollContainer" parent="CookingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="CookingWindow/Panel/Margin/VBox/RecipeScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
+
 [node name="BrewingWindow" type="Window" parent="."]
 title = "Experimental Brewing"
 initial_position = 1
@@ -845,7 +893,7 @@ theme_override_constants/v_separation = 8
 columns = 5
 
 [node name="UtilityTabs" type="PanelContainer" parent="UI/InventoryHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 58)
+custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_styles/panel = SubResource("UtilityStripStyle")
 
@@ -865,7 +913,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Settings" type="Button" parent="UI/InventoryHUD/Margin/VBox/UtilityTabs/Margin/Row"]
-custom_minimum_size = Vector2(52, 44)
+custom_minimum_size = Vector2(68, 56)
 layout_mode = 2
 text = ""
 tooltip_text = "Open settings"
@@ -965,7 +1013,7 @@ layout_mode = 2
 size_flags_vertical = 3
 
 [node name="UtilityTabs" type="PanelContainer" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 58)
+custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_styles/panel = SubResource("UtilityStripStyle")
 
@@ -991,7 +1039,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Settings" type="Button" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
-custom_minimum_size = Vector2(52, 44)
+custom_minimum_size = Vector2(68, 56)
 layout_mode = 2
 disabled = true
 text = ""
@@ -1420,6 +1468,10 @@ custom_minimum_size = Vector2(72, 30)
 layout_mode = 2
 toggle_mode = true
 text = "Styles"
+
+[node name="PrayerSet" type="Label" parent="UI/PrayerHUD/Margin/VBox"]
+layout_mode = 2
+text = "Prayer set: Common Litany"
 
 [node name="ContentScroll" type="ScrollContainer" parent="UI/PrayerHUD/Margin/VBox"]
 layout_mode = 2

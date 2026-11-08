@@ -210,11 +210,10 @@ clicked to send the same server-authoritative equip request as the `1`, `2`,
 and `3` shortcuts. The selected slot distinguishes equipped and queued state.
 Inventory dragging, manual dropping, and item use are not implemented.
 
-Defeated training targets drop one stackable Training Shard. Drops are
-authoritative world entities with unique IDs and appear as glowing blue-violet
-pickups. Click a drop from within 3 world units to collect it; the server
+Defeated training targets drop stackable Coins. Drops are authoritative world
+entities with unique IDs. Click a drop from within 3 world units to collect it; the server
 validates distance, available inventory space, and that another player has not
-already collected it. The first shard uses a free slot and later shards stack.
+already collected it. The first coin drop uses a free slot and later coins stack.
 Automatic walking to loot, ground-drop persistence, trading, and item use are
 not included in this slice.
 

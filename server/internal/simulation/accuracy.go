@@ -60,7 +60,24 @@ func calculatedDodgeChance(accuracyScore, evasionScore int, dodgeBonus float64) 
 }
 
 func targetDodgeChance(player *playerState, target *TargetSnapshot, weapon WeaponDefinition) float64 {
-	return calculatedDodgeChance(playerAccuracyScore(player, weapon), target.Evasion, target.DodgeRate)
+	damageType := DamageTypeCrush
+	if player != nil {
+		if styleDamageType, exists := weaponDamageTypeForStyle(weapon, player.combatStyle); exists {
+			damageType = styleDamageType
+		}
+	}
+	return calculatedDodgeChance(
+		playerAccuracyScore(player, weapon),
+		targetEvasionForDamageType(target, damageType),
+		target.DodgeRate,
+	)
+}
+
+func targetEvasionForDamageType(target *TargetSnapshot, damageType DamageType) int {
+	if target == nil {
+		return 1
+	}
+	return target.Evasion + max(0, defenceBonusForDamageType(target.Defence, damageType))
 }
 
 func playerDodgeChance(attackerAccuracy int, player *playerState) float64 {

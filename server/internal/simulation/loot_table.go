@@ -27,9 +27,14 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemFeathers, MinimumQuantity: 10, MaximumQuantity: 15, DropChance: 1},
 		}
+	case cowTargetID:
+		return []lootTableEntry{
+			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
+			{ItemID: ItemLeather, MinimumQuantity: 1, MaximumQuantity: 2, DropChance: 1},
+		}
 	default:
 		return []lootTableEntry{{
-			ItemID: trainingShardItem, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1,
+			ItemID: ItemCoins, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1,
 		}}
 	}
 }

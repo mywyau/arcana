@@ -15,6 +15,7 @@ func TestSmeltingRecipesUseExpectedInputsAndProgression(t *testing.T) {
 		{SmeltingBronzeBar, 1, ItemBronzeBar, []ItemCost{{ItemID: ItemCopperOre, Quantity: 1}, {ItemID: ItemTinOre, Quantity: 1}}},
 		{SmeltingIronBar, 2, ItemIronBar, []ItemCost{{ItemID: ItemIronOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 1}}},
 		{SmeltingMithrilBar, 5, ItemMithrilBar, []ItemCost{{ItemID: ItemMithrilOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 2}}},
+		{SmeltingGoldBar, 4, ItemGoldBar, []ItemCost{{ItemID: ItemGoldOre, Quantity: 1}}},
 	}
 	for _, test := range tests {
 		recipe, exists := smeltingRecipe(test.id)

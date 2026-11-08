@@ -183,7 +183,7 @@ func play_weapon_attack(target_position: Vector3) -> float:
 	if _equipped_weapon == "unarmed":
 		_play_unarmed_attack()
 		return 0.0
-	if _equipped_weapon == "bow":
+	if _equipped_weapon == "bow" or _equipped_weapon == "crossbow":
 		return _play_bow_attack(target_position)
 	if _equipped_weapon == "staff":
 		return _play_staff_attack(target_position)
@@ -191,6 +191,9 @@ func play_weapon_attack(target_position: Vector3) -> float:
 		_play_melee_attack(mace_pivot, -50.0, 65.0, 0.2, 0.28)
 		return 0.0
 	if _equipped_weapon == "battle_axe" or _equipped_weapon.ends_with("_battle_axe"):
+		_play_melee_attack(battle_axe_pivot, -55.0, 75.0, 0.24, 0.34)
+		return 0.0
+	if _equipped_weapon == "halberd":
 		_play_melee_attack(battle_axe_pivot, -55.0, 75.0, 0.24, 0.34)
 		return 0.0
 
@@ -340,11 +343,13 @@ func _play_staff_attack(target_position: Vector3) -> float:
 func set_weapon(weapon_id: String) -> void:
 	_equipped_weapon = weapon_id
 	var dagger_equipped: bool = weapon_id == "dagger" or weapon_id.ends_with("_dagger")
+	var spear_equipped: bool = weapon_id == "spear"
 	_update_weapon_visibility()
 	_update_weapon_material()
-	blade.scale = Vector3(0.8, 0.55, 1.0) if dagger_equipped else Vector3.ONE
+	blade.scale = Vector3(0.8, 0.55, 1.0) if dagger_equipped else (Vector3(0.8, 1.9, 0.8) if spear_equipped else Vector3.ONE)
 	blade.position.y = 0.3 if dagger_equipped else 0.5
 	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
+	battle_axe_pivot.scale = Vector3(1.0, 1.65, 1.0) if weapon_id == "halberd" else Vector3.ONE
 
 
 func set_armour(equipped_armour: Dictionary) -> void:
@@ -373,13 +378,14 @@ func _update_weapon_visibility() -> void:
 	var is_sword_or_dagger: bool = (
 		_equipped_weapon == "sword" or
 		_equipped_weapon == "dagger" or
+		_equipped_weapon == "spear" or
 		_equipped_weapon.ends_with("_sword") or
 		_equipped_weapon.ends_with("_dagger")
 	)
 	sword_pivot.visible = not _defeated and is_sword_or_dagger
-	bow_pivot.visible = not _defeated and _equipped_weapon == "bow"
+	bow_pivot.visible = not _defeated and _equipped_weapon in ["bow", "crossbow"]
 	mace_pivot.visible = not _defeated and (_equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"))
-	battle_axe_pivot.visible = not _defeated and (_equipped_weapon == "battle_axe" or _equipped_weapon.ends_with("_battle_axe"))
+	battle_axe_pivot.visible = not _defeated and (_equipped_weapon in ["battle_axe", "halberd"] or _equipped_weapon.ends_with("_battle_axe"))
 	staff_pivot.visible = not _defeated and _equipped_weapon == "staff"
 
 

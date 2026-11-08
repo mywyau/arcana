@@ -76,3 +76,18 @@ func TestCombatStylesModifyAccuracyScore(t *testing.T) {
 		t.Fatalf("accurate score %d minus rapid score %d = %d, want 7", accurate, rapid, accurate-rapid)
 	}
 }
+
+func TestEnemyDefenceUsesWeaponStyleDamageType(t *testing.T) {
+	weapon, _ := weaponDefinition(WeaponSword)
+	player := &playerState{skills: newDefaultSkills(), combatStyle: CombatStyleStab}
+	target := &TargetSnapshot{
+		Evasion: 1, DodgeRate: defaultBaseDodgeBonus,
+		Defence: DefenceBonuses{Stab: 20, Slash: 0},
+	}
+	stabChance := targetDodgeChance(player, target, weapon)
+	player.combatStyle = CombatStyleSlash
+	slashChance := targetDodgeChance(player, target, weapon)
+	if stabChance <= slashChance {
+		t.Fatalf("stab dodge chance %.3f <= slash dodge chance %.3f against stab defence", stabChance, slashChance)
+	}
+}

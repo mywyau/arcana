@@ -6,15 +6,18 @@ import (
 )
 
 type PrayerID string
+type PrayerSetID string
 
 const (
-	PrayerEvasion        PrayerID = "evasion"
-	PrayerStrength       PrayerID = "strength"
-	PrayerAccuracy       PrayerID = "accuracy"
-	PrayerDefence        PrayerID = "defence"
-	PrayerRangedStrength PrayerID = "ranged_strength"
-	PrayerMagicStrength  PrayerID = "magic_strength"
-	PrayerRegeneration   PrayerID = "regeneration"
+	PrayerEvasion        PrayerID    = "evasion"
+	PrayerStrength       PrayerID    = "strength"
+	PrayerAccuracy       PrayerID    = "accuracy"
+	PrayerDefence        PrayerID    = "defence"
+	PrayerRangedStrength PrayerID    = "ranged_strength"
+	PrayerMagicStrength  PrayerID    = "magic_strength"
+	PrayerRegeneration   PrayerID    = "regeneration"
+	PrayerSetCommon      PrayerSetID = "common_litany"
+	PrayerSetWar         PrayerSetID = "war_covenant"
 
 	evasionDodgeBonus                  = 0.05
 	evasionDrainIntervalPulses         = 10 // Ten 600 ms action pulses is six seconds.
@@ -30,6 +33,28 @@ const (
 	regenerationHealthFraction         = 0.05
 	regenerationDrainIntervalPulses    = 10
 )
+
+var prayerSets = map[PrayerSetID]map[PrayerID]bool{
+	PrayerSetCommon: {
+		PrayerEvasion: true, PrayerStrength: true, PrayerAccuracy: true, PrayerDefence: true,
+		PrayerRangedStrength: true, PrayerMagicStrength: true, PrayerRegeneration: true,
+	},
+	// The first alternate covenant intentionally keeps the starter prayers. It
+	// establishes safe switching now; future god-specific prayers can diverge
+	// without changing the network or altar interaction model.
+	PrayerSetWar: {
+		PrayerEvasion: true, PrayerStrength: true, PrayerAccuracy: true, PrayerDefence: true,
+		PrayerRangedStrength: true, PrayerMagicStrength: true, PrayerRegeneration: true,
+	},
+}
+
+func prayerAllowedInSet(setID PrayerSetID, prayerID PrayerID) bool {
+	if setID == "" {
+		setID = PrayerSetCommon
+	}
+	prayers, exists := prayerSets[setID]
+	return exists && prayers[prayerID]
+}
 
 type PrayerCommand struct {
 	PlayerID PlayerID
@@ -114,6 +139,9 @@ func (w *World) QueuePrayer(command PrayerCommand) error {
 	}
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if !prayerAllowedInSet(player.activePrayerSet, command.PrayerID) {
+		return fmt.Errorf("prayer %q is not part of prayer set %q", command.PrayerID, player.activePrayerSet)
 	}
 	if command.Active && player.prayer <= 0 {
 		return fmt.Errorf("player %q has no prayer points", command.PlayerID)

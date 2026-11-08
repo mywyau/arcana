@@ -57,10 +57,10 @@ func mustGiveIronArrows(t *testing.T, world *World, id PlayerID, quantity int) {
 func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	world := newCombatTestWorld()
 	snapshot := world.Snapshot()
-	if got, want := len(snapshot.Targets), 5; got != want {
+	if got, want := len(snapshot.Targets), 6; got != want {
 		t.Fatalf("len(Targets) = %d, want %d", got, want)
 	}
-	wantIDs := []string{dummyTargetID, hillWardenTargetID, overlookDummyTargetID, upperDummyTargetID, wildFowlTargetID}
+	wantIDs := []string{cowTargetID, dummyTargetID, hillWardenTargetID, overlookDummyTargetID, upperDummyTargetID, wildFowlTargetID}
 	for index, want := range wantIDs {
 		if got := snapshot.Targets[index].ID; got != want {
 			t.Fatalf("Targets[%d].ID = %q, want %q", index, got, want)
@@ -785,6 +785,67 @@ func TestBowStylesModifyCadenceAndRange(t *testing.T) {
 	}
 	if longRange.Range != 14 || longRange.ApproachRange != 13.25 || accurate.Range != bowRange {
 		t.Fatalf("bow ranges: long=%+v accurate=%+v", longRange, accurate)
+	}
+}
+
+func TestTwoHandedBowUnequipsShieldWhileCrossbowKeepsIt(t *testing.T) {
+	t.Run("bow", func(t *testing.T) {
+		world := newCombatTestWorld()
+		mustAddPlayer(t, world, "player-one", Position{}, 4)
+		player := world.players["player-one"]
+		if !player.inventory.add(ItemBronzeShield, 1) {
+			t.Fatal("could not add shield")
+		}
+		shieldInstance := resolveOwnedInstanceID(player.inventory, ItemBronzeShield, "")
+		if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemBronzeShield), InstanceID: shieldInstance}); err != nil {
+			t.Fatalf("QueueEquip(shield): %v", err)
+		}
+		world.Step(actionPulseInterval)
+		bowInstance := resolveOwnedInstanceID(player.inventory, string(WeaponBow), "")
+		if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponBow, InstanceID: bowInstance}); err != nil {
+			t.Fatalf("QueueEquip(bow): %v", err)
+		}
+		world.Step(actionPulseInterval)
+		if player.equippedWeapon != WeaponBow || player.equippedArmour[ArmourSlotLeftHand] != "" || !player.inventory.contains(ItemBronzeShield) {
+			t.Fatalf("equipment after bow = weapon %q, armour %+v, inventory %+v", player.equippedWeapon, player.equippedArmour, player.inventory)
+		}
+	})
+
+	t.Run("crossbow", func(t *testing.T) {
+		world := newCombatTestWorld()
+		mustAddPlayer(t, world, "player-one", Position{}, 4)
+		player := world.players["player-one"]
+		if !player.inventory.add(ItemBronzeShield, 1) || !player.inventory.add(string(WeaponCrossbow), 1) {
+			t.Fatal("could not add crossbow loadout")
+		}
+		shieldInstance := resolveOwnedInstanceID(player.inventory, ItemBronzeShield, "")
+		if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemBronzeShield), InstanceID: shieldInstance}); err != nil {
+			t.Fatalf("QueueEquip(shield): %v", err)
+		}
+		world.Step(actionPulseInterval)
+		crossbowInstance := resolveOwnedInstanceID(player.inventory, string(WeaponCrossbow), "")
+		if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: WeaponCrossbow, InstanceID: crossbowInstance}); err != nil {
+			t.Fatalf("QueueEquip(crossbow): %v", err)
+		}
+		world.Step(actionPulseInterval)
+		if player.equippedWeapon != WeaponCrossbow || player.equippedArmour[ArmourSlotLeftHand] != ItemBronzeShield {
+			t.Fatalf("crossbow loadout = weapon %q, armour %+v", player.equippedWeapon, player.equippedArmour)
+		}
+	})
+}
+
+func TestLongMeleeAndCrossbowDefinitions(t *testing.T) {
+	spear, _ := weaponDefinition(WeaponSpear)
+	halberd, _ := weaponDefinition(WeaponHalberd)
+	crossbow, _ := weaponDefinition(WeaponCrossbow)
+	if spear.Range != polearmRange || halberd.Range != polearmRange || spear.Range <= swordRange {
+		t.Fatalf("polearm ranges: spear %.2f, halberd %.2f, sword %.2f", spear.Range, halberd.Range, swordRange)
+	}
+	if !halberd.TwoHanded || spear.TwoHanded {
+		t.Fatalf("polearm handedness: spear %t, halberd %t", spear.TwoHanded, halberd.TwoHanded)
+	}
+	if crossbow.TwoHanded || crossbow.Ammunition != (ItemCost{ItemID: ItemIronBolt, Quantity: 1}) {
+		t.Fatalf("crossbow definition = %+v", crossbow)
 	}
 }
 

@@ -21,6 +21,9 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{string(WeaponMace), ItemKindWeapon},
 		{string(WeaponBattleAxe), ItemKindWeapon},
 		{string(WeaponStaff), ItemKindWeapon},
+		{string(WeaponSpear), ItemKindWeapon},
+		{string(WeaponHalberd), ItemKindWeapon},
+		{string(WeaponCrossbow), ItemKindWeapon},
 		{ItemTrainingHelm, ItemKindArmour},
 		{ItemBronzeHelm, ItemKindArmour},
 		{ItemBronzePlate, ItemKindArmour},
@@ -43,7 +46,19 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemAmuletFury, ItemKindArmour},
 		{ItemStandardSpellbook, ItemKindSpellbook},
 		{ItemAirRune, ItemKindResource},
+		{ItemWaterRune, ItemKindResource},
+		{ItemEarthRune, ItemKindResource},
+		{ItemFireRune, ItemKindResource},
+		{ItemHolyRune, ItemKindResource},
+		{ItemDarkRune, ItemKindResource},
+		{ItemLeather, ItemKindResource},
+		{ItemGoldOre, ItemKindResource},
+		{ItemUncutSapphire, ItemKindResource}, {ItemSapphire, ItemKindResource},
+		{ItemUncutEmerald, ItemKindResource}, {ItemEmerald, ItemKindResource},
+		{ItemUncutRuby, ItemKindResource}, {ItemRuby, ItemKindResource},
+		{ItemUncutDiamond, ItemKindResource}, {ItemDiamond, ItemKindResource},
 		{ItemIronArrow, ItemKindResource},
+		{ItemIronBolt, ItemKindResource},
 		{ItemBones, ItemKindResource},
 		{ItemCoins, ItemKindResource},
 		{ItemBronzePickaxe, ItemKindResource},
@@ -69,6 +84,9 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemIronArrowTips, ItemKindResource},
 		{ItemNormalLogs, ItemKindResource},
 		{ItemOakLogs, ItemKindResource},
+		{ItemWillowLogs, ItemKindResource},
+		{ItemMapleLogs, ItemKindResource},
+		{ItemYewLogs, ItemKindResource},
 		{ItemCopperOre, ItemKindResource},
 		{ItemTinOre, ItemKindResource},
 		{ItemIronOre, ItemKindResource},
@@ -77,6 +95,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemBronzeBar, ItemKindResource},
 		{ItemIronBar, ItemKindResource},
 		{ItemMithrilBar, ItemKindResource},
+		{ItemGoldBar, ItemKindResource},
 		{ItemCookedMinnow, ItemKindConsumable},
 		{ItemRawMinnow, ItemKindResource},
 		{ItemRawTrout, ItemKindResource},
@@ -87,7 +106,6 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemCookedTuna, ItemKindConsumable},
 		{ItemRawLobster, ItemKindResource},
 		{ItemCookedLobster, ItemKindConsumable},
-		{trainingShardItem, ItemKindResource},
 	}
 	if got, want := len(itemCatalog), len(tests); got != want {
 		t.Fatalf("item catalogue size = %d, want %d", got, want)
@@ -101,7 +119,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 	if unarmed, exists := itemDefinition(string(WeaponUnarmed)); !exists || !unarmed.Virtual {
 		t.Fatalf("Unarmed definition = %+v, %t; want virtual item", unarmed, exists)
 	}
-	for _, itemID := range []string{ItemNormalLogs, ItemOakLogs} {
+	for _, itemID := range []string{ItemNormalLogs, ItemOakLogs, ItemWillowLogs, ItemMapleLogs, ItemYewLogs} {
 		if definition, _ := itemDefinition(itemID); definition.StackLimit != 10 {
 			t.Errorf("%s stack limit = %d, want 10", itemID, definition.StackLimit)
 		}
@@ -114,8 +132,26 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 	if definition, _ := itemDefinition(ItemThread); definition.StackLimit != 100 {
 		t.Errorf("%s stack limit = %d, want 100", ItemThread, definition.StackLimit)
 	}
+	if definition, _ := itemDefinition(ItemArrowShafts); definition.StackLimit != MaximumItemStackQuantity {
+		t.Errorf("%s stack limit = %d, want %d", ItemArrowShafts, definition.StackLimit, MaximumItemStackQuantity)
+	}
 	if definition, _ := itemDefinition(ItemPrayerPotion); definition.StackLimit != 5 || definition.Consumable.PrayerRestoration != 25 {
 		t.Errorf("prayer potion definition = %+v, want five-dose stacks restoring 25 prayer", definition)
+	}
+}
+
+func TestGemAmuletsUsePlayerFacingGemNames(t *testing.T) {
+	wantNames := map[string]string{
+		ItemAmuletFerocity: "Ruby Amulet",
+		ItemAmuletHawk:     "Emerald Amulet",
+		ItemAmuletEmbers:   "Sapphire Amulet",
+		ItemAmuletFury:     "Diamond Amulet",
+	}
+	for itemID, want := range wantNames {
+		definition, exists := itemDefinition(itemID)
+		if !exists || definition.Name != want {
+			t.Errorf("itemDefinition(%q).Name = %q, want %q", itemID, definition.Name, want)
+		}
 	}
 }
 
@@ -271,5 +307,40 @@ func TestValidateWeaponStylesRejectsMalformedStyleMetadata(t *testing.T) {
 				t.Fatal("validateWeaponStyles() error = nil, want validation error")
 			}
 		})
+	}
+}
+
+func TestWeaponFamiliesExposeOnlyTheirDamageTypes(t *testing.T) {
+	tests := []struct {
+		weapon WeaponID
+		style  CombatStyleID
+		want   DamageType
+	}{
+		{WeaponSword, CombatStyleStab, DamageTypeStab},
+		{WeaponSword, CombatStyleSlash, DamageTypeSlash},
+		{WeaponDagger, CombatStyleStab, DamageTypeStab},
+		{WeaponDagger, CombatStyleSlash, DamageTypeSlash},
+		{WeaponMace, CombatStyleCrush, DamageTypeCrush},
+		{WeaponMace, CombatStyleHeavyCrush, DamageTypeCrush},
+		{WeaponBattleAxe, CombatStyleSlash, DamageTypeSlash},
+		{WeaponBattleAxe, CombatStyleHeavyCrush, DamageTypeCrush},
+		{WeaponSpear, CombatStyleStab, DamageTypeStab},
+		{WeaponSpear, CombatStyleSlash, DamageTypeSlash},
+		{WeaponHalberd, CombatStyleSlash, DamageTypeSlash},
+		{WeaponHalberd, CombatStyleStab, DamageTypeStab},
+		{WeaponBow, CombatStyleAccurate, DamageTypeRanged},
+		{WeaponCrossbow, CombatStyleAccurate, DamageTypeRanged},
+	}
+	for _, test := range tests {
+		weapon, _ := weaponDefinition(test.weapon)
+		if got, exists := weaponDamageTypeForStyle(weapon, test.style); !exists || got != test.want {
+			t.Errorf("weaponDamageTypeForStyle(%q, %q) = %q, %t; want %q", test.weapon, test.style, got, exists, test.want)
+		}
+	}
+	if combatStyleValidForWeapon(CombatStyleSlash, WeaponMace) {
+		t.Fatal("mace unexpectedly allows slash")
+	}
+	if combatStyleValidForWeapon(CombatStyleCrush, WeaponSword) {
+		t.Fatal("sword unexpectedly allows crush")
 	}
 }

@@ -245,7 +245,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 		Drops: []simulation.DropSnapshot{{
 			ID:       "drop-1",
 			Position: simulation.Position{X: 2, Y: 3, Z: 4},
-			ItemID:   "training_shard",
+			ItemID:   "coins",
 			Quantity: 2,
 		}},
 		CombatEvents: []simulation.CombatEvent{{
@@ -322,7 +322,7 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	}
 	if len(message.Drops) != 1 || message.Drops[0].ID != "drop-1" ||
 		message.Drops[0].Position.X != 2 || message.Drops[0].Position.Y != 3 ||
-		message.Drops[0].Position.Z != 4 || message.Drops[0].ItemID != "training_shard" ||
+		message.Drops[0].Position.Z != 4 || message.Drops[0].ItemID != "coins" ||
 		message.Drops[0].Quantity != 2 {
 		t.Fatalf("drop snapshot = %+v", message.Drops)
 	}

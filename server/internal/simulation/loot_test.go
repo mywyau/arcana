@@ -7,7 +7,7 @@ import (
 
 func TestSpawnedDropExpiresAfterTwoMinutes(t *testing.T) {
 	world := NewWorld()
-	world.spawnDrop(Position{}, trainingShardItem, 1)
+	world.spawnDrop(Position{}, ItemCoins, 1)
 
 	world.Step(worldDropLifetime - time.Millisecond)
 	if got := len(world.Snapshot().Drops); got != 1 {
@@ -97,7 +97,7 @@ func TestWorldRuneSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
 func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	world.spawnDrop(Position{X: pickupRange}, trainingShardItem, 1)
+	world.spawnDrop(Position{X: pickupRange}, ItemCoins, 1)
 
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
@@ -112,7 +112,7 @@ func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 		t.Fatalf("inventory item count = %d, want %d", got, want)
 	}
 	shard := player.Inventory.Items[0]
-	if shard.Slot != 0 || shard.ItemID != trainingShardItem || shard.Quantity != 1 {
+	if shard.Slot != 0 || shard.ItemID != ItemCoins || shard.Quantity != 1 {
 		t.Fatalf("picked up shard = %+v", shard)
 	}
 }
@@ -120,7 +120,7 @@ func TestPickupWithinRangeAddsShardAndRemovesDrop(t *testing.T) {
 func TestPickupOutsideRangeApproachesThenCollects(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	world.spawnDrop(Position{X: pickupRange + 1}, trainingShardItem, 1)
+	world.spawnDrop(Position{X: pickupRange + 1}, ItemCoins, 1)
 
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
@@ -144,7 +144,7 @@ func TestPickupOutsideRangeApproachesThenCollects(t *testing.T) {
 func TestMoveCancelsPickupApproach(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	world.spawnDrop(Position{X: 8}, trainingShardItem, 1)
+	world.spawnDrop(Position{X: 8}, ItemCoins, 1)
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestCompetingPickupAwardsDropOnlyOnce(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
 	mustAddPlayer(t, world, "player-two", Position{}, 4)
-	world.spawnDrop(Position{}, trainingShardItem, 1)
+	world.spawnDrop(Position{}, ItemCoins, 1)
 
 	for _, id := range []PlayerID{"player-two", "player-one"} {
 		if err := world.QueuePickup(PickupCommand{PlayerID: id, Sequence: 1, DropID: "drop-1"}); err != nil {
@@ -174,10 +174,10 @@ func TestCompetingPickupAwardsDropOnlyOnce(t *testing.T) {
 	}
 	world.Step(50 * time.Millisecond)
 
-	if !snapshotInventoryContains(mustPlayer(t, world, "player-one").Inventory, trainingShardItem) {
+	if !snapshotInventoryContains(mustPlayer(t, world, "player-one").Inventory, ItemCoins) {
 		t.Fatal("deterministic first player did not receive contested drop")
 	}
-	if snapshotInventoryContains(mustPlayer(t, world, "player-two").Inventory, trainingShardItem) {
+	if snapshotInventoryContains(mustPlayer(t, world, "player-two").Inventory, ItemCoins) {
 		t.Fatal("second player also received contested drop")
 	}
 }
@@ -209,7 +209,7 @@ func TestResourceDropAndPickupMovesEntireStack(t *testing.T) {
 		quantity int
 	}{
 		{itemID: ItemAirRune, quantity: 50},
-		{itemID: trainingShardItem, quantity: 7},
+		{itemID: ItemCoins, quantity: 7},
 		{itemID: ItemCoins, quantity: 1250},
 	}
 	for _, test := range tests {
@@ -324,7 +324,7 @@ func snapshotInventoryContains(inventory InventorySnapshot, itemID string) bool 
 	return false
 }
 
-func TestDefeatedTargetSpawnsTrainingShard(t *testing.T) {
+func TestDefeatedTargetSpawnsCoins(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	world.combat.targets[dummyTargetID].Health = swordDamage
@@ -334,7 +334,7 @@ func TestDefeatedTargetSpawnsTrainingShard(t *testing.T) {
 	world.Step(actionPulseInterval)
 
 	drops := world.Snapshot().Drops
-	if len(drops) != 1 || drops[0].ItemID != trainingShardItem || drops[0].Quantity != 1 {
+	if len(drops) != 1 || drops[0].ItemID != ItemCoins || drops[0].Quantity != 1 {
 		t.Fatalf("target drops = %+v", drops)
 	}
 	if drops[0].Position != world.combat.targets[dummyTargetID].Position {

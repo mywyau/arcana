@@ -42,7 +42,12 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 	label.position.y = 3.65 if is_tree else 2.45 if is_furnace else 2.15 if is_prayer_altar else 1.6 if is_agility else 1.4 if is_anvil else 1.15
 	if is_tree:
 		var foliage_material := StandardMaterial3D.new()
-		foliage_material.albedo_color = Color(0.24, 0.48, 0.16) if id == "starter_oak_tree" else Color(0.31, 0.59, 0.2)
+		match id:
+			"starter_oak_tree": foliage_material.albedo_color = Color(0.24, 0.48, 0.16)
+			"starter_willow_tree": foliage_material.albedo_color = Color(0.38, 0.62, 0.32)
+			"starter_maple_tree": foliage_material.albedo_color = Color(0.68, 0.38, 0.12)
+			"starter_yew_tree": foliage_material.albedo_color = Color(0.12, 0.35, 0.18)
+			_: foliage_material.albedo_color = Color(0.31, 0.59, 0.2)
 		foliage_material.roughness = 0.95
 		for foliage_mesh: MeshInstance3D in foliage_meshes:
 			foliage_mesh.material_override = foliage_material

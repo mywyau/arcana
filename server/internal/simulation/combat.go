@@ -42,12 +42,24 @@ const (
 	staffMagicStrength            = 6
 	staffDamageVariance           = 1.0 / 3.0
 	staffAttackIntervalPulses     = 5
+	polearmRange                  = 2.8
+	polearmApproachRange          = 2.35
+	spearMeleeStrength            = 11
+	spearAttackIntervalPulses     = 5
+	halberdMeleeStrength          = 16
+	halberdAttackIntervalPulses   = 6
+	crossbowRange                 = 11.0
+	crossbowApproachRange         = 10.25
+	crossbowRangedStrength        = 8
+	crossbowAttackIntervalPulses  = 7
 	playerMaximumHealth           = 100
 	playerMaximumPrayer           = 100
 	playerDodgeRate               = defaultBaseDodgeBonus
 	dummyMaximumHealth            = 100
 	wildFowlMaximumHealth         = 30
 	wildFowlAttackDamage          = 4
+	cowMaximumHealth              = 45
+	cowAttackDamage               = 6
 	dummyDodgeRate                = defaultBaseDodgeBonus
 	dummyAttackDamage             = 15
 	dummyAttackIntervalPulses     = 4
@@ -61,6 +73,7 @@ const (
 	overlookDummyTargetID         = "overlook_dummy"
 	hillWardenTargetID            = "hill_warden"
 	wildFowlTargetID              = "wild_fowl"
+	cowTargetID                   = "cow"
 	combatEventHistoryLimit       = 32
 )
 
@@ -68,6 +81,7 @@ const (
 	targetKindDummy    = "dummy"
 	targetKindCreature = "creature"
 	targetKindBird     = "bird"
+	targetKindCow      = "cow"
 )
 
 type WeaponID string
@@ -84,6 +98,9 @@ const (
 	WeaponMace         WeaponID = "mace"
 	WeaponBattleAxe    WeaponID = "battle_axe"
 	WeaponStaff        WeaponID = "staff"
+	WeaponSpear        WeaponID = "spear"
+	WeaponHalberd      WeaponID = "halberd"
+	WeaponCrossbow     WeaponID = "crossbow"
 )
 
 type CombatStyleID string
@@ -122,18 +139,20 @@ func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
 }
 
 type WeaponDefinition struct {
-	ID             WeaponID
-	DefaultStyle   CombatStyleID
-	CombatStyles   []CombatStyleID
-	AccuracyBonus  int
-	MeleeStrength  int
-	RangedStrength int
-	MagicStrength  int
-	DamageVariance float64
-	AttackInterval uint64
-	Range          float64
-	ApproachRange  float64
-	Ammunition     ItemCost
+	ID               WeaponID
+	DefaultStyle     CombatStyleID
+	CombatStyles     []CombatStyleID
+	StyleDamageTypes map[CombatStyleID]DamageType
+	TwoHanded        bool
+	AccuracyBonus    int
+	MeleeStrength    int
+	RangedStrength   int
+	MagicStrength    int
+	DamageVariance   float64
+	AttackInterval   uint64
+	Range            float64
+	ApproachRange    float64
+	Ammunition       ItemCost
 }
 
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
@@ -143,7 +162,19 @@ func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
 	}
 	definition := item.Weapon
 	definition.CombatStyles = append([]CombatStyleID(nil), item.Weapon.CombatStyles...)
+	definition.StyleDamageTypes = make(map[CombatStyleID]DamageType, len(item.Weapon.StyleDamageTypes))
+	for style, damageType := range item.Weapon.StyleDamageTypes {
+		definition.StyleDamageTypes[style] = damageType
+	}
 	return definition, true
+}
+
+func weaponDamageTypeForStyle(weapon WeaponDefinition, style CombatStyleID) (DamageType, bool) {
+	if !combatStyleValidForWeapon(style, weapon.ID) {
+		return "", false
+	}
+	damageType, exists := weapon.StyleDamageTypes[style]
+	return damageType, exists
 }
 
 func weaponDefinitionForStyle(id WeaponID, style CombatStyleID) (WeaponDefinition, bool) {
@@ -151,13 +182,13 @@ func weaponDefinitionForStyle(id WeaponID, style CombatStyleID) (WeaponDefinitio
 	if !exists {
 		return WeaponDefinition{}, false
 	}
-	if id == WeaponBow {
+	if weapon.RangedStrength > 0 {
 		switch style {
 		case CombatStyleRapid:
-			weapon.AttackInterval = 4
+			weapon.AttackInterval = max(2, weapon.AttackInterval-1)
 		case CombatStyleLongRange:
-			weapon.Range = 14
-			weapon.ApproachRange = 13.25
+			weapon.Range += 2
+			weapon.ApproachRange += 2
 		}
 	}
 	return weapon, true
@@ -244,6 +275,8 @@ type TargetSnapshot struct {
 	Accuracy        int
 	Evasion         int
 	AttackType      DamageType
+	Defence         DefenceBonuses
+	Elements        ElementalResistances
 }
 
 type combatState struct {
@@ -294,6 +327,8 @@ func (combat *combatState) dummyByID(id string) (*TargetSnapshot, bool) {
 func newCombatState() *combatState {
 	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
 	wildFowlHome := Position{X: -20, Z: -5}
+	cowHome := Position{X: -16, Z: -10}
+	hillWardenProfile := combatProfileForEnemy(hillWardenTargetID)
 	hillWarden := &TargetSnapshot{
 		ID:            hillWardenTargetID,
 		Name:          "Hill Warden",
@@ -304,8 +339,11 @@ func newCombatState() *combatState {
 		DodgeRate:     dummyDodgeRate,
 		Accuracy:      dummyAccuracyScore,
 		Evasion:       dummyEvasionScore,
-		AttackType:    combatProfileForEnemy(hillWardenTargetID).DamageType,
+		AttackType:    hillWardenProfile.DamageType,
+		Defence:       hillWardenProfile.Defence,
+		Elements:      hillWardenProfile.Elements,
 	}
+	wildFowlProfile := combatProfileForEnemy(wildFowlTargetID)
 	wildFowl := &TargetSnapshot{
 		ID:            wildFowlTargetID,
 		Name:          "Wild Fowl",
@@ -316,7 +354,16 @@ func newCombatState() *combatState {
 		DodgeRate:     0.05,
 		Accuracy:      5,
 		Evasion:       1,
-		AttackType:    combatProfileForEnemy(wildFowlTargetID).DamageType,
+		AttackType:    wildFowlProfile.DamageType,
+		Defence:       wildFowlProfile.Defence,
+		Elements:      wildFowlProfile.Elements,
+	}
+	cowProfile := combatProfileForEnemy(cowTargetID)
+	cow := &TargetSnapshot{
+		ID: cowTargetID, Name: "Cow", Kind: targetKindCow, Position: cowHome,
+		Health: cowMaximumHealth, MaximumHealth: cowMaximumHealth,
+		DodgeRate: 0.06, Accuracy: 7, Evasion: 2,
+		AttackType: cowProfile.DamageType, Defence: cowProfile.Defence, Elements: cowProfile.Elements,
 	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
@@ -358,6 +405,7 @@ func newCombatState() *combatState {
 			},
 			hillWardenTargetID: hillWarden,
 			wildFowlTargetID:   wildFowl,
+			cowTargetID:        cow,
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
@@ -374,6 +422,11 @@ func newCombatState() *combatState {
 				target: wildFowl,
 				home:   wildFowlHome,
 				speed:  roamingEnemySpeed * 0.8,
+			},
+			cowTargetID: {
+				target: cow,
+				home:   cowHome,
+				speed:  roamingEnemySpeed * 0.65,
 			},
 		},
 	}
@@ -506,6 +559,9 @@ func (w *World) queueEquipment(command EquipCommand) error {
 		if outgoing, equipped := currentEquippedItem(player, item); equipped && !addReturnedEquipment(&candidate, outgoing) {
 			return fmt.Errorf("inventory is full")
 		}
+		if conflict, _, exists := conflictingHandEquipment(player, item); exists && !addReturnedEquipment(&candidate, conflict) {
+			return fmt.Errorf("inventory is full")
+		}
 	}
 	if command.Sequence <= player.lastEquipmentSequence {
 		return fmt.Errorf("equipment sequence %d is not newer than %d", command.Sequence, player.lastEquipmentSequence)
@@ -627,10 +683,41 @@ func applyEquipmentChange(player *playerState, item ItemDefinition, command Equi
 	if outgoing, equipped := currentEquippedItem(player, item); equipped && !addReturnedEquipment(&candidate, outgoing) {
 		return false
 	}
+	conflict, conflictDefinition, hasConflict := conflictingHandEquipment(player, item)
+	if hasConflict && !addReturnedEquipment(&candidate, conflict) {
+		return false
+	}
 	player.inventory = candidate
+	if hasConflict {
+		clearEquippedItem(player, conflictDefinition)
+	}
 	setEquippedItem(player, item, incoming)
 	refreshPlayerMaximumHealth(player)
 	return true
+}
+
+func conflictingHandEquipment(player *playerState, incoming ItemDefinition) (InventoryItem, ItemDefinition, bool) {
+	if player == nil {
+		return InventoryItem{}, ItemDefinition{}, false
+	}
+	if incoming.Kind == ItemKindWeapon && incoming.Weapon.TwoHanded {
+		leftHandID := player.equippedArmour[ArmourSlotLeftHand]
+		leftHand, exists := itemDefinition(leftHandID)
+		if !exists {
+			return InventoryItem{}, ItemDefinition{}, false
+		}
+		item, equipped := currentEquippedItem(player, leftHand)
+		return item, leftHand, equipped
+	}
+	if incoming.Kind == ItemKindArmour && incoming.Armour.Slot == ArmourSlotLeftHand {
+		weapon, exists := itemDefinition(string(player.equippedWeapon))
+		if !exists || !weapon.Weapon.TwoHanded {
+			return InventoryItem{}, ItemDefinition{}, false
+		}
+		item, equipped := currentEquippedItem(player, weapon)
+		return item, weapon, equipped
+	}
+	return InventoryItem{}, ItemDefinition{}, false
 }
 
 func inventoryEquipment(inventory inventoryState, definition ItemDefinition, instanceID string) (InventoryItem, bool) {
@@ -891,6 +978,7 @@ func (w *World) resolveAutoAttacks() {
 		damageVariance := weapon.DamageVariance
 		if castingSpell {
 			poweredDamage = spellPoweredDamage(player, spell)
+			poweredDamage *= elementalDamageMultiplier(target, spell.Element)
 			damageVariance = spell.DamageVariance
 		}
 		// Defence and armour mitigation will reduce poweredDamage here. Variance

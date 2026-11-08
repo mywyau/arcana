@@ -7,9 +7,11 @@ import (
 
 const (
 	StarterBankChestID       = "starter_bank_chest"
-	TestSupplyChestID        = "test_supply_chest"
+	TestCombatChestID        = "test_combat_chest"
+	TestMagicRangedChestID   = "test_magic_ranged_chest"
+	TestCraftingChestID      = "test_crafting_chest"
 	BankCapacity             = 100
-	MaximumBankStackQuantity = 2_147_483_647
+	MaximumBankStackQuantity = MaximumItemStackQuantity
 	bankInteractionRange     = 2.5
 )
 
@@ -20,14 +22,30 @@ var starterBankChest = BankChestSnapshot{
 	Range:    bankInteractionRange,
 }
 
-var testSupplyChest = BankChestSnapshot{
-	ID:       TestSupplyChestID,
-	Name:     "Test Supply Chest",
+var testCombatChest = BankChestSnapshot{
+	ID:       TestCombatChestID,
+	Name:     "Combat Test Chest",
 	Position: Position{X: 0, Z: -11},
 	Range:    bankInteractionRange,
 }
 
-var TestSupplyChestPosition = testSupplyChest.Position
+var testMagicRangedChest = BankChestSnapshot{
+	ID:       TestMagicRangedChestID,
+	Name:     "Magic & Ranged Test Chest",
+	Position: Position{X: 4, Z: -11},
+	Range:    bankInteractionRange,
+}
+
+var testCraftingChest = BankChestSnapshot{
+	ID:       TestCraftingChestID,
+	Name:     "Gathering & Crafting Test Chest",
+	Position: Position{X: 8, Z: -11},
+	Range:    bankInteractionRange,
+}
+
+var TestCombatChestPosition = testCombatChest.Position
+var TestMagicRangedChestPosition = testMagicRangedChest.Position
+var TestCraftingChestPosition = testCraftingChest.Position
 
 type BankChestSnapshot struct {
 	ID       string

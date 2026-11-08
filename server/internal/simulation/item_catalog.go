@@ -2,6 +2,8 @@ package simulation
 
 import "fmt"
 
+const MaximumItemStackQuantity = 2_147_483_647
+
 type ItemKind string
 
 const (
@@ -13,6 +15,23 @@ const (
 
 	ItemStandardSpellbook  = "standard_spellbook"
 	ItemIronArrow          = "iron_arrow"
+	ItemIronBolt           = "iron_bolt"
+	ItemWaterRune          = "water_rune"
+	ItemEarthRune          = "earth_rune"
+	ItemFireRune           = "fire_rune"
+	ItemHolyRune           = "holy_rune"
+	ItemDarkRune           = "dark_rune"
+	ItemLeather            = "leather"
+	ItemGoldOre            = "gold_ore"
+	ItemUncutSapphire      = "uncut_sapphire"
+	ItemSapphire           = "sapphire"
+	ItemUncutEmerald       = "uncut_emerald"
+	ItemEmerald            = "emerald"
+	ItemUncutRuby          = "uncut_ruby"
+	ItemRuby               = "ruby"
+	ItemUncutDiamond       = "uncut_diamond"
+	ItemDiamond            = "diamond"
+	ItemGoldBar            = "gold_bar"
 	ItemBones              = "bones"
 	ItemCoins              = "coins"
 	ItemBronzePickaxe      = "bronze_pickaxe"
@@ -38,6 +57,9 @@ const (
 	ItemIronArrowTips      = "iron_arrow_tips"
 	ItemNormalLogs         = "normal_logs"
 	ItemOakLogs            = "oak_logs"
+	ItemWillowLogs         = "willow_logs"
+	ItemMapleLogs          = "maple_logs"
+	ItemYewLogs            = "yew_logs"
 	ItemCopperOre          = "copper_ore"
 	ItemTinOre             = "tin_ore"
 	ItemIronOre            = "iron_ore"
@@ -89,52 +111,70 @@ type ItemDefinition struct {
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{
 		ID: string(WeaponUnarmed), Name: "Unarmed", Kind: ItemKindWeapon, Virtual: true,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponUnarmed, AccuracyBonus: 0, MeleeStrength: 1, DamageVariance: 0, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleCrush, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleDefensive),
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponUnarmed, AccuracyBonus: 0, MeleeStrength: 1, DamageVariance: 0, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleCrush,
+			weaponStyle(CombatStyleCrush, DamageTypeCrush), weaponStyle(CombatStyleHeavyCrush, DamageTypeCrush), weaponStyle(CombatStyleDefensive, DamageTypeCrush)),
 	},
 	{
 		ID: string(WeaponSword), Name: "Iron Sword", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		Weapon: swordWeapon(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponBronzeSword), Name: "Bronze Sword", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 7, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		Weapon: swordWeapon(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 7, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
-		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponMithrilSword), Name: "Mithril Sword", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
-		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponRuneSword), Name: "Rune Sword", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 20}},
-		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponRuneSword, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponRuneSword, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponDagger), Name: "Dagger", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponDagger, AccuracyBonus: 14, MeleeStrength: daggerMeleeStrength, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}, CombatStyleStab, CombatStyleStab, CombatStyleSlash, CombatStyleDefensive),
+		Weapon: swordWeapon(WeaponDefinition{ID: WeaponDagger, AccuracyBonus: 14, MeleeStrength: daggerMeleeStrength, DamageVariance: daggerDamageVariance, AttackInterval: daggerAttackIntervalPulses, Range: daggerRange, ApproachRange: daggerApproachRange}),
 	},
 	{
 		ID: string(WeaponBow), Name: "Bow", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}}, CombatStyleAccurate, CombatStyleRapid, CombatStyleAccurate, CombatStyleLongRange),
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, TwoHanded: true, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
 		ID: string(WeaponMace), Name: "Mace", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
-		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponMace, AccuracyBonus: 8, MeleeStrength: maceMeleeStrength, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, CombatStyleCrush, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleDefensive),
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponMace, AccuracyBonus: 8, MeleeStrength: maceMeleeStrength, DamageVariance: maceDamageVariance, AttackInterval: maceAttackIntervalPulses, Range: maceRange, ApproachRange: maceApproachRange}, CombatStyleCrush, weaponStyle(CombatStyleCrush, DamageTypeCrush), weaponStyle(CombatStyleHeavyCrush, DamageTypeCrush), weaponStyle(CombatStyleDefensive, DamageTypeCrush)),
 	},
 	{
 		ID: string(WeaponBattleAxe), Name: "Battle Axe", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
-		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponBattleAxe, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, CombatStyleSlash, CombatStyleSlash, CombatStyleHeavyCrush, CombatStyleDefensive),
+		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponBattleAxe, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, CombatStyleSlash, weaponStyle(CombatStyleSlash, DamageTypeSlash), weaponStyle(CombatStyleHeavyCrush, DamageTypeCrush), weaponStyle(CombatStyleDefensive, DamageTypeSlash)),
 	},
 	{
 		ID: string(WeaponStaff), Name: "Staff", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponStaff, AccuracyBonus: 11, MagicStrength: staffMagicStrength, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, CombatStyleAccurate, CombatStyleRapid, CombatStyleAccurate, CombatStyleLongRange),
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponStaff, AccuracyBonus: 11, MagicStrength: staffMagicStrength, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeMagic), weaponStyle(CombatStyleAccurate, DamageTypeMagic), weaponStyle(CombatStyleLongRange, DamageTypeMagic)),
+	},
+	{
+		ID: string(WeaponSpear), Name: "Spear", Kind: ItemKindWeapon,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSpear, AccuracyBonus: 14, MeleeStrength: spearMeleeStrength, DamageVariance: 0.20, AttackInterval: spearAttackIntervalPulses, Range: polearmRange, ApproachRange: polearmApproachRange}, CombatStyleStab,
+			weaponStyle(CombatStyleStab, DamageTypeStab), weaponStyle(CombatStyleSlash, DamageTypeSlash), weaponStyle(CombatStyleDefensive, DamageTypeStab)),
+	},
+	{
+		ID: string(WeaponHalberd), Name: "Halberd", Kind: ItemKindWeapon,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponHalberd, TwoHanded: true, AccuracyBonus: 10, MeleeStrength: halberdMeleeStrength, DamageVariance: 0.25, AttackInterval: halberdAttackIntervalPulses, Range: polearmRange, ApproachRange: polearmApproachRange}, CombatStyleSlash,
+			weaponStyle(CombatStyleSlash, DamageTypeSlash), weaponStyle(CombatStyleStab, DamageTypeStab), weaponStyle(CombatStyleDefensive, DamageTypeSlash)),
+	},
+	{
+		ID: string(WeaponCrossbow), Name: "One-handed Crossbow", Kind: ItemKindWeapon,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponCrossbow, AccuracyBonus: 18, RangedStrength: crossbowRangedStrength, DamageVariance: 0.20, AttackInterval: crossbowAttackIntervalPulses, Range: crossbowRange, ApproachRange: crossbowApproachRange, Ammunition: ItemCost{ItemID: ItemIronBolt, Quantity: 1}}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
 		ID: ItemTrainingHelm, Name: "Training Helm", Kind: ItemKindArmour,
@@ -210,22 +250,22 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemNoviceRangerLegs, Name: "Novice Ranger Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 3, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
 	{ID: ItemNoviceRangerBoots, Name: "Novice Ranger Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1, RangedStrength: 1}}},
 	{
-		ID: ItemAmuletFerocity, Name: "Amulet of Ferocity", Kind: ItemKindArmour,
+		ID: ItemAmuletFerocity, Name: "Ruby Amulet", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MeleeAccuracy: 5, MeleeStrength: 5}},
 	},
 	{
-		ID: ItemAmuletHawk, Name: "Amulet of the Hawk", Kind: ItemKindArmour,
+		ID: ItemAmuletHawk, Name: "Emerald Amulet", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{RangedAccuracy: 5, RangedStrength: 5}},
 	},
 	{
-		ID: ItemAmuletEmbers, Name: "Amulet of Embers", Kind: ItemKindArmour,
+		ID: ItemAmuletEmbers, Name: "Sapphire Amulet", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 5}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MagicAccuracy: 5, MagicStrength: 5}},
 	},
 	{
-		ID: ItemAmuletFury, Name: "Amulet of Fury", Kind: ItemKindArmour,
+		ID: ItemAmuletFury, Name: "Diamond Amulet", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
 		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{
 			MeleeAccuracy: 2, RangedAccuracy: 2, MagicAccuracy: 2,
@@ -237,7 +277,23 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Spellbook: SpellbookStandard,
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
+	{ID: ItemWaterRune, Name: "Water Rune", Kind: ItemKindResource},
+	{ID: ItemEarthRune, Name: "Earth Rune", Kind: ItemKindResource},
+	{ID: ItemFireRune, Name: "Fire Rune", Kind: ItemKindResource},
+	{ID: ItemHolyRune, Name: "Holy Rune", Kind: ItemKindResource},
+	{ID: ItemDarkRune, Name: "Dark Rune", Kind: ItemKindResource},
+	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource},
+	{ID: ItemUncutSapphire, Name: "Uncut Sapphire", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemSapphire, Name: "Sapphire", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutEmerald, Name: "Uncut Emerald", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemEmerald, Name: "Emerald", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutRuby, Name: "Uncut Ruby", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemRuby, Name: "Ruby", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutDiamond, Name: "Uncut Diamond", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemDiamond, Name: "Diamond", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true},
+	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true},
 	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
@@ -255,7 +311,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemMoonleaf, Name: "Moonleaf", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemSacredDust, Name: "Sacred Dust", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemFishOil, Name: "Fish Oil", Kind: ItemKindResource, StackLimit: 25},
-	{ID: ItemArrowShafts, Name: "Arrow Shafts", Kind: ItemKindResource, StackLimit: 200},
+	{ID: ItemArrowShafts, Name: "Arrow Shafts", Kind: ItemKindResource, StackLimit: MaximumItemStackQuantity},
 	{ID: ItemFeathers, Name: "Feathers", Kind: ItemKindResource, StackLimit: 200},
 	{ID: ItemIronArrowTips, Name: "Iron Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
 	{
@@ -272,6 +328,9 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemWillowLogs, Name: "Willow Logs", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemMapleLogs, Name: "Maple Logs", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemYewLogs, Name: "Yew Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource},
 	{ID: ItemTinOre, Name: "Tin Ore", Kind: ItemKindResource},
 	{ID: ItemIronOre, Name: "Iron Ore", Kind: ItemKindResource},
@@ -280,6 +339,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemBronzeBar, Name: "Bronze Bar", Kind: ItemKindResource},
 	{ID: ItemIronBar, Name: "Iron Bar", Kind: ItemKindResource},
 	{ID: ItemMithrilBar, Name: "Mithril Bar", Kind: ItemKindResource},
+	{ID: ItemGoldBar, Name: "Gold Bar", Kind: ItemKindResource},
 	{
 		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
 		StackLimit: 10,
@@ -294,12 +354,35 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemCookedTuna, Name: "Cooked Tuna", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 20, CooldownPulses: 2}},
 	{ID: ItemRawLobster, Name: "Raw Lobster", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemCookedLobster, Name: "Cooked Lobster", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 25, CooldownPulses: 2}},
-	{ID: trainingShardItem, Name: "Training Shard", Kind: ItemKindResource},
 })
 
-func weaponWithStyles(definition WeaponDefinition, defaultStyle CombatStyleID, styles ...CombatStyleID) WeaponDefinition {
+type weaponStyleDefinition struct {
+	ID         CombatStyleID
+	DamageType DamageType
+}
+
+func weaponStyle(id CombatStyleID, damageType DamageType) weaponStyleDefinition {
+	return weaponStyleDefinition{ID: id, DamageType: damageType}
+}
+
+func swordWeapon(definition WeaponDefinition) WeaponDefinition {
+	return weaponWithStyles(definition, CombatStyleStab,
+		weaponStyle(CombatStyleStab, DamageTypeStab),
+		weaponStyle(CombatStyleSlash, DamageTypeSlash),
+		weaponStyle(CombatStyleDefensive, DamageTypeSlash),
+	)
+}
+
+func weaponWithStyles(definition WeaponDefinition, defaultStyle CombatStyleID, styles ...weaponStyleDefinition) WeaponDefinition {
 	definition.DefaultStyle = defaultStyle
-	definition.CombatStyles = append(append([]CombatStyleID(nil), styles...), CombatStyleUnfocused)
+	definition.CombatStyles = make([]CombatStyleID, 0, len(styles)+1)
+	definition.StyleDamageTypes = make(map[CombatStyleID]DamageType, len(styles)+1)
+	for _, style := range styles {
+		definition.CombatStyles = append(definition.CombatStyles, style.ID)
+		definition.StyleDamageTypes[style.ID] = style.DamageType
+	}
+	definition.CombatStyles = append(definition.CombatStyles, CombatStyleUnfocused)
+	definition.StyleDamageTypes[CombatStyleUnfocused] = definition.StyleDamageTypes[defaultStyle]
 	return definition
 }
 
@@ -402,6 +485,10 @@ func validateWeaponStyles(weapon WeaponDefinition) error {
 			return fmt.Errorf("contains duplicate combat style %q", style)
 		}
 		seen[style] = struct{}{}
+		damageType, hasDamageType := weapon.StyleDamageTypes[style]
+		if !hasDamageType || !knownDamageType(damageType) {
+			return fmt.Errorf("combat style %q requires a valid damage type", style)
+		}
 		defaultAllowed = defaultAllowed || style == weapon.DefaultStyle
 	}
 	if !defaultAllowed {
@@ -411,6 +498,15 @@ func validateWeaponStyles(weapon WeaponDefinition) error {
 		return fmt.Errorf("must allow combat style %q", CombatStyleUnfocused)
 	}
 	return nil
+}
+
+func knownDamageType(damageType DamageType) bool {
+	switch damageType {
+	case DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic:
+		return true
+	default:
+		return false
+	}
 }
 
 func knownCombatStyle(style CombatStyleID) bool {

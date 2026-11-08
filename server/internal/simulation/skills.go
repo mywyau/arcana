@@ -158,11 +158,11 @@ func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
 		return "", false
 	}
 	switch weapon {
-	case WeaponBow:
+	case WeaponBow, WeaponCrossbow:
 		return SkillRange, true
 	case WeaponStaff:
 		return SkillMagic, true
-	case WeaponSword, WeaponBronzeSword, WeaponSteelSword, WeaponMithrilSword, WeaponRuneSword, WeaponDagger:
+	case WeaponSword, WeaponBronzeSword, WeaponSteelSword, WeaponMithrilSword, WeaponRuneSword, WeaponDagger, WeaponSpear, WeaponHalberd:
 		switch style {
 		case CombatStyleStab:
 			return SkillAttack, true

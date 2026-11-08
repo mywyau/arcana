@@ -8,7 +8,6 @@ import (
 
 const (
 	pickupRange       = 3.0
-	trainingShardItem = "training_shard"
 	worldDropLifetime = 2 * time.Minute
 )
 

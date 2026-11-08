@@ -76,7 +76,7 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	want.CombatStyle = simulation.CombatStyleLongRange
 	want.Skills = []simulation.PersistentSkillState{{ID: simulation.SkillAttack, Experience: 125}}
 	want.Inventory.Items = []simulation.InventoryItem{
-		{Slot: 0, ItemID: "training_shard", Quantity: 3},
+		{Slot: 0, ItemID: "coins", Quantity: 3},
 	}
 	want.Bank.Items = []simulation.InventoryItem{
 		{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 250},

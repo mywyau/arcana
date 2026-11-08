@@ -312,6 +312,9 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				SpellID:  simulation.SpellID(message.SpellID),
 			})
+		case protocol.MessageCutGem:
+			rejectionCode = "gem_cut_rejected"
+			err = h.world.CutGem(playerID, message.Sequence, message.ItemID)
 		case protocol.MessagePickupItem:
 			rejectionCode = "pickup_rejected"
 			err = h.world.QueuePickup(simulation.PickupCommand{
@@ -510,6 +513,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			CombatStyle:                  string(player.CombatStyle),
 			LastCombatStyleSequence:      player.LastCombatStyleSequence,
 			ActivePrayers:                make([]string, 0, len(player.ActivePrayers)),
+			ActivePrayerSet:              string(player.ActivePrayerSet),
 			LastPrayerSequence:           player.LastPrayerSequence,
 			SelectedSpell:                string(player.SelectedSpell),
 			LastSpellSequence:            player.LastSpellSequence,

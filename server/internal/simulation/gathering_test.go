@@ -138,6 +138,39 @@ func TestPrayerAltarRejectsBoneSacrificeWithoutBones(t *testing.T) {
 	}
 }
 
+func TestGodAltarChangesPrayerSetAndClearsActivePrayers(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[warPrayerAltarID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatal(err)
+	}
+	world.players["player-one"].activePrayers[PrayerStrength] = true
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: warPrayerAltarID, RecipeID: prayerAdoptWarID,
+	}); err != nil {
+		t.Fatalf("QueueGather(change prayer set) returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.ActivePrayerSet != PrayerSetWar || len(player.ActivePrayers) != 0 || player.GatheringResult != "prayer_set_war_covenant" {
+		t.Fatalf("player after prayer set change = %+v", player)
+	}
+}
+
+func TestGodAltarRejectsAnotherAltarsPrayerSet(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterPrayerAltarID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatal(err)
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterPrayerAltarID, RecipeID: prayerAdoptWarID,
+	}); err == nil {
+		t.Fatal("QueueGather() error = nil for the wrong god altar")
+	}
+}
+
 func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 	world := NewWorld()
 	pond := world.gatheringSpots[starterSalmonSpotID]
@@ -503,11 +536,23 @@ func TestWoodcuttingTreeProgressionAndRecharge(t *testing.T) {
 	spots := newGatheringSpots()
 	normal := spots[starterNormalTreeID]
 	oak := spots[starterOakTreeID]
+	willow := spots[starterWillowTreeID]
+	maple := spots[starterMapleTreeID]
+	yew := spots[starterYewTreeID]
 	if normal.RequiredLevel != 1 || normal.RewardItem != ItemNormalLogs || normal.CurrentAmount != normalTreeCapacity {
 		t.Fatalf("normal tree = %+v", normal)
 	}
 	if oak.RequiredLevel != 2 || oak.RewardItem != ItemOakLogs || oak.RewardXP != 16 || oak.CurrentAmount != oakTreeCapacity {
 		t.Fatalf("oak tree = %+v", oak)
+	}
+	if willow.RequiredLevel != 3 || willow.RewardItem != ItemWillowLogs || willow.CurrentAmount != willowTreeCapacity {
+		t.Fatalf("willow tree = %+v", willow)
+	}
+	if maple.RequiredLevel != 5 || maple.RewardItem != ItemMapleLogs || maple.CurrentAmount != mapleTreeCapacity {
+		t.Fatalf("maple tree = %+v", maple)
+	}
+	if yew.RequiredLevel != 8 || yew.RewardItem != ItemYewLogs || yew.CurrentAmount != yewTreeCapacity {
+		t.Fatalf("yew tree = %+v", yew)
 	}
 
 	world := NewWorld()

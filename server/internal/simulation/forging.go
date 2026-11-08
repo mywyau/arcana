@@ -13,29 +13,33 @@ var (
 type ForgingRecipeID string
 
 const (
-	ForgingBronzeSword   ForgingRecipeID = "bronze_sword"
-	ForgingBronzeHelm    ForgingRecipeID = "bronze_helm"
-	ForgingBronzePlate   ForgingRecipeID = "bronze_platebody"
-	ForgingBronzePickaxe ForgingRecipeID = "bronze_pickaxe"
-	ForgingBronzeShield  ForgingRecipeID = "bronze_shield"
-	ForgingBronzeLegs    ForgingRecipeID = "bronze_legs"
-	ForgingBronzeGloves  ForgingRecipeID = "bronze_gloves"
-	ForgingBronzeBoots   ForgingRecipeID = "bronze_boots"
-	ForgingIronSword     ForgingRecipeID = "iron_sword"
-	ForgingIronArrowTips ForgingRecipeID = "iron_arrow_tips"
-	ForgingIronHelm      ForgingRecipeID = "iron_helm"
-	ForgingIronPlate     ForgingRecipeID = "iron_platebody"
-	ForgingIronShield    ForgingRecipeID = "iron_shield"
-	ForgingIronLegs      ForgingRecipeID = "iron_legs"
-	ForgingIronGloves    ForgingRecipeID = "iron_gloves"
-	ForgingIronBoots     ForgingRecipeID = "iron_boots"
-	ForgingMithrilSword  ForgingRecipeID = "mithril_sword"
-	ForgingMithrilHelm   ForgingRecipeID = "mithril_helm"
-	ForgingMithrilPlate  ForgingRecipeID = "mithril_platebody"
-	ForgingMithrilShield ForgingRecipeID = "mithril_shield"
-	ForgingMithrilLegs   ForgingRecipeID = "mithril_legs"
-	ForgingMithrilGloves ForgingRecipeID = "mithril_gloves"
-	ForgingMithrilBoots  ForgingRecipeID = "mithril_boots"
+	ForgingBronzeSword    ForgingRecipeID = "bronze_sword"
+	ForgingBronzeHelm     ForgingRecipeID = "bronze_helm"
+	ForgingBronzePlate    ForgingRecipeID = "bronze_platebody"
+	ForgingBronzePickaxe  ForgingRecipeID = "bronze_pickaxe"
+	ForgingBronzeShield   ForgingRecipeID = "bronze_shield"
+	ForgingBronzeLegs     ForgingRecipeID = "bronze_legs"
+	ForgingBronzeGloves   ForgingRecipeID = "bronze_gloves"
+	ForgingBronzeBoots    ForgingRecipeID = "bronze_boots"
+	ForgingIronSword      ForgingRecipeID = "iron_sword"
+	ForgingIronArrowTips  ForgingRecipeID = "iron_arrow_tips"
+	ForgingIronHelm       ForgingRecipeID = "iron_helm"
+	ForgingIronPlate      ForgingRecipeID = "iron_platebody"
+	ForgingIronShield     ForgingRecipeID = "iron_shield"
+	ForgingIronLegs       ForgingRecipeID = "iron_legs"
+	ForgingIronGloves     ForgingRecipeID = "iron_gloves"
+	ForgingIronBoots      ForgingRecipeID = "iron_boots"
+	ForgingMithrilSword   ForgingRecipeID = "mithril_sword"
+	ForgingMithrilHelm    ForgingRecipeID = "mithril_helm"
+	ForgingMithrilPlate   ForgingRecipeID = "mithril_platebody"
+	ForgingMithrilShield  ForgingRecipeID = "mithril_shield"
+	ForgingMithrilLegs    ForgingRecipeID = "mithril_legs"
+	ForgingMithrilGloves  ForgingRecipeID = "mithril_gloves"
+	ForgingMithrilBoots   ForgingRecipeID = "mithril_boots"
+	ForgingRubyAmulet     ForgingRecipeID = "ruby_amulet"
+	ForgingEmeraldAmulet  ForgingRecipeID = "emerald_amulet"
+	ForgingSapphireAmulet ForgingRecipeID = "sapphire_amulet"
+	ForgingDiamondAmulet  ForgingRecipeID = "diamond_amulet"
 )
 
 type forgingRecipeDefinition struct {
@@ -117,6 +121,10 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 	{ID: ForgingMithrilLegs, Name: "Mithril Legs", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 5}}, RewardItem: ItemMithrilLegs, RewardQuantity: 1, RewardXP: 150, Interval: 7},
 	{ID: ForgingMithrilGloves, Name: "Mithril Gloves", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 2}}, RewardItem: ItemMithrilGloves, RewardQuantity: 1, RewardXP: 60, Interval: 4},
 	{ID: ForgingMithrilBoots, Name: "Mithril Boots", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}}, RewardItem: ItemMithrilBoots, RewardQuantity: 1, RewardXP: 90, Interval: 5},
+	{ID: ForgingSapphireAmulet, Name: "Sapphire Amulet", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemSapphire, Quantity: 1}}, RewardItem: ItemAmuletEmbers, RewardQuantity: 1, RewardXP: 40, Interval: 4},
+	{ID: ForgingEmeraldAmulet, Name: "Emerald Amulet", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemEmerald, Quantity: 1}}, RewardItem: ItemAmuletHawk, RewardQuantity: 1, RewardXP: 50, Interval: 4},
+	{ID: ForgingRubyAmulet, Name: "Ruby Amulet", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemRuby, Quantity: 1}}, RewardItem: ItemAmuletFerocity, RewardQuantity: 1, RewardXP: 60, Interval: 4},
+	{ID: ForgingDiamondAmulet, Name: "Diamond Amulet", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemDiamond, Quantity: 1}}, RewardItem: ItemAmuletFury, RewardQuantity: 1, RewardXP: 85, Interval: 5},
 })
 
 func buildForgingRecipes(definitions []forgingRecipeDefinition) (map[ForgingRecipeID]forgingRecipeDefinition, error) {

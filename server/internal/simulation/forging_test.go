@@ -39,6 +39,26 @@ func TestApplyForgingRecipeAtomicallyConsumesBarsAndGrantsXP(t *testing.T) {
 	}
 }
 
+func TestGemAmuletRecipesUseGoldAndMatchingCutGem(t *testing.T) {
+	tests := []struct {
+		id          ForgingRecipeID
+		gem, output string
+	}{
+		{ForgingRubyAmulet, ItemRuby, ItemAmuletFerocity},
+		{ForgingEmeraldAmulet, ItemEmerald, ItemAmuletHawk},
+		{ForgingSapphireAmulet, ItemSapphire, ItemAmuletEmbers},
+		{ForgingDiamondAmulet, ItemDiamond, ItemAmuletFury},
+	}
+	for _, test := range tests {
+		recipe, exists := forgingRecipe(test.id)
+		if !exists || recipe.RewardItem != test.output || len(recipe.Costs) != 2 ||
+			recipe.Costs[0] != (ItemCost{ItemID: ItemGoldBar, Quantity: 1}) ||
+			recipe.Costs[1] != (ItemCost{ItemID: test.gem, Quantity: 1}) {
+			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
+		}
+	}
+}
+
 func TestForgeIronArrowTipsCreatesTwentyFromOneBar(t *testing.T) {
 	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
 	player.skills[SkillSmithing] = SkillExperienceForLevel(2)

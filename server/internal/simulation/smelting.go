@@ -16,6 +16,7 @@ const (
 	SmeltingBronzeBar  SmeltingRecipeID = "bronze_bar"
 	SmeltingIronBar    SmeltingRecipeID = "iron_bar"
 	SmeltingMithrilBar SmeltingRecipeID = "mithril_bar"
+	SmeltingGoldBar    SmeltingRecipeID = "gold_bar"
 )
 
 type smeltingRecipeDefinition struct {
@@ -44,6 +45,11 @@ var smeltingRecipes = mustBuildSmeltingRecipes([]smeltingRecipeDefinition{
 		ID: SmeltingMithrilBar, Name: "Mithril Bar", RequiredLevel: 5,
 		Costs:      []ItemCost{{ItemID: ItemMithrilOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 2}},
 		RewardItem: ItemMithrilBar, RewardQuantity: 1, RewardXP: 35, Interval: 6,
+	},
+	{
+		ID: SmeltingGoldBar, Name: "Gold Bar", RequiredLevel: 4,
+		Costs:      []ItemCost{{ItemID: ItemGoldOre, Quantity: 1}},
+		RewardItem: ItemGoldBar, RewardQuantity: 1, RewardXP: 30, Interval: 5,
 	},
 })
 

@@ -9,6 +9,11 @@ type SpellID string
 
 const (
 	SpellWindBolt                SpellID = "wind_bolt"
+	SpellWaterBolt               SpellID = "water_bolt"
+	SpellEarthBolt               SpellID = "earth_bolt"
+	SpellFireBolt                SpellID = "fire_bolt"
+	SpellHolyBolt                SpellID = "holy_bolt"
+	SpellDarkBolt                SpellID = "dark_bolt"
 	windBoltAttackIntervalPulses         = 5
 )
 
@@ -32,7 +37,11 @@ func spellAccuracyScore(player *playerState, spell SpellDefinition) int {
 }
 
 func targetSpellDodgeChance(player *playerState, target *TargetSnapshot, spell SpellDefinition) float64 {
-	return calculatedDodgeChance(spellAccuracyScore(player, spell), target.Evasion, target.DodgeRate)
+	return calculatedDodgeChance(
+		spellAccuracyScore(player, spell),
+		targetEvasionForDamageType(target, DamageTypeMagic),
+		target.DodgeRate,
+	)
 }
 
 func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
@@ -50,6 +59,33 @@ func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
 		damage *= 1 + activePrayerBonuses(player).MagicDamage
 	}
 	return damage
+}
+
+func elementalDamageMultiplier(target *TargetSnapshot, element MagicElement) float64 {
+	if target == nil {
+		return 1
+	}
+	resistance := elementalResistance(target.Elements, element)
+	return 1 - float64(max(-90, min(resistance, 90)))/100
+}
+
+func elementalResistance(resistances ElementalResistances, element MagicElement) int {
+	switch element {
+	case MagicElementAir:
+		return resistances.Air
+	case MagicElementWater:
+		return resistances.Water
+	case MagicElementEarth:
+		return resistances.Earth
+	case MagicElementFire:
+		return resistances.Fire
+	case MagicElementHoly:
+		return resistances.Holy
+	case MagicElementDark:
+		return resistances.Dark
+	default:
+		return 0
+	}
 }
 
 func canPayItemCosts(inventory inventoryState, costs []ItemCost) bool {

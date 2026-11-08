@@ -347,6 +347,19 @@ func send_prayer(sequence: int, prayer_id: String, active: bool) -> bool:
 	return true
 
 
+func send_cut_gem(sequence: int, item_id: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot cut a gem while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "cut_gem", "sequence": sequence, "item_id": item_id,
+	}))
+	if result != OK:
+		status_changed.emit("Could not cut gem: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_spell(sequence: int, spell_id: String) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot select a spell while disconnected")

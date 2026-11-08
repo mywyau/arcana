@@ -6,6 +6,25 @@ type SpellbookID string
 type SpellCastMode string
 type SpellTargetType string
 type SpellEffectType string
+type MagicElement string
+
+const (
+	MagicElementAir   MagicElement = "air"
+	MagicElementWater MagicElement = "water"
+	MagicElementEarth MagicElement = "earth"
+	MagicElementFire  MagicElement = "fire"
+	MagicElementHoly  MagicElement = "holy"
+	MagicElementDark  MagicElement = "dark"
+)
+
+type ElementalResistances struct {
+	Air   int
+	Water int
+	Earth int
+	Fire  int
+	Holy  int
+	Dark  int
+}
 
 const (
 	SpellbookStandard SpellbookID = "standard"
@@ -41,6 +60,7 @@ type SpellDefinition struct {
 	CastMode           SpellCastMode
 	TargetType         SpellTargetType
 	EffectType         SpellEffectType
+	Element            MagicElement
 	RequiredMagicLevel int
 	Costs              []ItemCost
 	BasePower          int
@@ -64,6 +84,7 @@ var configuredSpellCatalog = mustBuildSpellCatalog(
 		{
 			ID: SpellWindBolt, BookID: SpellbookStandard, Name: "Wind Bolt", IconID: "wind_bolt",
 			CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
+			Element:            MagicElementAir,
 			RequiredMagicLevel: 1,
 			Costs:              []ItemCost{{ItemID: ItemAirRune, Quantity: 1}},
 			BasePower:          4,
@@ -72,8 +93,23 @@ var configuredSpellCatalog = mustBuildSpellCatalog(
 			DamageVariance:     0.20,
 			AttackInterval:     windBoltAttackIntervalPulses,
 		},
+		basicBolt(SpellWaterBolt, "Water Bolt", "water_bolt", MagicElementWater, 2, ItemWaterRune, 5),
+		basicBolt(SpellEarthBolt, "Earth Bolt", "earth_bolt", MagicElementEarth, 3, ItemEarthRune, 6),
+		basicBolt(SpellFireBolt, "Fire Bolt", "fire_bolt", MagicElementFire, 4, ItemFireRune, 7),
+		basicBolt(SpellHolyBolt, "Holy Bolt", "holy_bolt", MagicElementHoly, 5, ItemHolyRune, 8),
+		basicBolt(SpellDarkBolt, "Dark Bolt", "dark_bolt", MagicElementDark, 6, ItemDarkRune, 8),
 	},
 )
+
+func basicBolt(id SpellID, name, iconID string, element MagicElement, level int, runeID string, power int) SpellDefinition {
+	return SpellDefinition{
+		ID: id, BookID: SpellbookStandard, Name: name, IconID: iconID,
+		CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
+		Element: element, RequiredMagicLevel: level,
+		Costs: []ItemCost{{ItemID: runeID, Quantity: 1}}, BasePower: power, AccuracyBonus: 10,
+		Range: 10, DamageVariance: 0.20, AttackInterval: windBoltAttackIntervalPulses,
+	}
+}
 
 func buildSpellCatalog(books []SpellbookDefinition, spells []SpellDefinition) (spellCatalog, error) {
 	catalog := spellCatalog{
@@ -138,6 +174,9 @@ func validateSpellDefinition(
 	if !knownSpellEffectType(spell.EffectType) {
 		return fmt.Errorf("spell %q has unknown effect type %q", spell.ID, spell.EffectType)
 	}
+	if !knownMagicElement(spell.Element) {
+		return fmt.Errorf("spell %q has unknown magic element %q", spell.ID, spell.Element)
+	}
 	if spell.RequiredMagicLevel < 1 {
 		return fmt.Errorf("spell %q requires a positive Magic level", spell.ID)
 	}
@@ -169,6 +208,15 @@ func validateSpellDefinition(
 		costItems[cost.ItemID] = struct{}{}
 	}
 	return nil
+}
+
+func knownMagicElement(element MagicElement) bool {
+	switch element {
+	case MagicElementAir, MagicElementWater, MagicElementEarth, MagicElementFire, MagicElementHoly, MagicElementDark:
+		return true
+	default:
+		return false
+	}
 }
 
 func knownSpellCastMode(mode SpellCastMode) bool {

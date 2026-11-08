@@ -23,6 +23,7 @@ const (
 	MessageConsumeItem        = "consume_item"
 	MessageBrew               = "brew"
 	MessageFletch             = "fletch"
+	MessageCutGem             = "cut_gem"
 	MessageGather             = "gather"
 	MessageBankDeposit        = "bank_deposit"
 	MessageBankWithdraw       = "bank_withdraw"
@@ -173,6 +174,7 @@ type PlayerSnapshot struct {
 	CombatStyle                  string                  `json:"combat_style"`
 	LastCombatStyleSequence      uint64                  `json:"last_combat_style_sequence"`
 	ActivePrayers                []string                `json:"active_prayers"`
+	ActivePrayerSet              string                  `json:"active_prayer_set"`
 	LastPrayerSequence           uint64                  `json:"last_prayer_sequence"`
 	SelectedSpell                string                  `json:"selected_spell"`
 	LastSpellSequence            uint64                  `json:"last_spell_sequence"`
@@ -294,7 +296,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageGather &&
+		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageGather &&
 		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
@@ -309,7 +311,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		return ClientMessage{}, fmt.Errorf("target ID is required")
 	}
 	if (message.Type == MessageEquipItem || message.Type == MessageUnequipItem ||
-		message.Type == MessageConsumeItem) && message.ItemID == "" {
+		message.Type == MessageConsumeItem || message.Type == MessageCutGem) && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {

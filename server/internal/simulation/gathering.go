@@ -25,10 +25,15 @@ const (
 	starterIronVeinID         = "starter_iron_vein"
 	starterCoalVeinID         = "starter_coal_vein"
 	starterMithrilVeinID      = "starter_mithril_vein"
+	starterGoldVeinID         = "starter_gold_vein"
 	starterNormalTreeID       = "starter_normal_tree"
 	starterOakTreeID          = "starter_oak_tree"
+	starterWillowTreeID       = "starter_willow_tree"
+	starterMapleTreeID        = "starter_maple_tree"
+	starterYewTreeID          = "starter_yew_tree"
 	starterAgilityObstacleID  = "starter_balance_beam"
 	starterPrayerAltarID      = "starter_prayer_altar"
+	warPrayerAltarID          = "war_prayer_altar"
 	miningInterval            = 4
 	miningExperience          = 10
 	copperVeinCapacity        = 20
@@ -37,13 +42,19 @@ const (
 	ironVeinCapacity          = 16
 	coalVeinCapacity          = 12
 	mithrilVeinCapacity       = 8
+	goldVeinCapacity          = 10
 	normalTreeCapacity        = 10
 	oakTreeCapacity           = 8
+	willowTreeCapacity        = 8
+	mapleTreeCapacity         = 6
+	yewTreeCapacity           = 4
 	agilityObstacleExperience = 25
 	agilityObstacleInterval   = 2
 	prayerBoneExperience      = 10
 	prayerRestoreRecipeID     = "restore_prayer"
 	prayerSacrificeBonesID    = "sacrifice_bones"
+	prayerAdoptCommonID       = "adopt_common_litany"
+	prayerAdoptWarID          = "adopt_war_covenant"
 )
 
 type craftingStationID string
@@ -145,8 +156,12 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterIronVeinID:    miningVein(starterIronVeinID, "Iron Vein", Position{X: 25, Z: 11}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
 		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 20, Z: 18}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
 		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 25, Z: 18}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
+		starterGoldVeinID:    miningVein(starterGoldVeinID, "Gold Vein", Position{X: 22, Z: 22}, 4, ItemGoldOre, 32, goldVeinCapacity, 20, 5),
 		starterNormalTreeID:  woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
-		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -14, Z: -4}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
+		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -24, Z: 7}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
+		starterWillowTreeID:  woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -7, Z: 24}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
+		starterMapleTreeID:   woodcuttingTree(starterMapleTreeID, "Maple Tree", Position{X: 25, Z: 8}, 5, ItemMapleLogs, 34, mapleTreeCapacity, 18, 6),
+		starterYewTreeID:     woodcuttingTree(starterYewTreeID, "Yew Tree", Position{X: 18, Z: -24}, 8, ItemYewLogs, 52, yewTreeCapacity, 24, 7),
 		starterAgilityObstacleID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterAgilityObstacleID, Name: "Balance Beam", Skill: SkillAgility,
@@ -159,7 +174,15 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterPrayerAltarID, Name: "Prayer Altar", Skill: SkillPrayer,
 				Position: Position{X: -8, Z: -14}, Range: gatheringRange, RequiredLevel: 1,
-				Station: craftingStationPrayer,
+				Station: craftingStationPrayer, RecipeID: prayerAdoptCommonID,
+			},
+			Interval: 1, ActiveResult: "praying", RewardResult: "prayer_restored",
+		},
+		warPrayerAltarID: {
+			GatheringSpotSnapshot: GatheringSpotSnapshot{
+				ID: warPrayerAltarID, Name: "War Altar", Skill: SkillPrayer,
+				Position: Position{X: 13, Z: -20}, Range: gatheringRange, RequiredLevel: 1,
+				Station: craftingStationPrayer, RecipeID: prayerAdoptWarID,
 			},
 			Interval: 1, ActiveResult: "praying", RewardResult: "prayer_restored",
 		},
@@ -296,6 +319,10 @@ func (w *World) QueueGather(command GatherCommand) error {
 		case prayerSacrificeBonesID:
 			if !player.inventory.contains(ItemBones) {
 				return fmt.Errorf("bones are required")
+			}
+		case prayerAdoptCommonID, prayerAdoptWarID:
+			if command.RecipeID != spot.RecipeID {
+				return fmt.Errorf("prayer set %q is not available at altar %q", command.RecipeID, spot.ID)
 			}
 		default:
 			return fmt.Errorf("prayer altar recipe %q does not exist", command.RecipeID)
@@ -488,6 +515,16 @@ func (w *World) resolveGatheringActions() {
 			continue
 		}
 		if spot.Station == craftingStationPrayer {
+			if player.gatheringRecipe == prayerAdoptCommonID || player.gatheringRecipe == prayerAdoptWarID {
+				setID := PrayerSetCommon
+				if player.gatheringRecipe == prayerAdoptWarID {
+					setID = PrayerSetWar
+				}
+				player.activePrayerSet = setID
+				clearActivePrayers(player)
+				clearGathering(player, "prayer_set_"+string(setID))
+				continue
+			}
 			if player.gatheringRecipe == prayerSacrificeBonesID {
 				if !player.inventory.remove(ItemBones, 1) {
 					clearGathering(player, "missing_bones")

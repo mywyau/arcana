@@ -127,7 +127,7 @@ func _build_item_visual(item_id: String) -> void:
 			head.position.x = 0.12
 		mesh.add_child(head)
 		return
-	if item_id in ["normal_logs", "oak_logs"]:
+	if item_id in ["normal_logs", "oak_logs", "willow_logs", "maple_logs", "yew_logs"]:
 		mesh.position.y = 0.19
 		var log_mesh := CylinderMesh.new()
 		log_mesh.top_radius = 0.18
@@ -135,7 +135,12 @@ func _build_item_visual(item_id: String) -> void:
 		log_mesh.height = 0.75
 		log_mesh.radial_segments = 8
 		var log_material := StandardMaterial3D.new()
-		log_material.albedo_color = Color(0.3, 0.15, 0.055) if item_id == "oak_logs" else Color(0.42, 0.24, 0.1)
+		var log_colours := {
+			"normal_logs": Color(0.42, 0.24, 0.1), "oak_logs": Color(0.3, 0.15, 0.055),
+			"willow_logs": Color(0.46, 0.39, 0.25), "maple_logs": Color(0.55, 0.24, 0.08),
+			"yew_logs": Color(0.18, 0.12, 0.07),
+		}
+		log_material.albedo_color = log_colours.get(item_id, Color(0.42, 0.24, 0.1))
 		log_material.roughness = 0.95
 		log_mesh.material = log_material
 		mesh.mesh = log_mesh
