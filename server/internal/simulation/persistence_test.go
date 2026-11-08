@@ -16,6 +16,8 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	state.Skills = []PersistentSkillState{{ID: SkillAttack, Experience: 125}}
 	state.Bank.Items = []InventoryItem{{Slot: 0, ItemID: ItemAirRune, Quantity: 250}}
 	state.AmmunitionPouch.Items = []InventoryItem{{Slot: 0, ItemID: ItemIronArrow, Quantity: 80}}
+	state.RingRack.Items = []InventoryItem{{Slot: 0, ItemID: ItemRubyRing, Quantity: 1, InstanceID: "ring-1"}}
+	state.RunePouch.Items = []InventoryItem{{Slot: 0, ItemID: ItemFireRune, Quantity: 60}}
 
 	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
 		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
@@ -43,6 +45,12 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	}
 	if len(player.AmmunitionPouch.Items) != 1 || player.AmmunitionPouch.Items[0].Quantity != 80 {
 		t.Fatalf("restored ammunition pouch = %+v", player.AmmunitionPouch)
+	}
+	if len(player.RingRack.Items) != 1 || player.RingRack.Items[0].ItemID != ItemRubyRing {
+		t.Fatalf("restored ring rack = %+v", player.RingRack)
+	}
+	if len(player.RunePouch.Items) != 1 || player.RunePouch.Items[0].Quantity != 60 {
+		t.Fatalf("restored rune pouch = %+v", player.RunePouch)
 	}
 }
 

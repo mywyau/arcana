@@ -20,7 +20,7 @@ func TestStandardSpellbookContainsWindBolt(t *testing.T) {
 		t.Fatalf("Standard spellbook = %+v, exists %t", book, exists)
 	}
 	spells := spellDefinitionsForBook(SpellbookStandard)
-	wantIDs := []SpellID{SpellWindBolt, SpellWaterBolt, SpellEarthBolt, SpellFireBolt, SpellHolyBolt, SpellDarkBolt}
+	wantIDs := []SpellID{SpellWindBolt, SpellWaterBolt, SpellEarthBolt, SpellFireBolt}
 	if len(spells) != len(wantIDs) {
 		t.Fatalf("Standard spells = %+v", spells)
 	}
@@ -34,6 +34,31 @@ func TestStandardSpellbookContainsWindBolt(t *testing.T) {
 	windBolt, _ := spellDefinition(SpellWindBolt)
 	if windBolt.Costs[0].Quantity != 1 {
 		t.Fatalf("catalogue costs were mutated through a lookup: %+v", windBolt.Costs)
+	}
+}
+
+func TestSpecialistSpellbooksContainTheirElement(t *testing.T) {
+	tests := []struct {
+		bookID SpellbookID
+		name   string
+		itemID string
+		spell  SpellID
+	}{
+		{SpellbookDark, "Skin Bible", ItemSkinBible, SpellDarkBolt},
+		{SpellbookHoly, "Holy Book", ItemHolyBook, SpellHolyBolt},
+	}
+	for _, test := range tests {
+		book, exists := spellbookDefinition(test.bookID)
+		spells := spellDefinitionsForBook(test.bookID)
+		if !exists || book.Name != test.name || book.EquipmentItemID != test.itemID ||
+			len(spells) != 1 || spells[0].ID != test.spell || spells[0].BookID != test.bookID {
+			t.Errorf("spellbook %q = %+v, spells %+v", test.bookID, book, spells)
+		}
+	}
+	cleric, exists := spellbookDefinition(SpellbookCleric)
+	if !exists || cleric.Name != "Cleric's Tome" || cleric.EquipmentItemID != ItemClericsTome ||
+		len(spellDefinitionsForBook(SpellbookCleric)) != 0 {
+		t.Errorf("Cleric spellbook = %+v", cleric)
 	}
 }
 

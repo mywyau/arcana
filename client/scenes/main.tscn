@@ -19,10 +19,10 @@ albedo_color = Color(0.24, 0.48, 0.29, 1)
 
 [sub_resource type="BoxMesh" id="GroundMesh"]
 material = SubResource("GroundMaterial")
-size = Vector3(60, 0.2, 60)
+size = Vector3(100, 0.2, 100)
 
 [sub_resource type="BoxShape3D" id="GroundShape"]
-size = Vector3(60, 0.2, 60)
+size = Vector3(100, 0.2, 100)
 
 [sub_resource type="StandardMaterial3D" id="UpperMaterial"]
 albedo_color = Color(0.28, 0.38, 0.55, 1)
@@ -239,6 +239,8 @@ mesh = SubResource("TargetPulseMesh")
 
 [node name="Drops" type="Node3D" parent="."]
 
+[node name="Fires" type="Node3D" parent="."]
+
 [node name="GatheringSpots" type="Node3D" parent="."]
 
 [node name="BankChests" type="Node3D" parent="."]
@@ -298,6 +300,54 @@ text = "Choose a material tier, then select an item to forge."
 [node name="Tabs" type="TabContainer" parent="SmithingWindow/Panel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="SmeltingWindow" type="Window" parent="."]
+title = "Smelting"
+initial_position = 1
+size = Vector2i(640, 520)
+min_size = Vector2i(520, 420)
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="SmeltingWindow"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("HUDPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="SmeltingWindow/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="SmeltingWindow/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="SmeltingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Smelting"
+theme_override_font_sizes/font_size = 26
+
+[node name="Hint" type="Label" parent="SmeltingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Choose a bar. Smelting continues until you run out of ore, fuel, or inventory space."
+autowrap_mode = 2
+
+[node name="RecipeScroll" type="ScrollContainer" parent="SmeltingWindow/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="SmeltingWindow/Panel/Margin/VBox/RecipeScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
 
 [node name="CookingWindow" type="Window" parent="."]
 title = "Cooking"
@@ -944,6 +994,46 @@ theme_override_constants/margin_bottom = 12
 layout_mode = 2
 theme_override_constants/separation = 12
 
+[node name="TabRow" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Combat" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+visible = false
+layout_mode = 2
+toggle_mode = true
+text = "Combat"
+
+[node name="Inventory" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+layout_mode = 2
+toggle_mode = true
+text = "Inventory"
+
+[node name="Skills" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+layout_mode = 2
+toggle_mode = true
+text = "Skills"
+
+[node name="Equipment" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+layout_mode = 2
+toggle_mode = true
+text = "Equipment"
+
+[node name="Magic" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+layout_mode = 2
+toggle_mode = true
+text = "Magic"
+
+[node name="Prayer" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+layout_mode = 2
+toggle_mode = true
+text = "Prayer"
+
+[node name="Styles" type="Button" parent="UI/SettingsHUD/Margin/VBox/TabRow"]
+layout_mode = 2
+toggle_mode = true
+text = "Styles"
+
 [node name="Title" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
 layout_mode = 2
 text = "Settings"
@@ -1027,12 +1117,6 @@ theme_override_constants/margin_bottom = 6
 [node name="Row" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 8
-
-[node name="Inventory" type="Button" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
-custom_minimum_size = Vector2(118, 44)
-layout_mode = 2
-text = "Inventory"
-tooltip_text = "Return to inventory"
 
 [node name="Spacer" type="Control" parent="UI/SettingsHUD/Margin/VBox/UtilityTabs/Margin/Row"]
 layout_mode = 2
@@ -1618,6 +1702,11 @@ autowrap_mode = 2
 [node name="Summary" type="Label" parent="UI/BankHUD/Margin/VBox"]
 layout_mode = 2
 text = "0/100 slots used"
+
+[node name="Expand" type="Button" parent="UI/BankHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Buy +50 bank slots"
 
 [node name="ContentScroll" type="ScrollContainer" parent="UI/BankHUD/Margin/VBox"]
 layout_mode = 2

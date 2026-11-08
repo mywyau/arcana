@@ -315,6 +315,9 @@ func (h *Handler) readCommands(
 		case protocol.MessageCutGem:
 			rejectionCode = "gem_cut_rejected"
 			err = h.world.CutGem(playerID, message.Sequence, message.ItemID)
+		case protocol.MessageLightFire:
+			rejectionCode = "firemaking_rejected"
+			err = h.world.LightFire(playerID, message.Sequence, message.ItemID)
 		case protocol.MessagePickupItem:
 			rejectionCode = "pickup_rejected"
 			err = h.world.QueuePickup(simulation.PickupCommand{
@@ -381,6 +384,9 @@ func (h *Handler) readCommands(
 			err = h.world.QueueBankTransfer(simulation.BankTransferCommand{
 				PlayerID: playerID, Sequence: message.Sequence, BankSlot: message.BankSlot, Quantity: message.Quantity,
 			})
+		case protocol.MessageBankExpand:
+			rejectionCode = "bank_rejected"
+			err = h.world.PurchaseBankExpansion(playerID, message.Sequence)
 		case protocol.MessageAmmunitionDeposit:
 			rejectionCode = "ammunition_rejected"
 			err = h.world.QueueAmmunitionTransfer(simulation.AmmunitionTransferCommand{
@@ -390,6 +396,27 @@ func (h *Handler) readCommands(
 			rejectionCode = "ammunition_rejected"
 			err = h.world.QueueAmmunitionTransfer(simulation.AmmunitionTransferCommand{
 				PlayerID: playerID, Sequence: message.Sequence, PouchSlot: message.AmmunitionSlot,
+			})
+		case protocol.MessageRingDeposit:
+			rejectionCode = "ring_rejected"
+			err = h.world.QueueRingTransfer(simulation.RingTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, Deposit: true,
+				ItemID: message.ItemID, InstanceID: message.InstanceID,
+			})
+		case protocol.MessageRingWithdraw:
+			rejectionCode = "ring_rejected"
+			err = h.world.QueueRingTransfer(simulation.RingTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, RackSlot: message.RingSlot,
+			})
+		case protocol.MessageRuneDeposit:
+			rejectionCode = "rune_rejected"
+			err = h.world.QueueRuneTransfer(simulation.RuneTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, Deposit: true, InventorySlot: message.InventorySlot,
+			})
+		case protocol.MessageRuneWithdraw:
+			rejectionCode = "rune_rejected"
+			err = h.world.QueueRuneTransfer(simulation.RuneTransferCommand{
+				PlayerID: playerID, Sequence: message.Sequence, PouchSlot: message.RuneSlot,
 			})
 		}
 		if err != nil {
@@ -427,6 +454,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 		ActionPulse:    snapshot.ActionPulse,
 		Targets:        make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
 		Drops:          make([]protocol.DropSnapshot, 0, len(snapshot.Drops)),
+		Fires:          make([]protocol.FireSnapshot, 0, len(snapshot.Fires)),
 		CombatEvents:   make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
 		GatheringSpots: make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots)),
 		BankChests:     make([]protocol.BankChestSnapshot, 0, len(snapshot.BankChests)),
@@ -443,6 +471,12 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			Quantity:      drop.Quantity,
 			InstanceID:    drop.InstanceID,
 			Reinforcement: drop.Reinforcement,
+		})
+	}
+	for _, fire := range snapshot.Fires {
+		message.Fires = append(message.Fires, protocol.FireSnapshot{
+			ID: fire.ID, LogItem: fire.LogItem,
+			Position: protocol.Position{X: fire.Position.X, Y: fire.Position.Y, Z: fire.Position.Z},
 		})
 	}
 	for _, event := range snapshot.CombatEvents {
@@ -604,9 +638,30 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 				})
 			}
+			playerMessage.RingRack = protocol.RingRackSnapshot{
+				Capacity: player.RingRack.Capacity,
+				Items:    make([]protocol.InventoryItem, 0, len(player.RingRack.Items)),
+			}
+			playerMessage.LastRingSequence = player.LastRingSequence
+			for _, item := range player.RingRack.Items {
+				playerMessage.RingRack.Items = append(playerMessage.RingRack.Items, protocol.InventoryItem{
+					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+					InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
+				})
+			}
+			playerMessage.RunePouch = protocol.RunePouchSnapshot{
+				Capacity: player.RunePouch.Capacity,
+				Items:    make([]protocol.InventoryItem, 0, len(player.RunePouch.Items)),
+			}
+			playerMessage.LastRuneSequence = player.LastRuneSequence
+			for _, item := range player.RunePouch.Items {
+				playerMessage.RunePouch.Items = append(playerMessage.RunePouch.Items, protocol.InventoryItem{
+					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+				})
+			}
 			playerMessage.Bank = &protocol.InventorySnapshot{
-				Capacity: player.Bank.Capacity,
-				Items:    make([]protocol.InventoryItem, 0, len(player.Bank.Items)),
+				Capacity: player.Bank.Capacity, NextExpansionCost: player.Bank.NextExpansionCost,
+				Items: make([]protocol.InventoryItem, 0, len(player.Bank.Items)),
 			}
 			for _, item := range player.Bank.Items {
 				playerMessage.Bank.Items = append(playerMessage.Bank.Items, protocol.InventoryItem{

@@ -24,11 +24,17 @@ const (
 	MessageBrew               = "brew"
 	MessageFletch             = "fletch"
 	MessageCutGem             = "cut_gem"
+	MessageLightFire          = "light_fire"
 	MessageGather             = "gather"
 	MessageBankDeposit        = "bank_deposit"
 	MessageBankWithdraw       = "bank_withdraw"
+	MessageBankExpand         = "bank_expand"
 	MessageAmmunitionDeposit  = "ammunition_deposit"
 	MessageAmmunitionWithdraw = "ammunition_withdraw"
+	MessageRingDeposit        = "ring_deposit"
+	MessageRingWithdraw       = "ring_withdraw"
+	MessageRuneDeposit        = "rune_deposit"
+	MessageRuneWithdraw       = "rune_withdraw"
 	MessageWelcome            = "welcome"
 	MessageSnapshot           = "snapshot"
 	MessageError              = "error"
@@ -59,6 +65,8 @@ type ClientMessage struct {
 	BankSlot       int       `json:"bank_slot,omitempty"`
 	InventorySlot  int       `json:"inventory_slot,omitempty"`
 	AmmunitionSlot int       `json:"ammunition_slot,omitempty"`
+	RingSlot       int       `json:"ring_slot,omitempty"`
+	RuneSlot       int       `json:"rune_slot,omitempty"`
 	Quantity       int       `json:"quantity,omitempty"`
 	Active         bool      `json:"active,omitempty"`
 	GuestToken     string    `json:"guest_token,omitempty"`
@@ -77,6 +85,7 @@ type WorldSnapshot struct {
 	ActionPulse    uint64                  `json:"action_pulse"`
 	Targets        []TargetSnapshot        `json:"targets"`
 	Drops          []DropSnapshot          `json:"drops"`
+	Fires          []FireSnapshot          `json:"fires"`
 	CombatEvents   []CombatEvent           `json:"combat_events"`
 	GatheringSpots []GatheringSpotSnapshot `json:"gathering_spots"`
 	BankChests     []BankChestSnapshot     `json:"bank_chests"`
@@ -117,6 +126,12 @@ type DropSnapshot struct {
 	Quantity      int      `json:"quantity"`
 	InstanceID    string   `json:"instance_id,omitempty"`
 	Reinforcement int      `json:"reinforcement,omitempty"`
+}
+
+type FireSnapshot struct {
+	ID       string   `json:"id"`
+	Position Position `json:"position"`
+	LogItem  string   `json:"log_item"`
 }
 
 type GatheringSpotSnapshot struct {
@@ -184,6 +199,10 @@ type PlayerSnapshot struct {
 	Bank                         *InventorySnapshot      `json:"bank,omitempty"`
 	AmmunitionPouch              AmmunitionPouchSnapshot `json:"ammunition_pouch"`
 	LastAmmunitionSequence       uint64                  `json:"last_ammunition_sequence,omitempty"`
+	RingRack                     RingRackSnapshot        `json:"ring_rack"`
+	LastRingSequence             uint64                  `json:"last_ring_sequence,omitempty"`
+	RunePouch                    RunePouchSnapshot       `json:"rune_pouch"`
+	LastRuneSequence             uint64                  `json:"last_rune_sequence,omitempty"`
 	LastBankSequence             uint64                  `json:"last_bank_sequence,omitempty"`
 	LastPickupSequence           uint64                  `json:"last_pickup_sequence"`
 	LastConsumeSequence          uint64                  `json:"last_consume_sequence"`
@@ -251,14 +270,25 @@ type SkillSnapshot struct {
 }
 
 type InventorySnapshot struct {
-	Capacity int             `json:"capacity"`
-	Items    []InventoryItem `json:"items"`
+	Capacity          int             `json:"capacity"`
+	NextExpansionCost int             `json:"next_expansion_cost,omitempty"`
+	Items             []InventoryItem `json:"items"`
 }
 
 type AmmunitionPouchSnapshot struct {
 	Capacity      int             `json:"capacity"`
 	UnlockedSlots int             `json:"unlocked_slots"`
 	Items         []InventoryItem `json:"items"`
+}
+
+type RingRackSnapshot struct {
+	Capacity int             `json:"capacity"`
+	Items    []InventoryItem `json:"items"`
+}
+
+type RunePouchSnapshot struct {
+	Capacity int             `json:"capacity"`
+	Items    []InventoryItem `json:"items"`
 }
 
 type InventoryItem struct {
@@ -296,9 +326,11 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageGather &&
-		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw &&
-		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw {
+		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
+		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand &&
+		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw &&
+		message.Type != MessageRingDeposit && message.Type != MessageRingWithdraw &&
+		message.Type != MessageRuneDeposit && message.Type != MessageRuneWithdraw {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
@@ -311,7 +343,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		return ClientMessage{}, fmt.Errorf("target ID is required")
 	}
 	if (message.Type == MessageEquipItem || message.Type == MessageUnequipItem ||
-		message.Type == MessageConsumeItem || message.Type == MessageCutGem) && message.ItemID == "" {
+		message.Type == MessageConsumeItem || message.Type == MessageCutGem || message.Type == MessageLightFire) && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
 	}
 	if message.Type == MessagePickupItem && message.DropID == "" {
@@ -370,6 +402,18 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageAmmunitionWithdraw && message.AmmunitionSlot < 0 {
 		return ClientMessage{}, fmt.Errorf("ammunition slot cannot be negative")
+	}
+	if message.Type == MessageRingDeposit && (message.ItemID == "" || message.InstanceID == "") {
+		return ClientMessage{}, fmt.Errorf("ring item and instance IDs are required")
+	}
+	if message.Type == MessageRingWithdraw && message.RingSlot < 0 {
+		return ClientMessage{}, fmt.Errorf("ring slot cannot be negative")
+	}
+	if message.Type == MessageRuneDeposit && message.InventorySlot < 0 {
+		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
+	}
+	if message.Type == MessageRuneWithdraw && message.RuneSlot < 0 {
+		return ClientMessage{}, fmt.Errorf("rune slot cannot be negative")
 	}
 	return message, nil
 }

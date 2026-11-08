@@ -494,6 +494,9 @@ func (w *World) queueEquipment(command EquipCommand) error {
 		(item.Kind != ItemKindWeapon && item.Kind != ItemKindArmour && item.Kind != ItemKindSpellbook) {
 		return fmt.Errorf("item %q does not exist", command.ItemID)
 	}
+	if item.Kind == ItemKindArmour && item.Armour.Slot == ArmourSlotRing {
+		return fmt.Errorf("rings must be managed through the ring rack")
+	}
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -947,7 +950,7 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 
-		if castingSpell && !payItemCosts(&player.inventory, spell.Costs) {
+		if castingSpell && !paySpellCosts(player, spell.Costs) {
 			player.lastActionResult = "missing_reagents"
 			continue
 		}

@@ -30,6 +30,7 @@ var _desired_distance: float
 var _current_distance: float
 var _collision_distance: float
 var _world_collision_mask: int = 7
+var _zoom_blocked: bool = false
 
 
 func _ready() -> void:
@@ -114,11 +115,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				_orbiting = mouse_button.pressed
 				get_viewport().set_input_as_handled()
 			MOUSE_BUTTON_WHEEL_UP:
-				if mouse_button.pressed:
+				if mouse_button.pressed and not _zoom_blocked:
 					_desired_distance = maxf(minimum_distance, _desired_distance - zoom_step)
 					get_viewport().set_input_as_handled()
 			MOUSE_BUTTON_WHEEL_DOWN:
-				if mouse_button.pressed:
+				if mouse_button.pressed and not _zoom_blocked:
 					_desired_distance = minf(maximum_distance, _desired_distance + zoom_step)
 					get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and _orbiting:
@@ -140,3 +141,7 @@ func follow(target: Node3D) -> void:
 
 func set_world_collision_mask(collision_mask: int) -> void:
 	_world_collision_mask = collision_mask
+
+
+func set_zoom_blocked(blocked: bool) -> void:
+	_zoom_blocked = blocked

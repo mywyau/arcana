@@ -17,6 +17,8 @@ type PersistentPlayerState struct {
 	CombatStyle                  CombatStyleID
 	Inventory                    InventorySnapshot
 	AmmunitionPouch              AmmunitionPouchSnapshot
+	RingRack                     RingRackSnapshot
+	RunePouch                    RunePouchSnapshot
 	Bank                         BankSnapshot
 	Skills                       []PersistentSkillState
 }
@@ -32,6 +34,8 @@ func DefaultPersistentPlayerState() PersistentPlayerState {
 		CombatStyle:                  defaultCombatStyle(WeaponUnarmed),
 		Inventory:                    snapshotInventory(newEmptyInventory()),
 		AmmunitionPouch:              snapshotAmmunitionPouch(newAmmunitionPouch()),
+		RingRack:                     snapshotRingRack(newRingRack()),
+		RunePouch:                    snapshotRunePouch(newRunePouch()),
 		Bank:                         snapshotBank(newEmptyBank()),
 		Skills:                       persistentSkills(newDefaultSkills()),
 	}
@@ -57,6 +61,14 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 		AmmunitionPouch: AmmunitionPouchSnapshot{
 			Capacity: snapshot.AmmunitionPouch.Capacity, UnlockedSlots: snapshot.AmmunitionPouch.UnlockedSlots,
 			Items: append([]InventoryItem(nil), snapshot.AmmunitionPouch.Items...),
+		},
+		RingRack: RingRackSnapshot{
+			Capacity: snapshot.RingRack.Capacity,
+			Items:    append([]InventoryItem(nil), snapshot.RingRack.Items...),
+		},
+		RunePouch: RunePouchSnapshot{
+			Capacity: snapshot.RunePouch.Capacity,
+			Items:    append([]InventoryItem(nil), snapshot.RunePouch.Items...),
 		},
 		Bank: BankSnapshot{
 			Capacity: snapshot.Bank.Capacity,
@@ -98,6 +110,14 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	ammunitionPouch, err := ammunitionPouchFromSnapshot(state.AmmunitionPouch)
 	if err != nil {
 		return fmt.Errorf("restore ammunition pouch: %w", err)
+	}
+	ringRack, err := ringRackFromSnapshot(state.RingRack)
+	if err != nil {
+		return fmt.Errorf("restore ring rack: %w", err)
+	}
+	runePouch, err := runePouchFromSnapshot(state.RunePouch)
+	if err != nil {
+		return fmt.Errorf("restore rune pouch: %w", err)
 	}
 	bank, err := bankFromSnapshot(state.Bank)
 	if err != nil {
@@ -152,7 +172,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 			delete(state.EquippedArmourReinforcements, ArmourSlotLeftHand)
 		}
 	}
-	maximumHealth := playerMaximumHealth + equippedHealthBonus(state.EquippedArmour)
+	maximumHealth := playerMaximumHealth + equippedHealthBonus(state.EquippedArmour) + ringRackHealthBonus(ringRack)
 	if state.Health > maximumHealth {
 		return fmt.Errorf("player health must not exceed equipped maximum of %d", maximumHealth)
 	}
@@ -173,6 +193,11 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	for _, item := range bank.items {
 		if err := recordOwnedInstance(ownedInstances, item.InstanceID, "bank"); err != nil {
 			return fmt.Errorf("restore bank: %w", err)
+		}
+	}
+	for _, item := range ringRack.items {
+		if err := recordOwnedInstance(ownedInstances, item.InstanceID, "ring rack"); err != nil {
+			return fmt.Errorf("restore ring rack: %w", err)
 		}
 	}
 	if err := recordOwnedInstance(ownedInstances, state.EquippedWeaponInstanceID, "equipped weapon"); err != nil {
@@ -208,7 +233,8 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: state.EquippedWeapon, equippedWeaponInstanceID: state.EquippedWeaponInstanceID,
 		equippedWeaponReinforcement: state.EquippedWeaponReinforcement, equippedSpellbook: state.EquippedSpellbook,
-		dodgeRate: playerDodgeRate, inventory: inventory, ammunitionPouch: ammunitionPouch, bank: bank,
+		dodgeRate: playerDodgeRate, inventory: inventory, ammunitionPouch: ammunitionPouch,
+		ringRack: ringRack, runePouch: runePouch, bank: bank,
 		equippedArmour:               cloneEquippedArmour(state.EquippedArmour),
 		equippedArmourInstances:      cloneEquippedArmourInstances(state.EquippedArmourInstances),
 		equippedArmourReinforcements: cloneEquippedArmourReinforcements(state.EquippedArmourReinforcements),

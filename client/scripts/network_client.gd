@@ -282,6 +282,19 @@ func send_bank_withdraw(sequence: int, bank_slot: int, quantity: int = 1) -> boo
 	return true
 
 
+func send_bank_expand(sequence: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot expand the bank while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "bank_expand", "sequence": sequence,
+	}))
+	if result != OK:
+		status_changed.emit("Could not expand bank: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_ammunition_deposit(sequence: int, inventory_slot: int) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot use the ammunition pouch while disconnected")
@@ -308,6 +321,59 @@ func send_ammunition_withdraw(sequence: int, ammunition_slot: int) -> bool:
 	}))
 	if result != OK:
 		status_changed.emit("Could not withdraw ammunition: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_ring_deposit(sequence: int, item_id: String, instance_id: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot change rings while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "ring_deposit", "sequence": sequence,
+		"item_id": item_id, "instance_id": instance_id,
+	}))
+	if result != OK:
+		status_changed.emit("Could not equip ring: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_ring_withdraw(sequence: int, ring_slot: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot change rings while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "ring_withdraw", "sequence": sequence, "ring_slot": ring_slot,
+	}))
+	if result != OK:
+		status_changed.emit("Could not unequip ring: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_rune_deposit(sequence: int, inventory_slot: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the rune pouch while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "rune_deposit", "sequence": sequence, "inventory_slot": inventory_slot,
+	}))
+	if result != OK:
+		status_changed.emit("Could not store runes: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_rune_withdraw(sequence: int, rune_slot: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the rune pouch while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "rune_withdraw", "sequence": sequence, "rune_slot": rune_slot,
+	}))
+	if result != OK:
+		status_changed.emit("Could not withdraw runes: %s" % error_string(result))
 		return false
 	return true
 
@@ -356,6 +422,19 @@ func send_cut_gem(sequence: int, item_id: String) -> bool:
 	}))
 	if result != OK:
 		status_changed.emit("Could not cut gem: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_light_fire(sequence: int, log_item: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot light a fire while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "light_fire", "sequence": sequence, "item_id": log_item,
+	}))
+	if result != OK:
+		status_changed.emit("Could not light fire: %s" % error_string(result))
 		return false
 	return true
 

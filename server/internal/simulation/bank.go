@@ -7,10 +7,19 @@ import (
 
 const (
 	StarterBankChestID       = "starter_bank_chest"
-	TestCombatChestID        = "test_combat_chest"
-	TestMagicRangedChestID   = "test_magic_ranged_chest"
+	TestMeleeChestID         = "test_melee_chest"
+	TestRangedChestID        = "test_ranged_chest"
+	TestMagicChestID         = "test_magic_chest"
+	TestOresChestID          = "test_ores_chest"
+	TestBarsChestID          = "test_bars_chest"
+	TestToolsChestID         = "test_tools_chest"
+	TestHerbsChestID         = "test_herbs_chest"
 	TestCraftingChestID      = "test_crafting_chest"
+	TestFoodChestID          = "test_food_chest"
 	BankCapacity             = 100
+	MaximumBankCapacity      = 1000
+	BankExpansionSize        = 50
+	BankExpansionBaseCost    = 1000
 	MaximumBankStackQuantity = MaximumItemStackQuantity
 	bankInteractionRange     = 2.5
 )
@@ -22,30 +31,29 @@ var starterBankChest = BankChestSnapshot{
 	Range:    bankInteractionRange,
 }
 
-var testCombatChest = BankChestSnapshot{
-	ID:       TestCombatChestID,
-	Name:     "Combat Test Chest",
-	Position: Position{X: 0, Z: -11},
-	Range:    bankInteractionRange,
+var testSupplyChests = []BankChestSnapshot{
+	{ID: TestMeleeChestID, Name: "Melee Test Chest", Position: Position{X: -6, Z: -35}, Range: bankInteractionRange},
+	{ID: TestRangedChestID, Name: "Ranged Test Chest", Position: Position{X: 0, Z: -35}, Range: bankInteractionRange},
+	{ID: TestMagicChestID, Name: "Magic Test Chest", Position: Position{X: 6, Z: -35}, Range: bankInteractionRange},
+	{ID: TestOresChestID, Name: "Ores Test Chest", Position: Position{X: -6, Z: -41}, Range: bankInteractionRange},
+	{ID: TestBarsChestID, Name: "Bars Test Chest", Position: Position{X: 0, Z: -41}, Range: bankInteractionRange},
+	{ID: TestToolsChestID, Name: "Tools Test Chest", Position: Position{X: 6, Z: -41}, Range: bankInteractionRange},
+	{ID: TestHerbsChestID, Name: "Herbs Test Chest", Position: Position{X: -6, Z: -47}, Range: bankInteractionRange},
+	{ID: TestCraftingChestID, Name: "Crafting Test Chest", Position: Position{X: 0, Z: -47}, Range: bankInteractionRange},
+	{ID: TestFoodChestID, Name: "Food Test Chest", Position: Position{X: 6, Z: -47}, Range: bankInteractionRange},
 }
 
-var testMagicRangedChest = BankChestSnapshot{
-	ID:       TestMagicRangedChestID,
-	Name:     "Magic & Ranged Test Chest",
-	Position: Position{X: 4, Z: -11},
-	Range:    bankInteractionRange,
-}
-
-var testCraftingChest = BankChestSnapshot{
-	ID:       TestCraftingChestID,
-	Name:     "Gathering & Crafting Test Chest",
-	Position: Position{X: 8, Z: -11},
-	Range:    bankInteractionRange,
-}
-
-var TestCombatChestPosition = testCombatChest.Position
-var TestMagicRangedChestPosition = testMagicRangedChest.Position
-var TestCraftingChestPosition = testCraftingChest.Position
+var (
+	TestMeleeChestPosition    = testSupplyChests[0].Position
+	TestRangedChestPosition   = testSupplyChests[1].Position
+	TestMagicChestPosition    = testSupplyChests[2].Position
+	TestOresChestPosition     = testSupplyChests[3].Position
+	TestBarsChestPosition     = testSupplyChests[4].Position
+	TestToolsChestPosition    = testSupplyChests[5].Position
+	TestHerbsChestPosition    = testSupplyChests[6].Position
+	TestCraftingChestPosition = testSupplyChests[7].Position
+	TestFoodChestPosition     = testSupplyChests[8].Position
+)
 
 type BankChestSnapshot struct {
 	ID       string
@@ -55,8 +63,9 @@ type BankChestSnapshot struct {
 }
 
 type BankSnapshot struct {
-	Capacity int
-	Items    []InventoryItem
+	Capacity          int
+	NextExpansionCost int
+	Items             []InventoryItem
 }
 
 type bankState struct {
@@ -80,15 +89,19 @@ func newEmptyBank() bankState {
 }
 
 func snapshotBank(bank bankState) BankSnapshot {
-	return BankSnapshot{Capacity: bank.capacity, Items: append([]InventoryItem(nil), bank.items...)}
+	return BankSnapshot{
+		Capacity: bank.capacity, NextExpansionCost: bankExpansionCost(bank.capacity),
+		Items: append([]InventoryItem(nil), bank.items...),
+	}
 }
 
 func bankFromSnapshot(snapshot BankSnapshot) (bankState, error) {
 	if snapshot.Capacity == 0 && len(snapshot.Items) == 0 {
 		return newEmptyBank(), nil
 	}
-	if snapshot.Capacity != BankCapacity {
-		return bankState{}, fmt.Errorf("bank capacity must be %d", BankCapacity)
+	if snapshot.Capacity < BankCapacity || snapshot.Capacity > MaximumBankCapacity ||
+		(snapshot.Capacity-BankCapacity)%BankExpansionSize != 0 {
+		return bankState{}, fmt.Errorf("bank capacity must be between %d and %d in increments of %d", BankCapacity, MaximumBankCapacity, BankExpansionSize)
 	}
 	items := append([]InventoryItem(nil), snapshot.Items...)
 	occupied := make(map[int]struct{}, len(items))
@@ -122,6 +135,80 @@ func bankFromSnapshot(snapshot BankSnapshot) (bankState, error) {
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
 	return bankState{capacity: snapshot.Capacity, items: items}, nil
+}
+
+func bankExpansionCost(capacity int) int {
+	if capacity < BankCapacity || capacity >= MaximumBankCapacity {
+		return 0
+	}
+	upgradeNumber := (capacity-BankCapacity)/BankExpansionSize + 1
+	cost := BankExpansionBaseCost
+	for tier := 1; tier < upgradeNumber; tier++ {
+		// Compound by 1.65 and round upward to a clean hundred. This keeps
+		// early storage attainable while putting the final tier near 5m.
+		cost = ((cost*165 + 9_999) / 10_000) * 100
+	}
+	return cost
+}
+
+// BankExpansionCost exposes the authoritative next-tier price for persistence
+// and presentation boundaries without duplicating the economy curve.
+func BankExpansionCost(capacity int) int {
+	return bankExpansionCost(capacity)
+}
+
+func (w *World) PurchaseBankExpansion(playerID PlayerID, sequence uint64) error {
+	if sequence == 0 {
+		return fmt.Errorf("bank sequence must be positive")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	player, exists := w.players[playerID]
+	if !exists || player.defeated {
+		return fmt.Errorf("player %q cannot use the bank", playerID)
+	}
+	if distance(player.position, starterBankChest.Position) > starterBankChest.Range {
+		return fmt.Errorf("player is too far from the bank chest")
+	}
+	if w.playerIsInCombat(player) {
+		return fmt.Errorf("player cannot use the bank during combat")
+	}
+	if sequence <= player.lastBankSequence {
+		return fmt.Errorf("bank sequence %d is not newer than %d", sequence, player.lastBankSequence)
+	}
+	if _, pending := w.pendingBankTransfers[playerID]; pending {
+		return fmt.Errorf("finish the pending bank transfer first")
+	}
+	cost := bankExpansionCost(player.bank.capacity)
+	if cost == 0 {
+		return fmt.Errorf("bank capacity is already at the maximum")
+	}
+	inventory := cloneInventory(player.inventory)
+	bank := cloneBank(player.bank)
+	remaining := cost
+	fromInventory := min(remaining, inventory.quantity(ItemCoins))
+	if fromInventory > 0 {
+		inventory.remove(ItemCoins, fromInventory)
+		remaining -= fromInventory
+	}
+	if remaining > 0 {
+		for _, item := range bank.items {
+			if item.ItemID != ItemCoins || item.Quantity < remaining {
+				continue
+			}
+			bank.removeQuantity(item.Slot, remaining)
+			remaining = 0
+			break
+		}
+	}
+	if remaining > 0 {
+		return fmt.Errorf("%d coins are required", cost)
+	}
+	bank.capacity += BankExpansionSize
+	player.inventory = inventory
+	player.bank = bank
+	player.lastBankSequence = sequence
+	return nil
 }
 
 func (bank bankState) itemAt(slot int) (InventoryItem, bool) {

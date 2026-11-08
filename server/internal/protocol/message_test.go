@@ -127,6 +127,25 @@ func TestDecodeAmmunitionTransferMessages(t *testing.T) {
 	}
 }
 
+func TestDecodeRingAndRuneTransferMessages(t *testing.T) {
+	ring, err := DecodeClientMessage([]byte(`{"type":"ring_deposit","sequence":12,"item_id":"ruby_ring","instance_id":"ring-1"}`))
+	if err != nil || ring.Type != MessageRingDeposit || ring.ItemID != "ruby_ring" || ring.InstanceID != "ring-1" {
+		t.Fatalf("decoded ring deposit = %+v, error %v", ring, err)
+	}
+	ring, err = DecodeClientMessage([]byte(`{"type":"ring_withdraw","sequence":13,"ring_slot":4}`))
+	if err != nil || ring.Type != MessageRingWithdraw || ring.RingSlot != 4 {
+		t.Fatalf("decoded ring withdrawal = %+v, error %v", ring, err)
+	}
+	runes, err := DecodeClientMessage([]byte(`{"type":"rune_deposit","sequence":14,"inventory_slot":2}`))
+	if err != nil || runes.Type != MessageRuneDeposit || runes.InventorySlot != 2 {
+		t.Fatalf("decoded rune deposit = %+v, error %v", runes, err)
+	}
+	runes, err = DecodeClientMessage([]byte(`{"type":"rune_withdraw","sequence":15,"rune_slot":5}`))
+	if err != nil || runes.Type != MessageRuneWithdraw || runes.RuneSlot != 5 {
+		t.Fatalf("decoded rune withdrawal = %+v, error %v", runes, err)
+	}
+}
+
 func TestDecodeCombatStyleMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"set_combat_style","sequence":6,"combat_style":"rapid"}`))
 	if err != nil {

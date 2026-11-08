@@ -13,6 +13,7 @@ const (
 	ArmourSlotHands    ArmourSlot = "hands"
 	ArmourSlotLegs     ArmourSlot = "legs"
 	ArmourSlotLeftHand ArmourSlot = "left_hand"
+	ArmourSlotRing     ArmourSlot = "ring"
 
 	ItemTrainingHelm       = "training_helm"
 	ItemBronzeHelm         = "bronze_helm"
@@ -51,6 +52,10 @@ const (
 	ItemAmuletHawk         = "amulet_hawk"
 	ItemAmuletEmbers       = "amulet_embers"
 	ItemAmuletFury         = "amulet_fury"
+	ItemRubyRing           = "ruby_ring"
+	ItemEmeraldRing        = "emerald_ring"
+	ItemSapphireRing       = "sapphire_ring"
+	ItemDiamondRing        = "diamond_ring"
 
 	armourSetSwift ArmourSetID = "swift"
 
@@ -125,6 +130,15 @@ func equippedDefenceBonusesForPlayer(player *playerState) DefenceBonuses {
 		return DefenceBonuses{}
 	}
 	total := equippedDefenceBonuses(player.equippedArmour)
+	for _, ring := range player.ringRack.items {
+		if definition, exists := armourDefinition(ring.ItemID); exists {
+			total.Stab += definition.Defence.Stab
+			total.Slash += definition.Defence.Slash
+			total.Crush += definition.Defence.Crush
+			total.Ranged += definition.Defence.Ranged
+			total.Magic += definition.Defence.Magic
+		}
+	}
 	for slot, instanceID := range player.equippedArmourInstances {
 		reinforcement := equippedReinforcement(player, instanceID)
 		definition, exists := armourDefinition(player.equippedArmour[slot])
@@ -172,6 +186,16 @@ func equipmentOffenceForWeapon(player *playerState, weapon WeaponDefinition) (ac
 		return 0, 0
 	}
 	bonuses := equippedOffenceBonuses(player.equippedArmour)
+	for _, ring := range player.ringRack.items {
+		if definition, exists := armourDefinition(ring.ItemID); exists {
+			bonuses.MeleeAccuracy += definition.Offence.MeleeAccuracy
+			bonuses.RangedAccuracy += definition.Offence.RangedAccuracy
+			bonuses.MagicAccuracy += definition.Offence.MagicAccuracy
+			bonuses.MeleeStrength += definition.Offence.MeleeStrength
+			bonuses.RangedStrength += definition.Offence.RangedStrength
+			bonuses.MagicStrength += definition.Offence.MagicStrength
+		}
+	}
 	switch {
 	case weapon.RangedStrength > 0:
 		return bonuses.RangedAccuracy, bonuses.RangedStrength
@@ -222,11 +246,21 @@ func equippedHealthBonus(equipped map[ArmourSlot]string) int {
 	return bonus
 }
 
+func ringRackHealthBonus(rack inventoryState) int {
+	bonus := 0
+	for _, ring := range rack.items {
+		if definition, exists := armourDefinition(ring.ItemID); exists {
+			bonus += definition.HealthBonus
+		}
+	}
+	return bonus
+}
+
 func refreshPlayerMaximumHealth(player *playerState) {
 	if player == nil {
 		return
 	}
-	player.maximumHealth = playerMaximumHealth + equippedHealthBonus(player.equippedArmour)
+	player.maximumHealth = playerMaximumHealth + equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack)
 	player.health = min(player.health, player.maximumHealth)
 }
 

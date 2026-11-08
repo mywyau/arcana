@@ -111,6 +111,10 @@ type PlayerSnapshot struct {
 	Inventory                    InventorySnapshot
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	LastAmmunitionSequence       uint64
+	RingRack                     RingRackSnapshot
+	LastRingSequence             uint64
+	RunePouch                    RunePouchSnapshot
+	LastRuneSequence             uint64
 	Bank                         BankSnapshot
 	LastBankSequence             uint64
 	LastPickupSequence           uint64
@@ -122,6 +126,7 @@ type PlayerSnapshot struct {
 	BrewingResult                string
 	LastFletchSequence           uint64
 	LastGemCutSequence           uint64
+	LastFireSequence             uint64
 	FletchRemaining              int
 	NextFletchPulse              uint64
 	FletchingResult              string
@@ -139,6 +144,7 @@ type Snapshot struct {
 	ActionPulse    uint64
 	Targets        []TargetSnapshot
 	Drops          []DropSnapshot
+	Fires          []FireSnapshot
 	CombatEvents   []CombatEvent
 	GatheringSpots []GatheringSpotSnapshot
 	BankChests     []BankChestSnapshot
@@ -189,6 +195,10 @@ type playerState struct {
 	inventory                    inventoryState
 	ammunitionPouch              inventoryState
 	lastAmmunitionSequence       uint64
+	ringRack                     inventoryState
+	lastRingSequence             uint64
+	runePouch                    inventoryState
+	lastRuneSequence             uint64
 	bank                         bankState
 	lastBankSequence             uint64
 	lastPickupSequence           uint64
@@ -202,6 +212,7 @@ type playerState struct {
 	brewingResult                string
 	lastFletchSequence           uint64
 	lastGemCutSequence           uint64
+	lastFireSequence             uint64
 	fletchRemaining              int
 	nextFletchPulse              uint64
 	fletchingResult              string
@@ -231,8 +242,13 @@ type World struct {
 	pendingGathering           map[PlayerID]pendingGather
 	pendingBankTransfers       map[PlayerID]BankTransferCommand
 	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
+	pendingRingTransfers       map[PlayerID]RingTransferCommand
+	pendingRuneTransfers       map[PlayerID]RuneTransferCommand
 	drops                      map[string]DropSnapshot
 	dropLifetimes              map[string]time.Duration
+	fires                      map[string]FireSnapshot
+	fireLifetimes              map[string]time.Duration
+	nextFireID                 uint64
 	nextDropID                 uint64
 	pathfinder                 Pathfinder
 	combat                     *combatState
@@ -274,8 +290,12 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingGathering:           make(map[PlayerID]pendingGather),
 		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
 		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
+		pendingRingTransfers:       make(map[PlayerID]RingTransferCommand),
+		pendingRuneTransfers:       make(map[PlayerID]RuneTransferCommand),
 		drops:                      make(map[string]DropSnapshot),
 		dropLifetimes:              make(map[string]time.Duration),
+		fires:                      make(map[string]FireSnapshot),
+		fireLifetimes:              make(map[string]time.Duration),
 		combat:                     newCombatState(),
 		rollSource:                 rollSource,
 		gatheringSpots:             newGatheringSpots(),
@@ -312,7 +332,8 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponUnarmed,
-		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(), bank: newEmptyBank(),
+		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
+		ringRack: newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
@@ -348,7 +369,8 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: WeaponUnarmed,
-		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(), bank: newEmptyBank(),
+		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
+		ringRack: newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
@@ -379,6 +401,8 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingGathering, id)
 	delete(w.pendingBankTransfers, id)
 	delete(w.pendingAmmunitionTransfers, id)
+	delete(w.pendingRingTransfers, id)
+	delete(w.pendingRuneTransfers, id)
 	delete(w.combat.pendingTargets, id)
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
@@ -455,6 +479,7 @@ func (w *World) Step(elapsed time.Duration) {
 		return
 	}
 	w.advanceDropLifetimes(elapsed)
+	w.advanceFireLifetimes(elapsed)
 
 	for id, player := range w.pendingJoins {
 		w.players[id] = player
@@ -495,6 +520,8 @@ func (w *World) Step(elapsed time.Duration) {
 	w.moveRoamingEnemies(seconds)
 	w.applyPendingInventoryMoves()
 	w.applyPendingAmmunitionTransfers()
+	w.applyPendingRingTransfers()
+	w.applyPendingRuneTransfers()
 	w.applyPendingBankTransfers()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
@@ -561,11 +588,10 @@ func (w *World) Snapshot() Snapshot {
 		ActionPulse:    w.combat.pulse,
 		Targets:        make([]TargetSnapshot, 0, len(w.combat.targets)),
 		Drops:          make([]DropSnapshot, 0, len(w.drops)),
+		Fires:          w.fireSnapshots(),
 		GatheringSpots: w.gatheringSpotSnapshots(),
-		BankChests: []BankChestSnapshot{
-			starterBankChest, testCombatChest, testMagicRangedChest, testCraftingChest,
-		},
-		CombatEvents: append([]CombatEvent(nil), w.combat.events...),
+		BankChests:     append([]BankChestSnapshot{starterBankChest}, testSupplyChests...),
+		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {
 		snapshot.Targets = append(snapshot.Targets, *target.dummy)
@@ -669,6 +695,10 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		Inventory:                    snapshotInventory(player.inventory),
 		AmmunitionPouch:              snapshotAmmunitionPouch(player.ammunitionPouch),
 		LastAmmunitionSequence:       player.lastAmmunitionSequence,
+		RingRack:                     snapshotRingRack(player.ringRack),
+		LastRingSequence:             player.lastRingSequence,
+		RunePouch:                    snapshotRunePouch(player.runePouch),
+		LastRuneSequence:             player.lastRuneSequence,
 		Bank:                         snapshotBank(player.bank),
 		LastBankSequence:             player.lastBankSequence,
 		LastPickupSequence:           player.lastPickupSequence,
@@ -680,6 +710,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		BrewingResult:                player.brewingResult,
 		LastFletchSequence:           player.lastFletchSequence,
 		LastGemCutSequence:           player.lastGemCutSequence,
+		LastFireSequence:             player.lastFireSequence,
 		FletchRemaining:              player.fletchRemaining,
 		NextFletchPulse:              player.nextFletchPulse,
 		FletchingResult:              player.fletchingResult,

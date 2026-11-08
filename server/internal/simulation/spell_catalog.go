@@ -28,6 +28,9 @@ type ElementalResistances struct {
 
 const (
 	SpellbookStandard SpellbookID = "standard"
+	SpellbookDark     SpellbookID = "dark"
+	SpellbookHoly     SpellbookID = "holy"
+	SpellbookCleric   SpellbookID = "cleric"
 
 	SpellCastAutocast   SpellCastMode = "autocast"
 	SpellCastInstant    SpellCastMode = "instant"
@@ -79,6 +82,9 @@ type spellCatalog struct {
 var configuredSpellCatalog = mustBuildSpellCatalog(
 	[]SpellbookDefinition{
 		{ID: SpellbookStandard, Name: "Standard", EquipmentItemID: ItemStandardSpellbook},
+		{ID: SpellbookDark, Name: "Skin Bible", EquipmentItemID: ItemSkinBible},
+		{ID: SpellbookHoly, Name: "Holy Book", EquipmentItemID: ItemHolyBook},
+		{ID: SpellbookCleric, Name: "Cleric's Tome", EquipmentItemID: ItemClericsTome},
 	},
 	[]SpellDefinition{
 		{
@@ -93,17 +99,17 @@ var configuredSpellCatalog = mustBuildSpellCatalog(
 			DamageVariance:     0.20,
 			AttackInterval:     windBoltAttackIntervalPulses,
 		},
-		basicBolt(SpellWaterBolt, "Water Bolt", "water_bolt", MagicElementWater, 2, ItemWaterRune, 5),
-		basicBolt(SpellEarthBolt, "Earth Bolt", "earth_bolt", MagicElementEarth, 3, ItemEarthRune, 6),
-		basicBolt(SpellFireBolt, "Fire Bolt", "fire_bolt", MagicElementFire, 4, ItemFireRune, 7),
-		basicBolt(SpellHolyBolt, "Holy Bolt", "holy_bolt", MagicElementHoly, 5, ItemHolyRune, 8),
-		basicBolt(SpellDarkBolt, "Dark Bolt", "dark_bolt", MagicElementDark, 6, ItemDarkRune, 8),
+		basicBolt(SpellbookStandard, SpellWaterBolt, "Water Bolt", "water_bolt", MagicElementWater, 2, ItemWaterRune, 5),
+		basicBolt(SpellbookStandard, SpellEarthBolt, "Earth Bolt", "earth_bolt", MagicElementEarth, 3, ItemEarthRune, 6),
+		basicBolt(SpellbookStandard, SpellFireBolt, "Fire Bolt", "fire_bolt", MagicElementFire, 4, ItemFireRune, 7),
+		basicBolt(SpellbookHoly, SpellHolyBolt, "Holy Bolt", "holy_bolt", MagicElementHoly, 5, ItemHolyRune, 8),
+		basicBolt(SpellbookDark, SpellDarkBolt, "Dark Bolt", "dark_bolt", MagicElementDark, 6, ItemDarkRune, 8),
 	},
 )
 
-func basicBolt(id SpellID, name, iconID string, element MagicElement, level int, runeID string, power int) SpellDefinition {
+func basicBolt(bookID SpellbookID, id SpellID, name, iconID string, element MagicElement, level int, runeID string, power int) SpellDefinition {
 	return SpellDefinition{
-		ID: id, BookID: SpellbookStandard, Name: name, IconID: iconID,
+		ID: id, BookID: bookID, Name: name, IconID: iconID,
 		CastMode: SpellCastAutocast, TargetType: SpellTargetEnemy, EffectType: SpellEffectDirectDamage,
 		Element: element, RequiredMagicLevel: level,
 		Costs: []ItemCost{{ItemID: runeID, Quantity: 1}}, BasePower: power, AccuracyBonus: 10,

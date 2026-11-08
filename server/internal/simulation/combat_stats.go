@@ -79,7 +79,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			DefenceLevel:           SkillLevelForExperience(player.skills[SkillDefence]),
 			DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
 			ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
-			MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour),
+			MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
 		}
 	}
 
@@ -126,7 +126,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		DefenceLevel:           SkillLevelForExperience(player.skills[SkillDefence]),
 		DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
 		ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
-		MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour),
+		MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
 	}
 }
 

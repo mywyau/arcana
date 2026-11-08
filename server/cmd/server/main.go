@@ -33,20 +33,17 @@ func main() {
 	defer stop()
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
-	combatSupplies := []testSupply{
+	meleeSupplies := []testSupply{
 		{itemID: string(simulation.WeaponSword), quantity: 1},
 		{itemID: string(simulation.WeaponDagger), quantity: 1},
 		{itemID: string(simulation.WeaponSpear), quantity: 1},
 		{itemID: string(simulation.WeaponHalberd), quantity: 1},
-		{itemID: simulation.ItemBones, quantity: 25},
 		{itemID: string(simulation.WeaponMace), quantity: 1},
 		{itemID: string(simulation.WeaponBattleAxe), quantity: 1},
 		{itemID: string(simulation.WeaponSteelSword), quantity: 1},
 		{itemID: simulation.ItemSwiftHelm, quantity: 1},
 		{itemID: simulation.ItemSwiftBody, quantity: 1},
 		{itemID: simulation.ItemSwiftBoots, quantity: 1},
-		{itemID: simulation.ItemCoins, quantity: 1000},
-		{itemID: simulation.ItemPrayerPotion, quantity: 5},
 		{itemID: simulation.ItemBronzePlate, quantity: 1},
 		{itemID: simulation.ItemIronHelm, quantity: 1},
 		{itemID: simulation.ItemIronPlate, quantity: 1},
@@ -62,36 +59,73 @@ func main() {
 		{itemID: simulation.ItemAmuletFerocity, quantity: 1},
 		{itemID: simulation.ItemAmuletFury, quantity: 1},
 	}
-	magicRangedSupplies := []testSupply{
+	rangedSupplies := []testSupply{
 		{string(simulation.WeaponBow), 1}, {simulation.ItemIronArrow, 100},
 		{string(simulation.WeaponCrossbow), 1}, {simulation.ItemIronBolt, 100},
+		{simulation.ItemNoviceRangerHood, 1}, {simulation.ItemNoviceRangerBody, 1},
+		{simulation.ItemNoviceRangerGloves, 1}, {simulation.ItemNoviceRangerLegs, 1}, {simulation.ItemNoviceRangerBoots, 1},
+		{simulation.ItemAmuletHawk, 1},
+	}
+	magicSupplies := []testSupply{
 		{string(simulation.WeaponStaff), 1}, {simulation.ItemStandardSpellbook, 1},
+		{simulation.ItemSkinBible, 1}, {simulation.ItemHolyBook, 1},
+		{simulation.ItemClericsTome, 1},
 		{simulation.ItemAirRune, 50}, {simulation.ItemWaterRune, 50}, {simulation.ItemEarthRune, 50},
 		{simulation.ItemFireRune, 50}, {simulation.ItemHolyRune, 50}, {simulation.ItemDarkRune, 50},
 		{simulation.ItemNoviceRobeHood, 1}, {simulation.ItemNoviceRobeTop, 1},
 		{simulation.ItemNoviceRobeGloves, 1}, {simulation.ItemNoviceRobeBottoms, 1}, {simulation.ItemNoviceRobeBoots, 1},
-		{simulation.ItemNoviceRangerHood, 1}, {simulation.ItemNoviceRangerBody, 1},
-		{simulation.ItemNoviceRangerGloves, 1}, {simulation.ItemNoviceRangerLegs, 1}, {simulation.ItemNoviceRangerBoots, 1},
-		{simulation.ItemAmuletHawk, 1}, {simulation.ItemAmuletEmbers, 1},
+		{simulation.ItemAmuletEmbers, 1},
 	}
-	craftingSupplies := []testSupply{
-		{simulation.ItemCookedMinnow, 10}, {simulation.ItemBronzePickaxe, 1}, {simulation.ItemBronzeAxe, 1},
+	oresSupplies := []testSupply{
+		{simulation.ItemCopperOre, 20}, {simulation.ItemTinOre, 20}, {simulation.ItemIronOre, 20},
+		{simulation.ItemCoal, 20}, {simulation.ItemMithrilOre, 20}, {simulation.ItemGoldOre, 20},
+		{simulation.ItemUncutSapphire, 10}, {simulation.ItemUncutEmerald, 10},
+		{simulation.ItemUncutRuby, 10}, {simulation.ItemUncutDiamond, 10},
+	}
+	barsSupplies := []testSupply{
+		{simulation.ItemBronzeBar, 20}, {simulation.ItemIronBar, 20},
+		{simulation.ItemMithrilBar, 20}, {simulation.ItemGoldBar, 20},
+	}
+	toolsSupplies := []testSupply{
+		{simulation.ItemBronzePickaxe, 1}, {simulation.ItemBronzeAxe, 1},
 		{simulation.ItemKnife, 1}, {simulation.ItemChisel, 1}, {simulation.ItemSewingNeedle, 1},
-		{simulation.ItemThread, 50}, {simulation.ItemTinderbox, 1}, {simulation.ItemHammer, 1},
+		{simulation.ItemTinderbox, 1}, {simulation.ItemHammer, 1},
 		{simulation.ItemFishingRod, 1}, {simulation.ItemLobsterCage, 1},
+	}
+	herbsSupplies := []testSupply{
 		{simulation.ItemVialOfWater, 25}, {simulation.ItemSunleaf, 10}, {simulation.ItemMoonleaf, 10},
 		{simulation.ItemSacredDust, 25}, {simulation.ItemFishOil, 25},
-		{simulation.ItemFeathers, 200}, {simulation.ItemIronArrowTips, 200},
-		{simulation.ItemGoldOre, 10}, {simulation.ItemUncutSapphire, 10},
-		{simulation.ItemUncutEmerald, 10}, {simulation.ItemUncutRuby, 10}, {simulation.ItemUncutDiamond, 10},
+		{simulation.ItemPrayerPotion, 5}, {simulation.ItemMinorHealingPotion, 5}, {simulation.ItemMurkyBrew, 5},
+	}
+	craftingSupplies := []testSupply{
+		{simulation.ItemRubyRing, 1}, {simulation.ItemEmeraldRing, 1},
+		{simulation.ItemSapphireRing, 1}, {simulation.ItemDiamondRing, 1},
+		{simulation.ItemThread, 50}, {simulation.ItemFeathers, 200}, {simulation.ItemIronArrowTips, 200},
+		{simulation.ItemNormalLogs, 10}, {simulation.ItemOakLogs, 10}, {simulation.ItemWillowLogs, 10},
+		{simulation.ItemMapleLogs, 10}, {simulation.ItemYewLogs, 10},
+		{simulation.ItemBones, 25}, {simulation.ItemLeather, 25}, {simulation.ItemCoins, 1000},
+		{simulation.ItemSapphire, 10}, {simulation.ItemEmerald, 10}, {simulation.ItemRuby, 10}, {simulation.ItemDiamond, 10},
+	}
+	foodSupplies := []testSupply{
+		{simulation.ItemRawMinnow, 10}, {simulation.ItemCookedMinnow, 10},
+		{simulation.ItemRawTrout, 10}, {simulation.ItemCookedTrout, 10},
+		{simulation.ItemRawSalmon, 10}, {simulation.ItemCookedSalmon, 10},
+		{simulation.ItemRawTuna, 10}, {simulation.ItemCookedTuna, 10},
+		{simulation.ItemRawLobster, 10}, {simulation.ItemCookedLobster, 10},
 	}
 	for _, group := range []struct {
 		position simulation.Position
 		items    []testSupply
 	}{
-		{simulation.TestCombatChestPosition, combatSupplies},
-		{simulation.TestMagicRangedChestPosition, magicRangedSupplies},
+		{simulation.TestMeleeChestPosition, meleeSupplies},
+		{simulation.TestRangedChestPosition, rangedSupplies},
+		{simulation.TestMagicChestPosition, magicSupplies},
+		{simulation.TestOresChestPosition, oresSupplies},
+		{simulation.TestBarsChestPosition, barsSupplies},
+		{simulation.TestToolsChestPosition, toolsSupplies},
+		{simulation.TestHerbsChestPosition, herbsSupplies},
 		{simulation.TestCraftingChestPosition, craftingSupplies},
+		{simulation.TestFoodChestPosition, foodSupplies},
 	} {
 		for _, supply := range group.items {
 			if err := world.AddWorldDrop(group.position, supply.itemID, supply.quantity); err != nil {

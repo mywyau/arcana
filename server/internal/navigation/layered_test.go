@@ -137,7 +137,7 @@ func TestPrototypeMapRejectsUnwalkableDestination(t *testing.T) {
 
 func TestPrototypeMapUsesExpandedGroundBounds(t *testing.T) {
 	world := NewPrototypeMap()
-	inside := simulation.Position{X: 29.5, Z: -29.5}
+	inside := simulation.Position{X: 49.5, Z: -49.5}
 	location, err := world.Locate(inside)
 	if err != nil {
 		t.Fatalf("Locate(%+v) returned an unexpected error: %v", inside, err)
@@ -146,7 +146,7 @@ func TestPrototypeMapUsesExpandedGroundBounds(t *testing.T) {
 		t.Fatalf("Locate(%+v) = %+v, want ground layer", inside, location)
 	}
 
-	outside := simulation.Position{X: 30.5}
+	outside := simulation.Position{X: 50.5}
 	if _, err := world.Locate(outside); err == nil {
 		t.Fatalf("Locate(%+v) error = nil outside expanded ground", outside)
 	}

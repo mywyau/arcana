@@ -1,9 +1,69 @@
 package simulation
 
 import (
+	"math"
 	"testing"
 	"time"
 )
+
+func TestSupplyChestsAreSplitAndDoNotOverlap(t *testing.T) {
+	if len(testSupplyChests) != 9 {
+		t.Fatalf("test supply chest count = %d, want 9", len(testSupplyChests))
+	}
+	wantIDs := map[string]bool{
+		TestMeleeChestID: true, TestRangedChestID: true, TestMagicChestID: true,
+		TestOresChestID: true, TestBarsChestID: true, TestToolsChestID: true,
+		TestHerbsChestID: true, TestCraftingChestID: true, TestFoodChestID: true,
+	}
+	for index, chest := range testSupplyChests {
+		if !wantIDs[chest.ID] || chest.Name == "" {
+			t.Errorf("unexpected test chest: %+v", chest)
+		}
+		for otherIndex := index + 1; otherIndex < len(testSupplyChests); otherIndex++ {
+			other := testSupplyChests[otherIndex]
+			dx := chest.Position.X - other.Position.X
+			dz := chest.Position.Z - other.Position.Z
+			if math.Hypot(dx, dz) <= chest.Range+other.Range {
+				t.Errorf("test chests %q and %q have overlapping ranges", chest.ID, other.ID)
+			}
+		}
+	}
+}
+
+func TestBankExpansionPricesCompoundTowardFiveMillion(t *testing.T) {
+	want := []int{1000, 1700, 2900, 4800, 8000}
+	for index, wantCost := range want {
+		capacity := BankCapacity + index*BankExpansionSize
+		if got := BankExpansionCost(capacity); got != wantCost {
+			t.Errorf("BankExpansionCost(%d) = %d, want %d", capacity, got, wantCost)
+		}
+	}
+	if got := BankExpansionCost(MaximumBankCapacity - BankExpansionSize); got != 5_392_600 {
+		t.Fatalf("final bank expansion cost = %d, want 5392600", got)
+	}
+	if got := BankExpansionCost(MaximumBankCapacity); got != 0 {
+		t.Fatalf("cost at maximum capacity = %d, want 0", got)
+	}
+}
+
+func TestPurchaseBankExpansionUsesInventoryAndBankCoins(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", starterBankChest.Position, 4); err != nil {
+		t.Fatal(err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemCoins, 600)
+	player.bank.add(InventoryItem{ItemID: ItemCoins, Quantity: 400})
+	if err := world.PurchaseBankExpansion("player-one", 1); err != nil {
+		t.Fatalf("PurchaseBankExpansion() returned an unexpected error: %v", err)
+	}
+	if player.bank.capacity != 150 || player.inventory.quantity(ItemCoins) != 0 {
+		t.Fatalf("state after expansion = capacity %d, inventory %+v", player.bank.capacity, player.inventory)
+	}
+	if coins := snapshotBank(player.bank); len(coins.Items) != 0 || coins.NextExpansionCost != 1700 {
+		t.Fatalf("bank after expansion = %+v", coins)
+	}
+}
 
 func TestBankDepositsWholeStackAndWithdrawsRequestedQuantity(t *testing.T) {
 	world := NewWorld()

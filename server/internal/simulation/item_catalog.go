@@ -14,6 +14,9 @@ const (
 	ItemKindResource   ItemKind = "resource"
 
 	ItemStandardSpellbook  = "standard_spellbook"
+	ItemSkinBible          = "skin_bible"
+	ItemHolyBook           = "holy_book"
+	ItemClericsTome        = "clerics_tome"
 	ItemIronArrow          = "iron_arrow"
 	ItemIronBolt           = "iron_bolt"
 	ItemWaterRune          = "water_rune"
@@ -272,9 +275,28 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 			MeleeStrength: 2, RangedStrength: 2, MagicStrength: 2,
 		}},
 	},
+	{ID: ItemRubyRing, Name: "Ruby Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{MeleeStrength: 2}}},
+	{ID: ItemEmeraldRing, Name: "Emerald Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{RangedStrength: 2}}},
+	{ID: ItemSapphireRing, Name: "Sapphire Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{MagicStrength: 2}}},
+	{ID: ItemDiamondRing, Name: "Diamond Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{
+		MeleeAccuracy: 1, RangedAccuracy: 1, MagicAccuracy: 1,
+		MeleeStrength: 1, RangedStrength: 1, MagicStrength: 1,
+	}}},
 	{
 		ID: ItemStandardSpellbook, Name: "Standard Spellbook", Kind: ItemKindSpellbook,
 		Spellbook: SpellbookStandard,
+	},
+	{
+		ID: ItemSkinBible, Name: "Skin Bible", Kind: ItemKindSpellbook,
+		Spellbook: SpellbookDark,
+	},
+	{
+		ID: ItemHolyBook, Name: "Holy Book", Kind: ItemKindSpellbook,
+		Spellbook: SpellbookHoly,
+	},
+	{
+		ID: ItemClericsTome, Name: "Cleric's Tome", Kind: ItemKindSpellbook,
+		Spellbook: SpellbookCleric,
 	},
 	{ID: ItemAirRune, Name: "Air Rune", Kind: ItemKindResource},
 	{ID: ItemWaterRune, Name: "Water Rune", Kind: ItemKindResource},
