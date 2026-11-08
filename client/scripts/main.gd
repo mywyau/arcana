@@ -540,7 +540,6 @@ var _bank_items: Array = []
 var _bank_capacity: int = 100
 var _bank_next_expansion_cost: int = 1000
 var _bank_signature: String = ""
-var _test_supply_signature: String = ""
 var _active_bank_chest_id: String = ""
 var _pending_bank_chest_id: String = ""
 var _bank_withdraw_controls: BankWithdrawControls
@@ -786,6 +785,7 @@ func _ready() -> void:
 	_bank_window.withdrawal_requested.connect(_request_bank_withdraw)
 	_bank_window.item_context_requested.connect(_bank_withdraw_controls.open_context_menu)
 	_bank_window.expansion_requested.connect(_request_bank_expansion)
+	_bank_window.supply_requested.connect(_take_test_supply)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
 	bank_header.gui_input.connect(_on_bank_header_input)
@@ -1279,13 +1279,8 @@ func _open_bank(chest_id: String) -> void:
 	camera_rig.set_zoom_blocked(true)
 	if _is_test_supply_chest(chest_id):
 		_show_inventory_tab()
-		var chest: Dictionary = _bank_chest_states.get(chest_id, {}) as Dictionary
-		bank_title.text = str(chest.get("name", "Test Supply Chest"))
-		bank_hint.text = "Click a supply to take its stack • supplies return when the server restarts"
-		bank_hud.visible = true
-		_position_bank_beside_inventory()
-		bank_expand_button.visible = false
 		_update_test_supply_hud(true)
+		_position_bank_beside_inventory()
 		_update_inventory_hud()
 		status_label.text = "Test supply chest opened"
 		return
@@ -1426,36 +1421,15 @@ func _test_supply_items() -> Array[Dictionary]:
 
 
 func _update_test_supply_hud(force: bool = false) -> void:
-	if not _is_test_supply_chest(_active_bank_chest_id) or not bank_hud.visible:
+	if not _is_test_supply_chest(_active_bank_chest_id):
 		return
+	if not bank_hud.visible and not force:
+		return
+	var chest: Dictionary = _bank_chest_states.get(_active_bank_chest_id, {}) as Dictionary
 	var supplies := _test_supply_items()
-	var signature := JSON.stringify(supplies)
-	if not force and signature == _test_supply_signature:
-		return
-	_test_supply_signature = signature
-	for child: Node in bank_grid.get_children():
-		bank_grid.remove_child(child)
-		child.queue_free()
-	bank_summary.text = "%d test suppl%s remaining" % [
-		supplies.size(),
-		"y" if supplies.size() == 1 else "ies",
-	]
-	for supply: Dictionary in supplies:
-		var drop_id: String = str(supply.get("drop_id", ""))
-		var item_id: String = str(supply.get("item_id", ""))
-		var quantity: int = int(supply.get("quantity", 1))
-		var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
-		slot_button.custom_minimum_size = Vector2(112, 86)
-		slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		slot_button.focus_mode = Control.FOCUS_NONE
-		slot_button.text = ""
-		slot_button.configure(0, true, true)
-		slot_button.icon = ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON) as Texture2D
-		slot_button.expand_icon = true
-		slot_button.set_stack_quantity(quantity)
-		slot_button.tooltip_text = "%s ×%d • click to take the stack" % [item_id.capitalize(), quantity]
-		slot_button.pressed.connect(_take_test_supply.bind(drop_id))
-		bank_grid.add_child(slot_button)
+	_bank_window.show_test_supply(
+		str(chest.get("name", "Test Supply Chest")), supplies, force,
+	)
 
 
 func _take_test_supply(drop_id: String) -> void:

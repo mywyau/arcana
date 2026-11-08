@@ -4,6 +4,7 @@ extends Node
 signal withdrawal_requested(bank_slot: int, quantity: int)
 signal item_context_requested(event: InputEvent, bank_slot: int, quantity: int)
 signal expansion_requested
+signal supply_requested(drop_id: String)
 
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
 
@@ -15,6 +16,7 @@ var _expand_button: Button
 var _grid: GridContainer
 var _item_icons: Dictionary
 var _empty_slot_icon: Texture2D
+var _test_supply_signature: String = ""
 
 
 func configure(
@@ -49,7 +51,26 @@ func show_personal(
 	_hint.text = "Click an inventory item to deposit one • click a bank item to withdraw one"
 	_hud.visible = true
 	_expand_button.visible = true
+	_test_supply_signature = ""
 	render_personal(items, capacity, next_expansion_cost, inventory_coin_quantity)
+
+
+func show_test_supply(chest_name: String, supplies: Array[Dictionary], force: bool = false) -> void:
+	_title.text = chest_name
+	_hint.text = "Click a supply to take its stack • supplies return when the server restarts"
+	_hud.visible = true
+	_expand_button.visible = false
+	var signature := "%s:%s" % [chest_name, JSON.stringify(supplies)]
+	if not force and signature == _test_supply_signature:
+		return
+	_test_supply_signature = signature
+	_clear_grid()
+	_summary.text = "%d test suppl%s remaining" % [
+		supplies.size(),
+		"y" if supplies.size() == 1 else "ies",
+	]
+	for supply: Dictionary in supplies:
+		_grid.add_child(_create_supply_slot(supply))
 
 
 func render_personal(
@@ -128,6 +149,24 @@ func _create_slot(slot: int, item: Dictionary) -> Button:
 	return slot_button
 
 
+func _create_supply_slot(supply: Dictionary) -> Button:
+	var drop_id: String = str(supply.get("drop_id", ""))
+	var item_id: String = str(supply.get("item_id", ""))
+	var quantity: int = int(supply.get("quantity", 1))
+	var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
+	slot_button.custom_minimum_size = Vector2(112, 86)
+	slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slot_button.focus_mode = Control.FOCUS_NONE
+	slot_button.text = ""
+	slot_button.configure(0, true, true)
+	slot_button.icon = _item_icons.get(item_id, _empty_slot_icon) as Texture2D
+	slot_button.expand_icon = true
+	slot_button.set_stack_quantity(quantity)
+	slot_button.tooltip_text = "%s ×%d • click to take the stack" % [item_id.capitalize(), quantity]
+	slot_button.pressed.connect(_on_supply_pressed.bind(drop_id))
+	return slot_button
+
+
 func _on_slot_pressed(bank_slot: int) -> void:
 	withdrawal_requested.emit(bank_slot, 1)
 
@@ -138,3 +177,7 @@ func _on_slot_input(event: InputEvent, bank_slot: int, quantity: int) -> void:
 
 func _on_expansion_pressed() -> void:
 	expansion_requested.emit()
+
+
+func _on_supply_pressed(drop_id: String) -> void:
+	supply_requested.emit(drop_id)
