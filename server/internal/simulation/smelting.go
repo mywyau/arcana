@@ -13,10 +13,13 @@ var (
 type SmeltingRecipeID string
 
 const (
-	SmeltingBronzeBar  SmeltingRecipeID = "bronze_bar"
-	SmeltingIronBar    SmeltingRecipeID = "iron_bar"
-	SmeltingMithrilBar SmeltingRecipeID = "mithril_bar"
-	SmeltingGoldBar    SmeltingRecipeID = "gold_bar"
+	SmeltingBronzeBar     SmeltingRecipeID = "bronze_bar"
+	SmeltingIronBar       SmeltingRecipeID = "iron_bar"
+	SmeltingSteelBar      SmeltingRecipeID = "steel_bar"
+	SmeltingSilverBar     SmeltingRecipeID = "silver_bar"
+	SmeltingMithrilBar    SmeltingRecipeID = "mithril_bar"
+	SmeltingGoldBar       SmeltingRecipeID = "gold_bar"
+	SmeltingAdamantiteBar SmeltingRecipeID = "adamantite_bar"
 )
 
 type smeltingRecipeDefinition struct {
@@ -38,8 +41,18 @@ var smeltingRecipes = mustBuildSmeltingRecipes([]smeltingRecipeDefinition{
 	},
 	{
 		ID: SmeltingIronBar, Name: "Iron Bar", RequiredLevel: 2,
+		Costs:      []ItemCost{{ItemID: ItemIronOre, Quantity: 1}},
+		RewardItem: ItemIronBar, RewardQuantity: 1, RewardXP: 16, Interval: 4,
+	},
+	{
+		ID: SmeltingSteelBar, Name: "Steel Bar", RequiredLevel: 3,
 		Costs:      []ItemCost{{ItemID: ItemIronOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 1}},
-		RewardItem: ItemIronBar, RewardQuantity: 1, RewardXP: 18, Interval: 5,
+		RewardItem: ItemSteelBar, RewardQuantity: 1, RewardXP: 24, Interval: 5,
+	},
+	{
+		ID: SmeltingSilverBar, Name: "Silver Bar", RequiredLevel: 4,
+		Costs:      []ItemCost{{ItemID: ItemSilverOre, Quantity: 1}},
+		RewardItem: ItemSilverBar, RewardQuantity: 1, RewardXP: 28, Interval: 5,
 	},
 	{
 		ID: SmeltingMithrilBar, Name: "Mithril Bar", RequiredLevel: 5,
@@ -50,6 +63,11 @@ var smeltingRecipes = mustBuildSmeltingRecipes([]smeltingRecipeDefinition{
 		ID: SmeltingGoldBar, Name: "Gold Bar", RequiredLevel: 4,
 		Costs:      []ItemCost{{ItemID: ItemGoldOre, Quantity: 1}},
 		RewardItem: ItemGoldBar, RewardQuantity: 1, RewardXP: 30, Interval: 5,
+	},
+	{
+		ID: SmeltingAdamantiteBar, Name: "Adamantite Bar", RequiredLevel: 8,
+		Costs:      []ItemCost{{ItemID: ItemAdamantiteOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 3}},
+		RewardItem: ItemAdamantiteBar, RewardQuantity: 1, RewardXP: 55, Interval: 8,
 	},
 })
 

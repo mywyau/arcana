@@ -28,6 +28,9 @@ const (
 	ItemBlankRune          = "blank_rune"
 	ItemLeather            = "leather"
 	ItemGoldOre            = "gold_ore"
+	ItemSilverOre          = "silver_ore"
+	ItemClay               = "clay"
+	ItemAdamantiteOre      = "adamantite_ore"
 	ItemUncutSapphire      = "uncut_sapphire"
 	ItemSapphire           = "sapphire"
 	ItemUncutEmerald       = "uncut_emerald"
@@ -37,6 +40,9 @@ const (
 	ItemUncutDiamond       = "uncut_diamond"
 	ItemDiamond            = "diamond"
 	ItemGoldBar            = "gold_bar"
+	ItemSilverBar          = "silver_bar"
+	ItemSteelBar           = "steel_bar"
+	ItemAdamantiteBar      = "adamantite_bar"
 	ItemBones              = "bones"
 	ItemCoins              = "coins"
 	ItemBronzePickaxe      = "bronze_pickaxe"
@@ -47,6 +53,8 @@ const (
 	ItemThread             = "thread"
 	ItemTinderbox          = "tinderbox"
 	ItemHammer             = "hammer"
+	ItemRingMould          = "ring_mould"
+	ItemAmuletMould        = "amulet_mould"
 	ItemPrayerPotion       = "prayer_potion"
 	ItemFishingRod         = "fishing_rod"
 	ItemLobsterCage        = "lobster_cage"
@@ -57,6 +65,9 @@ const (
 	ItemFishOil            = "fish_oil"
 	ItemMinorHealingPotion = "minor_healing_potion"
 	ItemMurkyBrew          = "murky_brew"
+	ItemMeleePotion        = "melee_potion"
+	ItemRangingPotion      = "ranging_potion"
+	ItemMagicPotion        = "magic_potion"
 	ItemArrowShafts        = "arrow_shafts"
 	ItemFeathers           = "feathers"
 	ItemIronArrowTips      = "iron_arrow_tips"
@@ -89,6 +100,13 @@ type ConsumableDefinition struct {
 	Healing           int
 	PrayerRestoration int
 	CooldownPulses    uint64
+	SkillBoosts       []SkillBoostDefinition
+	BoostDuration     uint64
+}
+
+type SkillBoostDefinition struct {
+	Skill  SkillID
+	Levels int
 }
 
 type SkillRequirement struct {
@@ -313,6 +331,9 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemBlankRune, Name: "Blank Rune", Kind: ItemKindResource},
 	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource},
+	{ID: ItemSilverOre, Name: "Silver Ore", Kind: ItemKindResource},
+	{ID: ItemClay, Name: "Clay", Kind: ItemKindResource},
+	{ID: ItemAdamantiteOre, Name: "Adamantite Ore", Kind: ItemKindResource},
 	{ID: ItemUncutSapphire, Name: "Uncut Sapphire", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemSapphire, Name: "Sapphire", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemUncutEmerald, Name: "Uncut Emerald", Kind: ItemKindResource, StackLimit: 10},
@@ -333,6 +354,8 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemThread, Name: "Thread", Kind: ItemKindResource, StackLimit: 100},
 	{ID: ItemTinderbox, Name: "Tinderbox", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemHammer, Name: "Hammer", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemRingMould, Name: "Ring Mould", Kind: ItemKindResource, StackLimit: 1},
+	{ID: ItemAmuletMould, Name: "Amulet Mould", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemFishingRod, Name: "Fishing Rod", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemLobsterCage, Name: "Lobster Cage", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemVialOfWater, Name: "Vial of Water", Kind: ItemKindResource, StackLimit: 25},
@@ -355,6 +378,26 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		ID: ItemMurkyBrew, Name: "Murky Brew", Kind: ItemKindConsumable, StackLimit: 5,
 		Consumable: ConsumableDefinition{Healing: 5, CooldownPulses: 2},
 	},
+	{
+		ID: ItemMeleePotion, Name: "Melee Potion", Kind: ItemKindConsumable, StackLimit: 5,
+		Consumable: ConsumableDefinition{CooldownPulses: 2, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
+			{Skill: SkillAttack, Levels: combatPotionBoostLevels},
+			{Skill: SkillStrength, Levels: combatPotionBoostLevels},
+			{Skill: SkillDefence, Levels: combatPotionBoostLevels},
+		}},
+	},
+	{
+		ID: ItemRangingPotion, Name: "Ranging Potion", Kind: ItemKindConsumable, StackLimit: 5,
+		Consumable: ConsumableDefinition{CooldownPulses: 2, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
+			{Skill: SkillRange, Levels: combatPotionBoostLevels},
+		}},
+	},
+	{
+		ID: ItemMagicPotion, Name: "Magic Potion", Kind: ItemKindConsumable, StackLimit: 5,
+		Consumable: ConsumableDefinition{CooldownPulses: 2, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
+			{Skill: SkillMagic, Levels: combatPotionBoostLevels},
+		}},
+	},
 	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemWillowLogs, Name: "Willow Logs", Kind: ItemKindResource, StackLimit: 10},
@@ -369,6 +412,9 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemIronBar, Name: "Iron Bar", Kind: ItemKindResource},
 	{ID: ItemMithrilBar, Name: "Mithril Bar", Kind: ItemKindResource},
 	{ID: ItemGoldBar, Name: "Gold Bar", Kind: ItemKindResource},
+	{ID: ItemSilverBar, Name: "Silver Bar", Kind: ItemKindResource},
+	{ID: ItemSteelBar, Name: "Steel Bar", Kind: ItemKindResource},
+	{ID: ItemAdamantiteBar, Name: "Adamantite Bar", Kind: ItemKindResource},
 	{
 		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
 		StackLimit: 10,
@@ -463,8 +509,16 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		case ItemKindConsumable:
 			if definition.StackLimit == 0 || definition.Consumable.CooldownPulses == 0 ||
 				definition.Consumable.Healing < 0 || definition.Consumable.PrayerRestoration < 0 ||
-				(definition.Consumable.Healing == 0 && definition.Consumable.PrayerRestoration == 0) {
+				(definition.Consumable.Healing == 0 && definition.Consumable.PrayerRestoration == 0 && len(definition.Consumable.SkillBoosts) == 0) {
 				return nil, fmt.Errorf("consumable %q requires a stack limit, positive effect, and cooldown", definition.ID)
+			}
+			if len(definition.Consumable.SkillBoosts) > 0 && definition.Consumable.BoostDuration == 0 {
+				return nil, fmt.Errorf("consumable %q has boosts without a duration", definition.ID)
+			}
+			for _, boost := range definition.Consumable.SkillBoosts {
+				if !skillIDValid(boost.Skill) || boost.Levels <= 0 {
+					return nil, fmt.Errorf("consumable %q has invalid skill boost %+v", definition.ID, boost)
+				}
 			}
 		case ItemKindResource:
 		default:

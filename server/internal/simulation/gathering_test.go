@@ -525,6 +525,10 @@ func TestMiningVeinProgressionDefinitions(t *testing.T) {
 		{starterIronVeinID, 2, ItemIronOre, ironVeinCapacity},
 		{starterCoalVeinID, 3, ItemCoal, coalVeinCapacity},
 		{starterMithrilVeinID, 5, ItemMithrilOre, mithrilVeinCapacity},
+		{starterGoldVeinID, 4, ItemGoldOre, goldVeinCapacity},
+		{starterSilverVeinID, 4, ItemSilverOre, silverVeinCapacity},
+		{starterClayDepositID, 1, ItemClay, clayDepositCapacity},
+		{starterAdamantiteVeinID, 8, ItemAdamantiteOre, adamantiteVeinCapacity},
 	}
 	spots := newGatheringSpots()
 	for _, test := range tests {
@@ -714,6 +718,32 @@ func TestFurnaceRepeatedlySmeltsSelectedRecipe(t *testing.T) {
 	if playerSnapshot.Inventory.itemsQuantity(ItemBronzeBar) != 2 || playerSnapshot.GatheringSpot != "" ||
 		playerSnapshot.GatheringResult != "missing_smelting_inputs" {
 		t.Fatalf("player after exhausting smelting inputs = %+v", playerSnapshot)
+	}
+}
+
+func TestFurnaceCraftsJewelleryWithReusableMould(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterFurnaceID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatal(err)
+	}
+	player := world.players["player-one"]
+	player.skills[SkillSmithing] = SkillExperienceForLevel(3)
+	player.inventory.add(ItemGoldBar, 1)
+	player.inventory.add(ItemSapphire, 1)
+	player.inventory.add(ItemRingMould, 1)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFurnaceID, RecipeID: string(ForgingSapphireRing), Quantity: 1,
+	}); err != nil {
+		t.Fatalf("QueueGather(jewellery) returned error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	for range 4 {
+		world.Step(actionPulseInterval)
+	}
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.Inventory.itemsQuantity(ItemSapphireRing) != 1 || snapshot.Inventory.itemsQuantity(ItemRingMould) != 1 {
+		t.Fatalf("inventory after furnace jewellery = %+v", snapshot.Inventory)
 	}
 }
 

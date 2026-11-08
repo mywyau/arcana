@@ -191,7 +191,8 @@ func productionRecipeMessages(recipes []simulation.ProductionRecipeSnapshot) []p
 			Station: recipe.Station, Group: recipe.Group, ID: recipe.ID, Name: recipe.Name,
 			RequiredLevel: recipe.RequiredLevel, RewardItem: recipe.RewardItem,
 			RewardQuantity: recipe.RewardQuantity, Interval: recipe.Interval,
-			Costs: make([]protocol.ItemCost, 0, len(recipe.Costs)),
+			RequiredTool: recipe.RequiredTool,
+			Costs:        make([]protocol.ItemCost, 0, len(recipe.Costs)),
 		}
 		for _, cost := range recipe.Costs {
 			message.Costs = append(message.Costs, protocol.ItemCost{ItemID: cost.ItemID, Quantity: cost.Quantity})
@@ -722,10 +723,16 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			NextGatherPulse:      player.NextGatherPulse,
 			LastGatherSequence:   player.LastGatherSequence,
 			Skills:               make([]protocol.SkillSnapshot, 0, len(player.Skills)),
+			ActiveCombatBoosts:   make([]protocol.ActiveCombatBoost, 0, len(player.ActiveCombatBoosts)),
 			Path:                 make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, prayerID := range player.ActivePrayers {
 			playerMessage.ActivePrayers = append(playerMessage.ActivePrayers, string(prayerID))
+		}
+		for _, boost := range player.ActiveCombatBoosts {
+			playerMessage.ActiveCombatBoosts = append(playerMessage.ActiveCombatBoosts, protocol.ActiveCombatBoost{
+				Skill: string(boost.Skill), Levels: boost.Levels, ExpiresAtPulse: boost.ExpiresAtPulse,
+			})
 		}
 		for slot, itemID := range player.EquippedArmour {
 			playerMessage.EquippedArmour[string(slot)] = itemID

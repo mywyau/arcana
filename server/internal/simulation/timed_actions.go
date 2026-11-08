@@ -24,7 +24,7 @@ func timedActionInterval(spot gatheringSpotDefinition, recipeID string) uint64 {
 	if recipe, exists := smeltingRecipe(SmeltingRecipeID(recipeID)); spot.Station == craftingStationSmelting && exists {
 		return recipe.Interval
 	}
-	if recipe, exists := forgingRecipe(ForgingRecipeID(recipeID)); spot.Station == craftingStationForging && exists {
+	if recipe, exists := forgingRecipe(ForgingRecipeID(recipeID)); exists && forgingRecipeStation(recipe) == spot.Station {
 		return recipe.Interval
 	}
 	if recipe, exists := reinforcementRecipe(recipeID); spot.Station == craftingStationForging && exists {

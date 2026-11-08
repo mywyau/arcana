@@ -7,6 +7,7 @@ import (
 
 var (
 	errMissingForgingInputs = errors.New("required forging inputs are missing")
+	errMissingForgingTool   = errors.New("required forging tool is missing")
 	errForgingInventoryFull = errors.New("inventory is full")
 )
 
@@ -40,6 +41,10 @@ const (
 	ForgingEmeraldAmulet  ForgingRecipeID = "emerald_amulet"
 	ForgingSapphireAmulet ForgingRecipeID = "sapphire_amulet"
 	ForgingDiamondAmulet  ForgingRecipeID = "diamond_amulet"
+	ForgingSapphireRing   ForgingRecipeID = "sapphire_ring"
+	ForgingEmeraldRing    ForgingRecipeID = "emerald_ring"
+	ForgingRubyRing       ForgingRecipeID = "ruby_ring"
+	ForgingDiamondRing    ForgingRecipeID = "diamond_ring"
 )
 
 type forgingRecipeDefinition struct {
@@ -47,6 +52,7 @@ type forgingRecipeDefinition struct {
 	Name           string
 	RequiredLevel  int
 	Costs          []ItemCost
+	RequiredTool   string
 	RewardItem     string
 	RewardQuantity int
 	RewardXP       int64
@@ -121,10 +127,14 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 	{ID: ForgingMithrilLegs, Name: "Mithril Legs", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 5}}, RewardItem: ItemMithrilLegs, RewardQuantity: 1, RewardXP: 150, Interval: 7},
 	{ID: ForgingMithrilGloves, Name: "Mithril Gloves", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 2}}, RewardItem: ItemMithrilGloves, RewardQuantity: 1, RewardXP: 60, Interval: 4},
 	{ID: ForgingMithrilBoots, Name: "Mithril Boots", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}}, RewardItem: ItemMithrilBoots, RewardQuantity: 1, RewardXP: 90, Interval: 5},
-	{ID: ForgingSapphireAmulet, Name: "Sapphire Amulet", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemSapphire, Quantity: 1}}, RewardItem: ItemAmuletEmbers, RewardQuantity: 1, RewardXP: 40, Interval: 4},
-	{ID: ForgingEmeraldAmulet, Name: "Emerald Amulet", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemEmerald, Quantity: 1}}, RewardItem: ItemAmuletHawk, RewardQuantity: 1, RewardXP: 50, Interval: 4},
-	{ID: ForgingRubyAmulet, Name: "Ruby Amulet", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemRuby, Quantity: 1}}, RewardItem: ItemAmuletFerocity, RewardQuantity: 1, RewardXP: 60, Interval: 4},
-	{ID: ForgingDiamondAmulet, Name: "Diamond Amulet", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemDiamond, Quantity: 1}}, RewardItem: ItemAmuletFury, RewardQuantity: 1, RewardXP: 85, Interval: 5},
+	{ID: ForgingSapphireAmulet, Name: "Sapphire Amulet", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemSapphire, Quantity: 1}}, RequiredTool: ItemAmuletMould, RewardItem: ItemAmuletEmbers, RewardQuantity: 1, RewardXP: 40, Interval: 4},
+	{ID: ForgingEmeraldAmulet, Name: "Emerald Amulet", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemEmerald, Quantity: 1}}, RequiredTool: ItemAmuletMould, RewardItem: ItemAmuletHawk, RewardQuantity: 1, RewardXP: 50, Interval: 4},
+	{ID: ForgingRubyAmulet, Name: "Ruby Amulet", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemRuby, Quantity: 1}}, RequiredTool: ItemAmuletMould, RewardItem: ItemAmuletFerocity, RewardQuantity: 1, RewardXP: 60, Interval: 4},
+	{ID: ForgingDiamondAmulet, Name: "Diamond Amulet", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemDiamond, Quantity: 1}}, RequiredTool: ItemAmuletMould, RewardItem: ItemAmuletFury, RewardQuantity: 1, RewardXP: 85, Interval: 5},
+	{ID: ForgingSapphireRing, Name: "Sapphire Ring", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemSapphire, Quantity: 1}}, RequiredTool: ItemRingMould, RewardItem: ItemSapphireRing, RewardQuantity: 1, RewardXP: 35, Interval: 4},
+	{ID: ForgingEmeraldRing, Name: "Emerald Ring", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemEmerald, Quantity: 1}}, RequiredTool: ItemRingMould, RewardItem: ItemEmeraldRing, RewardQuantity: 1, RewardXP: 45, Interval: 4},
+	{ID: ForgingRubyRing, Name: "Ruby Ring", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemRuby, Quantity: 1}}, RequiredTool: ItemRingMould, RewardItem: ItemRubyRing, RewardQuantity: 1, RewardXP: 55, Interval: 4},
+	{ID: ForgingDiamondRing, Name: "Diamond Ring", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemGoldBar, Quantity: 1}, {ItemID: ItemDiamond, Quantity: 1}}, RequiredTool: ItemRingMould, RewardItem: ItemDiamondRing, RewardQuantity: 1, RewardXP: 75, Interval: 5},
 })
 
 func buildForgingRecipes(definitions []forgingRecipeDefinition) (map[ForgingRecipeID]forgingRecipeDefinition, error) {
@@ -144,6 +154,12 @@ func buildForgingRecipes(definitions []forgingRecipeDefinition) (map[ForgingReci
 			input, exists := itemDefinition(cost.ItemID)
 			if !exists || input.Kind != ItemKindResource || cost.Quantity <= 0 {
 				return nil, fmt.Errorf("forging recipe %q has invalid input %+v", definition.ID, cost)
+			}
+		}
+		if definition.RequiredTool != "" {
+			tool, exists := itemDefinition(definition.RequiredTool)
+			if !exists || tool.Virtual || tool.Kind != ItemKindResource {
+				return nil, fmt.Errorf("forging recipe %q has invalid required tool %q", definition.ID, definition.RequiredTool)
 			}
 		}
 		definition.Costs = append([]ItemCost(nil), definition.Costs...)
@@ -182,6 +198,9 @@ func applyForgingRecipe(player *playerState, recipe forgingRecipeDefinition) err
 }
 
 func forgingInventoryAfter(inventory inventoryState, recipe forgingRecipeDefinition) (inventoryState, error) {
+	if recipe.RequiredTool != "" && inventory.quantity(recipe.RequiredTool) < 1 {
+		return inventoryState{}, errMissingForgingTool
+	}
 	candidate := cloneInventory(inventory)
 	if !payItemCosts(&candidate, recipe.Costs) {
 		return inventoryState{}, errMissingForgingInputs

@@ -140,6 +140,7 @@ type PlayerSnapshot struct {
 	NextGatherPulse              uint64
 	LastGatherSequence           uint64
 	Skills                       []SkillSnapshot
+	ActiveCombatBoosts           []ActiveCombatBoostSnapshot
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -215,6 +216,7 @@ type playerState struct {
 	lastInventoryMoveSequence    uint64
 	lastConsumeSequence          uint64
 	nextConsumePulse             uint64
+	combatBoosts                 map[SkillID]activeCombatBoost
 	lastBrewSequence             uint64
 	brewRemaining                int
 	nextBrewPulse                uint64
@@ -355,7 +357,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
-		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
+		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), combatBoosts: make(map[SkillID]activeCombatBoost),
 	}
 	return nil
 }
@@ -392,7 +394,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
-		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(),
+		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), combatBoosts: make(map[SkillID]activeCombatBoost),
 	}
 	return nil
 }
@@ -537,6 +539,7 @@ func (w *World) Step(elapsed time.Duration) {
 	w.applyPendingMerchantSales()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
+	w.expireCombatBoosts()
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
 
@@ -738,6 +741,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		NextGatherPulse:              player.nextGatherPulse,
 		LastGatherSequence:           player.lastGatherSequence,
 		Skills:                       snapshotSkills(player.skills),
+		ActiveCombatBoosts:           activeCombatBoostSnapshots(player),
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)

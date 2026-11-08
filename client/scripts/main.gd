@@ -312,6 +312,9 @@ const CONSUMABLE_ITEMS: Dictionary = {
 	"prayer_potion": {"prayer_restore": 25, "stack_limit": 5},
 	"minor_healing_potion": {"healing": 15, "stack_limit": 5},
 	"murky_brew": {"healing": 5, "stack_limit": 5},
+	"melee_potion": {"boost": "+3 Attack, Strength, and Defence for 5 minutes", "stack_limit": 5},
+	"ranging_potion": {"boost": "+3 Range for 5 minutes", "stack_limit": 5},
+	"magic_potion": {"boost": "+3 Magic for 5 minutes", "stack_limit": 5},
 }
 const BREWING_INGREDIENTS: Dictionary = {
 	"vial_of_water": {"name": "Vial of Water", "role": "Base"},
@@ -323,6 +326,9 @@ const BREWING_INGREDIENTS: Dictionary = {
 const KNOWN_BREWS: Dictionary = {
 	"sunleaf+vial_of_water": "Minor Healing Potion",
 	"sacred_dust+sunleaf+vial_of_water": "Prayer Potion",
+	"moonleaf+sacred_dust+vial_of_water": "Melee Potion",
+	"fish_oil+sunleaf+vial_of_water": "Ranging Potion",
+	"moonleaf+vial_of_water": "Magic Potion",
 }
 const FLETCHING_RECIPES: Dictionary = {
 	"arrow_shafts": {
@@ -1680,6 +1686,14 @@ func _open_smelting_window() -> void:
 		var reward_item: String = str(recipe.get("reward_item", recipe_id))
 		var required_level: int = int(recipe.get("required_level", 1))
 		var input_lines: String = _format_recipe_costs(recipe.get("costs", []) as Array, "\n")
+		var required_tool: String = str(recipe.get("required_tool", ""))
+		var has_required_tool: bool = required_tool.is_empty() or _inventory_quantity(required_tool) > 0
+		var required_tool_name: String = str(ITEM_DISPLAY_NAMES.get(
+			required_tool,
+			required_tool.replace("_", " ").capitalize(),
+		))
+		if not required_tool.is_empty():
+			input_lines += "\nTool: %s" % required_tool_name
 		var recipe_button := Button.new()
 		recipe_button.custom_minimum_size = Vector2(260, 132)
 		recipe_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1691,11 +1705,16 @@ func _open_smelting_window() -> void:
 		recipe_button.icon = ITEM_ICONS.get(reward_item, EMPTY_SLOT_ICON) as Texture2D
 		recipe_button.expand_icon = true
 		recipe_button.add_theme_constant_override("icon_max_width", 62)
-		recipe_button.disabled = smithing_level < required_level
+		recipe_button.disabled = smithing_level < required_level or not has_required_tool
 		recipe_button.tooltip_text = (
 			"Requires Smithing level %d" % required_level
 			if smithing_level < required_level
-			else "Smelt %s until materials run out" % recipe.get("name", recipe_id.capitalize())
+			else "Requires a %s" % required_tool_name
+			if not has_required_tool
+			else "%s %s until materials run out" % [
+				"Craft" if str(recipe.get("group", "")) == "jewellery" else "Smelt",
+				recipe.get("name", recipe_id.capitalize()),
+			]
 		)
 		recipe_button.pressed.connect(_select_smelting_recipe.bind(recipe_id))
 		recipe_button.gui_input.connect(_on_smelting_recipe_input.bind(recipe_id))
@@ -2799,11 +2818,12 @@ func _request_consume_item(item_id: String) -> void:
 	var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
 	var restores_health: bool = int(consumable.get("healing", 0)) > 0
 	var restores_prayer: bool = int(consumable.get("prayer_restore", 0)) > 0
+	var applies_boost: bool = not str(consumable.get("boost", "")).is_empty()
 	var can_benefit: bool = (
 		restores_health and _player_health < _player_maximum_health
 	) or (
 		restores_prayer and _player_prayer < _player_maximum_prayer
-	)
+	) or applies_boost
 	if not can_benefit:
 		status_label.text = "You are already at full %s" % ("prayer" if restores_prayer else "health")
 		return
@@ -3177,8 +3197,17 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
 			_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
 			if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
+				var consumed_item_id: String = _queued_consume_item
 				_queued_consume_item = ""
 				inventory_selection_changed = true
+				var consumed_definition: Dictionary = CONSUMABLE_ITEMS.get(consumed_item_id, {}) as Dictionary
+				var boost_description: String = str(consumed_definition.get("boost", ""))
+				if not boost_description.is_empty():
+					status_label.text = "%s active • %s" % [
+						str(ITEM_DISPLAY_NAMES.get(consumed_item_id, consumed_item_id.replace("_", " ").capitalize())),
+						boost_description,
+					]
+					_append_game_message(status_label.text)
 			_last_brew_sequence = int(player_data.get("last_brew_sequence", 0))
 			_next_brew_sequence = maxi(_next_brew_sequence, _last_brew_sequence + 1)
 			var previous_brew_remaining: int = _brew_remaining
@@ -3282,6 +3311,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Mined Coal • Mining continues…"
 					"mined_mithril_ore":
 						status_label.text = "Mined Mithril Ore • Mining continues…"
+					"mined_gold_ore":
+						status_label.text = "Mined Gold Ore • Mining continues…"
+					"mined_silver_ore":
+						status_label.text = "Mined Silver Ore • Mining continues…"
+					"mined_clay":
+						status_label.text = "Mined Clay • Mining continues…"
+					"mined_adamantite_ore":
+						status_label.text = "Mined Adamantite Ore • Mining continues…"
 					"woodcutting":
 						status_label.text = "Chopping…"
 					"chopped_normal_logs":
@@ -6202,9 +6239,13 @@ func _update_inventory_hud() -> void:
 					interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
 						int(consumable.get("healing", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
 					]
-				else:
+				elif int(consumable.get("prayer_restore", 0)) > 0:
 					interaction_text = "left-click to drink one dose (+%d prayer, max %d doses/slot) • %s" % [
 						int(consumable.get("prayer_restore", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
+					]
+				else:
+					interaction_text = "left-click to drink (%s, max %d doses/slot) • %s" % [
+						str(consumable.get("boost", "combat boost")), int(consumable.get("stack_limit", 1)), interaction_text,
 					]
 			elif is_brewing_ingredient:
 				interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text

@@ -144,6 +144,7 @@ type ProductionRecipeSnapshot struct {
 	RewardItem     string     `json:"reward_item"`
 	RewardQuantity int        `json:"reward_quantity"`
 	Interval       uint64     `json:"interval"`
+	RequiredTool   string     `json:"required_tool,omitempty"`
 }
 
 type ItemCost struct {
@@ -306,6 +307,13 @@ type PlayerSnapshot struct {
 	NextGatherPulse              uint64                  `json:"next_gather_pulse"`
 	LastGatherSequence           uint64                  `json:"last_gather_sequence"`
 	Skills                       []SkillSnapshot         `json:"skills"`
+	ActiveCombatBoosts           []ActiveCombatBoost     `json:"active_combat_boosts"`
+}
+
+type ActiveCombatBoost struct {
+	Skill          string `json:"skill"`
+	Levels         int    `json:"levels"`
+	ExpiresAtPulse uint64 `json:"expires_at_pulse"`
 }
 
 type CombatStatsSnapshot struct {

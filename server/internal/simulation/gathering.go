@@ -25,6 +25,9 @@ const (
 	starterCoalVeinID         = "starter_coal_vein"
 	starterMithrilVeinID      = "starter_mithril_vein"
 	starterGoldVeinID         = "starter_gold_vein"
+	starterSilverVeinID       = "starter_silver_vein"
+	starterClayDepositID      = "starter_clay_deposit"
+	starterAdamantiteVeinID   = "starter_adamantite_vein"
 	starterNormalTreeID       = "starter_normal_tree"
 	starterOakTreeID          = "starter_oak_tree"
 	starterWillowTreeID       = "starter_willow_tree"
@@ -43,6 +46,9 @@ const (
 	coalVeinCapacity          = 12
 	mithrilVeinCapacity       = 8
 	goldVeinCapacity          = 10
+	silverVeinCapacity        = 12
+	clayDepositCapacity       = 20
+	adamantiteVeinCapacity    = 6
 	normalTreeCapacity        = 10
 	oakTreeCapacity           = 8
 	willowTreeCapacity        = 8
@@ -187,11 +193,17 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 20, Z: 18}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
 		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 25, Z: 18}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
 		starterGoldVeinID:    miningVein(starterGoldVeinID, "Gold Vein", Position{X: 22, Z: 22}, 4, ItemGoldOre, 32, goldVeinCapacity, 20, 5),
-		starterNormalTreeID:  woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
-		starterOakTreeID:     woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -7, Z: 24}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
-		starterWillowTreeID:  woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -24, Z: 7}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
-		starterMapleTreeID:   woodcuttingTree(starterMapleTreeID, "Maple Tree", Position{X: 25, Z: 8}, 5, ItemMapleLogs, 34, mapleTreeCapacity, 18, 6),
-		starterYewTreeID:     woodcuttingTree(starterYewTreeID, "Yew Tree", Position{X: 18, Z: -24}, 8, ItemYewLogs, 52, yewTreeCapacity, 24, 7),
+		starterSilverVeinID:  miningVein(starterSilverVeinID, "Silver Vein", Position{X: 28, Z: 14}, 4, ItemSilverOre, 28, silverVeinCapacity, 18, 5),
+		starterClayDepositID: miningVein(starterClayDepositID, "Clay Deposit", Position{X: 16, Z: 18}, 1, ItemClay, 8, clayDepositCapacity, 8, 4),
+		starterAdamantiteVeinID: miningVein(
+			starterAdamantiteVeinID, "Adamantite Vein", Position{X: 29, Z: 21}, 8,
+			ItemAdamantiteOre, 60, adamantiteVeinCapacity, 28, 8,
+		),
+		starterNormalTreeID: woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
+		starterOakTreeID:    woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -7, Z: 24}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
+		starterWillowTreeID: woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -24, Z: 7}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
+		starterMapleTreeID:  woodcuttingTree(starterMapleTreeID, "Maple Tree", Position{X: 25, Z: 8}, 5, ItemMapleLogs, 34, mapleTreeCapacity, 18, 6),
+		starterYewTreeID:    woodcuttingTree(starterYewTreeID, "Yew Tree", Position{X: 18, Z: -24}, 8, ItemYewLogs, 52, yewTreeCapacity, 24, 7),
 		starterAgilityObstacleID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterAgilityObstacleID, Name: "Balance Beam", Skill: SkillAgility,

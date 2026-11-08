@@ -1064,7 +1064,7 @@ func weaponPoweredDamage(player *playerState, weapon WeaponDefinition) float64 {
 	strength += equipmentStrength
 	level := 1
 	if player != nil {
-		level = SkillLevelForExperience(player.skills[skill])
+		level = effectiveCombatSkillLevel(player, skill)
 	}
 	damage := float64(strength) + float64(level-1)*skillDamagePointsPerLevel
 	if player != nil {

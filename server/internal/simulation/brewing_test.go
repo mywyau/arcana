@@ -71,6 +71,23 @@ func TestUnknownValidCombinationCreatesMurkyBrew(t *testing.T) {
 	}
 }
 
+func TestKnownCombatPotionRecipesUseExistingIngredients(t *testing.T) {
+	tests := []struct {
+		items  []string
+		output string
+	}{
+		{[]string{ItemVialOfWater, ItemMoonleaf, ItemSacredDust}, ItemMeleePotion},
+		{[]string{ItemVialOfWater, ItemSunleaf, ItemFishOil}, ItemRangingPotion},
+		{[]string{ItemVialOfWater, ItemMoonleaf}, ItemMagicPotion},
+	}
+	for _, test := range tests {
+		recipe, exists := brewingRecipes[brewKey(test.items)]
+		if !exists || recipe.OutputItem != test.output {
+			t.Errorf("brewing recipe for %v = %+v, %t", test.items, recipe, exists)
+		}
+	}
+}
+
 func TestBrewRejectsInvalidRolesWithoutConsumingIngredients(t *testing.T) {
 	inventory := inventoryState{capacity: 3}
 	inventory.add(ItemVialOfWater, 1)

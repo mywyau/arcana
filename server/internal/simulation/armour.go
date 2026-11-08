@@ -237,6 +237,7 @@ func defenceBonusForDamageType(bonuses DefenceBonuses, damageType DamageType) in
 
 func armourDamageReduction(player *playerState, damageType DamageType) float64 {
 	bonus := max(0, defenceBonusForDamageType(equippedDefenceBonusesForPlayer(player), damageType))
+	bonus += max(0, effectiveCombatSkillLevel(player, SkillDefence)-1)
 	return float64(bonus) / float64(bonus+100)
 }
 

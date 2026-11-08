@@ -49,7 +49,7 @@ func spellAccuracyScore(player *playerState, spell SpellDefinition) int {
 	level := 1
 	focusAccuracy := 0
 	if player != nil {
-		level = SkillLevelForExperience(player.skills[SkillMagic])
+		level = effectiveCombatSkillLevel(player, SkillMagic)
 		if weapon, exists := weaponDefinition(player.equippedWeapon); exists && weapon.MagicStrength > 0 {
 			focusAccuracy = weapon.AccuracyBonus
 		}
@@ -70,7 +70,7 @@ func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
 	level := 1
 	focusStrength := 0
 	if player != nil {
-		level = SkillLevelForExperience(player.skills[SkillMagic])
+		level = effectiveCombatSkillLevel(player, SkillMagic)
 		if weapon, exists := weaponDefinition(player.equippedWeapon); exists {
 			focusStrength = weapon.MagicStrength
 		}

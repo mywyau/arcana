@@ -52,12 +52,12 @@ func playerCombatLevel(player *playerState) int {
 	if player == nil {
 		return 1
 	}
-	attack := SkillLevelForExperience(player.skills[SkillAttack])
-	strength := SkillLevelForExperience(player.skills[SkillStrength])
-	defence := SkillLevelForExperience(player.skills[SkillDefence])
+	attack := effectiveCombatSkillLevel(player, SkillAttack)
+	strength := effectiveCombatSkillLevel(player, SkillStrength)
+	defence := effectiveCombatSkillLevel(player, SkillDefence)
 	agility := SkillLevelForExperience(player.skills[SkillAgility])
-	ranged := SkillLevelForExperience(player.skills[SkillRange])
-	magic := SkillLevelForExperience(player.skills[SkillMagic])
+	ranged := effectiveCombatSkillLevel(player, SkillRange)
+	magic := effectiveCombatSkillLevel(player, SkillMagic)
 	melee := float64(attack+strength) / 2
 	offence := max(melee, float64(ranged), float64(magic))
 	defenceRating := float64(defence+agility) / 2
@@ -132,7 +132,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		minimumDamage, maximumDamage := damageRange(
 			spellPoweredDamage(player, spell), spell.DamageVariance,
 		)
-		magicLevel := SkillLevelForExperience(player.skills[SkillMagic])
+		magicLevel := effectiveCombatSkillLevel(player, SkillMagic)
 		equipmentBonuses := equippedOffenceBonuses(player.equippedArmour)
 		return CombatStatsSnapshot{
 			Weapon:                 weapon.ID,
@@ -156,7 +156,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			PrayerDamageBonus:      prayerBonuses.MagicDamage,
 			MinimumDamage:          minimumDamage,
 			MaximumDamage:          maximumDamage,
-			DefenceLevel:           SkillLevelForExperience(player.skills[SkillDefence]),
+			DefenceLevel:           effectiveCombatSkillLevel(player, SkillDefence),
 			DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
 			ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
 			MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),
@@ -185,17 +185,17 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		Weapon:                 weapon.ID,
 		Style:                  player.combatStyle,
 		AccuracySkill:          accuracySkill,
-		AccuracyLevel:          SkillLevelForExperience(player.skills[accuracySkill]),
+		AccuracyLevel:          effectiveCombatSkillLevel(player, accuracySkill),
 		WeaponAccuracyBonus:    weapon.AccuracyBonus,
 		EquipmentAccuracyBonus: equipmentAccuracy,
 		StyleAccuracyBonus:     combatStyleAccuracyBonus(player.combatStyle),
 		PrayerAccuracyBonus:    prayerAccuracyBonus(player, weapon),
 		TotalAccuracy:          playerAccuracyScore(player, weapon),
 		DamageSkill:            damageSkill,
-		DamageLevel:            SkillLevelForExperience(player.skills[damageSkill]),
+		DamageLevel:            effectiveCombatSkillLevel(player, damageSkill),
 		StrengthBonus:          strengthBonus,
 		EquipmentStrengthBonus: equipmentStrength,
-		SkillDamageBonus:       float64(SkillLevelForExperience(player.skills[damageSkill])-1) * skillDamagePointsPerLevel,
+		SkillDamageBonus:       float64(effectiveCombatSkillLevel(player, damageSkill)-1) * skillDamagePointsPerLevel,
 		PrayerDamageBonus:      prayerDamageBonusForWeapon(prayerBonuses, weapon),
 		PrayerDamageReduction:  prayerBonuses.DamageReduction,
 		BaseAttackInterval:     weapon.AttackInterval,
@@ -203,7 +203,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		AttackIntervalModifier: int(attackInterval) - int(weapon.AttackInterval),
 		MinimumDamage:          minimumDamage,
 		MaximumDamage:          maximumDamage,
-		DefenceLevel:           SkillLevelForExperience(player.skills[SkillDefence]),
+		DefenceLevel:           effectiveCombatSkillLevel(player, SkillDefence),
 		DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
 		ArmourDamageReduction:  armourDamageReduction(player, DamageTypeCrush),
 		MaximumHealthBonus:     equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack),

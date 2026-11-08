@@ -33,8 +33,11 @@ var brewingIngredientRoles = map[string]string{
 }
 
 var brewingRecipes = map[string]brewingRecipe{
-	brewKey([]string{ItemVialOfWater, ItemSunleaf}):                 {OutputItem: ItemMinorHealingPotion, Experience: 10},
-	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemSacredDust}): {OutputItem: ItemPrayerPotion, Experience: 20},
+	brewKey([]string{ItemVialOfWater, ItemSunleaf}):                  {OutputItem: ItemMinorHealingPotion, Experience: 10},
+	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemSacredDust}):  {OutputItem: ItemPrayerPotion, Experience: 20},
+	brewKey([]string{ItemVialOfWater, ItemMoonleaf, ItemSacredDust}): {OutputItem: ItemMeleePotion, Experience: 20},
+	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemFishOil}):     {OutputItem: ItemRangingPotion, Experience: 15},
+	brewKey([]string{ItemVialOfWater, ItemMoonleaf}):                 {OutputItem: ItemMagicPotion, Experience: 10},
 }
 
 func (w *World) QueueBrew(command BrewCommand) error {

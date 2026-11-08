@@ -27,6 +27,16 @@ func TestProductionRecipeCatalogIsOrderedAndDetached(t *testing.T) {
 			delete(wantGroups, recipe.ID)
 		}
 	}
+	for _, recipe := range first {
+		if recipe.ID == string(ForgingSapphireRing) {
+			if recipe.Station != string(craftingStationSmelting) || recipe.Group != "jewellery" || recipe.RequiredTool != ItemRingMould {
+				t.Fatalf("ring catalogue recipe = %+v", recipe)
+			}
+		}
+		if recipe.ID == string(ForgingSapphireAmulet) && recipe.RequiredTool != ItemAmuletMould {
+			t.Fatalf("amulet catalogue recipe = %+v", recipe)
+		}
+	}
 	if len(wantGroups) != 0 {
 		t.Fatalf("catalogue is missing grouped forging recipes: %+v", wantGroups)
 	}

@@ -84,23 +84,28 @@ func main() {
 	oresSupplies := []testSupply{
 		{simulation.ItemCopperOre, 20}, {simulation.ItemTinOre, 20}, {simulation.ItemIronOre, 20},
 		{simulation.ItemCoal, 20}, {simulation.ItemMithrilOre, 20}, {simulation.ItemGoldOre, 20},
+		{simulation.ItemSilverOre, 20}, {simulation.ItemClay, 20}, {simulation.ItemAdamantiteOre, 20},
 		{simulation.ItemUncutSapphire, 10}, {simulation.ItemUncutEmerald, 10},
 		{simulation.ItemUncutRuby, 10}, {simulation.ItemUncutDiamond, 10},
 	}
 	barsSupplies := []testSupply{
 		{simulation.ItemBronzeBar, 20}, {simulation.ItemIronBar, 20},
 		{simulation.ItemMithrilBar, 20}, {simulation.ItemGoldBar, 20},
+		{simulation.ItemSteelBar, 20}, {simulation.ItemSilverBar, 20}, {simulation.ItemAdamantiteBar, 20},
 	}
 	toolsSupplies := []testSupply{
 		{simulation.ItemBronzePickaxe, 1}, {simulation.ItemBronzeAxe, 1},
 		{simulation.ItemKnife, 1}, {simulation.ItemChisel, 1}, {simulation.ItemSewingNeedle, 1},
 		{simulation.ItemTinderbox, 1}, {simulation.ItemHammer, 1},
+		{simulation.ItemRingMould, 1},
+		{simulation.ItemAmuletMould, 1},
 		{simulation.ItemFishingRod, 1}, {simulation.ItemLobsterCage, 1},
 	}
 	herbsSupplies := []testSupply{
 		{simulation.ItemVialOfWater, 25}, {simulation.ItemSunleaf, 10}, {simulation.ItemMoonleaf, 10},
 		{simulation.ItemSacredDust, 25}, {simulation.ItemFishOil, 25},
 		{simulation.ItemPrayerPotion, 5}, {simulation.ItemMinorHealingPotion, 5}, {simulation.ItemMurkyBrew, 5},
+		{simulation.ItemMeleePotion, 5}, {simulation.ItemRangingPotion, 5}, {simulation.ItemMagicPotion, 5},
 	}
 	craftingSupplies := []testSupply{
 		{simulation.ItemRubyRing, 1}, {simulation.ItemEmeraldRing, 1},

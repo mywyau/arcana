@@ -13,9 +13,12 @@ func TestSmeltingRecipesUseExpectedInputsAndProgression(t *testing.T) {
 		costs  []ItemCost
 	}{
 		{SmeltingBronzeBar, 1, ItemBronzeBar, []ItemCost{{ItemID: ItemCopperOre, Quantity: 1}, {ItemID: ItemTinOre, Quantity: 1}}},
-		{SmeltingIronBar, 2, ItemIronBar, []ItemCost{{ItemID: ItemIronOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 1}}},
+		{SmeltingIronBar, 2, ItemIronBar, []ItemCost{{ItemID: ItemIronOre, Quantity: 1}}},
+		{SmeltingSteelBar, 3, ItemSteelBar, []ItemCost{{ItemID: ItemIronOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 1}}},
+		{SmeltingSilverBar, 4, ItemSilverBar, []ItemCost{{ItemID: ItemSilverOre, Quantity: 1}}},
 		{SmeltingMithrilBar, 5, ItemMithrilBar, []ItemCost{{ItemID: ItemMithrilOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 2}}},
 		{SmeltingGoldBar, 4, ItemGoldBar, []ItemCost{{ItemID: ItemGoldOre, Quantity: 1}}},
+		{SmeltingAdamantiteBar, 8, ItemAdamantiteBar, []ItemCost{{ItemID: ItemAdamantiteOre, Quantity: 1}, {ItemID: ItemCoal, Quantity: 3}}},
 	}
 	for _, test := range tests {
 		recipe, exists := smeltingRecipe(test.id)
@@ -34,13 +37,12 @@ func TestSmeltingRecipesUseExpectedInputsAndProgression(t *testing.T) {
 func TestApplySmeltingRecipeAtomicallyConsumesInputsAndGrantsXP(t *testing.T) {
 	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
 	player.inventory.add(ItemIronOre, 1)
-	player.inventory.add(ItemCoal, 1)
 	player.skills[SkillSmithing] = SkillExperienceForLevel(2)
 	recipe, _ := smeltingRecipe(SmeltingIronBar)
 	if err := applySmeltingRecipe(player, recipe); err != nil {
 		t.Fatalf("applySmeltingRecipe() returned an unexpected error: %v", err)
 	}
-	if player.inventory.quantity(ItemIronOre) != 0 || player.inventory.quantity(ItemCoal) != 0 || player.inventory.quantity(ItemIronBar) != 1 {
+	if player.inventory.quantity(ItemIronOre) != 0 || player.inventory.quantity(ItemIronBar) != 1 {
 		t.Fatalf("inventory after smelting = %+v", player.inventory)
 	}
 	if got := player.skills[SkillSmithing]; got != SkillExperienceForLevel(2)+recipe.RewardXP {

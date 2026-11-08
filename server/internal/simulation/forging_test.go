@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -51,11 +52,49 @@ func TestGemAmuletRecipesUseGoldAndMatchingCutGem(t *testing.T) {
 	}
 	for _, test := range tests {
 		recipe, exists := forgingRecipe(test.id)
-		if !exists || recipe.RewardItem != test.output || len(recipe.Costs) != 2 ||
+		if !exists || recipe.RewardItem != test.output || recipe.RequiredTool != ItemAmuletMould || len(recipe.Costs) != 2 ||
 			recipe.Costs[0] != (ItemCost{ItemID: ItemGoldBar, Quantity: 1}) ||
 			recipe.Costs[1] != (ItemCost{ItemID: test.gem, Quantity: 1}) {
 			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
 		}
+	}
+}
+
+func TestGemRingRecipesUseReusableMouldGoldAndMatchingCutGem(t *testing.T) {
+	tests := []struct {
+		id          ForgingRecipeID
+		gem, output string
+	}{
+		{ForgingRubyRing, ItemRuby, ItemRubyRing},
+		{ForgingEmeraldRing, ItemEmerald, ItemEmeraldRing},
+		{ForgingSapphireRing, ItemSapphire, ItemSapphireRing},
+		{ForgingDiamondRing, ItemDiamond, ItemDiamondRing},
+	}
+	for _, test := range tests {
+		recipe, exists := forgingRecipe(test.id)
+		if !exists || recipe.RewardItem != test.output || recipe.RequiredTool != ItemRingMould || len(recipe.Costs) != 2 ||
+			recipe.Costs[0] != (ItemCost{ItemID: ItemGoldBar, Quantity: 1}) ||
+			recipe.Costs[1] != (ItemCost{ItemID: test.gem, Quantity: 1}) {
+			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
+		}
+	}
+}
+
+func TestJewelleryMouldIsRequiredButNotConsumed(t *testing.T) {
+	recipe, _ := forgingRecipe(ForgingSapphireRing)
+	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	player.skills[SkillSmithing] = SkillExperienceForLevel(recipe.RequiredLevel)
+	player.inventory.add(ItemGoldBar, 1)
+	player.inventory.add(ItemSapphire, 1)
+	if err := applyForgingRecipe(player, recipe); !errors.Is(err, errMissingForgingTool) {
+		t.Fatalf("applyForgingRecipe() without mould error = %v", err)
+	}
+	player.inventory.add(ItemRingMould, 1)
+	if err := applyForgingRecipe(player, recipe); err != nil {
+		t.Fatalf("applyForgingRecipe() with mould returned error: %v", err)
+	}
+	if player.inventory.quantity(ItemRingMould) != 1 || player.inventory.quantity(ItemSapphireRing) != 1 {
+		t.Fatalf("inventory after crafting ring = %+v", player.inventory)
 	}
 }
 

@@ -82,6 +82,9 @@ const TIN_ORE: Texture2D = preload("res://assets/icons/ore/Stylized Tin Ore Pile
 const IRON_ORE: Texture2D = preload("res://assets/icons/ore/OSRS-Style Iron Ore Cluster-3.png")
 const COAL: Texture2D = preload("res://assets/icons/ore/Pixel-Art Coal Ore Cluster-4.png")
 const MITHRIL_ORE: Texture2D = preload("res://assets/icons/ore/OSRS-Style Mithril Rock Cluster-5.png")
+const SILVER_ORE: Texture2D = preload("res://assets/icons/items/materials/silver_ore.svg")
+const CLAY: Texture2D = preload("res://assets/icons/items/materials/clay.svg")
+const ADAMANTITE_ORE: Texture2D = preload("res://assets/icons/items/materials/adamantite_ore.svg")
 const BRONZE_BAR: Texture2D = preload("res://assets/icons/bars/Bronze Ingot Stack Icon-1.png")
 const IRON_BAR: Texture2D = preload("res://assets/icons/bars/Stacked Iron Ingots-2.png")
 const MITHRIL_BAR: Texture2D = preload("res://assets/icons/bars/Mithril Ingot Stack Icon-4.png")
@@ -225,7 +228,12 @@ const ITEMS: Dictionary = {
 	"thread": THREAD,
 	"tinderbox": TINDERBOX,
 	"hammer": HAMMER,
+	"ring_mould": preload("res://assets/icons/items/tools/ring_mould.svg"),
+	"amulet_mould": preload("res://assets/icons/items/tools/amulet_mould.svg"),
 	"prayer_potion": PRAYER_POTION,
+	"melee_potion": preload("res://assets/icons/items/consumables/melee_potion.svg"),
+	"ranging_potion": preload("res://assets/icons/items/consumables/ranging_potion.svg"),
+	"magic_potion": preload("res://assets/icons/items/consumables/magic_potion.svg"),
 	"fishing_rod": FISHING_ROD,
 	"lobster_cage": LOBSTER_CAGE,
 	"vial_of_water": preload("res://assets/icons/items/consumables/vial_of_water.svg"),
@@ -254,10 +262,16 @@ const ITEMS: Dictionary = {
 	"iron_ore": IRON_ORE,
 	"coal": COAL,
 	"mithril_ore": MITHRIL_ORE,
+	"silver_ore": SILVER_ORE,
+	"clay": CLAY,
+	"adamantite_ore": ADAMANTITE_ORE,
 	"bronze_bar": BRONZE_BAR,
 	"iron_bar": IRON_BAR,
 	"mithril_bar": MITHRIL_BAR,
 	"gold_bar": preload("res://assets/icons/items/materials/gold_bar.svg"),
+	"silver_bar": preload("res://assets/icons/bars/Stacked Silver Ingots Icon-3.png"),
+	"steel_bar": preload("res://assets/icons/items/materials/steel_bar.svg"),
+	"adamantite_bar": preload("res://assets/icons/items/materials/adamantite_bar.svg"),
 	"training_helm": TRAINING_HELM,
 	"bronze_helm": BRONZE_HELM,
 	"bronze_platebody": BRONZE_PLATE,

@@ -23,7 +23,7 @@ func playerAccuracyScore(player *playerState, weapon WeaponDefinition) int {
 	level := 1
 	style := CombatStyleID("")
 	if player != nil {
-		level = SkillLevelForExperience(player.skills[weaponAccuracySkill(weapon)])
+		level = effectiveCombatSkillLevel(player, weaponAccuracySkill(weapon))
 		style = player.combatStyle
 	}
 	equipmentAccuracy, _ := equipmentOffenceForWeapon(player, weapon)

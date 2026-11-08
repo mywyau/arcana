@@ -112,6 +112,10 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 			"starter_iron_vein": Color(0.62, 0.67, 0.7),
 			"starter_coal_vein": Color(0.08, 0.09, 0.1),
 			"starter_mithril_vein": Color(0.18, 0.72, 0.78),
+			"starter_gold_vein": Color(0.82, 0.65, 0.16),
+			"starter_silver_vein": Color(0.78, 0.84, 0.88),
+			"starter_clay_deposit": Color(0.58, 0.32, 0.22),
+			"starter_adamantite_vein": Color(0.18, 0.62, 0.36),
 		}.get(id, Color(0.74, 0.31, 0.12))
 		var ore_material := StandardMaterial3D.new()
 		ore_material.albedo_color = ore_colour

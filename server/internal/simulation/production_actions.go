@@ -21,13 +21,23 @@ func validateProductionAction(player *playerState, spot gatheringSpotDefinition,
 		command.RecipeID = recipe.ID
 	case craftingStationSmelting:
 		recipe, exists := smeltingRecipe(SmeltingRecipeID(command.RecipeID))
-		if !exists {
-			return fmt.Errorf("smelting recipe %q does not exist", command.RecipeID)
+		if exists {
+			if SkillLevelForExperience(player.skills[SkillSmithing]) < recipe.RequiredLevel {
+				return fmt.Errorf("smithing level %d is required", recipe.RequiredLevel)
+			}
+			if _, err := smeltingInventoryAfter(player.inventory, recipe); err != nil {
+				return err
+			}
+			break
 		}
-		if SkillLevelForExperience(player.skills[SkillSmithing]) < recipe.RequiredLevel {
-			return fmt.Errorf("smithing level %d is required", recipe.RequiredLevel)
+		jewellery, jewelleryExists := forgingRecipe(ForgingRecipeID(command.RecipeID))
+		if !jewelleryExists || forgingRecipeStation(jewellery) != craftingStationSmelting {
+			return fmt.Errorf("furnace recipe %q does not exist", command.RecipeID)
 		}
-		if _, err := smeltingInventoryAfter(player.inventory, recipe); err != nil {
+		if SkillLevelForExperience(player.skills[SkillSmithing]) < jewellery.RequiredLevel {
+			return fmt.Errorf("smithing level %d is required", jewellery.RequiredLevel)
+		}
+		if _, err := forgingInventoryAfter(player.inventory, jewellery); err != nil {
 			return err
 		}
 	case craftingStationForging:
@@ -58,7 +68,11 @@ func (w *World) resolveProductionAction(player *playerState, spot gatheringSpotD
 	case craftingStationCooking:
 		w.resolveCookingAction(player, spot)
 	case craftingStationSmelting:
-		w.resolveSmeltingAction(player)
+		if _, exists := smeltingRecipe(SmeltingRecipeID(player.gatheringRecipe)); exists {
+			w.resolveSmeltingAction(player)
+		} else {
+			w.resolveForgingAction(player)
+		}
 	case craftingStationForging:
 		w.resolveForgingAction(player)
 	case craftingStationRunecrafting:

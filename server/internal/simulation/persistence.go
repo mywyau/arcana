@@ -247,6 +247,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		combatStyle:                  state.CombatStyle,
 		experienceLocked:             state.ExperienceLocked,
 		skills:                       skills,
+		combatBoosts:                 make(map[SkillID]activeCombatBoost),
 	}
 	return nil
 }
