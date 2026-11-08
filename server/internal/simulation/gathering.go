@@ -1,7 +1,6 @@
 package simulation
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 )
@@ -64,6 +63,15 @@ const (
 
 type craftingStationID string
 
+type timedActionKind uint8
+
+const (
+	timedActionUnknown timedActionKind = iota
+	timedActionGathering
+	timedActionProduction
+	timedActionWorldInteraction
+)
+
 const (
 	craftingStationFishing      craftingStationID = "fishing"
 	craftingStationCooking      craftingStationID = "cooking"
@@ -88,6 +96,7 @@ type GatheringSpotSnapshot struct {
 
 type gatheringSpotDefinition struct {
 	GatheringSpotSnapshot
+	ActionKind     timedActionKind
 	RewardItem     string
 	RewardQuantity int
 	RewardXP       int64
@@ -100,7 +109,6 @@ type gatheringSpotDefinition struct {
 	RequiredTool   string
 	RechargePulses uint64
 	NextRecharge   uint64
-	TrainingOnly   bool
 }
 
 type GatherCommand struct {
@@ -141,6 +149,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: -10, Z: -21}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationCooking,
 			},
+			ActionKind:   timedActionProduction,
 			ActiveResult: "cooking",
 		},
 		starterFurnaceID: {
@@ -149,6 +158,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: 10, Z: 12}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationSmelting,
 			},
+			ActionKind:   timedActionProduction,
 			ActiveResult: "smelting",
 		},
 		starterAnvilID: {
@@ -157,6 +167,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: 7, Z: 11}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationForging,
 			},
+			ActionKind:   timedActionProduction,
 			ActiveResult: "forging",
 		},
 		starterCopperVeinID: {
@@ -165,6 +176,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: 19, Z: 12}, Range: gatheringRange, RequiredLevel: 1,
 				CurrentAmount: copperVeinCapacity, MaximumAmount: copperVeinCapacity,
 			},
+			ActionKind: timedActionGathering,
 			RewardItem: ItemCopperOre, RewardQuantity: 1, RewardXP: miningExperience,
 			Interval: miningInterval, ActiveResult: "mining", RewardResult: "mined_copper_ore",
 			MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe,
@@ -185,8 +197,9 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				ID: starterAgilityObstacleID, Name: "Balance Beam", Skill: SkillAgility,
 				Position: Position{X: -36, Z: 32}, Range: gatheringRange, RequiredLevel: 1,
 			},
-			RewardXP: agilityObstacleExperience, Interval: agilityObstacleInterval,
-			ActiveResult: "balancing", RewardResult: "completed_agility_obstacle", TrainingOnly: true,
+			ActionKind: timedActionWorldInteraction,
+			RewardXP:   agilityObstacleExperience, Interval: agilityObstacleInterval,
+			ActiveResult: "balancing", RewardResult: "completed_agility_obstacle",
 		},
 		starterPrayerAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
@@ -194,7 +207,8 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: -8, Z: -14}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationPrayer, RecipeID: prayerAdoptCommonID,
 			},
-			Interval: 1, ActiveResult: "praying", RewardResult: "prayer_restored",
+			ActionKind: timedActionWorldInteraction,
+			Interval:   1, ActiveResult: "praying", RewardResult: "prayer_restored",
 		},
 		warPrayerAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
@@ -202,7 +216,8 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: 13, Z: -20}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationPrayer, RecipeID: prayerAdoptWarID,
 			},
-			Interval: 1, ActiveResult: "praying", RewardResult: "prayer_restored",
+			ActionKind: timedActionWorldInteraction,
+			Interval:   1, ActiveResult: "praying", RewardResult: "prayer_restored",
 		},
 		starterAirRuneAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
@@ -210,6 +225,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 				Position: Position{X: 32, Z: -12}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationRunecrafting,
 			},
+			ActionKind: timedActionProduction,
 			RewardItem: ItemAirRune, RewardQuantity: 5, RewardXP: runecraftingExperience,
 			Interval: runecraftingInterval, Costs: []ItemCost{{ItemID: ItemBlankRune, Quantity: 1}},
 			ActiveResult: "runecrafting", RewardResult: "crafted_air_runes",
@@ -234,6 +250,7 @@ func fishingSpot(id, name string, position Position, recipeID string) gatheringS
 			ID: id, Name: name, Skill: SkillFishing, Position: position, Range: gatheringRange,
 			RequiredLevel: recipe.RequiredLevel, Station: craftingStationFishing, RecipeID: recipeID,
 		},
+		ActionKind:   timedActionGathering,
 		ActiveResult: "fishing", RequiredTool: requiredTool, MissingResult: missingResult,
 	}
 }
@@ -244,6 +261,7 @@ func miningVein(id, name string, position Position, level int, reward string, xp
 			ID: id, Name: name, Skill: SkillMining, Position: position, Range: gatheringRange,
 			RequiredLevel: level, CurrentAmount: capacity, MaximumAmount: capacity,
 		},
+		ActionKind: timedActionGathering,
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "mining", RewardResult: "mined_" + reward,
 		MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe, RechargePulses: recharge,
@@ -256,6 +274,7 @@ func woodcuttingTree(id, name string, position Position, level int, reward strin
 			ID: id, Name: name, Skill: SkillWoodcutting, Position: position, Range: gatheringRange,
 			RequiredLevel: level, CurrentAmount: capacity, MaximumAmount: capacity,
 		},
+		ActionKind: timedActionGathering,
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "woodcutting", RewardResult: "chopped_" + reward,
 		MissingResult: "missing_bronze_axe", DepletedResult: "tree_depleted",
@@ -295,75 +314,11 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if spot.Station != "" && SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
 		return fmt.Errorf("%s level %d is required", spot.Skill, spot.RequiredLevel)
 	}
-	if spot.Station == craftingStationFishing {
-		if command.RecipeID != "" && command.RecipeID != spot.RecipeID {
-			return fmt.Errorf("fishing spot %q does not contain recipe %q", spot.ID, command.RecipeID)
-		}
-		command.RecipeID = spot.RecipeID
+	if err := w.validateTimedAction(player, spot, &command); err != nil {
+		return err
 	}
-	if spot.Station == craftingStationFishing || spot.Station == craftingStationCooking {
-		recipe, recipeExists := foodRecipe(spot.Station, command.RecipeID)
-		if !recipeExists {
-			return fmt.Errorf("%s recipe %q does not exist", spot.Station, command.RecipeID)
-		}
-		if SkillLevelForExperience(player.skills[spot.Skill]) < recipe.RequiredLevel {
-			return fmt.Errorf("%s level %d is required", spot.Skill, recipe.RequiredLevel)
-		}
-		if _, err := foodInventoryAfter(player.inventory, recipe); err != nil {
-			return err
-		}
-		command.RecipeID = recipe.ID
-	}
-	if spot.Station == craftingStationSmelting {
-		recipe, recipeExists := smeltingRecipe(SmeltingRecipeID(command.RecipeID))
-		if !recipeExists {
-			return fmt.Errorf("smelting recipe %q does not exist", command.RecipeID)
-		}
-		if SkillLevelForExperience(player.skills[SkillSmithing]) < recipe.RequiredLevel {
-			return fmt.Errorf("smithing level %d is required", recipe.RequiredLevel)
-		}
-		if _, err := smeltingInventoryAfter(player.inventory, recipe); err != nil {
-			return err
-		}
-	} else if command.Quantity > 0 {
+	if spot.Station != craftingStationSmelting && command.Quantity > 0 {
 		return fmt.Errorf("gather quantity is only supported for smelting")
-	}
-	if spot.Station == craftingStationForging {
-		recipe, recipeExists := forgingRecipe(ForgingRecipeID(command.RecipeID))
-		if !recipeExists {
-			reinforcement, reinforcementExists := reinforcementRecipe(command.RecipeID)
-			if reinforcementExists {
-				if err := validateReinforcement(player, reinforcement, command.InstanceID); err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("forging recipe %q does not exist", command.RecipeID)
-			}
-		}
-		if recipeExists && SkillLevelForExperience(player.skills[SkillSmithing]) < recipe.RequiredLevel {
-			return fmt.Errorf("smithing level %d is required", recipe.RequiredLevel)
-		}
-		if recipeExists {
-			if _, err := forgingInventoryAfter(player.inventory, recipe); err != nil {
-				return err
-			}
-		}
-	}
-	if spot.Station == craftingStationPrayer {
-		switch command.RecipeID {
-		case "", prayerRestoreRecipeID:
-			command.RecipeID = prayerRestoreRecipeID
-		case prayerSacrificeBonesID:
-			if !player.inventory.contains(ItemBones) {
-				return fmt.Errorf("bones are required")
-			}
-		case prayerAdoptCommonID, prayerAdoptWarID:
-			if command.RecipeID != spot.RecipeID {
-				return fmt.Errorf("prayer set %q is not available at altar %q", command.RecipeID, spot.ID)
-			}
-		default:
-			return fmt.Errorf("prayer altar recipe %q does not exist", command.RecipeID)
-		}
 	}
 	if spot.Station != "" && spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
 		return fmt.Errorf("gathering spot %q is depleted", spot.ID)
@@ -431,19 +386,7 @@ func (w *World) startPendingGathering() {
 		player.gatheringInteractionPosition = pending.interactionPosition
 		player.gatheringCompletionPosition = pending.completionPosition
 		player.gatheringTraversal = pending.traversal
-		interval := spot.Interval
-		if recipe, exists := foodRecipe(spot.Station, player.gatheringRecipe); exists {
-			interval = recipe.Interval
-		}
-		if recipe, exists := smeltingRecipe(SmeltingRecipeID(player.gatheringRecipe)); spot.Station == craftingStationSmelting && exists {
-			interval = recipe.Interval
-		}
-		if recipe, exists := forgingRecipe(ForgingRecipeID(player.gatheringRecipe)); spot.Station == craftingStationForging && exists {
-			interval = recipe.Interval
-		}
-		if recipe, exists := reinforcementRecipe(player.gatheringRecipe); spot.Station == craftingStationForging && exists {
-			interval = recipe.Interval
-		}
+		interval := timedActionInterval(spot, player.gatheringRecipe)
 		player.nextGatherPulse = w.combat.pulse + interval
 		interactionRange := spot.Range
 		if pending.traversal {
@@ -516,152 +459,16 @@ func (w *World) resolveGatheringActions() {
 			player.gatheringResult = spot.ActiveResult
 			continue
 		}
-		if spot.Station == craftingStationFishing || spot.Station == craftingStationCooking {
-			recipe, recipeExists := foodRecipe(spot.Station, player.gatheringRecipe)
-			if !recipeExists {
-				clearGathering(player, "recipe_missing")
-				continue
-			}
-			if err := applyFoodRecipe(player, spot.Skill, recipe); err != nil {
-				if errors.Is(err, errFoodInventoryFull) {
-					clearGathering(player, "inventory_full")
-				} else if spot.Station == craftingStationCooking {
-					clearGathering(player, "missing_"+recipe.Costs[0].ItemID)
-				} else {
-					clearGathering(player, "fishing_failed")
-				}
-				continue
-			}
-			if spot.Station == craftingStationFishing {
-				player.gatheringResult = "caught_" + recipe.RewardItem
-			} else {
-				player.gatheringResult = recipe.RewardItem
-			}
-			player.nextGatherPulse = w.combat.pulse + recipe.Interval
-			continue
+		switch spot.ActionKind {
+		case timedActionGathering:
+			w.resolveRenewableGathering(player, spot)
+		case timedActionProduction:
+			w.resolveProductionAction(player, spot)
+		case timedActionWorldInteraction:
+			w.resolveWorldInteraction(player, spot)
+		default:
+			clearGathering(player, "action_kind_missing")
 		}
-		if spot.Station == craftingStationSmelting {
-			recipe, recipeExists := smeltingRecipe(SmeltingRecipeID(player.gatheringRecipe))
-			if !recipeExists {
-				clearGathering(player, "recipe_missing")
-				continue
-			}
-			if err := applySmeltingRecipe(player, recipe); err != nil {
-				if errors.Is(err, errSmeltingInventoryFull) {
-					clearGathering(player, "inventory_full")
-				} else {
-					clearGathering(player, "missing_smelting_inputs")
-				}
-				continue
-			}
-			player.gatheringResult = "smelted_" + recipe.RewardItem
-			if player.gatheringRemaining > 0 {
-				player.gatheringRemaining--
-				if player.gatheringRemaining == 0 {
-					clearGathering(player, "smelted_"+recipe.RewardItem)
-					continue
-				}
-			}
-			player.nextGatherPulse = w.combat.pulse + recipe.Interval
-			continue
-		}
-		if spot.Station == craftingStationForging {
-			recipe, recipeExists := forgingRecipe(ForgingRecipeID(player.gatheringRecipe))
-			if !recipeExists {
-				reinforcement, reinforcementExists := reinforcementRecipe(player.gatheringRecipe)
-				if !reinforcementExists {
-					clearGathering(player, "recipe_missing")
-					continue
-				}
-				if err := applyReinforcement(player, reinforcement, player.gatheringInstanceID); err != nil {
-					clearGathering(player, "reinforcement_failed")
-					continue
-				}
-				level := 0
-				if item, exists := player.inventory.itemByInstance(player.gatheringInstanceID); exists {
-					level = item.Reinforcement
-				}
-				clearGathering(player, fmt.Sprintf("reinforced_%s_to_%d", reinforcement.TargetItem, level))
-				continue
-			}
-			if err := applyForgingRecipe(player, recipe); err != nil {
-				if errors.Is(err, errForgingInventoryFull) {
-					clearGathering(player, "inventory_full")
-				} else {
-					clearGathering(player, "missing_forging_inputs")
-				}
-				continue
-			}
-			player.gatheringResult = "forged_" + recipe.RewardItem
-			player.nextGatherPulse = w.combat.pulse + recipe.Interval
-			continue
-		}
-		if spot.Station == craftingStationPrayer {
-			if player.gatheringRecipe == prayerAdoptCommonID || player.gatheringRecipe == prayerAdoptWarID {
-				setID := PrayerSetCommon
-				if player.gatheringRecipe == prayerAdoptWarID {
-					setID = PrayerSetWar
-				}
-				player.activePrayerSet = setID
-				clearActivePrayers(player)
-				clearGathering(player, "prayer_set_"+string(setID))
-				continue
-			}
-			if player.gatheringRecipe == prayerSacrificeBonesID {
-				if !player.inventory.remove(ItemBones, 1) {
-					clearGathering(player, "missing_bones")
-					continue
-				}
-				grantSkillExperience(player, SkillPrayer, prayerBoneExperience)
-				if !player.inventory.contains(ItemBones) {
-					clearGathering(player, "sacrificed_all_bones")
-					continue
-				}
-				player.gatheringResult = "sacrificed_bone"
-				player.nextGatherPulse = w.combat.pulse + 1
-				continue
-			}
-			player.prayer = player.maximumPrayer
-			clearGathering(player, spot.RewardResult)
-			continue
-		}
-		if spot.TrainingOnly {
-			if player.gatheringTraversal {
-				player.position = player.gatheringCompletionPosition
-				stopPlayer(player)
-			}
-			grantSkillExperience(player, spot.Skill, spot.RewardXP)
-			clearGathering(player, spot.RewardResult)
-			continue
-		}
-		if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
-			result := spot.DepletedResult
-			if result == "" {
-				result = "vein_depleted"
-			}
-			clearGathering(player, result)
-			continue
-		}
-		candidate := cloneInventory(player.inventory)
-		if !payItemCosts(&candidate, spot.Costs) {
-			clearGathering(player, spot.MissingResult)
-			continue
-		}
-		if !candidate.add(spot.RewardItem, spot.RewardQuantity) {
-			clearGathering(player, "inventory_full")
-			continue
-		}
-		player.inventory = candidate
-		if spot.MaximumAmount > 0 {
-			spot.CurrentAmount--
-			if spot.NextRecharge == 0 {
-				spot.NextRecharge = w.combat.pulse + spot.RechargePulses
-			}
-			w.gatheringSpots[spot.ID] = spot
-		}
-		grantSkillExperience(player, spot.Skill, spot.RewardXP)
-		player.gatheringResult = spot.RewardResult
-		player.nextGatherPulse = w.combat.pulse + spot.Interval
 	}
 }
 
