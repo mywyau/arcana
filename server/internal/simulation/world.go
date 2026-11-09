@@ -607,6 +607,19 @@ func (w *World) Player(id PlayerID) (PlayerSnapshot, bool) {
 	return snapshotPlayer(player), true
 }
 
+// HasPlayerOrPending reports whether a character still occupies or is waiting
+// to enter this world. Connection replacement uses it to avoid racing a new
+// join against the previous connection's queued leave.
+func (w *World) HasPlayerOrPending(id PlayerID) bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if _, exists := w.players[id]; exists {
+		return true
+	}
+	_, pending := w.pendingJoins[id]
+	return pending
+}
+
 // Snapshot returns a detached, deterministically ordered view of the world.
 func (w *World) Snapshot() Snapshot {
 	w.mu.RLock()

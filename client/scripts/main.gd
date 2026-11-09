@@ -820,6 +820,7 @@ func _ready() -> void:
 	auth_gate.registration_requested.connect(_request_startup_registration)
 	auth_gate.guest_requested.connect(_request_development_guest)
 	auth_gate.retry_connection_requested.connect(_retry_startup_connection)
+	auth_gate.reconnect_session_requested.connect(_reconnect_replaced_session)
 	account_api.authentication_succeeded.connect(_on_startup_authentication_succeeded)
 	account_api.request_failed.connect(_on_startup_authentication_failed)
 	_setup_ammunition_pouch_window()
@@ -836,6 +837,7 @@ func _ready() -> void:
 	network.account_login_required.connect(_on_account_login_required)
 	network.account_logged_out.connect(_on_account_logged_out)
 	network.client_update_required.connect(_on_client_update_required)
+	network.session_replaced.connect(_on_session_replaced)
 	sword_button.pressed.connect(_request_equip.bind("sword"))
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
 	bow_button.pressed.connect(_request_equip.bind("bow"))
@@ -2478,6 +2480,13 @@ func _retry_startup_connection() -> void:
 		auth_gate.show_login("Log in or create an account to continue.")
 
 
+func _reconnect_replaced_session() -> void:
+	if network.reconnect_replaced_session():
+		auth_gate.show_connecting("Reconnecting this character…")
+	else:
+		auth_gate.show_login("Log in again to continue.")
+
+
 func _on_startup_authentication_succeeded(
 	_player_id: String,
 	email: String,
@@ -2513,6 +2522,11 @@ func _on_account_logged_out() -> void:
 
 func _on_client_update_required(message: String) -> void:
 	auth_gate.show_update_required(message)
+	account_window.hide()
+
+
+func _on_session_replaced(message: String) -> void:
+	auth_gate.show_session_replaced(message)
 	account_window.hide()
 
 

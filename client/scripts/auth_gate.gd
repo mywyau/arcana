@@ -5,6 +5,7 @@ signal login_requested(email: String, password: String)
 signal registration_requested(email: String, password: String, link_guest: bool)
 signal guest_requested
 signal retry_connection_requested
+signal reconnect_session_requested
 
 @onready var title_label: Label = $Backdrop/Center/Card/Margin/Content/Title
 @onready var login_mode_button: Button = $Backdrop/Center/Card/Margin/Content/Modes/Login
@@ -24,6 +25,7 @@ var _registering: bool = false
 var _busy: bool = false
 var _has_existing_guest: bool = false
 var _connection_pending: bool = false
+var _retry_action: String = ""
 
 
 func _ready() -> void:
@@ -56,7 +58,9 @@ func show_login(message: String = "") -> void:
 	_busy = false
 	_connection_pending = false
 	retry_button.visible = false
+	_retry_action = ""
 	_set_controls_enabled(true)
+	_set_registering(_registering)
 	show_feedback(message, not message.is_empty())
 	password_input.clear()
 	confirmation_input.clear()
@@ -68,6 +72,7 @@ func show_connecting(message: String = "Connecting to the game server…") -> vo
 	_busy = true
 	_connection_pending = true
 	retry_button.visible = false
+	_retry_action = ""
 	_set_controls_enabled(false)
 	show_feedback(message)
 
@@ -83,6 +88,8 @@ func show_connection_status(
 	_set_controls_enabled(false)
 	retry_button.visible = retry_available
 	retry_button.disabled = not retry_available
+	retry_button.text = "Retry connection"
+	_retry_action = "connection" if retry_available else ""
 	show_feedback(message, is_error)
 
 
@@ -95,11 +102,27 @@ func show_error(message: String) -> void:
 	_busy = false
 	_connection_pending = false
 	retry_button.visible = false
+	_retry_action = ""
 	_set_controls_enabled(true)
 	show_feedback(message, true)
 	password_input.clear()
 	confirmation_input.clear()
 	password_input.grab_focus.call_deferred()
+
+
+func show_session_replaced(message: String) -> void:
+	visible = true
+	_busy = true
+	_connection_pending = false
+	_set_controls_enabled(false)
+	password_input.clear()
+	confirmation_input.clear()
+	title_label.text = "Logged in elsewhere"
+	retry_button.text = "Reconnect here"
+	retry_button.visible = true
+	retry_button.disabled = false
+	_retry_action = "session"
+	show_feedback(message, true)
 
 
 func show_update_required(message: String) -> void:
@@ -108,6 +131,7 @@ func show_update_required(message: String) -> void:
 	_connection_pending = false
 	_set_controls_enabled(false)
 	retry_button.visible = false
+	_retry_action = ""
 	title_label.text = "Update required"
 	password_input.clear()
 	confirmation_input.clear()
@@ -119,6 +143,7 @@ func dismiss() -> void:
 	_busy = false
 	_connection_pending = false
 	retry_button.visible = false
+	_retry_action = ""
 	password_input.clear()
 	confirmation_input.clear()
 
@@ -182,12 +207,17 @@ func _request_guest() -> void:
 
 
 func _request_connection_retry() -> void:
-	if not _connection_pending or retry_button.disabled:
+	if _retry_action.is_empty() or retry_button.disabled:
 		return
+	var retry_action: String = _retry_action
+	_retry_action = ""
 	retry_button.disabled = true
 	retry_button.visible = false
 	show_feedback("Retrying connection…")
-	retry_connection_requested.emit()
+	if retry_action == "session":
+		reconnect_session_requested.emit()
+	else:
+		retry_connection_requested.emit()
 
 
 func _set_controls_enabled(enabled: bool) -> void:

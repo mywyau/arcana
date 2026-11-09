@@ -26,6 +26,7 @@ func _run() -> void:
 	await _test_incompatible_client_requires_update()
 	await _test_unavailable_server_exposes_retry()
 	await _test_retry_starts_connection_immediately()
+	await _test_replaced_session_stops_and_can_reconnect()
 	await _test_logout_returns_to_account_gate()
 	await _test_welcome_hides_account_gate()
 	await _test_duplicate_login_submission_is_blocked()
@@ -104,6 +105,43 @@ func _test_retry_starts_connection_immediately() -> void:
 	_check(network.connection_attempts == 1, "manual retry starts one connection attempt")
 	_check(network._reconnect_at_msec == -1, "manual retry cancels the reconnect delay")
 	network.queue_free()
+	await process_frame
+
+
+func _test_replaced_session_stops_and_can_reconnect() -> void:
+	var harness: Dictionary = await _main_auth_harness()
+	var main: Node = harness["main"]
+	var network: NetworkClient = harness["network"]
+	var gate: AuthGate = harness["gate"]
+	network._session_token = "replacement-session"
+	network._handle_packet(JSON.stringify({
+		"type": "error",
+		"error": {
+			"code": "session_replaced",
+			"message": "This character was logged in from another client.",
+		},
+	}).to_utf8_buffer())
+	await process_frame
+	_check(gate.visible, "replaced session displays the account gate")
+	_check(gate.title_label.text == "Logged in elsewhere", "replaced session explains the disconnect")
+	_check(gate.retry_button.visible, "replaced session offers deliberate reconnection")
+	_check(network._authentication_blocked, "replaced session stops automatic reconnects")
+	_check(network._session_token == "replacement-session", "replacement keeps the account session")
+	_cleanup_main_harness(main, network)
+	await process_frame
+
+	var retry_network := RetryNetworkClient.new()
+	root.add_child(retry_network)
+	await process_frame
+	retry_network._session_token = "replacement-session"
+	retry_network._session_was_replaced = true
+	retry_network._authentication_blocked = true
+	var accepted: bool = retry_network.reconnect_replaced_session()
+	await process_frame
+	_check(accepted, "deliberate replaced-session reconnect is accepted")
+	_check(not retry_network._authentication_blocked, "deliberate reconnect unblocks authentication")
+	_check(retry_network.connection_attempts == 1, "deliberate reconnect starts one connection")
+	retry_network.queue_free()
 	await process_frame
 
 

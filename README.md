@@ -99,6 +99,10 @@ together when a network change is intentionally incompatible. The Godot
 `application/config/version` value is a human-readable build label and does
 not control compatibility.
 
+Only one live connection may control a character. A newer authenticated
+connection saves and replaces the older one; the displaced client stops
+automatic reconnects and offers an explicit **Reconnect here** action.
+
 ### Hosted server
 
 The repository includes a production server image in `server/Dockerfile` and a

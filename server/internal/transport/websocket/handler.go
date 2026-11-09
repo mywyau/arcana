@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -19,12 +20,13 @@ import (
 )
 
 const (
-	connectionReadLimit   = 4 * 1024
-	playerSpeed           = 6.0
-	writeTimeout          = 2 * time.Second
-	authenticationTimeout = 5 * time.Second
-	characterSaveTimeout  = 2 * time.Second
-	characterSaveInterval = 30 * time.Second
+	connectionReadLimit          = 4 * 1024
+	playerSpeed                  = 6.0
+	writeTimeout                 = 2 * time.Second
+	authenticationTimeout        = 5 * time.Second
+	characterSaveTimeout         = 2 * time.Second
+	characterSaveInterval        = 30 * time.Second
+	connectionReplacementTimeout = 5 * time.Second
 )
 
 var errAccountRequired = errors.New("an account is required to enter this world")
@@ -39,6 +41,13 @@ type Handler struct {
 	allowDebug       bool
 	allowGuests      bool
 	acceptOptions    websocket.AcceptOptions
+	activeMu         sync.Mutex
+	activeClients    map[simulation.PlayerID]*activeClient
+}
+
+type activeClient struct {
+	replaced chan struct{}
+	done     chan struct{}
 }
 
 type HandlerOptions struct {
@@ -138,6 +147,7 @@ func NewHandlerWithRepositoriesAndOptions(
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
 		},
+		activeClients: make(map[simulation.PlayerID]*activeClient),
 	}, nil
 }
 
@@ -183,6 +193,32 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		return
 	}
 	playerID := simulation.PlayerID(authentication.PlayerID)
+	client, previous := h.claimActiveClient(playerID)
+	joinedWorld := false
+	defer func() {
+		if joinedWorld {
+			h.saveCharacter(playerID)
+			_ = h.world.QueueLeave(playerID)
+			h.waitForPlayerDeparture(playerID)
+		}
+		h.releaseActiveClient(playerID, client)
+	}()
+	if previous != nil {
+		select {
+		case <-previous.done:
+		case <-time.After(connectionReplacementTimeout):
+			_ = writeMessage(ctx, connection, errorMessage(
+				"connection_replacement_failed",
+				errors.New("the previous connection did not close in time"),
+			))
+			_ = connection.Close(websocket.StatusInternalError, "replacement timed out")
+			return
+		}
+	}
+	if isClientReplaced(client) {
+		h.closeReplacedClient(ctx, connection)
+		return
+	}
 	characterState, found, err := h.characters.Load(ctx, string(playerID))
 	if err != nil {
 		log.Printf("load character %s: %v", playerID, err)
@@ -210,10 +246,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		_ = connection.Close(websocket.StatusInternalError, "could not join world")
 		return
 	}
-	defer func() {
-		h.saveCharacter(playerID)
-		_ = h.world.QueueLeave(playerID)
-	}()
+	joinedWorld = true
 
 	responses := make(chan outboundResponse, 8)
 
@@ -241,6 +274,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-client.replaced:
+			h.closeReplacedClient(ctx, connection)
 			return
 		case response := <-responses:
 			if err := writeMessage(ctx, connection, response.message); err != nil {
@@ -371,6 +407,54 @@ type authenticatedIdentity struct {
 	GuestToken   string
 	SessionToken string
 	AccountEmail string
+}
+
+func (h *Handler) claimActiveClient(playerID simulation.PlayerID) (*activeClient, *activeClient) {
+	client := &activeClient{replaced: make(chan struct{}), done: make(chan struct{})}
+	h.activeMu.Lock()
+	previous := h.activeClients[playerID]
+	h.activeClients[playerID] = client
+	if previous != nil {
+		close(previous.replaced)
+	}
+	h.activeMu.Unlock()
+	return client, previous
+}
+
+func (h *Handler) releaseActiveClient(playerID simulation.PlayerID, client *activeClient) {
+	h.activeMu.Lock()
+	if h.activeClients[playerID] == client {
+		delete(h.activeClients, playerID)
+	}
+	close(client.done)
+	h.activeMu.Unlock()
+}
+
+func (h *Handler) waitForPlayerDeparture(playerID simulation.PlayerID) {
+	deadline := time.Now().Add(connectionReplacementTimeout)
+	for time.Now().Before(deadline) {
+		if !h.world.HasPlayerOrPending(playerID) {
+			return
+		}
+		time.Sleep(h.snapshotInterval)
+	}
+}
+
+func isClientReplaced(client *activeClient) bool {
+	select {
+	case <-client.replaced:
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *Handler) closeReplacedClient(ctx context.Context, connection *websocket.Conn) {
+	_ = writeMessage(ctx, connection, errorMessage(
+		"session_replaced",
+		errors.New("this character was logged in from another client"),
+	))
+	_ = connection.Close(websocket.StatusPolicyViolation, "session replaced")
 }
 
 func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) (authenticatedIdentity, error) {

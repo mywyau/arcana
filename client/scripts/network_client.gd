@@ -12,6 +12,7 @@ signal account_session_received(email: String)
 signal account_login_required(message: String)
 signal account_logged_out
 signal client_update_required(message: String)
+signal session_replaced(message: String)
 
 @export var server_url: String = ""
 
@@ -28,6 +29,7 @@ var _retry_immediately: bool = false
 var _authentication_blocked: bool = false
 var _logout_pending: bool = false
 var _awaiting_welcome: bool = false
+var _session_was_replaced: bool = false
 var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg")
 var _guest_identity_section: String = ""
 var _reconnect_delay_seconds: float = INITIAL_RECONNECT_DELAY_SECONDS
@@ -142,6 +144,7 @@ func use_account_session(session_token: String, _email: String = "") -> bool:
 	_guest_token = ""
 	_save_guest_token()
 	_logout_pending = false
+	_session_was_replaced = false
 	_authentication_blocked = false
 	_retry_without_guest_token = false
 	_retry_immediately = false
@@ -158,6 +161,7 @@ func connect_as_development_guest() -> bool:
 	_session_token = ""
 	_save_session_token()
 	_logout_pending = false
+	_session_was_replaced = false
 	_authentication_blocked = false
 	_retry_without_guest_token = false
 	_retry_immediately = false
@@ -228,6 +232,17 @@ func retry_connection() -> bool:
 	_socket = WebSocketPeer.new()
 	_last_state = WebSocketPeer.STATE_CLOSED
 	_connect_to_server.call_deferred()
+	return true
+
+
+func reconnect_replaced_session() -> bool:
+	if not _session_was_replaced or _session_token.is_empty():
+		return false
+	_session_was_replaced = false
+	_authentication_blocked = false
+	_reconnect_at_msec = -1
+	_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
+	_restart_connection()
 	return true
 
 
@@ -703,7 +718,9 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 			if reason.is_empty():
 				reason = "connection closed"
 			status_changed.emit("Disconnected: %s" % reason)
-			if _awaiting_welcome and close_code == 1008 and not _authentication_blocked:
+			if close_code == 1008 and reason == "session replaced" and not _session_was_replaced:
+				_handle_session_replaced()
+			elif _awaiting_welcome and close_code == 1008 and not _authentication_blocked:
 				if reason == "incompatible client":
 					_handle_incompatible_client()
 				else:
@@ -759,6 +776,7 @@ func _handle_packet(packet: PackedByteArray) -> void:
 	match message_type:
 		"welcome":
 			_awaiting_welcome = false
+			_session_was_replaced = false
 			_reconnect_at_msec = -1
 			_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
 			_authentication_blocked = false
@@ -840,6 +858,10 @@ func _handle_packet(packet: PackedByteArray) -> void:
 					_handle_incompatible_client(str(details.get(
 						"message", "This client must be updated before connecting.",
 					)))
+				elif error_code == "session_replaced":
+					_handle_session_replaced(str(details.get(
+						"message", "This character was logged in from another client.",
+					)))
 				server_error.emit(
 					error_code,
 					str(details.get("message", "Unknown server error")),
@@ -874,6 +896,17 @@ func _handle_incompatible_client(
 	_retry_immediately = false
 	_reconnect_at_msec = -1
 	client_update_required.emit(message)
+
+
+func _handle_session_replaced(
+	message: String = "This character was logged in from another client.",
+) -> void:
+	_awaiting_welcome = false
+	_session_was_replaced = true
+	_authentication_blocked = true
+	_retry_immediately = false
+	_reconnect_at_msec = -1
+	session_replaced.emit(message)
 
 
 func _send_authentication() -> bool:

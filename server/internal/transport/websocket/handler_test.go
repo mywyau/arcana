@@ -255,6 +255,82 @@ func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
 	}
 }
 
+func TestNewestConnectionReplacesExistingCharacterConnection(t *testing.T) {
+	world := simulation.NewWorld()
+	const interval = 5 * time.Millisecond
+	runner, err := simulation.NewRunner(world, interval)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	runnerCtx, stopRunner := context.WithCancel(context.Background())
+	defer stopRunner()
+	go runner.Run(runnerCtx)
+
+	handler, err := NewHandler(world, interval)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	server := startTestServer(t, handler)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	first, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial first connection: %v", err)
+	}
+	defer first.CloseNow()
+	authenticateGuest(t, ctx, first, "")
+	firstWelcome := readServerMessage(t, ctx, first)
+	if err := wsjson.Write(ctx, first, protocol.ClientMessage{
+		Type: protocol.MessageRegisterAccount, Sequence: 1,
+		Email: "replacement@example.com", Password: "strong-password",
+	}); err != nil {
+		t.Fatalf("register account: %v", err)
+	}
+	var sessionToken string
+	for sessionToken == "" {
+		message := readServerMessage(t, ctx, first)
+		if message.Type == protocol.MessageAccountSession {
+			sessionToken = message.SessionToken
+		}
+	}
+
+	second, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial second connection: %v", err)
+	}
+	defer second.CloseNow()
+	if err := wsjson.Write(ctx, second, protocol.ClientMessage{
+		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
+		SessionToken: sessionToken,
+	}); err != nil {
+		t.Fatalf("authenticate second connection: %v", err)
+	}
+	secondWelcome := readServerMessage(t, ctx, second)
+	if secondWelcome.Type != protocol.MessageWelcome || secondWelcome.PlayerID != firstWelcome.PlayerID {
+		t.Fatalf("second welcome = %+v, first player = %s", secondWelcome, firstWelcome.PlayerID)
+	}
+
+	for {
+		message := readServerMessage(t, ctx, first)
+		if message.Type != protocol.MessageError {
+			continue
+		}
+		if message.Error == nil || message.Error.Code != "session_replaced" {
+			t.Fatalf("first connection error = %+v", message)
+		}
+		break
+	}
+
+	for {
+		message := readServerMessage(t, ctx, second)
+		if message.Type == protocol.MessageSnapshot {
+			break
+		}
+	}
+}
+
 func waitForPlayerToLeave(t *testing.T, world *simulation.World, playerID simulation.PlayerID) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)
