@@ -153,6 +153,17 @@ func TestDecodeBankTransferMessages(t *testing.T) {
 	}
 }
 
+func TestDecodeMerchantBuyMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"merchant_buy","sequence":10,"item_id":"iron_sword","instance_id":"sword-1"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageMerchantBuy || message.Sequence != 10 ||
+		message.ItemID != "iron_sword" || message.InstanceID != "sword-1" {
+		t.Fatalf("decoded merchant purchase = %+v", message)
+	}
+}
+
 func TestDecodeAmmunitionTransferMessages(t *testing.T) {
 	deposit, err := DecodeClientMessage([]byte(`{"type":"ammunition_deposit","sequence":10,"inventory_slot":3}`))
 	if err != nil || deposit.Type != MessageAmmunitionDeposit || deposit.InventorySlot != 3 {

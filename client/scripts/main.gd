@@ -811,7 +811,7 @@ func _ready() -> void:
 	bank_header.gui_input.connect(_on_bank_header_input)
 	bank_header.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
-	merchant_window.sell_requested.connect(_request_merchant_sale)
+	merchant_window.buy_requested.connect(_request_merchant_purchase)
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
 	account_window.session_action_requested.connect(_request_account_session_action)
 	settings_account_button.pressed.connect(_open_account_window)
@@ -1274,7 +1274,11 @@ func _open_merchant(merchant_id: String) -> void:
 	_active_merchant_id = merchant_id
 	_pending_merchant_id = ""
 	camera_rig.set_zoom_blocked(true)
-	merchant_window.show_inventory(_inventory_items)
+	_show_inventory_tab()
+	var merchant_state: Dictionary = _merchant_states.get(merchant_id, {}) as Dictionary
+	var stock: Variant = merchant_state.get("stock", [])
+	merchant_window.open_stock(stock as Array if typeof(stock) == TYPE_ARRAY else [])
+	_update_inventory_hud()
 	status_label.text = "Shop opened"
 
 
@@ -1283,6 +1287,7 @@ func _close_merchant() -> void:
 	_pending_merchant_id = ""
 	merchant_window.hide()
 	camera_rig.set_zoom_blocked(false)
+	_update_inventory_hud()
 
 
 func _on_merchant_visibility_changed() -> void:
@@ -1318,6 +1323,14 @@ func _request_merchant_sale(inventory_slot: int) -> void:
 	if network.send_merchant_sell(_next_merchant_sequence, inventory_slot):
 		_next_merchant_sequence += 1
 		status_label.text = "Selling item stack…"
+
+
+func _request_merchant_purchase(item_id: String, instance_id: String) -> void:
+	if _active_merchant_id.is_empty() or _player_defeated:
+		return
+	if network.send_merchant_buy(_next_merchant_sequence, item_id, instance_id):
+		_next_merchant_sequence += 1
+		status_label.text = "Buying item…"
 
 
 func _open_bank(chest_id: String) -> void:
@@ -2079,9 +2092,10 @@ func _open_inventory_context_menu(slot: int, screen_position: Vector2) -> void:
 	var item_name: String = str(ITEM_DISPLAY_NAMES.get(item_id, item_id.capitalize()))
 	var inventory_action: String = _inventory_action_for_item(item_id)
 	var consumable: Dictionary = CONSUMABLE_ITEMS.get(item_id, {}) as Dictionary
+	var sell_price: int = int(item.get("sell_price", 0)) if not _active_merchant_id.is_empty() else 0
 	_inventory_context_menu.open_menu(
 		slot, screen_position, item_name, quantity, inventory_action,
-		int(consumable.get("healing", 0)) > 0,
+		int(consumable.get("healing", 0)) > 0, sell_price,
 	)
 
 
@@ -2091,6 +2105,9 @@ func _on_inventory_context_action(inventory_slot: int, action_kind: String) -> v
 		return
 	var item_id: String = str(item.get("item_id", ""))
 	var instance_id: String = str(item.get("instance_id", ""))
+	if action_kind == InventoryContextMenu.ACTION_SELL:
+		_request_merchant_sale(inventory_slot)
+		return
 	if action_kind == InventoryContextMenu.ACTION_DROP:
 		_request_drop_item(item_id, instance_id)
 		return
@@ -3419,7 +3436,12 @@ func _sync_merchants(payloads: Variant) -> void:
 			float(coordinates.get("y", 0.0)),
 			float(coordinates.get("z", 0.0)),
 		)
+		var previous_state: Dictionary = _merchant_states.get(merchant_id, {}) as Dictionary
+		var previous_stock: Variant = previous_state.get("stock", [])
+		var next_stock: Variant = data.get("stock", [])
 		_merchant_states[merchant_id] = data.duplicate(true)
+		if merchant_id == _active_merchant_id and merchant_window.visible and previous_stock != next_stock:
+			merchant_window.render_stock(next_stock as Array if typeof(next_stock) == TYPE_ARRAY else [])
 		active_ids[merchant_id] = true
 	for merchant_id: String in _merchant_views.keys():
 		if active_ids.has(merchant_id):
@@ -5254,8 +5276,6 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_update_magic_hud()
 	if bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id):
 		_sync_bank_window()
-	if merchant_window.visible:
-		merchant_window.show_inventory(_inventory_items)
 
 
 func _apply_bank_snapshot(bank: Dictionary) -> void:
@@ -5704,6 +5724,7 @@ func _update_inventory_hud() -> void:
 		return
 	var presentations: Dictionary = {}
 	var is_banking: bool = bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id)
+	var is_trading: bool = merchant_window.visible and not _active_merchant_id.is_empty()
 	var is_storing_ammunition: bool = _ammunition_pouch_window != null and _ammunition_pouch_window.visible
 	var is_storing_runes: bool = _rune_pouch_window != null and _rune_pouch_window.visible
 	for payload: Variant in _inventory_items:
@@ -5770,6 +5791,12 @@ func _update_inventory_hud() -> void:
 			interaction_text = "left-click to unequip • Shift-click to unequip and drop"
 		if is_banking:
 			interaction_text = "left-click to deposit whole stack"
+		elif is_trading:
+			var sell_price: int = int(item.get("sell_price", 0))
+			interaction_text = (
+				"left-click to sell the whole stack for %d coins" % sell_price
+				if sell_price > 0 else "cannot be sold"
+			)
 		elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
 			interaction_text = "left-click to move the whole stack into the ammunition pouch"
 		elif is_storing_runes and RUNE_ITEMS.has(item_id):
@@ -5790,7 +5817,7 @@ func _update_inventory_hud() -> void:
 			"icon": ITEM_ICONS.get(item_id, EMPTY_SLOT_ICON),
 			"quantity": quantity,
 			"reinforcement": reinforcement,
-			"toggle_mode": is_equipable and not is_banking,
+			"toggle_mode": is_equipable and not is_banking and not is_trading,
 			"pressed": not _queued_unequip if is_queued else is_equipped,
 			"tooltip": tooltip,
 			"disabled": _player_defeated and is_equipable,
@@ -5806,6 +5833,12 @@ func _on_inventory_slot_pressed(inventory_slot: int) -> void:
 	var item_id: String = str(item.get("item_id", ""))
 	var instance_id: String = str(item.get("instance_id", ""))
 	var quantity: int = int(item.get("quantity", 1))
+	if merchant_window.visible and not _active_merchant_id.is_empty():
+		if int(item.get("sell_price", 0)) <= 0:
+			status_label.text = "The shopkeeper will not buy that item"
+			return
+		_request_merchant_sale(inventory_slot)
+		return
 	if bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id):
 		_request_bank_deposit(item_id, instance_id, inventory_slot, quantity)
 		return

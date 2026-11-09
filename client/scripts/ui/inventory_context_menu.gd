@@ -5,6 +5,7 @@ signal action_requested(inventory_slot: int, action_kind: String)
 
 const ACTION_PRIMARY := "primary"
 const ACTION_DROP := "drop"
+const ACTION_SELL := "sell"
 
 var _popup: PopupPanel
 var _rows: VBoxContainer
@@ -36,9 +37,12 @@ func open_menu(
 		quantity: int,
 		primary_action: String,
 		consumable_heals: bool,
+		sell_price: int = 0,
 ) -> void:
 	_inventory_slot = inventory_slot
 	_clear_rows()
+	if sell_price > 0:
+		_add_action("Sell", "%s • %d coins" % [item_name, sell_price], ACTION_SELL)
 	if not primary_action.is_empty():
 		_add_action(
 			_primary_verb(primary_action, consumable_heals), item_name, ACTION_PRIMARY,

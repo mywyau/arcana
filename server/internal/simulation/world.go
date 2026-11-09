@@ -243,40 +243,40 @@ type playerState struct {
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
 type World struct {
-	mu                         sync.RWMutex
-	tick                       uint64
-	players                    map[PlayerID]*playerState
-	pendingJoins               map[PlayerID]*playerState
-	pendingLeaves              map[PlayerID]struct{}
-	pendingMoves               map[PlayerID]pendingMove
-	pendingPickups             map[PlayerID]pendingPickup
-	pendingItemDrops           map[PlayerID]DropItemCommand
-	pendingInventoryMoves      map[PlayerID]MoveInventoryItemCommand
-	pendingConsumables         map[PlayerID]ConsumeItemCommand
-	pendingBrews               map[PlayerID]pendingBrew
-	pendingFletches            map[PlayerID]pendingFletch
-	pendingGathering           map[PlayerID]pendingGather
-	pendingBankTransfers       map[PlayerID]BankTransferCommand
-	pendingMerchantSales       map[PlayerID]MerchantSellCommand
-	pendingAmmunitionTransfers map[PlayerID]AmmunitionTransferCommand
-	pendingRingTransfers       map[PlayerID]RingTransferCommand
-	pendingRuneTransfers       map[PlayerID]RuneTransferCommand
-	pendingExperienceLocks     map[PlayerID]ExperienceLockCommand
-	pendingDebugSkills         map[PlayerID]DebugSetSkillCommand
-	drops                      map[string]DropSnapshot
-	dropLifetimes              map[string]time.Duration
-	respawningDrops            map[string]respawningDrop
-	pendingDropRespawns        []respawningDrop
-	fires                      map[string]FireSnapshot
-	fireLifetimes              map[string]time.Duration
-	nextFireID                 uint64
-	nextDropID                 uint64
-	pathfinder                 Pathfinder
-	combat                     *combatState
-	rollSource                 RollSource
-	gatheringSpots             map[string]gatheringSpotDefinition
-	merchantStock              []merchantStockEntry
-	debugContentEnabled        bool
+	mu                          sync.RWMutex
+	tick                        uint64
+	players                     map[PlayerID]*playerState
+	pendingJoins                map[PlayerID]*playerState
+	pendingLeaves               map[PlayerID]struct{}
+	pendingMoves                map[PlayerID]pendingMove
+	pendingPickups              map[PlayerID]pendingPickup
+	pendingItemDrops            map[PlayerID]DropItemCommand
+	pendingInventoryMoves       map[PlayerID]MoveInventoryItemCommand
+	pendingConsumables          map[PlayerID]ConsumeItemCommand
+	pendingBrews                map[PlayerID]pendingBrew
+	pendingFletches             map[PlayerID]pendingFletch
+	pendingGathering            map[PlayerID]pendingGather
+	pendingBankTransfers        map[PlayerID]BankTransferCommand
+	pendingMerchantTransactions map[PlayerID]merchantTransaction
+	pendingAmmunitionTransfers  map[PlayerID]AmmunitionTransferCommand
+	pendingRingTransfers        map[PlayerID]RingTransferCommand
+	pendingRuneTransfers        map[PlayerID]RuneTransferCommand
+	pendingExperienceLocks      map[PlayerID]ExperienceLockCommand
+	pendingDebugSkills          map[PlayerID]DebugSetSkillCommand
+	drops                       map[string]DropSnapshot
+	dropLifetimes               map[string]time.Duration
+	respawningDrops             map[string]respawningDrop
+	pendingDropRespawns         []respawningDrop
+	fires                       map[string]FireSnapshot
+	fireLifetimes               map[string]time.Duration
+	nextFireID                  uint64
+	nextDropID                  uint64
+	pathfinder                  Pathfinder
+	combat                      *combatState
+	rollSource                  RollSource
+	gatheringSpots              map[string]gatheringSpotDefinition
+	merchantStock               []merchantStockEntry
+	debugContentEnabled         bool
 }
 
 type pendingMove struct {
@@ -300,33 +300,33 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		rollSource = newRandomRollSource()
 	}
 	return &World{
-		players:                    make(map[PlayerID]*playerState),
-		pendingJoins:               make(map[PlayerID]*playerState),
-		pendingLeaves:              make(map[PlayerID]struct{}),
-		pendingMoves:               make(map[PlayerID]pendingMove),
-		pendingPickups:             make(map[PlayerID]pendingPickup),
-		pendingItemDrops:           make(map[PlayerID]DropItemCommand),
-		pendingInventoryMoves:      make(map[PlayerID]MoveInventoryItemCommand),
-		pendingConsumables:         make(map[PlayerID]ConsumeItemCommand),
-		pendingBrews:               make(map[PlayerID]pendingBrew),
-		pendingFletches:            make(map[PlayerID]pendingFletch),
-		pendingGathering:           make(map[PlayerID]pendingGather),
-		pendingBankTransfers:       make(map[PlayerID]BankTransferCommand),
-		pendingMerchantSales:       make(map[PlayerID]MerchantSellCommand),
-		pendingAmmunitionTransfers: make(map[PlayerID]AmmunitionTransferCommand),
-		pendingRingTransfers:       make(map[PlayerID]RingTransferCommand),
-		pendingRuneTransfers:       make(map[PlayerID]RuneTransferCommand),
-		pendingExperienceLocks:     make(map[PlayerID]ExperienceLockCommand),
-		pendingDebugSkills:         make(map[PlayerID]DebugSetSkillCommand),
-		drops:                      make(map[string]DropSnapshot),
-		dropLifetimes:              make(map[string]time.Duration),
-		respawningDrops:            make(map[string]respawningDrop),
-		fires:                      make(map[string]FireSnapshot),
-		fireLifetimes:              make(map[string]time.Duration),
-		combat:                     newCombatState(),
-		rollSource:                 rollSource,
-		gatheringSpots:             newGatheringSpots(),
-		debugContentEnabled:        true,
+		players:                     make(map[PlayerID]*playerState),
+		pendingJoins:                make(map[PlayerID]*playerState),
+		pendingLeaves:               make(map[PlayerID]struct{}),
+		pendingMoves:                make(map[PlayerID]pendingMove),
+		pendingPickups:              make(map[PlayerID]pendingPickup),
+		pendingItemDrops:            make(map[PlayerID]DropItemCommand),
+		pendingInventoryMoves:       make(map[PlayerID]MoveInventoryItemCommand),
+		pendingConsumables:          make(map[PlayerID]ConsumeItemCommand),
+		pendingBrews:                make(map[PlayerID]pendingBrew),
+		pendingFletches:             make(map[PlayerID]pendingFletch),
+		pendingGathering:            make(map[PlayerID]pendingGather),
+		pendingBankTransfers:        make(map[PlayerID]BankTransferCommand),
+		pendingMerchantTransactions: make(map[PlayerID]merchantTransaction),
+		pendingAmmunitionTransfers:  make(map[PlayerID]AmmunitionTransferCommand),
+		pendingRingTransfers:        make(map[PlayerID]RingTransferCommand),
+		pendingRuneTransfers:        make(map[PlayerID]RuneTransferCommand),
+		pendingExperienceLocks:      make(map[PlayerID]ExperienceLockCommand),
+		pendingDebugSkills:          make(map[PlayerID]DebugSetSkillCommand),
+		drops:                       make(map[string]DropSnapshot),
+		dropLifetimes:               make(map[string]time.Duration),
+		respawningDrops:             make(map[string]respawningDrop),
+		fires:                       make(map[string]FireSnapshot),
+		fireLifetimes:               make(map[string]time.Duration),
+		combat:                      newCombatState(),
+		rollSource:                  rollSource,
+		gatheringSpots:              newGatheringSpots(),
+		debugContentEnabled:         true,
 	}
 }
 
@@ -436,7 +436,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.pendingFletches, id)
 	delete(w.pendingGathering, id)
 	delete(w.pendingBankTransfers, id)
-	delete(w.pendingMerchantSales, id)
+	delete(w.pendingMerchantTransactions, id)
 	delete(w.pendingAmmunitionTransfers, id)
 	delete(w.pendingRingTransfers, id)
 	delete(w.pendingRuneTransfers, id)
@@ -555,7 +555,7 @@ func (w *World) Step(elapsed time.Duration) {
 	w.applyPendingRingTransfers()
 	w.applyPendingRuneTransfers()
 	w.applyPendingBankTransfers()
-	w.applyPendingMerchantSales()
+	w.applyPendingMerchantTransactions()
 	w.applyPendingPickups()
 	w.applyPendingConsumables()
 	w.expireCombatBoosts()
@@ -642,7 +642,7 @@ func (w *World) Snapshot() Snapshot {
 		Fires:          w.fireSnapshots(),
 		GatheringSpots: w.gatheringSpotSnapshots(),
 		BankChests:     bankChests,
-		Merchants:      []MerchantSnapshot{starterMerchant},
+		Merchants:      []MerchantSnapshot{w.merchantSnapshot()},
 		CombatEvents:   append([]CombatEvent(nil), w.combat.events...),
 	}
 	for _, target := range w.combat.dummyTargets() {

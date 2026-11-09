@@ -35,6 +35,7 @@ const (
 	MessageBankWithdraw       = "bank_withdraw"
 	MessageBankExpand         = "bank_expand"
 	MessageMerchantSell       = "merchant_sell"
+	MessageMerchantBuy        = "merchant_buy"
 	MessageAmmunitionDeposit  = "ammunition_deposit"
 	MessageAmmunitionWithdraw = "ammunition_withdraw"
 	MessageRingDeposit        = "ring_deposit"
@@ -248,10 +249,19 @@ type BankChestSnapshot struct {
 }
 
 type MerchantSnapshot struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Position Position `json:"position"`
-	Range    float64  `json:"range"`
+	ID       string                  `json:"id"`
+	Name     string                  `json:"name"`
+	Position Position                `json:"position"`
+	Range    float64                 `json:"range"`
+	Stock    []MerchantStockSnapshot `json:"stock"`
+}
+
+type MerchantStockSnapshot struct {
+	ItemID        string `json:"item_id"`
+	Quantity      int    `json:"quantity"`
+	InstanceID    string `json:"instance_id,omitempty"`
+	Reinforcement int    `json:"reinforcement,omitempty"`
+	BuyPrice      int    `json:"buy_price"`
 }
 
 type PlayerSnapshot struct {
@@ -458,7 +468,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageExperienceLock && message.Type != MessageDebugSetSkill &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
 		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
-		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand && message.Type != MessageMerchantSell &&
+		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand &&
+		message.Type != MessageMerchantSell && message.Type != MessageMerchantBuy &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw &&
 		message.Type != MessageRingDeposit && message.Type != MessageRingWithdraw &&
 		message.Type != MessageRuneDeposit && message.Type != MessageRuneWithdraw {
@@ -548,6 +559,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageMerchantSell && message.InventorySlot < 0 {
 		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
+	}
+	if message.Type == MessageMerchantBuy && message.ItemID == "" {
+		return ClientMessage{}, fmt.Errorf("item ID is required")
 	}
 	if message.Type == MessageAmmunitionDeposit && message.InventorySlot < 0 {
 		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")

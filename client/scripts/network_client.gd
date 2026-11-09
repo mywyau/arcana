@@ -530,6 +530,22 @@ func send_merchant_sell(sequence: int, inventory_slot: int) -> bool:
 	return true
 
 
+func send_merchant_buy(sequence: int, item_id: String, instance_id: String = "") -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot use the shop while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "merchant_buy",
+		"sequence": sequence,
+		"item_id": item_id,
+		"instance_id": instance_id,
+	}))
+	if result != OK:
+		status_changed.emit("Could not buy item: %s" % error_string(result))
+		return false
+	return true
+
+
 func send_ammunition_deposit(sequence: int, inventory_slot: int) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot use the ammunition pouch while disconnected")

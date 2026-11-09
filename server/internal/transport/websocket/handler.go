@@ -720,6 +720,12 @@ func (h *Handler) readCommands(
 			err = h.world.QueueMerchantSale(simulation.MerchantSellCommand{
 				PlayerID: playerID, Sequence: message.Sequence, InventorySlot: message.InventorySlot,
 			})
+		case protocol.MessageMerchantBuy:
+			rejectionCode = "merchant_rejected"
+			err = h.world.QueueMerchantPurchase(simulation.MerchantBuyCommand{
+				PlayerID: playerID, Sequence: message.Sequence,
+				ItemID: message.ItemID, InstanceID: message.InstanceID,
+			})
 		case protocol.MessageAmmunitionDeposit:
 			rejectionCode = "ammunition_rejected"
 			err = h.world.QueueAmmunitionTransfer(simulation.AmmunitionTransferCommand{
@@ -849,10 +855,18 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 		})
 	}
 	for _, merchant := range snapshot.Merchants {
+		stock := make([]protocol.MerchantStockSnapshot, 0, len(merchant.Stock))
+		for _, item := range merchant.Stock {
+			stock = append(stock, protocol.MerchantStockSnapshot{
+				ItemID: item.ItemID, Quantity: item.Quantity,
+				InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
+				BuyPrice: item.BuyPrice,
+			})
+		}
 		message.Merchants = append(message.Merchants, protocol.MerchantSnapshot{
 			ID: merchant.ID, Name: merchant.Name,
 			Position: protocol.Position{X: merchant.Position.X, Y: merchant.Position.Y, Z: merchant.Position.Z},
-			Range:    merchant.Range,
+			Range:    merchant.Range, Stock: stock,
 		})
 	}
 	for _, player := range snapshot.Players {
