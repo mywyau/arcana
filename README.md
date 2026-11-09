@@ -218,6 +218,12 @@ reduces avoidable antivirus false positives and leaves a cleaner path to future
 Windows code signing. This initial private build is not code-signed, so Windows
 SmartScreen may require the tester to choose **More info → Run anyway**.
 
+Windows testers should extract the complete ZIP, keep `Arcana.exe` and
+`Arcana.pck` in the same folder, and then double-click `Arcana.exe`. They should
+not launch the executable from inside the ZIP or receive the executable without
+its PCK file. The packaged `BETA_TESTER_README.md` contains the complete launch,
+SmartScreen and server-availability instructions.
+
 ### Account foundation
 
 The server database separates private account credentials from character state.
