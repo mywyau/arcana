@@ -80,6 +80,15 @@ The test creates a random guest identity, verifies identity and character data
 through a second database connection, links an email account, and removes its
 records afterward.
 
+Run the dependency-free Godot client regression tests with:
+
+```sh
+./run-client-tests.sh
+```
+
+The suite uses temporary identity files and does not modify normal client
+profiles.
+
 ### Hosted server
 
 The repository includes a production server image in `server/Dockerfile` and a
