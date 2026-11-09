@@ -18,7 +18,7 @@ signal session_replaced(message: String)
 
 const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
 const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
-const PROTOCOL_VERSION: int = 1
+const PROTOCOL_VERSION: int = 2
 const BETA_BUILD_FEATURE: String = "arcana_beta"
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
@@ -517,12 +517,13 @@ func send_bank_expand(sequence: int) -> bool:
 	return true
 
 
-func send_merchant_sell(sequence: int, inventory_slot: int) -> bool:
+func send_merchant_sell(sequence: int, inventory_slot: int, quantity: int) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot use the shop while disconnected")
 		return false
 	var result: Error = _socket.send_text(JSON.stringify({
-		"type": "merchant_sell", "sequence": sequence, "inventory_slot": inventory_slot,
+		"type": "merchant_sell", "sequence": sequence,
+		"inventory_slot": inventory_slot, "quantity": quantity,
 	}))
 	if result != OK:
 		status_changed.emit("Could not sell item: %s" % error_string(result))
@@ -530,7 +531,12 @@ func send_merchant_sell(sequence: int, inventory_slot: int) -> bool:
 	return true
 
 
-func send_merchant_buy(sequence: int, item_id: String, instance_id: String = "") -> bool:
+func send_merchant_buy(
+		sequence: int,
+		item_id: String,
+		instance_id: String,
+		quantity: int,
+) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot use the shop while disconnected")
 		return false
@@ -539,6 +545,7 @@ func send_merchant_buy(sequence: int, item_id: String, instance_id: String = "")
 		"sequence": sequence,
 		"item_id": item_id,
 		"instance_id": instance_id,
+		"quantity": quantity,
 	}))
 	if result != OK:
 		status_changed.emit("Could not buy item: %s" % error_string(result))

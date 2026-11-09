@@ -331,9 +331,11 @@ func (w *World) QueueGather(command GatherCommand) error {
 		return fmt.Errorf("gather sequence %d is not newer than pending sequence %d", command.Sequence, pending.command.Sequence)
 	}
 	// Natural resources validate requirements after the authoritative approach.
-	// Stations keep their early validation because selecting a recipe is a
-	// separate UI action rather than a direct world interaction.
-	if spot.Station != "" && SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
+	// Production stations keep their early validation because selecting a recipe
+	// is a separate UI action. Fishing is a direct world interaction, despite
+	// using a station ID to select its recipe.
+	if spot.Station != "" && spot.Station != craftingStationFishing &&
+		SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
 		return fmt.Errorf("%s level %d is required", spot.Skill, spot.RequiredLevel)
 	}
 	if err := w.validateTimedAction(player, spot, &command); err != nil {

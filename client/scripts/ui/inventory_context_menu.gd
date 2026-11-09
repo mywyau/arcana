@@ -2,14 +2,20 @@ class_name InventoryContextMenu
 extends Node
 
 signal action_requested(inventory_slot: int, action_kind: String)
+signal sell_requested(inventory_slot: int, quantity: int)
 
 const ACTION_PRIMARY := "primary"
 const ACTION_DROP := "drop"
-const ACTION_SELL := "sell"
+const ACTION_SELL_ONE := "sell_one"
+const ACTION_SELL_X := "sell_x"
+const ACTION_SELL_ALL := "sell_all"
 
 var _popup: PopupPanel
 var _rows: VBoxContainer
 var _inventory_slot: int = -1
+var _available_quantity: int = 0
+var _quantity_dialog: ConfirmationDialog
+var _quantity_input: SpinBox
 
 
 func _ready() -> void:
@@ -29,6 +35,21 @@ func _ready() -> void:
 	_rows.add_theme_constant_override("separation", 6)
 	margin.add_child(_rows)
 
+	_quantity_dialog = ConfirmationDialog.new()
+	InterfaceStyle.configure_window(_quantity_dialog)
+	_quantity_dialog.title = "Sell items"
+	_quantity_dialog.dialog_text = "Choose an amount to sell:"
+	_quantity_dialog.min_size = Vector2i(360, 180)
+	_quantity_dialog.get_ok_button().text = "Sell"
+	_quantity_input = SpinBox.new()
+	_quantity_input.min_value = 1
+	_quantity_input.step = 1
+	_quantity_input.custom_minimum_size = Vector2(280, 44)
+	_quantity_input.position = Vector2(40, 74)
+	_quantity_dialog.add_child(_quantity_input)
+	_quantity_dialog.confirmed.connect(_confirm_sell_quantity)
+	add_child(_quantity_dialog)
+
 
 func open_menu(
 		inventory_slot: int,
@@ -40,14 +61,18 @@ func open_menu(
 		sell_price: int = 0,
 ) -> void:
 	_inventory_slot = inventory_slot
+	_available_quantity = quantity
 	_clear_rows()
 	if sell_price > 0:
-		_add_action("Sell", "%s • %d coins" % [item_name, sell_price], ACTION_SELL)
-	if not primary_action.is_empty():
+		_add_action("Sell 1", item_name, ACTION_SELL_ONE)
+		_add_action("Sell X", item_name, ACTION_SELL_X)
+		_add_action("Sell All", "%s • %d coins" % [item_name, sell_price], ACTION_SELL_ALL)
+	elif not primary_action.is_empty():
 		_add_action(
 			_primary_verb(primary_action, consumable_heals), item_name, ACTION_PRIMARY,
 		)
-	_add_action("Drop All" if quantity > 1 else "Drop", item_name, ACTION_DROP)
+	if sell_price <= 0:
+		_add_action("Drop All" if quantity > 1 else "Drop", item_name, ACTION_DROP)
 	var menu_height: int = 24 + maxi(0, _rows.get_child_count() - 1) * 6
 	menu_height += _rows.get_child_count() * 48
 	_popup.popup(Rect2i(Vector2i(screen_position), Vector2i(280, menu_height)))
@@ -55,7 +80,10 @@ func open_menu(
 
 func close_overlay() -> bool:
 	if not _popup.visible:
-		return false
+		if not _quantity_dialog.visible:
+			return false
+		_quantity_dialog.hide()
+		return true
 	_popup.hide()
 	return true
 
@@ -119,4 +147,30 @@ func _add_action(verb: String, item_name: String, action_kind: String) -> void:
 
 func _on_action_pressed(action_kind: String) -> void:
 	_popup.hide()
+	match action_kind:
+		ACTION_SELL_ONE:
+			sell_requested.emit(_inventory_slot, 1)
+			return
+		ACTION_SELL_X:
+			_open_sell_quantity_dialog()
+			return
+		ACTION_SELL_ALL:
+			sell_requested.emit(_inventory_slot, _available_quantity)
+			return
 	action_requested.emit(_inventory_slot, action_kind)
+
+
+func _open_sell_quantity_dialog() -> void:
+	if _inventory_slot < 0 or _available_quantity <= 0:
+		return
+	_quantity_input.max_value = _available_quantity
+	_quantity_input.value = mini(_available_quantity, 10)
+	_quantity_dialog.popup_centered()
+	_quantity_input.grab_focus()
+	_quantity_input.get_line_edit().select_all()
+
+
+func _confirm_sell_quantity() -> void:
+	if _inventory_slot < 0:
+		return
+	sell_requested.emit(_inventory_slot, int(_quantity_input.value))

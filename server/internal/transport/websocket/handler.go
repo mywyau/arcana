@@ -718,13 +718,14 @@ func (h *Handler) readCommands(
 		case protocol.MessageMerchantSell:
 			rejectionCode = "merchant_rejected"
 			err = h.world.QueueMerchantSale(simulation.MerchantSellCommand{
-				PlayerID: playerID, Sequence: message.Sequence, InventorySlot: message.InventorySlot,
+				PlayerID: playerID, Sequence: message.Sequence,
+				InventorySlot: message.InventorySlot, Quantity: message.Quantity,
 			})
 		case protocol.MessageMerchantBuy:
 			rejectionCode = "merchant_rejected"
 			err = h.world.QueueMerchantPurchase(simulation.MerchantBuyCommand{
 				PlayerID: playerID, Sequence: message.Sequence,
-				ItemID: message.ItemID, InstanceID: message.InstanceID,
+				ItemID: message.ItemID, InstanceID: message.InstanceID, Quantity: message.Quantity,
 			})
 		case protocol.MessageAmmunitionDeposit:
 			rejectionCode = "ammunition_rejected"

@@ -312,20 +312,28 @@ func TestFishingSpotsRequireTheMatchingTool(t *testing.T) {
 	}
 }
 
-func TestFishingRejectsFullInventory(t *testing.T) {
+func TestFishingStopsWithFullInventory(t *testing.T) {
 	world := NewWorld()
 	spot := world.gatheringSpots[starterFishingSpotID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	world.players["player-one"].inventory = inventoryState{
-		capacity: 1,
-		items:    []InventoryItem{{Slot: 0, ItemID: ItemRawMinnow, Quantity: 10}},
+		capacity: 2,
+		items: []InventoryItem{
+			{Slot: 0, ItemID: ItemRawMinnow, Quantity: 10},
+			{Slot: 1, ItemID: ItemFishingRod, Quantity: 1},
+		},
 	}
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID,
-	}); err == nil {
-		t.Fatal("QueueGather() error = nil with a full inventory")
+	}); err != nil {
+		t.Fatalf("QueueGather() rejected the full-inventory approach: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(fishingInterval * actionPulseInterval)
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "inventory_full" || player.GatheringSpot != "" {
+		t.Fatalf("full-inventory fishing result = %+v", player)
 	}
 }
 
@@ -599,6 +607,33 @@ func TestMissingGatheringToolApproachesAndStopsWithinRange(t *testing.T) {
 	}
 	if player.GatheringResult != "missing_bronze_axe" {
 		t.Fatalf("gathering result = %q, want missing_bronze_axe", player.GatheringResult)
+	}
+}
+
+func TestLowLevelFishingApproachesAndStopsWithinRange(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterTroutSpotID]
+	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
+	if err := world.AddPlayer("player-one", start, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemFishingRod, 1)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterTroutSpotID,
+	}); err != nil {
+		t.Fatalf("QueueGather() rejected the low-level fishing approach: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if distance(player.Position, spot.Position) > spot.Range {
+		t.Fatalf("player stopped %.2f away, want within interaction range %.2f", distance(player.Position, spot.Position), spot.Range)
+	}
+	if player.Destination != nil || len(player.Path) != 0 {
+		t.Fatalf("player continued moving after reaching the fishing spot: %+v", player)
+	}
+	if player.GatheringResult != "requires_fishing_level_2" || player.GatheringSpot != "" {
+		t.Fatalf("low-level fishing result = %+v", player)
 	}
 }
 

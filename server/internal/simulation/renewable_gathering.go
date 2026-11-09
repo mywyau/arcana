@@ -17,12 +17,9 @@ func validateRenewableGathering(player *playerState, spot gatheringSpotDefinitio
 	if !exists {
 		return fmt.Errorf("%s recipe %q does not exist", spot.Station, command.RecipeID)
 	}
-	if SkillLevelForExperience(player.skills[spot.Skill]) < recipe.RequiredLevel {
-		return fmt.Errorf("%s level %d is required", spot.Skill, recipe.RequiredLevel)
-	}
-	if _, err := foodInventoryAfter(player.inventory, recipe); err != nil {
-		return err
-	}
+	// Level, tool and inventory requirements are resolved after the player
+	// reaches the fishing spot. Rejecting them here makes the client begin its
+	// predicted approach and then get corrected backwards by the server.
 	command.RecipeID = recipe.ID
 	return nil
 }

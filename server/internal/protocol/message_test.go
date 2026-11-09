@@ -3,7 +3,7 @@ package protocol
 import "testing"
 
 func TestDecodeAuthenticateMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":1,"client_version":"0.1.0-beta"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":2,"client_version":"0.1.0-beta"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
@@ -154,12 +154,12 @@ func TestDecodeBankTransferMessages(t *testing.T) {
 }
 
 func TestDecodeMerchantBuyMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"merchant_buy","sequence":10,"item_id":"iron_sword","instance_id":"sword-1"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"merchant_buy","sequence":10,"item_id":"iron_sword","instance_id":"sword-1","quantity":1}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
 	if message.Type != MessageMerchantBuy || message.Sequence != 10 ||
-		message.ItemID != "iron_sword" || message.InstanceID != "sword-1" {
+		message.ItemID != "iron_sword" || message.InstanceID != "sword-1" || message.Quantity != 1 {
 		t.Fatalf("decoded merchant purchase = %+v", message)
 	}
 }

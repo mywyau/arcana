@@ -37,6 +37,7 @@ type MerchantSellCommand struct {
 	PlayerID      PlayerID
 	Sequence      uint64
 	InventorySlot int
+	Quantity      int
 }
 
 type MerchantBuyCommand struct {
@@ -44,6 +45,7 @@ type MerchantBuyCommand struct {
 	Sequence   uint64
 	ItemID     string
 	InstanceID string
+	Quantity   int
 }
 
 type merchantTransaction struct {
@@ -52,6 +54,7 @@ type merchantTransaction struct {
 	InventorySlot int
 	ItemID        string
 	InstanceID    string
+	Quantity      int
 	Buy           bool
 }
 
@@ -103,6 +106,9 @@ func (w *World) QueueMerchantSale(command MerchantSellCommand) error {
 	if command.InventorySlot < 0 {
 		return fmt.Errorf("inventory slot cannot be negative")
 	}
+	if command.Quantity <= 0 {
+		return fmt.Errorf("sale quantity must be positive")
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	player, exists := w.players[command.PlayerID]
@@ -122,11 +128,16 @@ func (w *World) QueueMerchantSale(command MerchantSellCommand) error {
 		return fmt.Errorf("merchant sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
 	}
 	item, exists := inventoryItemAt(player.inventory, command.InventorySlot)
-	if !exists || MerchantSellPrice(item) <= 0 {
+	if !exists || command.Quantity > item.Quantity {
+		return fmt.Errorf("that quantity is not available to sell")
+	}
+	item.Quantity = command.Quantity
+	if MerchantSellPrice(item) <= 0 {
 		return fmt.Errorf("that item cannot be sold")
 	}
 	w.pendingMerchantTransactions[command.PlayerID] = merchantTransaction{
-		PlayerID: command.PlayerID, Sequence: command.Sequence, InventorySlot: command.InventorySlot,
+		PlayerID: command.PlayerID, Sequence: command.Sequence,
+		InventorySlot: command.InventorySlot, Quantity: command.Quantity,
 	}
 	return nil
 }
@@ -137,6 +148,9 @@ func (w *World) QueueMerchantPurchase(command MerchantBuyCommand) error {
 	}
 	if command.ItemID == "" {
 		return fmt.Errorf("merchant item ID is required")
+	}
+	if command.Quantity <= 0 {
+		return fmt.Errorf("purchase quantity must be positive")
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -161,23 +175,31 @@ func (w *World) QueueMerchantPurchase(command MerchantBuyCommand) error {
 		return fmt.Errorf("that item is not available to buy")
 	}
 	stock := w.merchantStock[stockIndex]
-	price := MerchantBuyPrice(stock.Item)
+	if command.Quantity > stock.Item.Quantity || (stock.Item.InstanceID != "" && command.Quantity != 1) {
+		return fmt.Errorf("that quantity is not available to buy")
+	}
+	unitPrice := MerchantBuyPrice(stock.Item)
+	if command.Quantity > math.MaxInt/unitPrice {
+		return fmt.Errorf("purchase price is too large")
+	}
+	price := unitPrice * command.Quantity
 	candidate := cloneInventory(player.inventory)
 	if !candidate.remove(ItemCoins, price) {
 		return fmt.Errorf("you need %d coins to buy that item", price)
 	}
 	purchased := stock.Item
-	purchased.Quantity = 1
+	purchased.Quantity = command.Quantity
 	if purchased.InstanceID != "" {
 		if !candidate.addInventoryItem(purchased) {
 			return fmt.Errorf("your inventory is full")
 		}
-	} else if !candidate.add(purchased.ItemID, 1) {
+	} else if !candidate.add(purchased.ItemID, command.Quantity) {
 		return fmt.Errorf("your inventory is full")
 	}
 	w.pendingMerchantTransactions[command.PlayerID] = merchantTransaction{
 		PlayerID: command.PlayerID, Sequence: command.Sequence,
-		ItemID: command.ItemID, InstanceID: command.InstanceID, Buy: true,
+		ItemID: command.ItemID, InstanceID: command.InstanceID,
+		Quantity: command.Quantity, Buy: true,
 	}
 	return nil
 }
@@ -195,15 +217,20 @@ func (w *World) applyPendingMerchantTransactions() {
 			continue
 		}
 		item, exists := inventoryItemAt(player.inventory, command.InventorySlot)
+		if !exists || command.Quantity <= 0 || command.Quantity > item.Quantity {
+			continue
+		}
+		item.Quantity = command.Quantity
 		price := MerchantSellPrice(item)
-		if !exists || price <= 0 {
+		if price <= 0 {
 			continue
 		}
 		candidate := cloneInventory(player.inventory)
-		sold, removed := removeInventorySlot(&candidate, command.InventorySlot)
-		if !removed || !candidate.add(ItemCoins, price) {
+		if !candidate.removeFromSlot(command.InventorySlot, item.ItemID, command.Quantity) ||
+			!candidate.add(ItemCoins, price) {
 			continue
 		}
+		sold := item
 		player.inventory = candidate
 		player.lastMerchantSequence = command.Sequence
 		if !itemIsInstanced(sold.ItemID) {
@@ -229,32 +256,37 @@ func (w *World) applyMerchantPurchase(player *playerState, command merchantTrans
 		return
 	}
 	stock := w.merchantStock[stockIndex]
-	price := MerchantBuyPrice(stock.Item)
-	if price <= 0 {
+	if command.Quantity <= 0 || command.Quantity > stock.Item.Quantity ||
+		(stock.Item.InstanceID != "" && command.Quantity != 1) {
 		return
 	}
+	unitPrice := MerchantBuyPrice(stock.Item)
+	if unitPrice <= 0 || command.Quantity > math.MaxInt/unitPrice {
+		return
+	}
+	price := unitPrice * command.Quantity
 	candidate := cloneInventory(player.inventory)
 	if !candidate.remove(ItemCoins, price) {
 		return
 	}
 	purchased := stock.Item
-	purchased.Quantity = 1
+	purchased.Quantity = command.Quantity
 	added := false
 	if purchased.InstanceID != "" {
 		added = candidate.addInventoryItem(purchased)
 	} else {
-		added = candidate.add(purchased.ItemID, 1)
+		added = candidate.add(purchased.ItemID, command.Quantity)
 	}
 	if !added {
 		return
 	}
 	player.inventory = candidate
 	player.lastMerchantSequence = command.Sequence
-	if stock.Item.Quantity <= 1 {
+	if stock.Item.Quantity <= command.Quantity {
 		w.merchantStock = append(w.merchantStock[:stockIndex], w.merchantStock[stockIndex+1:]...)
 		return
 	}
-	w.merchantStock[stockIndex].Item.Quantity--
+	w.merchantStock[stockIndex].Item.Quantity -= command.Quantity
 }
 
 func (w *World) merchantStockIndex(itemID, instanceID string) int {

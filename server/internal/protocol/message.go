@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 1
+	CurrentVersion            = 2
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -560,8 +560,14 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type == MessageMerchantSell && message.InventorySlot < 0 {
 		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")
 	}
+	if message.Type == MessageMerchantSell && message.Quantity <= 0 {
+		return ClientMessage{}, fmt.Errorf("sale quantity must be positive")
+	}
 	if message.Type == MessageMerchantBuy && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
+	}
+	if message.Type == MessageMerchantBuy && message.Quantity <= 0 {
+		return ClientMessage{}, fmt.Errorf("purchase quantity must be positive")
 	}
 	if message.Type == MessageAmmunitionDeposit && message.InventorySlot < 0 {
 		return ClientMessage{}, fmt.Errorf("inventory slot cannot be negative")

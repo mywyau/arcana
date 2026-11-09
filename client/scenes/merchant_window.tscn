@@ -58,7 +58,7 @@ flat = true
 
 [node name="Hint" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
-text = "Click an item to buy one. Sell by clicking an item in your inventory. Stock dwindles every two minutes."
+text = "Left-click to trade one • right-click for quantity options. Stock dwindles every two minutes."
 autowrap_mode = 2
 
 [node name="Scroll" type="ScrollContainer" parent="Panel/Margin/VBox"]

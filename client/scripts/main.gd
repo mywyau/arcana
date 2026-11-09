@@ -806,6 +806,7 @@ func _ready() -> void:
 	_inventory_context_menu = InventoryContextMenu.new()
 	add_child(_inventory_context_menu)
 	_inventory_context_menu.action_requested.connect(_on_inventory_context_action)
+	_inventory_context_menu.sell_requested.connect(_request_merchant_sale)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
 	bank_header.gui_input.connect(_on_bank_header_input)
@@ -1317,20 +1318,20 @@ func _update_merchant_proximity(player_position: Vector3) -> void:
 		_close_merchant()
 
 
-func _request_merchant_sale(inventory_slot: int) -> void:
+func _request_merchant_sale(inventory_slot: int, quantity: int = 1) -> void:
 	if _active_merchant_id.is_empty() or _player_defeated:
 		return
-	if network.send_merchant_sell(_next_merchant_sequence, inventory_slot):
+	if network.send_merchant_sell(_next_merchant_sequence, inventory_slot, quantity):
 		_next_merchant_sequence += 1
-		status_label.text = "Selling item stack…"
+		status_label.text = "Selling %d item%s…" % [quantity, "" if quantity == 1 else "s"]
 
 
-func _request_merchant_purchase(item_id: String, instance_id: String) -> void:
+func _request_merchant_purchase(item_id: String, instance_id: String, quantity: int = 1) -> void:
 	if _active_merchant_id.is_empty() or _player_defeated:
 		return
-	if network.send_merchant_buy(_next_merchant_sequence, item_id, instance_id):
+	if network.send_merchant_buy(_next_merchant_sequence, item_id, instance_id, quantity):
 		_next_merchant_sequence += 1
-		status_label.text = "Buying item…"
+		status_label.text = "Buying %d item%s…" % [quantity, "" if quantity == 1 else "s"]
 
 
 func _open_bank(chest_id: String) -> void:
@@ -2105,9 +2106,6 @@ func _on_inventory_context_action(inventory_slot: int, action_kind: String) -> v
 		return
 	var item_id: String = str(item.get("item_id", ""))
 	var instance_id: String = str(item.get("instance_id", ""))
-	if action_kind == InventoryContextMenu.ACTION_SELL:
-		_request_merchant_sale(inventory_slot)
-		return
 	if action_kind == InventoryContextMenu.ACTION_DROP:
 		_request_drop_item(item_id, instance_id)
 		return
@@ -5794,7 +5792,7 @@ func _update_inventory_hud() -> void:
 		elif is_trading:
 			var sell_price: int = int(item.get("sell_price", 0))
 			interaction_text = (
-				"left-click to sell the whole stack for %d coins" % sell_price
+				"left-click to sell one • right-click for quantity options"
 				if sell_price > 0 else "cannot be sold"
 			)
 		elif is_storing_ammunition and AMMUNITION_ITEMS.has(item_id):
@@ -5837,7 +5835,7 @@ func _on_inventory_slot_pressed(inventory_slot: int) -> void:
 		if int(item.get("sell_price", 0)) <= 0:
 			status_label.text = "The shopkeeper will not buy that item"
 			return
-		_request_merchant_sale(inventory_slot)
+		_request_merchant_sale(inventory_slot, 1)
 		return
 	if bank_hud.visible and not _is_test_supply_chest(_active_bank_chest_id):
 		_request_bank_deposit(item_id, instance_id, inventory_slot, quantity)
