@@ -11,11 +11,13 @@ signal server_error(code: String, message: String)
 signal account_session_received(email: String)
 signal account_login_required(message: String)
 signal account_logged_out
+signal client_update_required(message: String)
 
 @export var server_url: String = ""
 
 const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
 const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
+const PROTOCOL_VERSION: int = 1
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
@@ -702,7 +704,10 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 				reason = "connection closed"
 			status_changed.emit("Disconnected: %s" % reason)
 			if _awaiting_welcome and close_code == 1008 and not _authentication_blocked:
-				_handle_authentication_close()
+				if reason == "incompatible client":
+					_handle_incompatible_client()
+				else:
+					_handle_authentication_close()
 			_awaiting_welcome = false
 			if _authentication_blocked:
 				status_changed.emit("Login required")
@@ -831,6 +836,10 @@ func _handle_packet(packet: PackedByteArray) -> void:
 					_save_guest_token()
 					_authentication_blocked = true
 					account_login_required.emit("Log in or create an account to continue.")
+				elif error_code == "incompatible_client":
+					_handle_incompatible_client(str(details.get(
+						"message", "This client must be updated before connecting.",
+					)))
 				server_error.emit(
 					error_code,
 					str(details.get("message", "Unknown server error")),
@@ -857,8 +866,22 @@ func _handle_authentication_close() -> void:
 	account_login_required.emit("Log in or create an account to continue.")
 
 
+func _handle_incompatible_client(
+	message: String = "This client is incompatible with the server. Install the latest build.",
+) -> void:
+	_awaiting_welcome = false
+	_authentication_blocked = true
+	_retry_immediately = false
+	_reconnect_at_msec = -1
+	client_update_required.emit(message)
+
+
 func _send_authentication() -> bool:
-	var message: Dictionary = {"type": "authenticate"}
+	var message: Dictionary = {
+		"type": "authenticate",
+		"protocol_version": PROTOCOL_VERSION,
+		"client_version": str(ProjectSettings.get_setting("application/config/version", "development")),
+	}
 	if not _session_token.is_empty():
 		message["session_token"] = _session_token
 	elif not _guest_token.is_empty():

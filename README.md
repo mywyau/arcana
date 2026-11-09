@@ -89,6 +89,16 @@ Run the dependency-free Godot client regression tests with:
 The suite uses temporary identity files and does not modify normal client
 profiles.
 
+### Client/server compatibility
+
+WebSocket authentication includes a numeric protocol version. The server
+rejects missing or incompatible versions before loading a character, and the
+client displays an update-required screen without deleting its saved session.
+Increment `protocol.CurrentVersion` and `NetworkClient.PROTOCOL_VERSION`
+together when a network change is intentionally incompatible. The Godot
+`application/config/version` value is a human-readable build label and does
+not control compatibility.
+
 ### Hosted server
 
 The repository includes a production server image in `server/Dockerfile` and a

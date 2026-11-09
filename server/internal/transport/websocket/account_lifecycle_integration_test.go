@@ -176,7 +176,8 @@ func connectWithSession(
 		t.Fatalf("websocket.Dial(%s) error = %v", url, err)
 	}
 	if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
-		Type: protocol.MessageAuthenticate, SessionToken: sessionToken,
+		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
+		SessionToken: sessionToken,
 	}); err != nil {
 		connection.CloseNow()
 		t.Fatalf("authenticate WebSocket session: %v", err)

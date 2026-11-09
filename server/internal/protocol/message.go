@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	CurrentVersion            = 1
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -54,36 +55,38 @@ type Position struct {
 }
 
 type ClientMessage struct {
-	Type           string    `json:"type"`
-	Sequence       uint64    `json:"sequence"`
-	Destination    *Position `json:"destination"`
-	TargetID       string    `json:"target_id,omitempty"`
-	ItemID         string    `json:"item_id,omitempty"`
-	ItemIDs        []string  `json:"item_ids,omitempty"`
-	InstanceID     string    `json:"instance_id,omitempty"`
-	DropID         string    `json:"drop_id,omitempty"`
-	FromSlot       int       `json:"from_slot,omitempty"`
-	ToSlot         int       `json:"to_slot,omitempty"`
-	CombatStyle    string    `json:"combat_style,omitempty"`
-	PrayerID       string    `json:"prayer_id,omitempty"`
-	SpellID        string    `json:"spell_id,omitempty"`
-	SpotID         string    `json:"spot_id,omitempty"`
-	RecipeID       string    `json:"recipe_id,omitempty"`
-	BankSlot       int       `json:"bank_slot,omitempty"`
-	InventorySlot  int       `json:"inventory_slot,omitempty"`
-	AmmunitionSlot int       `json:"ammunition_slot,omitempty"`
-	RingSlot       int       `json:"ring_slot,omitempty"`
-	RuneSlot       int       `json:"rune_slot,omitempty"`
-	Quantity       int       `json:"quantity,omitempty"`
-	Active         bool      `json:"active,omitempty"`
-	SkillID        string    `json:"skill_id,omitempty"`
-	Level          int       `json:"level,omitempty"`
-	Experience     int64     `json:"experience,omitempty"`
-	SetExperience  bool      `json:"set_experience,omitempty"`
-	GuestToken     string    `json:"guest_token,omitempty"`
-	SessionToken   string    `json:"session_token,omitempty"`
-	Email          string    `json:"email,omitempty"`
-	Password       string    `json:"password,omitempty"`
+	Type            string    `json:"type"`
+	Sequence        uint64    `json:"sequence"`
+	Destination     *Position `json:"destination"`
+	TargetID        string    `json:"target_id,omitempty"`
+	ItemID          string    `json:"item_id,omitempty"`
+	ItemIDs         []string  `json:"item_ids,omitempty"`
+	InstanceID      string    `json:"instance_id,omitempty"`
+	DropID          string    `json:"drop_id,omitempty"`
+	FromSlot        int       `json:"from_slot,omitempty"`
+	ToSlot          int       `json:"to_slot,omitempty"`
+	CombatStyle     string    `json:"combat_style,omitempty"`
+	PrayerID        string    `json:"prayer_id,omitempty"`
+	SpellID         string    `json:"spell_id,omitempty"`
+	SpotID          string    `json:"spot_id,omitempty"`
+	RecipeID        string    `json:"recipe_id,omitempty"`
+	BankSlot        int       `json:"bank_slot,omitempty"`
+	InventorySlot   int       `json:"inventory_slot,omitempty"`
+	AmmunitionSlot  int       `json:"ammunition_slot,omitempty"`
+	RingSlot        int       `json:"ring_slot,omitempty"`
+	RuneSlot        int       `json:"rune_slot,omitempty"`
+	Quantity        int       `json:"quantity,omitempty"`
+	Active          bool      `json:"active,omitempty"`
+	SkillID         string    `json:"skill_id,omitempty"`
+	Level           int       `json:"level,omitempty"`
+	Experience      int64     `json:"experience,omitempty"`
+	SetExperience   bool      `json:"set_experience,omitempty"`
+	GuestToken      string    `json:"guest_token,omitempty"`
+	SessionToken    string    `json:"session_token,omitempty"`
+	Email           string    `json:"email,omitempty"`
+	Password        string    `json:"password,omitempty"`
+	ProtocolVersion int       `json:"protocol_version,omitempty"`
+	ClientVersion   string    `json:"client_version,omitempty"`
 }
 
 type ServerMessage struct {

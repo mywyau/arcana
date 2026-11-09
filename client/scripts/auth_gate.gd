@@ -102,6 +102,18 @@ func show_error(message: String) -> void:
 	password_input.grab_focus.call_deferred()
 
 
+func show_update_required(message: String) -> void:
+	visible = true
+	_busy = true
+	_connection_pending = false
+	_set_controls_enabled(false)
+	retry_button.visible = false
+	title_label.text = "Update required"
+	password_input.clear()
+	confirmation_input.clear()
+	show_feedback(message, true)
+
+
 func dismiss() -> void:
 	visible = false
 	_busy = false

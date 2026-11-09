@@ -3,11 +3,12 @@ package protocol
 import "testing"
 
 func TestDecodeAuthenticateMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":1,"client_version":"0.1.0-beta"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
-	if message.Type != MessageAuthenticate || message.GuestToken != "token" || message.Sequence != 0 {
+	if message.Type != MessageAuthenticate || message.GuestToken != "token" || message.Sequence != 0 ||
+		message.ProtocolVersion != CurrentVersion || message.ClientVersion != "0.1.0-beta" {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
 	}
 }

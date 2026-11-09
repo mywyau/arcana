@@ -23,6 +23,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_revoked_session_requires_login()
+	await _test_incompatible_client_requires_update()
 	await _test_unavailable_server_exposes_retry()
 	await _test_retry_starts_connection_immediately()
 	await _test_logout_returns_to_account_gate()
@@ -52,6 +53,28 @@ func _test_revoked_session_requires_login() -> void:
 	_check(login_messages.size() == 1, "revoked session requests the login gate")
 	_cleanup_network_identity(network)
 	network.free()
+	await process_frame
+
+
+func _test_incompatible_client_requires_update() -> void:
+	var harness: Dictionary = await _main_auth_harness()
+	var main: Node = harness["main"]
+	var network: NetworkClient = harness["network"]
+	var gate: AuthGate = harness["gate"]
+	network._session_token = "still-valid-after-update"
+	network._handle_packet(JSON.stringify({
+		"type": "error",
+		"error": {
+			"code": "incompatible_client",
+			"message": "This client is incompatible with the server; update required.",
+		},
+	}).to_utf8_buffer())
+	await process_frame
+	_check(gate.visible, "incompatible client displays the account gate")
+	_check(gate.title_label.text == "Update required", "incompatible client explains the required action")
+	_check(network._authentication_blocked, "incompatible client stops reconnect attempts")
+	_check(network._session_token == "still-valid-after-update", "client update does not revoke the account session")
+	_cleanup_main_harness(main, network)
 	await process_frame
 
 

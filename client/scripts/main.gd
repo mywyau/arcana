@@ -835,6 +835,7 @@ func _ready() -> void:
 	network.account_session_received.connect(_on_account_session_received)
 	network.account_login_required.connect(_on_account_login_required)
 	network.account_logged_out.connect(_on_account_logged_out)
+	network.client_update_required.connect(_on_client_update_required)
 	sword_button.pressed.connect(_request_equip.bind("sword"))
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
 	bow_button.pressed.connect(_request_equip.bind("bow"))
@@ -2508,6 +2509,11 @@ func _on_account_logged_out() -> void:
 	_account_email = ""
 	account_window.set_session(false)
 	_append_game_message("Logged out of the account on this device.")
+
+
+func _on_client_update_required(message: String) -> void:
+	auth_gate.show_update_required(message)
+	account_window.hide()
 
 
 func _on_production_recipes_received(recipes: Array) -> void:

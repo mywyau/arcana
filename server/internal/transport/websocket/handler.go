@@ -28,6 +28,7 @@ const (
 )
 
 var errAccountRequired = errors.New("an account is required to enter this world")
+var errIncompatibleClient = errors.New("this client is incompatible with the server; update required")
 
 type Handler struct {
 	world            *simulation.World
@@ -167,11 +168,18 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		} else if errors.Is(err, errAccountRequired) {
 			code = "account_required"
 			clientError = errAccountRequired
+		} else if errors.Is(err, errIncompatibleClient) {
+			code = "incompatible_client"
+			clientError = errIncompatibleClient
 		} else {
 			log.Printf("authenticate WebSocket connection: %v", err)
 		}
 		_ = writeMessage(ctx, connection, errorMessage(code, clientError))
-		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
+		closeReason := "authentication failed"
+		if errors.Is(err, errIncompatibleClient) {
+			closeReason = "incompatible client"
+		}
+		_ = connection.Close(websocket.StatusPolicyViolation, closeReason)
 		return
 	}
 	playerID := simulation.PlayerID(authentication.PlayerID)
@@ -378,6 +386,9 @@ func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) 
 	}
 	if message.Type != protocol.MessageAuthenticate {
 		return authenticatedIdentity{}, fmt.Errorf("authentication must be the first message")
+	}
+	if message.ProtocolVersion != protocol.CurrentVersion {
+		return authenticatedIdentity{}, errIncompatibleClient
 	}
 	usesSession := message.SessionToken != ""
 	usesCredentials := message.Email != "" || message.Password != ""

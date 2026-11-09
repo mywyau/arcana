@@ -193,8 +193,9 @@ func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
 		t.Fatalf("dial login: %v", err)
 	}
 	if err := wsjson.Write(ctx, loginConnection, protocol.ClientMessage{
-		Type:  protocol.MessageAuthenticate,
-		Email: "PLAYER@example.com", Password: "strong-password",
+		Type:            protocol.MessageAuthenticate,
+		ProtocolVersion: protocol.CurrentVersion,
+		Email:           "PLAYER@example.com", Password: "strong-password",
 	}); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
@@ -213,7 +214,8 @@ func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
 	}
 	defer sessionConnection.CloseNow()
 	if err := wsjson.Write(ctx, sessionConnection, protocol.ClientMessage{
-		Type: protocol.MessageAuthenticate, SessionToken: loginWelcome.SessionToken,
+		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
+		SessionToken: loginWelcome.SessionToken,
 	}); err != nil {
 		t.Fatalf("write session authentication: %v", err)
 	}
@@ -241,7 +243,8 @@ func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
 	}
 	defer revokedConnection.CloseNow()
 	if err := wsjson.Write(ctx, revokedConnection, protocol.ClientMessage{
-		Type: protocol.MessageAuthenticate, SessionToken: loginWelcome.SessionToken,
+		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
+		SessionToken: loginWelcome.SessionToken,
 	}); err != nil {
 		t.Fatalf("write revoked session authentication: %v", err)
 	}
@@ -323,6 +326,40 @@ func TestHandlerRejectsGuestAuthenticationWhenAccountsAreRequired(t *testing.T) 
 	if message.Type != protocol.MessageError || message.Error == nil ||
 		message.Error.Code != "account_required" {
 		t.Fatalf("guest rejection = %+v", message)
+	}
+}
+
+func TestHandlerRejectsIncompatibleProtocolVersions(t *testing.T) {
+	handler, err := NewHandler(simulation.NewWorld(), 5*time.Millisecond)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	server := startTestServer(t, handler)
+	defer server.Close()
+
+	for name, version := range map[string]int{
+		"missing": 0,
+		"future":  protocol.CurrentVersion + 1,
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			connection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+			if err != nil {
+				t.Fatalf("websocket.Dial() error = %v", err)
+			}
+			defer connection.CloseNow()
+			if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
+				Type: protocol.MessageAuthenticate, ProtocolVersion: version,
+			}); err != nil {
+				t.Fatalf("write authentication: %v", err)
+			}
+			message := readServerMessage(t, ctx, connection)
+			if message.Type != protocol.MessageError || message.Error == nil ||
+				message.Error.Code != "incompatible_client" {
+				t.Fatalf("compatibility rejection = %+v", message)
+			}
+		})
 	}
 }
 
@@ -428,8 +465,9 @@ func TestSaveAllPersistsEveryActiveCharacter(t *testing.T) {
 func authenticateGuest(t *testing.T, ctx context.Context, connection *websocket.Conn, token string) {
 	t.Helper()
 	if err := wsjson.Write(ctx, connection, protocol.ClientMessage{
-		Type:       protocol.MessageAuthenticate,
-		GuestToken: token,
+		Type:            protocol.MessageAuthenticate,
+		ProtocolVersion: protocol.CurrentVersion,
+		GuestToken:      token,
 	}); err != nil {
 		t.Fatalf("write authentication message: %v", err)
 	}
