@@ -13,11 +13,12 @@ const (
 )
 
 type Config struct {
-	Environment         string
-	ListenAddress       string
-	DatabaseURL         string
-	DebugContentEnabled bool
-	AllowedOrigins      []string
+	Environment                string
+	ListenAddress              string
+	DatabaseURL                string
+	DebugContentEnabled        bool
+	GuestAuthenticationEnabled bool
+	AllowedOrigins             []string
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -50,12 +51,23 @@ func Load(getenv func(string) string) (Config, error) {
 	if environment == EnvironmentProduction && debugContentEnabled {
 		return Config{}, fmt.Errorf("debug content cannot be enabled in production")
 	}
+	guestAuthenticationEnabled := environment == EnvironmentDevelopment
+	if rawGuests := strings.TrimSpace(getenv("ARCANA_ALLOW_GUEST_AUTH")); rawGuests != "" {
+		guestAuthenticationEnabled, err = strconv.ParseBool(rawGuests)
+		if err != nil {
+			return Config{}, fmt.Errorf("ARCANA_ALLOW_GUEST_AUTH must be true or false")
+		}
+	}
+	if environment == EnvironmentProduction && guestAuthenticationEnabled {
+		return Config{}, fmt.Errorf("guest authentication cannot be enabled in production")
+	}
 	return Config{
-		Environment:         environment,
-		ListenAddress:       ":" + port,
-		DatabaseURL:         databaseURL,
-		DebugContentEnabled: debugContentEnabled,
-		AllowedOrigins:      splitList(getenv("ARCANA_ALLOWED_ORIGINS")),
+		Environment:                environment,
+		ListenAddress:              ":" + port,
+		DatabaseURL:                databaseURL,
+		DebugContentEnabled:        debugContentEnabled,
+		GuestAuthenticationEnabled: guestAuthenticationEnabled,
+		AllowedOrigins:             splitList(getenv("ARCANA_ALLOWED_ORIGINS")),
 	}, nil
 }
 

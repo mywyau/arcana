@@ -7,7 +7,8 @@ func TestLoadDefaultsToLocalDevelopment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if config.Environment != EnvironmentDevelopment || config.ListenAddress != ":8080" || !config.DebugContentEnabled {
+	if config.Environment != EnvironmentDevelopment || config.ListenAddress != ":8080" ||
+		!config.DebugContentEnabled || !config.GuestAuthenticationEnabled {
 		t.Fatalf("development config = %+v", config)
 	}
 }
@@ -23,7 +24,8 @@ func TestLoadProductionConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if config.ListenAddress != ":10000" || config.DebugContentEnabled || len(config.AllowedOrigins) != 2 {
+	if config.ListenAddress != ":10000" || config.DebugContentEnabled ||
+		config.GuestAuthenticationEnabled || len(config.AllowedOrigins) != 2 {
 		t.Fatalf("production config = %+v", config)
 	}
 }
@@ -32,6 +34,8 @@ func TestLoadRejectsUnsafeProductionConfiguration(t *testing.T) {
 	tests := []map[string]string{
 		{"ARCANA_ENV": "production"},
 		{"ARCANA_ENV": "production", "DATABASE_URL": "postgres://db", "ARCANA_ENABLE_DEBUG_CONTENT": "true"},
+		{"ARCANA_ENV": "production", "DATABASE_URL": "postgres://db", "ARCANA_ALLOW_GUEST_AUTH": "true"},
+		{"ARCANA_ALLOW_GUEST_AUTH": "invalid"},
 		{"PORT": "invalid"},
 	}
 	for _, values := range tests {

@@ -300,6 +300,32 @@ func TestHandlerRejectsDebugCommandsWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsGuestAuthenticationWhenAccountsAreRequired(t *testing.T) {
+	handler, err := NewHandlerWithOptions(
+		simulation.NewWorld(),
+		5*time.Millisecond,
+		HandlerOptions{RequireAccounts: true},
+	)
+	if err != nil {
+		t.Fatalf("NewHandlerWithOptions() error = %v", err)
+	}
+	server := startTestServer(t, handler)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	connection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("websocket.Dial() error = %v", err)
+	}
+	defer connection.CloseNow()
+	authenticateGuest(t, ctx, connection, "")
+	message := readServerMessage(t, ctx, connection)
+	if message.Type != protocol.MessageError || message.Error == nil ||
+		message.Error.Code != "account_required" {
+		t.Fatalf("guest rejection = %+v", message)
+	}
+}
+
 func TestHandlerSavesCharacterOnDisconnect(t *testing.T) {
 	world := simulation.NewWorld()
 	const interval = 5 * time.Millisecond

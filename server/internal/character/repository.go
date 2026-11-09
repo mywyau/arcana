@@ -12,6 +12,7 @@ import (
 type Repository interface {
 	Load(context.Context, string) (simulation.PersistentPlayerState, bool, error)
 	Save(context.Context, string, simulation.PersistentPlayerState) error
+	Delete(context.Context, string) error
 }
 
 type MemoryRepository struct {
@@ -41,6 +42,13 @@ func (repository *MemoryRepository) Save(
 	repository.mu.Lock()
 	defer repository.mu.Unlock()
 	repository.states[playerID] = cloneState(state)
+	return nil
+}
+
+func (repository *MemoryRepository) Delete(_ context.Context, playerID string) error {
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	delete(repository.states, playerID)
 	return nil
 }
 

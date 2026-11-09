@@ -100,6 +100,8 @@ The relevant environment variables are:
 - `PORT`: hosting platform HTTP port; defaults to `8080` locally.
 - `ARCANA_ENABLE_DEBUG_CONTENT`: defaults on only in development and cannot be
   enabled in production.
+- `ARCANA_ALLOW_GUEST_AUTH`: defaults on in development and off elsewhere; it
+  cannot be enabled in production.
 - `ARCANA_ALLOWED_ORIGINS`: optional comma-separated WebSocket origin hosts for
   future browser clients. Native Godot clients do not send a browser origin.
 
@@ -156,19 +158,27 @@ must use `wss://`, not `ws://`.
 ### Account foundation
 
 The server database separates private account credentials from character state.
-Email addresses are normalized for case-insensitive login, each account can own
-one character, and account creation links an existing guest character in one
-transaction. Passwords use salted Argon2id hashes with their cost parameters
-stored in the encoded hash. From Settings > Manage account, a guest can register
-the current character or log in to recover an existing one. Successful login
+Email addresses are normalized for case-insensitive login, accounts currently
+have one character slot, and account creation can either provision a new
+`player-*` character or link an existing guest. Passwords use salted Argon2id
+hashes with their cost parameters stored in the encoded hash. Successful login
 issues a random 30-day session token; PostgreSQL stores only its SHA-256 hash,
-while the client stores the raw token per profile and server URL. Passwords are
-sent only during registration or login over the WebSocket connection and are
-not saved by the client.
+while the client stores the raw token per profile and server URL.
+
+The reusable account API exposes `POST /api/account/register`,
+`POST /api/account/login`, and `POST /api/account/logout`. Hosted clients and a
+future website use these endpoints over HTTPS; logout supplies the session as a
+Bearer token. The existing client account window still uses the transitional
+WebSocket flow until the startup authentication screen is migrated next.
 
 Settings > Manage account also supports logging out on the current device. The
 server deletes that session, the client removes its local token, and the game
 reconnects as a new guest. Other device sessions remain active.
+
+Character persistence is independent from guest credentials. Production rejects
+guest WebSocket authentication, while local development retains it for rapid
+testing. The hosted service should remain suspended until the client startup
+authentication screen uses the account API.
 
 Email verification, password reset, "log out everywhere", and login rate
 limiting are not implemented yet. These remain required before opening account
@@ -176,7 +186,8 @@ registration beyond a small trusted private beta.
 
 ## WebSocket protocol
 
-The client authenticates first with its saved guest token (or an empty token to
+The client authenticates the WebSocket with an account session in production.
+Development servers can also accept a saved guest token (or an empty token to
 create an identity). After the `welcome` message, movement intentions look like:
 
 ```json

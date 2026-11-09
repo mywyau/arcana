@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/mywyau/arcana/server/internal/account"
+	"github.com/mywyau/arcana/server/internal/character"
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/navigation"
 	postgrespersistence "github.com/mywyau/arcana/server/internal/persistence/postgres"
 	"github.com/mywyau/arcana/server/internal/serverconfig"
 	"github.com/mywyau/arcana/server/internal/serverhealth"
 	"github.com/mywyau/arcana/server/internal/simulation"
+	httpaccount "github.com/mywyau/arcana/server/internal/transport/httpaccount"
 	websockettransport "github.com/mywyau/arcana/server/internal/transport/websocket"
 )
 
@@ -164,16 +166,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var handler *websockettransport.Handler
 	var readinessChecker serverhealth.Checker
+	var guestIdentities *identity.GuestManager
+	var characters character.Repository
+	var accountManager *account.Manager
 	databaseURL := config.DatabaseURL
 	if databaseURL == "" {
-		handler, err = websockettransport.NewHandlerWithOptions(
-			world, tickInterval, websockettransport.HandlerOptions{
-				AllowDebugCommands: config.DebugContentEnabled,
-				AllowedOrigins:     config.AllowedOrigins,
-			},
-		)
+		guestIdentities, err = identity.NewGuestManager(identity.NewMemoryGuestRepository())
+		if err != nil {
+			log.Fatal(err)
+		}
+		characters = character.NewMemoryRepository()
+		accountRepository := account.NewMemoryRepository()
+		accountManager, err = account.NewManager(accountRepository, accountRepository)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -194,33 +199,40 @@ func main() {
 		defer store.Close()
 		readinessChecker = store
 
-		guestIdentities, identityErr := identity.NewGuestManager(store)
-		if identityErr != nil {
-			log.Fatal(identityErr)
-		}
-		accountManager, accountErr := account.NewManager(store, store)
-		if accountErr != nil {
-			log.Fatal(accountErr)
-		}
-		handler, err = websockettransport.NewHandlerWithRepositoriesAndOptions(
-			world,
-			tickInterval,
-			guestIdentities,
-			store,
-			websockettransport.HandlerOptions{
-				AllowDebugCommands: config.DebugContentEnabled,
-				AllowedOrigins:     config.AllowedOrigins,
-				AccountManager:     accountManager,
-			},
-		)
+		guestIdentities, err = identity.NewGuestManager(store)
 		if err != nil {
 			log.Fatal(err)
 		}
+		accountManager, err = account.NewManager(store, store)
+		if err != nil {
+			log.Fatal(err)
+		}
+		characters = store
 		log.Print("PostgreSQL persistence is enabled")
+	}
+	handler, err := websockettransport.NewHandlerWithRepositoriesAndOptions(
+		world,
+		tickInterval,
+		guestIdentities,
+		characters,
+		websockettransport.HandlerOptions{
+			AllowDebugCommands: config.DebugContentEnabled,
+			AllowedOrigins:     config.AllowedOrigins,
+			AccountManager:     accountManager,
+			RequireAccounts:    !config.GuestAuthenticationEnabled,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	accountHTTP, err := httpaccount.NewHandler(accountManager, guestIdentities, characters)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/ws", handler)
+	accountHTTP.RegisterRoutes(mux)
 	mux.Handle("/health", serverhealth.Liveness())
 	mux.Handle("/ready", serverhealth.Readiness(readinessChecker))
 	server := &http.Server{

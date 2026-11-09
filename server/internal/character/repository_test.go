@@ -65,3 +65,18 @@ func TestMemoryRepositoryCopiesInventoryState(t *testing.T) {
 		t.Fatal("reloaded equipment reinforcement was not copied")
 	}
 }
+
+func TestMemoryRepositoryDeletesCharacter(t *testing.T) {
+	repository := NewMemoryRepository()
+	if err := repository.Save(
+		context.Background(), "player-one", simulation.DefaultPersistentPlayerState(),
+	); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+	if err := repository.Delete(context.Background(), "player-one"); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if _, found, err := repository.Load(context.Background(), "player-one"); err != nil || found {
+		t.Fatalf("Load() after delete = found %t, error %v", found, err)
+	}
+}

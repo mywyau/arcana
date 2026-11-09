@@ -27,6 +27,8 @@ const (
 	characterSaveInterval = 30 * time.Second
 )
 
+var errAccountRequired = errors.New("an account is required to enter this world")
+
 type Handler struct {
 	world            *simulation.World
 	snapshotInterval time.Duration
@@ -34,6 +36,7 @@ type Handler struct {
 	accounts         *account.Manager
 	characters       character.Repository
 	allowDebug       bool
+	allowGuests      bool
 	acceptOptions    websocket.AcceptOptions
 }
 
@@ -41,6 +44,7 @@ type HandlerOptions struct {
 	AllowDebugCommands bool
 	AllowedOrigins     []string
 	AccountManager     *account.Manager
+	RequireAccounts    bool
 }
 
 type outboundResponse struct {
@@ -128,7 +132,8 @@ func NewHandlerWithRepositoriesAndOptions(
 	return &Handler{
 		world: world, snapshotInterval: snapshotInterval,
 		guestIdentities: guestIdentities, accounts: accountManager, characters: characters,
-		allowDebug: options.AllowDebugCommands,
+		allowDebug:  options.AllowDebugCommands,
+		allowGuests: !options.RequireAccounts,
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
 		},
@@ -159,6 +164,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		} else if errors.Is(err, account.ErrInvalidCredentials) {
 			code = "invalid_credentials"
 			clientError = account.ErrInvalidCredentials
+		} else if errors.Is(err, errAccountRequired) {
+			code = "account_required"
+			clientError = errAccountRequired
 		} else {
 			log.Printf("authenticate WebSocket connection: %v", err)
 		}
@@ -400,6 +408,9 @@ func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) 
 		return authenticatedIdentity{
 			PlayerID: value.PlayerID, SessionToken: value.SessionToken, AccountEmail: value.Email,
 		}, nil
+	}
+	if !h.allowGuests {
+		return authenticatedIdentity{}, errAccountRequired
 	}
 	guestIdentity, err := h.guestIdentities.Authenticate(ctx, message.GuestToken)
 	if err != nil {

@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/mywyau/arcana/server/internal/simulation"
 )
 
 const (
@@ -32,6 +34,12 @@ type Manager struct {
 	accounts Repository
 	sessions SessionRepository
 	hasher   PasswordHasher
+}
+
+type CharacterRepository interface {
+	Load(context.Context, string) (simulation.PersistentPlayerState, bool, error)
+	Save(context.Context, string, simulation.PersistentPlayerState) error
+	Delete(context.Context, string) error
 }
 
 func NewManager(accounts Repository, sessions SessionRepository) (*Manager, error) {
@@ -63,6 +71,62 @@ func (manager *Manager) Register(
 	if err != nil {
 		return Authentication{}, err
 	}
+	return manager.registerWithPasswordHash(ctx, playerID, normalizedEmail, passwordHash)
+}
+
+// RegisterNewCharacter provisions an account-owned character without creating
+// a guest identity. It is the foundation for account-first authentication.
+func (manager *Manager) RegisterNewCharacter(
+	ctx context.Context,
+	email string,
+	password string,
+	characters CharacterRepository,
+) (Authentication, error) {
+	if characters == nil {
+		return Authentication{}, fmt.Errorf("character repository is required")
+	}
+	normalizedEmail, err := NormalizeEmail(email)
+	if err != nil {
+		return Authentication{}, err
+	}
+	passwordHash, err := manager.hasher.Hash(password)
+	if err != nil {
+		return Authentication{}, err
+	}
+	for {
+		playerID, err := randomID("player-", accountIDBytes)
+		if err != nil {
+			return Authentication{}, err
+		}
+		_, found, err := characters.Load(ctx, playerID)
+		if err != nil {
+			return Authentication{}, fmt.Errorf("check character ID: %w", err)
+		}
+		if found {
+			continue
+		}
+		if err := characters.Save(ctx, playerID, simulation.DefaultPersistentPlayerState()); err != nil {
+			return Authentication{}, fmt.Errorf("create character: %w", err)
+		}
+		authentication, err := manager.registerWithPasswordHash(
+			ctx, playerID, normalizedEmail, passwordHash,
+		)
+		if err == nil {
+			return authentication, nil
+		}
+		if cleanupErr := characters.Delete(ctx, playerID); cleanupErr != nil {
+			return Authentication{}, errors.Join(err, fmt.Errorf("clean up character: %w", cleanupErr))
+		}
+		return Authentication{}, err
+	}
+}
+
+func (manager *Manager) registerWithPasswordHash(
+	ctx context.Context,
+	playerID string,
+	normalizedEmail string,
+	passwordHash string,
+) (Authentication, error) {
 	accountID, err := randomID("account-", accountIDBytes)
 	if err != nil {
 		return Authentication{}, err
@@ -72,7 +136,14 @@ func (manager *Manager) Register(
 	}); err != nil {
 		return Authentication{}, err
 	}
-	return manager.issueSession(ctx, accountID, playerID, normalizedEmail)
+	authentication, err := manager.issueSession(ctx, accountID, playerID, normalizedEmail)
+	if err == nil {
+		return authentication, nil
+	}
+	if cleanupErr := manager.accounts.DeleteAccount(ctx, accountID); cleanupErr != nil {
+		return Authentication{}, errors.Join(err, fmt.Errorf("clean up account: %w", cleanupErr))
+	}
+	return Authentication{}, err
 }
 
 func (manager *Manager) Login(

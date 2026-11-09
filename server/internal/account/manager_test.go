@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/mywyau/arcana/server/internal/character"
 )
 
 func TestManagerRegistersLogsInAndAuthenticatesSession(t *testing.T) {
@@ -97,5 +99,30 @@ func TestManagerRejectsShortPassword(t *testing.T) {
 		context.Background(), "player-one", "player@example.com", "short",
 	); err == nil {
 		t.Fatal("Register() accepted a short password")
+	}
+}
+
+func TestManagerRegistersNewAccountOwnedCharacter(t *testing.T) {
+	repository := NewMemoryRepository()
+	characters := character.NewMemoryRepository()
+	manager, err := NewManager(repository, repository)
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	registered, err := manager.RegisterNewCharacter(
+		context.Background(), "new@example.com", "strong-password", characters,
+	)
+	if err != nil {
+		t.Fatalf("RegisterNewCharacter() error = %v", err)
+	}
+	if registered.PlayerID == "" || registered.SessionToken == "" {
+		t.Fatalf("registered authentication = %+v", registered)
+	}
+	if _, found, err := characters.Load(context.Background(), registered.PlayerID); err != nil || !found {
+		t.Fatalf("Load(%s) = found %t, error %v", registered.PlayerID, found, err)
+	}
+	loggedIn, err := manager.Login(context.Background(), "new@example.com", "strong-password")
+	if err != nil || loggedIn.PlayerID != registered.PlayerID {
+		t.Fatalf("Login() = %+v, error %v", loggedIn, err)
 	}
 }

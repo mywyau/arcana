@@ -30,6 +30,7 @@ type Account struct {
 type Repository interface {
 	CreateAccount(context.Context, Account) error
 	FindAccountByEmail(context.Context, string) (Account, bool, error)
+	DeleteAccount(context.Context, string) error
 }
 
 // Session contains only a token hash. Raw session tokens are returned to the
@@ -153,6 +154,24 @@ func (repository *MemoryRepository) FindAccountByEmail(
 		return Account{}, false, nil
 	}
 	return repository.accountsByID[accountID], true, nil
+}
+
+func (repository *MemoryRepository) DeleteAccount(_ context.Context, accountID string) error {
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	value, found := repository.accountsByID[accountID]
+	if !found {
+		return nil
+	}
+	delete(repository.accountsByID, accountID)
+	delete(repository.accountByEmail, value.Email)
+	delete(repository.accountByPlayer, value.PlayerID)
+	for tokenHash, session := range repository.sessions {
+		if session.AccountID == accountID {
+			delete(repository.sessions, tokenHash)
+		}
+	}
+	return nil
 }
 
 func NormalizeAccount(value Account) (Account, error) {

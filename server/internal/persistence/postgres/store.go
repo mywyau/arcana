@@ -457,6 +457,17 @@ func (store *Store) Save(
 	return nil
 }
 
+func (store *Store) Delete(ctx context.Context, playerID string) error {
+	if _, err := store.database.ExecContext(
+		ctx,
+		"DELETE FROM characters WHERE player_id = $1",
+		playerID,
+	); err != nil {
+		return fmt.Errorf("delete character: %w", err)
+	}
+	return nil
+}
+
 func nullableString(value string) any {
 	if value == "" {
 		return nil

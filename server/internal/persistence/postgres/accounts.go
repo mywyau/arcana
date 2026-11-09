@@ -79,3 +79,14 @@ func (store *Store) FindAccountByEmail(
 	}
 	return value, true, nil
 }
+
+func (store *Store) DeleteAccount(ctx context.Context, accountID string) error {
+	if _, err := store.database.ExecContext(
+		ctx,
+		"DELETE FROM accounts WHERE account_id = $1",
+		accountID,
+	); err != nil {
+		return fmt.Errorf("delete account: %w", err)
+	}
+	return nil
+}

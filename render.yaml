@@ -21,6 +21,8 @@ services:
         value: production
       - key: ARCANA_ENABLE_DEBUG_CONTENT
         value: "false"
+      - key: ARCANA_ALLOW_GUEST_AUTH
+        value: "false"
       - key: DATABASE_URL
         fromDatabase:
           name: arcana-beta-db
