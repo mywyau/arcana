@@ -71,7 +71,7 @@ func _start_request(path: String, payload: Dictionary) -> bool:
 func _on_request_completed(
 	result: int,
 	response_code: int,
-	_headers: PackedStringArray,
+	headers: PackedStringArray,
 	body: PackedByteArray,
 ) -> void:
 	_busy = false
@@ -83,6 +83,10 @@ func _on_request_completed(
 		var message: String = "The account request failed."
 		if typeof(payload) == TYPE_DICTIONARY:
 			message = str((payload as Dictionary).get("error", message))
+		if response_code == 429:
+			var retry_after: int = int(_response_header(headers, "Retry-After"))
+			if retry_after > 0:
+				message += " Try again in %s." % _format_retry_delay(retry_after)
 		request_failed.emit(message)
 		return
 	if typeof(payload) != TYPE_DICTIONARY:
@@ -109,3 +113,23 @@ func _derive_base_url(websocket_url: String) -> String:
 	if value.ends_with("/ws"):
 		value = value.trim_suffix("/ws")
 	return value
+
+
+func _response_header(headers: PackedStringArray, name: String) -> String:
+	var expected_name: String = name.to_lower()
+	for header: String in headers:
+		var separator: int = header.find(":")
+		if separator < 0:
+			continue
+		if header.left(separator).strip_edges().to_lower() == expected_name:
+			return header.substr(separator + 1).strip_edges()
+	return ""
+
+
+func _format_retry_delay(seconds: int) -> String:
+	if seconds < 60:
+		return "%d seconds" % seconds
+	var minutes: int = int(ceilf(float(seconds) / 60.0))
+	if minutes == 1:
+		return "1 minute"
+	return "%d minutes" % minutes

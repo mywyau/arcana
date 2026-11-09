@@ -198,8 +198,23 @@ while the client stores the raw token per profile and server URL.
 The reusable account API exposes `POST /api/account/register`,
 `POST /api/account/login`, and `POST /api/account/logout`. Hosted clients and a
 future website use these endpoints over HTTPS; logout supplies the session as a
-Bearer token. The existing client account window still uses the transitional
-WebSocket flow until the startup authentication screen is migrated next.
+Bearer token. Registration and password login are rejected over WebSocket so
+they cannot bypass the HTTP account controls. WebSocket authentication accepts
+an issued account session token, plus explicitly enabled local-development
+guest identities.
+
+Registration and login attempts are protected by bounded in-memory rate
+limits. A limited request receives HTTP 429 with a `Retry-After` header, which
+the client presents as a readable wait time. Successful login clears the failed
+attempt history for that client/email pair; ordinary session-token reconnects
+are not limited. The limiter is process-local, which is appropriate while the
+beta runs one server instance. Move this state to a shared store before running
+multiple interchangeable account API instances.
+
+`ARCANA_TRUST_PROXY_HEADERS` controls whether the HTTP account API uses the
+first valid address in `X-Forwarded-For`. It defaults to `false` locally and
+must only be enabled behind a trusted proxy that replaces or sanitises that
+header. The Render Blueprint enables it for the hosted service.
 
 Settings > Manage account also supports logging out on the current device. The
 server deletes that session, the client removes its local token, and the game
@@ -210,9 +225,8 @@ guest WebSocket authentication, while local development retains it for rapid
 testing. The hosted service should remain suspended until the client startup
 authentication screen uses the account API.
 
-Email verification, password reset, "log out everywhere", and login rate
-limiting are not implemented yet. These remain required before opening account
-registration beyond a small trusted private beta.
+Email verification, password reset, and "log out everywhere" are not
+implemented yet. These remain deferred for the small trusted private beta.
 
 ## WebSocket protocol
 

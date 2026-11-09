@@ -1,0 +1,175 @@
+ARCANA PRIVATE BETA WORK SLICES
+===============================
+
+Purpose
+-------
+This document tracks the work required to give a small group of invited
+testers a native client connected to the hosted Arcana server. A private beta
+is not a public release: temporary credentials, manual support and occasional
+progress resets are acceptable if testers are warned beforehand.
+
+
+COMPLETED FOUNDATIONS
+---------------------
+
+[DONE] Authoritative Go game server and fixed-step simulation.
+[DONE] Godot client with remote WebSocket configuration.
+[DONE] PostgreSQL persistence and automatic migrations.
+[DONE] Render server configuration, health and readiness endpoints.
+[DONE] Email/password registration and login.
+[DONE] Persistent, revocable account sessions and logout.
+[DONE] Account-first client startup gate with explicit local guest access.
+[DONE] Server-unavailable feedback, retry and reconnect behaviour.
+[DONE] End-to-end HTTP account and WebSocket session tests.
+[DONE] Dependency-free Godot authentication regression tests.
+[DONE] Client/server protocol-version compatibility checks.
+[DONE] Newest-login-wins protection for duplicate character connections.
+[DONE] Bounded registration/login abuse limits with retry feedback.
+[DONE] Legacy WebSocket password and registration paths disabled.
+
+
+REQUIRED BEFORE INVITING TESTERS
+--------------------------------
+
+1. Persistence safety pass
+
+   - Verify periodic character saves and graceful shutdown saves.
+   - Test reconnect restoration for inventory, equipment, bank, skills,
+     position and active account identity.
+   - Exercise all migrations against a copy of the beta database.
+   - Configure and document PostgreSQL backups and restoration.
+   - Decide whether beta progress may be reset and tell testers clearly.
+
+2. Diagnostics and tester bug reports
+
+   - Add safe connection/player correlation IDs to server logs.
+   - Never log passwords, raw session tokens or unnecessary email addresses.
+   - Make important disconnect and save failures easy to identify.
+   - Provide testers with simple instructions for finding/copying client logs.
+   - Record the client build version in useful diagnostics.
+
+3. Multiplayer and soak testing
+
+   - Run multiple simultaneous clients against one world.
+   - Run a longer soak test and observe memory, CPU and tick duration.
+   - Measure snapshot size and bandwidth as player count increases.
+   - Verify reconnects, duplicate logins and persistence during the test.
+   - Fix any unbounded client nodes, timers, effects or server collections.
+
+4. Native beta client export
+
+   - Install the matching Godot export templates.
+   - Add a Beta export preset with the hosted WebSocket address baked in.
+   - Derive or configure the hosted HTTP account API address.
+   - Add a repeatable build script and versioned output directory.
+   - Export and smoke-test a macOS application first.
+   - Zip the application so a tester can unzip, open, register/login and play
+     without the repository, terminal, Godot, Go or run scripts.
+   - Add Windows and Linux exports only when testers require them.
+   - Initially document the macOS right-click -> Open workaround for unsigned
+     builds; add signing and notarisation before wider distribution.
+
+5. Hosted beta configuration and security check
+
+   - Resume the Render service and confirm /ready reports ready.
+   - Use production/staging mode with PostgreSQL enabled.
+   - Keep development content and guest authentication disabled remotely.
+   - Confirm TLS is used: HTTPS for accounts and WSS for gameplay.
+   - Confirm no secrets or credentials are committed to the repository.
+   - Verify the exported client connects only to the intended beta service.
+
+6. Fresh-character onboarding smoke pass
+
+   - Verify a new account starts in a usable location with no stuck state.
+   - Ensure movement, combat, inventory, gathering, production and banking are
+     discoverable enough for a tester without developer assistance.
+   - Add a short controls/help panel if needed; a full tutorial or quest is not
+     required for private beta.
+   - Remove or clearly label test-only fixtures exposed to beta players.
+
+7. Gameplay and economy sanity pass
+
+   - Review early combat accuracy, damage, dodge and armour behaviour.
+   - Check early XP rates and level requirements across trainable skills.
+   - Verify complete basic loops for gathering, production, combat and loot.
+   - Check shops, drops, resource regeneration and obvious coin exploits.
+   - Fix blockers and severe exploits; broad balance perfection can wait.
+
+
+RECOMMENDED DURING EARLY BETA
+-----------------------------
+
+8. Minimal administration tools
+
+   - Inspect a character and account safely.
+   - Disconnect or disable a problematic account.
+   - Teleport a stuck character or restore it to spawn.
+   - Keep admin commands server-side and unavailable to production clients.
+   - Record sensitive administrative actions in an audit log.
+
+9. Beta feedback process
+
+    - Create one place for bugs and feedback.
+    - Ask testers to include build version, approximate time and reproduction
+      steps.
+    - Track known issues and communicate planned resets or downtime.
+    - Triage data loss, crashes, exploits and login failures first.
+
+10. Basic release operations
+
+    - Document how to deploy, migrate, verify readiness and roll back.
+    - Keep the previous working server and client builds available.
+    - Define a short maintenance window for incompatible protocol updates.
+    - Test restoring a database backup before relying on it.
+
+
+DEFERRED FOR PRIVATE BETA
+-------------------------
+
+The following are valuable but not required for a small trusted beta:
+
+- Email verification.
+- Automated password recovery (manual support is acceptable temporarily).
+- Payments, subscriptions or membership.
+- Automatic client updating.
+- Apple signing/notarisation if testers accept the manual open workaround.
+- Large-scale horizontal world hosting.
+- Full quests, narrative onboarding and production-quality character art.
+- Complete economy balance and final content volume.
+
+Testers should use temporary beta credentials until verification and recovery
+exist. Do not accept payments or promise permanent valuable progress while
+these systems remain deferred.
+
+
+PRIVATE BETA RELEASE CHECKLIST
+------------------------------
+
+[ ] All Go tests pass:             cd server && go test ./...
+[ ] Client auth tests pass:        ./run-client-tests.sh
+[ ] Godot project opens without script errors.
+[ ] Database migration succeeds on the beta database.
+[ ] A database backup exists and restoration has been rehearsed.
+[ ] Render /health and /ready both succeed.
+[ ] Fresh account registration succeeds from the exported client.
+[ ] Login, logout, reconnect and session restoration succeed.
+[ ] Duplicate login replacement behaves correctly.
+[ ] Client/server version mismatch gives an update-required message.
+[ ] Two or more testers can move and interact in the same world.
+[ ] Character progress survives disconnect and server restart.
+[ ] Remote guest access and debug commands are disabled.
+[ ] Beta build number and known issues are documented.
+[ ] Testers know how to report bugs and that progress may be reset.
+
+
+SUGGESTED IMPLEMENTATION ORDER
+------------------------------
+
+1. Persistence safety and backups.
+2. Diagnostics and bug-reporting support.
+3. Multiplayer soak test and performance fixes.
+4. Native beta export workflow.
+5. Hosted security/configuration verification.
+6. Fresh-character onboarding and gameplay sanity pass.
+7. Invite the first very small tester group.
+8. Add administration and operational improvements from real beta feedback.

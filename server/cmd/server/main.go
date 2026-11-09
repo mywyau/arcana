@@ -225,7 +225,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	accountHTTP, err := httpaccount.NewHandler(accountManager, guestIdentities, characters)
+	accountHTTP, err := httpaccount.NewHandlerWithOptions(
+		accountManager,
+		guestIdentities,
+		characters,
+		httpaccount.HandlerOptions{TrustProxyHeaders: config.TrustProxyHeaders},
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

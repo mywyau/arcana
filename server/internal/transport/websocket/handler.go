@@ -31,6 +31,7 @@ const (
 
 var errAccountRequired = errors.New("an account is required to enter this world")
 var errIncompatibleClient = errors.New("this client is incompatible with the server; update required")
+var errHTTPAccountRequired = errors.New("email and password authentication must use the account HTTP API")
 
 type Handler struct {
 	world            *simulation.World
@@ -181,6 +182,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		} else if errors.Is(err, errIncompatibleClient) {
 			code = "incompatible_client"
 			clientError = errIncompatibleClient
+		} else if errors.Is(err, errHTTPAccountRequired) {
+			code = "account_http_required"
+			clientError = errHTTPAccountRequired
 		} else {
 			log.Printf("authenticate WebSocket connection: %v", err)
 		}
@@ -486,6 +490,9 @@ func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) 
 	if methodCount > 1 || (usesCredentials && (message.Email == "" || message.Password == "")) {
 		return authenticatedIdentity{}, fmt.Errorf("provide exactly one authentication method")
 	}
+	if usesCredentials {
+		return authenticatedIdentity{}, errHTTPAccountRequired
+	}
 	if usesSession {
 		value, err := h.accounts.AuthenticateSession(ctx, message.SessionToken)
 		if err != nil {
@@ -493,15 +500,6 @@ func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) 
 		}
 		return authenticatedIdentity{
 			PlayerID: value.PlayerID, SessionToken: message.SessionToken, AccountEmail: value.Email,
-		}, nil
-	}
-	if usesCredentials {
-		value, err := h.accounts.Login(ctx, message.Email, message.Password)
-		if err != nil {
-			return authenticatedIdentity{}, err
-		}
-		return authenticatedIdentity{
-			PlayerID: value.PlayerID, SessionToken: value.SessionToken, AccountEmail: value.Email,
 		}, nil
 	}
 	if !h.allowGuests {
@@ -542,19 +540,8 @@ func (h *Handler) readCommands(
 			rejectionCode = "invalid_message"
 			err = fmt.Errorf("connection is already authenticated")
 		case protocol.MessageRegisterAccount:
-			rejectionCode = "account_registration_failed"
-			var registered account.Authentication
-			registered, err = h.accounts.Register(ctx, string(playerID), message.Email, message.Password)
-			if err == nil {
-				currentSessionToken = registered.SessionToken
-				sendResponse(ctx, responses, protocol.ServerMessage{
-					Type:         protocol.MessageAccountSession,
-					SessionToken: registered.SessionToken,
-					AccountEmail: registered.Email,
-				})
-			} else {
-				err = accountRegistrationClientError(err)
-			}
+			rejectionCode = "invalid_message"
+			err = errors.New("account registration must use the account HTTP API")
 		case protocol.MessageLogoutAccount:
 			rejectionCode = "account_logout_failed"
 			if currentSessionToken == "" {
@@ -768,20 +755,6 @@ func (h *Handler) readCommands(
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
 		}
-	}
-}
-
-func accountRegistrationClientError(err error) error {
-	switch {
-	case errors.Is(err, account.ErrAccountExists):
-		return errors.New("that email address is already registered")
-	case errors.Is(err, account.ErrCharacterUnavailable):
-		return errors.New("this character is already linked to an account")
-	case errors.Is(err, account.ErrInvalidEmail), errors.Is(err, account.ErrInvalidPassword):
-		return err
-	default:
-		log.Printf("register account: %v", err)
-		return errors.New("could not create account")
 	}
 }
 

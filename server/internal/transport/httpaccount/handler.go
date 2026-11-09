@@ -4,19 +4,42 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mywyau/arcana/server/internal/account"
 	"github.com/mywyau/arcana/server/internal/identity"
+	"github.com/mywyau/arcana/server/internal/ratelimit"
 )
 
-const maximumRequestBytes = 4 * 1024
+const (
+	maximumRequestBytes = 4 * 1024
+	limiterMaxEntries   = 10_000
+	registrationLimit   = 5
+	loginFailureLimit   = 10
+	loginAttemptLimit   = 60
+	accountLimitWindow  = 10 * time.Minute
+)
 
 type Handler struct {
-	accounts   *account.Manager
-	guests     *identity.GuestManager
-	characters account.CharacterRepository
+	accounts            *account.Manager
+	guests              *identity.GuestManager
+	characters          account.CharacterRepository
+	registrationLimiter *ratelimit.Limiter
+	loginAttemptLimiter *ratelimit.Limiter
+	loginFailureLimiter *ratelimit.Limiter
+	trustProxyHeaders   bool
+}
+
+type HandlerOptions struct {
+	RegistrationLimiter *ratelimit.Limiter
+	LoginAttemptLimiter *ratelimit.Limiter
+	LoginFailureLimiter *ratelimit.Limiter
+	TrustProxyHeaders   bool
 }
 
 type credentialsRequest struct {
@@ -40,6 +63,15 @@ func NewHandler(
 	guests *identity.GuestManager,
 	characters account.CharacterRepository,
 ) (*Handler, error) {
+	return NewHandlerWithOptions(accounts, guests, characters, HandlerOptions{})
+}
+
+func NewHandlerWithOptions(
+	accounts *account.Manager,
+	guests *identity.GuestManager,
+	characters account.CharacterRepository,
+	options HandlerOptions,
+) (*Handler, error) {
 	if accounts == nil {
 		return nil, fmt.Errorf("account manager is required")
 	}
@@ -49,7 +81,42 @@ func NewHandler(
 	if characters == nil {
 		return nil, fmt.Errorf("character repository is required")
 	}
-	return &Handler{accounts: accounts, guests: guests, characters: characters}, nil
+	registrationLimiter := options.RegistrationLimiter
+	if registrationLimiter == nil {
+		var err error
+		registrationLimiter, err = ratelimit.New(ratelimit.Config{
+			Limit: registrationLimit, Window: accountLimitWindow, MaxEntries: limiterMaxEntries,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create registration limiter: %w", err)
+		}
+	}
+	loginAttemptLimiter := options.LoginAttemptLimiter
+	if loginAttemptLimiter == nil {
+		var err error
+		loginAttemptLimiter, err = ratelimit.New(ratelimit.Config{
+			Limit: loginAttemptLimit, Window: accountLimitWindow, MaxEntries: limiterMaxEntries,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create login attempt limiter: %w", err)
+		}
+	}
+	loginFailureLimiter := options.LoginFailureLimiter
+	if loginFailureLimiter == nil {
+		var err error
+		loginFailureLimiter, err = ratelimit.New(ratelimit.Config{
+			Limit: loginFailureLimit, Window: accountLimitWindow, MaxEntries: limiterMaxEntries,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create login failure limiter: %w", err)
+		}
+	}
+	return &Handler{
+		accounts: accounts, guests: guests, characters: characters,
+		registrationLimiter: registrationLimiter,
+		loginAttemptLimiter: loginAttemptLimiter, loginFailureLimiter: loginFailureLimiter,
+		trustProxyHeaders: options.TrustProxyHeaders,
+	}, nil
 }
 
 func (handler *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -59,6 +126,11 @@ func (handler *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (handler *Handler) register(response http.ResponseWriter, request *http.Request) {
+	clientAddress := handler.clientAddress(request)
+	if allowed, retryAfter := handler.registrationLimiter.Allow(clientAddress); !allowed {
+		writeRateLimit(response, retryAfter, "too many registration attempts; try again later")
+		return
+	}
 	credentials, ok := decodeCredentials(response, request)
 	if !ok {
 		return
@@ -99,8 +171,18 @@ func (handler *Handler) register(response http.ResponseWriter, request *http.Req
 }
 
 func (handler *Handler) login(response http.ResponseWriter, request *http.Request) {
+	clientAddress := handler.clientAddress(request)
+	if allowed, retryAfter := handler.loginAttemptLimiter.Allow(clientAddress); !allowed {
+		writeRateLimit(response, retryAfter, "too many login attempts; try again later")
+		return
+	}
 	credentials, ok := decodeCredentials(response, request)
 	if !ok {
+		return
+	}
+	failureKey := clientAddress + "|" + strings.ToLower(strings.TrimSpace(credentials.Email))
+	if blocked, retryAfter := handler.loginFailureLimiter.Blocked(failureKey); blocked {
+		writeRateLimit(response, retryAfter, "too many failed login attempts; try again later")
 		return
 	}
 	authentication, err := handler.accounts.Login(
@@ -108,16 +190,35 @@ func (handler *Handler) login(response http.ResponseWriter, request *http.Reques
 	)
 	if err != nil {
 		if errors.Is(err, account.ErrInvalidCredentials) {
+			handler.loginFailureLimiter.Allow(failureKey)
 			writeError(response, http.StatusUnauthorized, "invalid email or password")
 			return
 		}
 		writeError(response, http.StatusInternalServerError, "could not log in")
 		return
 	}
+	handler.loginFailureLimiter.Reset(failureKey)
 	writeJSON(response, http.StatusOK, authenticationResponse{
 		PlayerID: authentication.PlayerID, Email: authentication.Email,
 		SessionToken: authentication.SessionToken,
 	})
+}
+
+func (handler *Handler) clientAddress(request *http.Request) string {
+	if handler.trustProxyHeaders {
+		forwarded := strings.Split(request.Header.Get("X-Forwarded-For"), ",")
+		if len(forwarded) > 0 {
+			address := strings.TrimSpace(forwarded[0])
+			if net.ParseIP(address) != nil {
+				return address
+			}
+		}
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(request.RemoteAddr))
+	if err == nil && net.ParseIP(host) != nil {
+		return host
+	}
+	return strings.TrimSpace(request.RemoteAddr)
 }
 
 func (handler *Handler) logout(response http.ResponseWriter, request *http.Request) {
@@ -158,6 +259,12 @@ func decodeCredentials(
 
 func writeError(response http.ResponseWriter, status int, message string) {
 	writeJSON(response, status, errorResponse{Error: message})
+}
+
+func writeRateLimit(response http.ResponseWriter, retryAfter time.Duration, message string) {
+	seconds := max(1, int(math.Ceil(retryAfter.Seconds())))
+	response.Header().Set("Retry-After", strconv.Itoa(seconds))
+	writeError(response, http.StatusTooManyRequests, message)
 }
 
 func writeJSON(response http.ResponseWriter, status int, value any) {

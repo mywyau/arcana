@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_logout_returns_to_account_gate()
 	await _test_welcome_hides_account_gate()
 	await _test_duplicate_login_submission_is_blocked()
+	await _test_account_rate_limit_feedback_includes_retry_time()
 	# Let queued Window and scene resources finish releasing before the test
 	# process exits. This keeps headless runs deterministic on slower machines.
 	for _frame: int in range(3):
@@ -190,6 +191,29 @@ func _test_duplicate_login_submission_is_blocked() -> void:
 	_check(int(state["submissions"]) == 1, "duplicate login submission is ignored while busy")
 	_check(gate.submit_button.disabled, "login controls remain locked during the request")
 	gate.queue_free()
+	await process_frame
+
+
+func _test_account_rate_limit_feedback_includes_retry_time() -> void:
+	var api := AccountAPIClient.new()
+	root.add_child(api)
+	await process_frame
+	var failures: Array[String] = []
+	api.request_failed.connect(func(message: String) -> void: failures.append(message))
+	api._busy = true
+	api._on_request_completed(
+		HTTPRequest.RESULT_SUCCESS,
+		429,
+		PackedStringArray(["Content-Type: application/json", "Retry-After: 75"]),
+		JSON.stringify({"error": "too many login attempts"}).to_utf8_buffer(),
+	)
+	_check(not api._busy, "rate-limited account request releases the busy state")
+	_check(failures.size() == 1, "rate-limited account request reports one error")
+	_check(
+		failures.size() == 1 and failures[0].contains("2 minutes"),
+		"rate-limit feedback includes a rounded retry time",
+	)
+	api.queue_free()
 	await process_frame
 
 

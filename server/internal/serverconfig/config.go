@@ -18,6 +18,7 @@ type Config struct {
 	DatabaseURL                string
 	DebugContentEnabled        bool
 	GuestAuthenticationEnabled bool
+	TrustProxyHeaders          bool
 	AllowedOrigins             []string
 }
 
@@ -61,12 +62,20 @@ func Load(getenv func(string) string) (Config, error) {
 	if environment == EnvironmentProduction && guestAuthenticationEnabled {
 		return Config{}, fmt.Errorf("guest authentication cannot be enabled in production")
 	}
+	trustProxyHeaders := false
+	if rawTrustProxy := strings.TrimSpace(getenv("ARCANA_TRUST_PROXY_HEADERS")); rawTrustProxy != "" {
+		trustProxyHeaders, err = strconv.ParseBool(rawTrustProxy)
+		if err != nil {
+			return Config{}, fmt.Errorf("ARCANA_TRUST_PROXY_HEADERS must be true or false")
+		}
+	}
 	return Config{
 		Environment:                environment,
 		ListenAddress:              ":" + port,
 		DatabaseURL:                databaseURL,
 		DebugContentEnabled:        debugContentEnabled,
 		GuestAuthenticationEnabled: guestAuthenticationEnabled,
+		TrustProxyHeaders:          trustProxyHeaders,
 		AllowedOrigins:             splitList(getenv("ARCANA_ALLOWED_ORIGINS")),
 	}, nil
 }

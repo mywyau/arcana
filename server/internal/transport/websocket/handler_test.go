@@ -144,114 +144,55 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 	}
 }
 
-func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
-	world := simulation.NewWorld()
-	const interval = 5 * time.Millisecond
-	runner, err := simulation.NewRunner(world, interval)
-	if err != nil {
-		t.Fatalf("NewRunner() error = %v", err)
-	}
-	runnerCtx, stopRunner := context.WithCancel(context.Background())
-	defer stopRunner()
-	go runner.Run(runnerCtx)
-
-	handler, err := NewHandler(world, interval)
+func TestHandlerRejectsLegacyWebSocketAccountFlows(t *testing.T) {
+	handler, err := NewHandler(simulation.NewWorld(), 5*time.Millisecond)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
 	server := startTestServer(t, handler)
 	defer server.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+
+	credentialsConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial credentials connection: %v", err)
+	}
+	defer credentialsConnection.CloseNow()
+	if err := wsjson.Write(ctx, credentialsConnection, protocol.ClientMessage{
+		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
+		Email: "player@example.com", Password: "strong-password",
+	}); err != nil {
+		t.Fatalf("write credential authentication: %v", err)
+	}
+	credentialResponse := readServerMessage(t, ctx, credentialsConnection)
+	if credentialResponse.Type != protocol.MessageError || credentialResponse.Error == nil ||
+		credentialResponse.Error.Code != "account_http_required" {
+		t.Fatalf("credential response = %+v", credentialResponse)
+	}
 
 	guestConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
 	if err != nil {
-		t.Fatalf("dial guest: %v", err)
+		t.Fatalf("dial guest connection: %v", err)
 	}
+	defer guestConnection.CloseNow()
 	authenticateGuest(t, ctx, guestConnection, "")
-	guestWelcome := readServerMessage(t, ctx, guestConnection)
+	_ = readServerMessage(t, ctx, guestConnection)
 	if err := wsjson.Write(ctx, guestConnection, protocol.ClientMessage{
 		Type: protocol.MessageRegisterAccount, Sequence: 1,
 		Email: "player@example.com", Password: "strong-password",
 	}); err != nil {
 		t.Fatalf("write registration: %v", err)
 	}
-	var registration protocol.ServerMessage
-	for registration.Type != protocol.MessageAccountSession {
-		registration = readServerMessage(t, ctx, guestConnection)
-	}
-	if registration.SessionToken == "" || registration.AccountEmail != "player@example.com" {
-		t.Fatalf("registration response = %+v", registration)
-	}
-	if err := guestConnection.Close(websocket.StatusNormalClosure, "registered"); err != nil {
-		t.Fatalf("close guest connection: %v", err)
-	}
-	waitForPlayerToLeave(t, world, simulation.PlayerID(guestWelcome.PlayerID))
-
-	loginConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
-	if err != nil {
-		t.Fatalf("dial login: %v", err)
-	}
-	if err := wsjson.Write(ctx, loginConnection, protocol.ClientMessage{
-		Type:            protocol.MessageAuthenticate,
-		ProtocolVersion: protocol.CurrentVersion,
-		Email:           "PLAYER@example.com", Password: "strong-password",
-	}); err != nil {
-		t.Fatalf("write login: %v", err)
-	}
-	loginWelcome := readServerMessage(t, ctx, loginConnection)
-	if loginWelcome.PlayerID != guestWelcome.PlayerID || loginWelcome.SessionToken == "" {
-		t.Fatalf("login welcome = %+v, original player = %s", loginWelcome, guestWelcome.PlayerID)
-	}
-	if err := loginConnection.Close(websocket.StatusNormalClosure, "login complete"); err != nil {
-		t.Fatalf("close login connection: %v", err)
-	}
-	waitForPlayerToLeave(t, world, simulation.PlayerID(guestWelcome.PlayerID))
-
-	sessionConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
-	if err != nil {
-		t.Fatalf("dial session: %v", err)
-	}
-	defer sessionConnection.CloseNow()
-	if err := wsjson.Write(ctx, sessionConnection, protocol.ClientMessage{
-		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
-		SessionToken: loginWelcome.SessionToken,
-	}); err != nil {
-		t.Fatalf("write session authentication: %v", err)
-	}
-	sessionWelcome := readServerMessage(t, ctx, sessionConnection)
-	if sessionWelcome.PlayerID != guestWelcome.PlayerID {
-		t.Fatalf("session player = %s, want %s", sessionWelcome.PlayerID, guestWelcome.PlayerID)
-	}
-	if err := wsjson.Write(ctx, sessionConnection, protocol.ClientMessage{
-		Type: protocol.MessageLogoutAccount, Sequence: 1,
-	}); err != nil {
-		t.Fatalf("write logout: %v", err)
-	}
-	var logout protocol.ServerMessage
-	for logout.Type != protocol.MessageAccountLoggedOut {
-		logout = readServerMessage(t, ctx, sessionConnection)
-	}
-	if err := sessionConnection.Close(websocket.StatusNormalClosure, "logged out"); err != nil {
-		t.Fatalf("close logged-out connection: %v", err)
-	}
-	waitForPlayerToLeave(t, world, simulation.PlayerID(guestWelcome.PlayerID))
-
-	revokedConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
-	if err != nil {
-		t.Fatalf("dial revoked session: %v", err)
-	}
-	defer revokedConnection.CloseNow()
-	if err := wsjson.Write(ctx, revokedConnection, protocol.ClientMessage{
-		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
-		SessionToken: loginWelcome.SessionToken,
-	}); err != nil {
-		t.Fatalf("write revoked session authentication: %v", err)
-	}
-	revokedResponse := readServerMessage(t, ctx, revokedConnection)
-	if revokedResponse.Type != protocol.MessageError || revokedResponse.Error == nil ||
-		revokedResponse.Error.Code != "invalid_account_session" {
-		t.Fatalf("revoked session response = %+v", revokedResponse)
+	for {
+		registrationResponse := readServerMessage(t, ctx, guestConnection)
+		if registrationResponse.Type != protocol.MessageError {
+			continue
+		}
+		if registrationResponse.Error == nil || registrationResponse.Error.Code != "invalid_message" {
+			t.Fatalf("registration response = %+v", registrationResponse)
+		}
+		break
 	}
 }
 
@@ -282,31 +223,13 @@ func TestNewestConnectionReplacesExistingCharacterConnection(t *testing.T) {
 	defer first.CloseNow()
 	authenticateGuest(t, ctx, first, "")
 	firstWelcome := readServerMessage(t, ctx, first)
-	if err := wsjson.Write(ctx, first, protocol.ClientMessage{
-		Type: protocol.MessageRegisterAccount, Sequence: 1,
-		Email: "replacement@example.com", Password: "strong-password",
-	}); err != nil {
-		t.Fatalf("register account: %v", err)
-	}
-	var sessionToken string
-	for sessionToken == "" {
-		message := readServerMessage(t, ctx, first)
-		if message.Type == protocol.MessageAccountSession {
-			sessionToken = message.SessionToken
-		}
-	}
 
 	second, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
 	if err != nil {
 		t.Fatalf("dial second connection: %v", err)
 	}
 	defer second.CloseNow()
-	if err := wsjson.Write(ctx, second, protocol.ClientMessage{
-		Type: protocol.MessageAuthenticate, ProtocolVersion: protocol.CurrentVersion,
-		SessionToken: sessionToken,
-	}); err != nil {
-		t.Fatalf("authenticate second connection: %v", err)
-	}
+	authenticateGuest(t, ctx, second, firstWelcome.GuestToken)
 	secondWelcome := readServerMessage(t, ctx, second)
 	if secondWelcome.Type != protocol.MessageWelcome || secondWelcome.PlayerID != firstWelcome.PlayerID {
 		t.Fatalf("second welcome = %+v, first player = %s", secondWelcome, firstWelcome.PlayerID)
