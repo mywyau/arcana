@@ -19,6 +19,7 @@ signal session_replaced(message: String)
 const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
 const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
 const PROTOCOL_VERSION: int = 1
+const BETA_BUILD_FEATURE: String = "arcana_beta"
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
@@ -49,7 +50,7 @@ func _ready() -> void:
 
 func _configure_server_url() -> void:
 	if server_url.is_empty():
-		server_url = str(ProjectSettings.get_setting("network/server_url", "ws://localhost:8080/ws"))
+		server_url = default_server_url(OS.has_feature(BETA_BUILD_FEATURE))
 	var environment_url := OS.get_environment("ARCANA_SERVER_URL").strip_edges()
 	if not environment_url.is_empty():
 		server_url = environment_url
@@ -59,6 +60,11 @@ func _configure_server_url() -> void:
 	if not server_url.begins_with("ws://") and not server_url.begins_with("wss://"):
 		push_error("Configured server URL must begin with ws:// or wss://")
 		server_url = "ws://localhost:8080/ws"
+
+
+static func default_server_url(beta_build: bool) -> String:
+	var setting_name: String = "network/beta_server_url" if beta_build else "network/server_url"
+	return str(ProjectSettings.get_setting(setting_name, "ws://localhost:8080/ws")).strip_edges()
 
 
 func _connect_to_server() -> void:

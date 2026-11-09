@@ -34,9 +34,40 @@ type DropItemCommand struct {
 	InstanceID string
 }
 
+type respawningDrop struct {
+	Position     Position
+	ItemID       string
+	Quantity     int
+	RespawnAfter time.Duration
+	Remaining    time.Duration
+}
+
 // AddWorldDrop places initial world loot before the simulation starts.
 func (w *World) AddWorldDrop(position Position, itemID string, quantity int) error {
 	return w.addInitialDrop(position, itemID, quantity, false)
+}
+
+// AddRespawningWorldDrop places ordinary shared world loot that reappears a
+// fixed time after a successful pickup.
+func (w *World) AddRespawningWorldDrop(
+	position Position,
+	itemID string,
+	quantity int,
+	respawnAfter time.Duration,
+) error {
+	if err := validateInitialDrop(position, itemID, quantity); err != nil {
+		return err
+	}
+	if respawnAfter <= 0 {
+		return fmt.Errorf("drop respawn time must be positive")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	id := w.addDrop(position, itemID, quantity, false)
+	w.respawningDrops[id] = respawningDrop{
+		Position: position, ItemID: itemID, Quantity: quantity, RespawnAfter: respawnAfter,
+	}
+	return nil
 }
 
 // AddTestSupply places a non-depleting item source used by development chests.
@@ -45,6 +76,16 @@ func (w *World) AddTestSupply(position Position, itemID string, quantity int) er
 }
 
 func (w *World) addInitialDrop(position Position, itemID string, quantity int, infinite bool) error {
+	if err := validateInitialDrop(position, itemID, quantity); err != nil {
+		return err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.addDrop(position, itemID, quantity, infinite)
+	return nil
+}
+
+func validateInitialDrop(position Position, itemID string, quantity int) error {
 	if !position.valid() {
 		return fmt.Errorf("drop position must be finite")
 	}
@@ -54,14 +95,16 @@ func (w *World) addInitialDrop(position Position, itemID string, quantity int, i
 	if definition, exists := itemDefinition(itemID); !exists || definition.Virtual {
 		return fmt.Errorf("unknown drop item %q", itemID)
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	return nil
+}
+
+func (w *World) addDrop(position Position, itemID string, quantity int, infinite bool) string {
 	w.nextDropID++
 	id := fmt.Sprintf("drop-%d", w.nextDropID)
 	w.drops[id] = DropSnapshot{
 		ID: id, Position: position, ItemID: itemID, Quantity: quantity, Infinite: infinite,
 	}
-	return nil
+	return id
 }
 
 func (w *World) QueueDropItem(command DropItemCommand) error {
@@ -230,6 +273,11 @@ func (w *World) applyPendingPickups() {
 			added = player.inventory.add(drop.ItemID, drop.Quantity)
 		}
 		if added && !drop.Infinite {
+			if respawn, exists := w.respawningDrops[command.DropID]; exists {
+				delete(w.respawningDrops, command.DropID)
+				respawn.Remaining = respawn.RespawnAfter
+				w.pendingDropRespawns = append(w.pendingDropRespawns, respawn)
+			}
 			delete(w.drops, command.DropID)
 			delete(w.dropLifetimes, command.DropID)
 		}
@@ -327,4 +375,19 @@ func (w *World) advanceDropLifetimes(elapsed time.Duration) {
 		delete(w.dropLifetimes, id)
 		delete(w.drops, id)
 	}
+}
+
+func (w *World) advanceDropRespawns(elapsed time.Duration) {
+	pending := w.pendingDropRespawns[:0]
+	for _, respawn := range w.pendingDropRespawns {
+		respawn.Remaining -= elapsed
+		if respawn.Remaining > 0 {
+			pending = append(pending, respawn)
+			continue
+		}
+		id := w.addDrop(respawn.Position, respawn.ItemID, respawn.Quantity, false)
+		respawn.Remaining = 0
+		w.respawningDrops[id] = respawn
+	}
+	w.pendingDropRespawns = pending
 }

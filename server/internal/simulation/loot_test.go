@@ -32,6 +32,60 @@ func TestInitialWorldDropDoesNotExpire(t *testing.T) {
 	}
 }
 
+func TestRespawningWorldDropReturnsAfterPickupCooldown(t *testing.T) {
+	world := NewWorld()
+	position := Position{X: 2, Z: 3}
+	if err := world.AddRespawningWorldDrop(position, ItemFishingRod, 1, time.Minute); err != nil {
+		t.Fatalf("AddRespawningWorldDrop() returned an unexpected error: %v", err)
+	}
+	mustAddPlayer(t, world, "player-one", position, 4)
+	if err := world.QueuePickup(PickupCommand{
+		PlayerID: "player-one", Sequence: 1, DropID: "drop-1",
+	}); err != nil {
+		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+	if got := len(world.Snapshot().Drops); got != 0 {
+		t.Fatalf("drop count after pickup = %d, want 0", got)
+	}
+
+	world.Step(time.Minute - time.Millisecond)
+	if got := len(world.Snapshot().Drops); got != 0 {
+		t.Fatalf("drop count before respawn = %d, want 0", got)
+	}
+	world.Step(time.Millisecond)
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ID == "drop-1" || drops[0].ItemID != ItemFishingRod ||
+		drops[0].Position != position || drops[0].Infinite {
+		t.Fatalf("respawned drop = %+v", drops)
+	}
+}
+
+func TestStarterToolsExistWhenDebugContentIsDisabled(t *testing.T) {
+	world := NewWorld()
+	world.SetDebugContentEnabled(false)
+	if err := world.AddStarterToolSpawns(); err != nil {
+		t.Fatalf("AddStarterToolSpawns() returned an unexpected error: %v", err)
+	}
+
+	drops := world.Snapshot().Drops
+	if len(drops) != len(starterToolSpawns) {
+		t.Fatalf("starter tool drop count = %d, want %d", len(drops), len(starterToolSpawns))
+	}
+	found := make(map[string]Position, len(drops))
+	for _, drop := range drops {
+		if drop.Quantity != 1 || drop.Infinite {
+			t.Fatalf("starter tool drop = %+v", drop)
+		}
+		found[drop.ItemID] = drop.Position
+	}
+	for _, spawn := range starterToolSpawns {
+		if position, exists := found[spawn.ItemID]; !exists || position != spawn.Position {
+			t.Errorf("starter tool %q position = %+v, found %t; want %+v", spawn.ItemID, position, exists, spawn.Position)
+		}
+	}
+}
+
 func TestInfiniteTestSupplyCanBeTakenRepeatedly(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddTestSupply(Position{}, ItemCoins, 5); err != nil {

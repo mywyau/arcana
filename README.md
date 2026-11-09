@@ -185,6 +185,39 @@ An exported build can use the project setting or a user argument such as
 `-- --server-url=wss://arcana-beta-server.onrender.com/ws`. Public deployments
 must use `wss://`, not `ws://`.
 
+### Build the first macOS beta client
+
+Install the export templates matching the installed Godot version from
+**Editor > Manage Export Templates**. Then build the tested Universal 2 macOS
+archive with:
+
+```sh
+./build-client-macos.sh
+```
+
+The script runs the headless client tests and writes a versioned application
+archive plus SHA-256 checksum under `dist/`. The `macOS Beta` export preset adds
+the `arcana_beta` feature, which selects the hosted WSS endpoint baked into
+`client/project.godot`; ordinary editor and local-script runs continue to use
+localhost. Send the archive, checksum and `BETA_TESTER_README.md` to a tester.
+
+This initial build is ad-hoc signed but not Apple-notarised. Testers may need to
+right-click the extracted application and choose **Open**. Proper Developer ID
+signing and notarisation remain later distribution work.
+
+Build the 64-bit Intel/AMD Windows beta archive from the same macOS development
+machine with:
+
+```sh
+./build-client-windows.sh
+```
+
+This writes `Arcana.exe`, its separate `Arcana.pck` data file, and the tester
+instructions into one versioned ZIP under `dist/`. Keeping the PCK separate
+reduces avoidable antivirus false positives and leaves a cleaner path to future
+Windows code signing. This initial private build is not code-signed, so Windows
+SmartScreen may require the tester to choose **More info → Run anyway**.
+
 ### Account foundation
 
 The server database separates private account credentials from character state.

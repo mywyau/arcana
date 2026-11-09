@@ -58,15 +58,16 @@ REQUIRED BEFORE INVITING TESTERS
 
 4. Native beta client export
 
-   - Install the matching Godot export templates.
-   - Add a Beta export preset with the hosted WebSocket address baked in.
-   - Derive or configure the hosted HTTP account API address.
-   - Add a repeatable build script and versioned output directory.
-   - Export and smoke-test a macOS application first.
-   - Zip the application so a tester can unzip, open, register/login and play
+   - [DONE] Install the matching Godot 4.7.2 export templates.
+   - [DONE] Add a Beta export preset with the hosted WebSocket address baked in.
+   - [DONE] Derive the hosted HTTP account API address from the WSS endpoint.
+   - [DONE] Add a repeatable build script and versioned output directory.
+   - [DONE] Export and locally smoke-test a macOS application.
+   - [DONE] Zip the application so a tester can unzip and open it
      without the repository, terminal, Godot, Go or run scripts.
-   - Add Windows and Linux exports only when testers require them.
-   - Initially document the macOS right-click -> Open workaround for unsigned
+   - [DONE] Add a Windows x86_64 export for PC testers.
+   - Add a Linux export only when testers require it.
+   - [DONE] Document the macOS right-click -> Open workaround for unsigned
      builds; add signing and notarisation before wider distribution.
 
 5. Hosted beta configuration and security check

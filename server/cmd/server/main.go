@@ -41,6 +41,9 @@ func main() {
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
 	world.SetDebugContentEnabled(config.DebugContentEnabled)
+	if err := world.AddStarterToolSpawns(); err != nil {
+		log.Fatal(err)
+	}
 	meleeSupplies := []testSupply{
 		{itemID: string(simulation.WeaponSword), quantity: 1},
 		{itemID: string(simulation.WeaponDagger), quantity: 1},

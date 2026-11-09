@@ -31,6 +31,7 @@ func _run() -> void:
 	await _test_welcome_hides_account_gate()
 	await _test_duplicate_login_submission_is_blocked()
 	await _test_account_rate_limit_feedback_includes_retry_time()
+	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
 	# process exits. This keeps headless runs deterministic on slower machines.
 	for _frame: int in range(3):
@@ -215,6 +216,14 @@ func _test_account_rate_limit_feedback_includes_retry_time() -> void:
 	)
 	api.queue_free()
 	await process_frame
+
+
+func _test_beta_build_uses_hosted_server() -> void:
+	var local_url: String = NetworkClient.default_server_url(false)
+	var beta_url: String = NetworkClient.default_server_url(true)
+	_check(local_url.begins_with("ws://localhost:"), "development builds default to localhost")
+	_check(beta_url.begins_with("wss://"), "beta builds default to a secure WebSocket endpoint")
+	_check(not beta_url.contains("localhost"), "beta builds do not default to localhost")
 
 
 func _main_auth_harness() -> Dictionary:

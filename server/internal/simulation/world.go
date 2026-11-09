@@ -265,6 +265,8 @@ type World struct {
 	pendingDebugSkills         map[PlayerID]DebugSetSkillCommand
 	drops                      map[string]DropSnapshot
 	dropLifetimes              map[string]time.Duration
+	respawningDrops            map[string]respawningDrop
+	pendingDropRespawns        []respawningDrop
 	fires                      map[string]FireSnapshot
 	fireLifetimes              map[string]time.Duration
 	nextFireID                 uint64
@@ -318,6 +320,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingDebugSkills:         make(map[PlayerID]DebugSetSkillCommand),
 		drops:                      make(map[string]DropSnapshot),
 		dropLifetimes:              make(map[string]time.Duration),
+		respawningDrops:            make(map[string]respawningDrop),
 		fires:                      make(map[string]FireSnapshot),
 		fireLifetimes:              make(map[string]time.Duration),
 		combat:                     newCombatState(),
@@ -515,6 +518,7 @@ func (w *World) Step(elapsed time.Duration) {
 		return
 	}
 	w.advanceDropLifetimes(elapsed)
+	w.advanceDropRespawns(elapsed)
 	w.advanceFireLifetimes(elapsed)
 	w.advanceMerchantStock(elapsed)
 
