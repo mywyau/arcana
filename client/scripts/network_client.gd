@@ -213,6 +213,22 @@ func return_to_account_gate() -> void:
 		_socket.close(1000, "returned to login")
 
 
+func retry_connection() -> bool:
+	if _authentication_blocked:
+		status_changed.emit("Login required")
+		return false
+	var state: WebSocketPeer.State = _socket.get_ready_state()
+	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
+		return true
+	_reconnect_at_msec = -1
+	_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
+	_retry_immediately = false
+	_socket = WebSocketPeer.new()
+	_last_state = WebSocketPeer.STATE_CLOSED
+	_connect_to_server.call_deferred()
+	return true
+
+
 func send_engage_target(sequence: int, target_id: String) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot engage a target while disconnected")

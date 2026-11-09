@@ -4,6 +4,7 @@ extends Control
 signal login_requested(email: String, password: String)
 signal registration_requested(email: String, password: String, link_guest: bool)
 signal guest_requested
+signal retry_connection_requested
 
 @onready var title_label: Label = $Backdrop/Center/Card/Margin/Content/Title
 @onready var login_mode_button: Button = $Backdrop/Center/Card/Margin/Content/Modes/Login
@@ -14,6 +15,7 @@ signal guest_requested
 @onready var link_guest_checkbox: CheckBox = $Backdrop/Center/Card/Margin/Content/LinkGuest
 @onready var submit_button: Button = $Backdrop/Center/Card/Margin/Content/Submit
 @onready var feedback_label: Label = $Backdrop/Center/Card/Margin/Content/Feedback
+@onready var retry_button: Button = $Backdrop/Center/Card/Margin/Content/Retry
 @onready var guest_separator: HSeparator = $Backdrop/Center/Card/Margin/Content/GuestSeparator
 @onready var guest_button: Button = $Backdrop/Center/Card/Margin/Content/Guest
 @onready var guest_note: Label = $Backdrop/Center/Card/Margin/Content/GuestNote
@@ -21,6 +23,7 @@ signal guest_requested
 var _registering: bool = false
 var _busy: bool = false
 var _has_existing_guest: bool = false
+var _connection_pending: bool = false
 
 
 func _ready() -> void:
@@ -28,6 +31,7 @@ func _ready() -> void:
 	register_mode_button.pressed.connect(_set_registering.bind(true))
 	submit_button.pressed.connect(_submit)
 	guest_button.pressed.connect(_request_guest)
+	retry_button.pressed.connect(_request_connection_retry)
 	email_input.text_submitted.connect(_submit_from_text)
 	password_input.text_submitted.connect(_submit_from_text)
 	confirmation_input.text_submitted.connect(_submit_from_text)
@@ -50,6 +54,8 @@ func configure(allow_development_guest: bool, has_existing_guest: bool) -> void:
 func show_login(message: String = "") -> void:
 	visible = true
 	_busy = false
+	_connection_pending = false
+	retry_button.visible = false
 	_set_controls_enabled(true)
 	show_feedback(message, not message.is_empty())
 	password_input.clear()
@@ -60,13 +66,35 @@ func show_login(message: String = "") -> void:
 func show_connecting(message: String = "Connecting to the game server…") -> void:
 	visible = true
 	_busy = true
+	_connection_pending = true
+	retry_button.visible = false
 	_set_controls_enabled(false)
 	show_feedback(message)
+
+
+func show_connection_status(
+	message: String,
+	retry_available: bool = false,
+	is_error: bool = false,
+) -> void:
+	visible = true
+	_busy = true
+	_connection_pending = true
+	_set_controls_enabled(false)
+	retry_button.visible = retry_available
+	retry_button.disabled = not retry_available
+	show_feedback(message, is_error)
+
+
+func is_connection_pending() -> bool:
+	return _connection_pending
 
 
 func show_error(message: String) -> void:
 	visible = true
 	_busy = false
+	_connection_pending = false
+	retry_button.visible = false
 	_set_controls_enabled(true)
 	show_feedback(message, true)
 	password_input.clear()
@@ -77,6 +105,8 @@ func show_error(message: String) -> void:
 func dismiss() -> void:
 	visible = false
 	_busy = false
+	_connection_pending = false
+	retry_button.visible = false
 	password_input.clear()
 	confirmation_input.clear()
 
@@ -137,6 +167,15 @@ func _request_guest() -> void:
 	_set_controls_enabled(false)
 	show_feedback("Connecting to the local development server…")
 	guest_requested.emit()
+
+
+func _request_connection_retry() -> void:
+	if not _connection_pending or retry_button.disabled:
+		return
+	retry_button.disabled = true
+	retry_button.visible = false
+	show_feedback("Retrying connection…")
+	retry_connection_requested.emit()
 
 
 func _set_controls_enabled(enabled: bool) -> void:

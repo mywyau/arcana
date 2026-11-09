@@ -819,6 +819,7 @@ func _ready() -> void:
 	auth_gate.login_requested.connect(_request_startup_login)
 	auth_gate.registration_requested.connect(_request_startup_registration)
 	auth_gate.guest_requested.connect(_request_development_guest)
+	auth_gate.retry_connection_requested.connect(_retry_startup_connection)
 	account_api.authentication_succeeded.connect(_on_startup_authentication_succeeded)
 	account_api.request_failed.connect(_on_startup_authentication_failed)
 	_setup_ammunition_pouch_window()
@@ -2421,6 +2422,19 @@ func _append_game_message(message: String, is_error: bool = false) -> void:
 func _on_status_changed(status: String) -> void:
 	status_label.text = status
 	var normalized_status: String = status.to_lower()
+	if auth_gate.is_connection_pending():
+		if normalized_status.begins_with("connecting") or normalized_status.begins_with("connected"):
+			auth_gate.show_connection_status(status, false)
+		elif normalized_status.begins_with("reconnecting"):
+			auth_gate.show_connection_status(
+				"The game server is unavailable. %s." % status, true, true,
+			)
+		elif normalized_status.contains("disconnected") or normalized_status.contains("failed"):
+			auth_gate.show_connection_status(
+				"The game server is unavailable. Check that it is running, then retry.",
+				true,
+				true,
+			)
 	if normalized_status.contains("disconnected") or normalized_status.contains("failed"):
 		_append_game_message(status, true)
 
@@ -2454,6 +2468,13 @@ func _request_development_guest() -> void:
 		auth_gate.show_connecting("Connecting as a development guest…")
 	else:
 		auth_gate.show_error("Development guest play is only available locally.")
+
+
+func _retry_startup_connection() -> void:
+	if network.retry_connection():
+		auth_gate.show_connecting("Retrying connection…")
+	else:
+		auth_gate.show_login("Log in or create an account to continue.")
 
 
 func _on_startup_authentication_succeeded(
