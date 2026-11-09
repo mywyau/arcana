@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://scripts/sound_effects.gd" id="9_sound_effects"]
 [ext_resource type="PackedScene" path="res://scenes/merchant_window.tscn" id="11_merchant_window"]
 [ext_resource type="PackedScene" path="res://scenes/account_window.tscn" id="12_account_window"]
+[ext_resource type="Script" path="res://scripts/account_api_client.gd" id="13_account_api"]
+[ext_resource type="PackedScene" path="res://scenes/auth_gate.tscn" id="14_auth_gate"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -240,6 +242,9 @@ fov = 48.0
 
 [node name="NetworkClient" type="Node" parent="." unique_id=54155322]
 script = ExtResource("2_network")
+
+[node name="AccountAPIClient" type="Node" parent="."]
+script = ExtResource("13_account_api")
 
 [node name="SmithingWindow" type="Window" parent="."]
 title = "Smithing"
@@ -597,6 +602,8 @@ disabled = true
 text = "Make All"
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=705812827]
+
+[node name="AuthGate" parent="UI" instance=ExtResource("14_auth_gate")]
 
 [node name="InteractionClickMarker" type="Control" parent="UI"]
 visible = false

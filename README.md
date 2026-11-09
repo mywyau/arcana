@@ -121,6 +121,13 @@ also be overridden for staging tests without editing the project:
 ARCANA_SERVER_URL=wss://arcana-beta-server.onrender.com/ws ./run-client.sh beta
 ```
 
+The client opens an account gate before entering the world. Registration and
+login use the server's `/api/account/*` HTTP endpoints, then the returned
+session token authenticates the WebSocket connection. The account API address
+is derived from the WebSocket address (`wss` becomes `https` and `/ws` is
+removed), or it can be set explicitly with `ARCANA_ACCOUNT_API_URL`. Guest play
+is shown only for a local development server and must be selected explicitly.
+
 For a persistent local setting, copy `.env.client.example` to `.env.client`
 and set `ARCANA_SERVER_URL` there. `run-client.sh` loads that file automatically,
 and `.env.client` is ignored by Git:

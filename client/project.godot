@@ -25,6 +25,7 @@ window/stretch/mode="canvas_items"
 [network]
 
 server_url="ws://localhost:8080/ws"
+account_api_url=""
 
 [rendering]
 

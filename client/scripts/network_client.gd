@@ -36,7 +36,11 @@ func _ready() -> void:
 	_configure_server_url()
 	_guest_identity_section = ClientProfile.server_identity_section(server_url)
 	_load_guest_token()
-	_connect_to_server.call_deferred()
+	if _session_token.is_empty():
+		_authentication_blocked = true
+		status_changed.emit("Login required")
+	else:
+		_connect_to_server.call_deferred()
 
 
 func _configure_server_url() -> void:
@@ -54,6 +58,8 @@ func _configure_server_url() -> void:
 
 
 func _connect_to_server() -> void:
+	if _authentication_blocked:
+		return
 	_socket.heartbeat_interval = 10.0
 	var result: Error = _socket.connect_to_url(server_url)
 	if result != OK:
@@ -136,6 +142,70 @@ func login(email: String, password: String) -> void:
 
 func has_account_session() -> bool:
 	return not _session_token.is_empty()
+
+
+func requires_authentication() -> bool:
+	return _session_token.is_empty()
+
+
+func has_guest_identity() -> bool:
+	return not _guest_token.is_empty()
+
+
+func guest_token_for_registration() -> String:
+	return _guest_token
+
+
+func allows_development_guest() -> bool:
+	return ClientProfile.is_local_server(server_url)
+
+
+func use_account_session(session_token: String, _email: String = "") -> bool:
+	var clean_token: String = session_token.strip_edges()
+	if clean_token.is_empty():
+		status_changed.emit("The account service did not return a session")
+		return false
+	_session_token = clean_token
+	_save_session_token()
+	_guest_token = ""
+	_save_guest_token()
+	_pending_login_email = ""
+	_pending_login_password = ""
+	_authentication_blocked = false
+	_retry_without_guest_token = false
+	_retry_immediately = false
+	_reconnect_at_msec = -1
+	_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
+	_restart_connection()
+	return true
+
+
+func connect_as_development_guest() -> bool:
+	if not allows_development_guest():
+		status_changed.emit("Guest play is only available on a local development server")
+		return false
+	_session_token = ""
+	_save_session_token()
+	_pending_login_email = ""
+	_pending_login_password = ""
+	_authentication_blocked = false
+	_retry_without_guest_token = false
+	_retry_immediately = false
+	_reconnect_at_msec = -1
+	_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
+	_restart_connection()
+	return true
+
+
+func _restart_connection() -> void:
+	var state: WebSocketPeer.State = _socket.get_ready_state()
+	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
+		_retry_immediately = true
+		_socket.close(1000, "changing session")
+		return
+	_socket = WebSocketPeer.new()
+	_last_state = WebSocketPeer.STATE_CLOSED
+	_connect_to_server.call_deferred()
 
 
 func logout_account(sequence: int) -> bool:
@@ -720,9 +790,11 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		"account_logged_out":
 			_session_token = ""
 			_save_session_token()
-			_authentication_blocked = false
-			_retry_immediately = true
+			_authentication_blocked = true
+			_retry_immediately = false
+			_reconnect_at_msec = -1
 			account_logged_out.emit()
+			account_login_required.emit("Log in or create an account to continue.")
 			_socket.close(1000, "logged out")
 		"error":
 			var error_payload: Variant = message.get("error", {})
@@ -742,6 +814,11 @@ func _handle_packet(packet: PackedByteArray) -> void:
 					_pending_login_password = ""
 					_authentication_blocked = true
 					account_login_required.emit("The email or password was incorrect.")
+				elif error_code == "account_required":
+					_guest_token = ""
+					_save_guest_token()
+					_authentication_blocked = true
+					account_login_required.emit("Log in or create an account to continue.")
 				server_error.emit(
 					error_code,
 					str(details.get("message", "Unknown server error")),

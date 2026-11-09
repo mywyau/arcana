@@ -338,6 +338,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var camera: Camera3D = $CameraRig/Yaw/Pitch/Camera3D
 @onready var ground: PrototypeTerrain = $Ground
 @onready var network: NetworkClient = $NetworkClient
+@onready var account_api: AccountAPIClient = $AccountAPIClient
 @onready var sound_effects: SoundEffects = $SoundEffects
 @onready var smithing_window: Window = $SmithingWindow
 @onready var smelting_window: Window = $SmeltingWindow
@@ -353,6 +354,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var merchants: Node3D = $Merchants
 @onready var merchant_window: MerchantWindow = $MerchantWindow
 @onready var account_window: AccountWindow = $AccountWindow
+@onready var auth_gate: AuthGate = $UI/AuthGate
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var xp_tracker_hud: XPTracker = $UI/XPTrackerHUD
@@ -815,6 +817,11 @@ func _ready() -> void:
 	account_window.logout_requested.connect(_request_account_logout)
 	settings_account_button.pressed.connect(_open_account_window)
 	_style_interface_close_button(account_window.close_button)
+	auth_gate.login_requested.connect(_request_startup_login)
+	auth_gate.registration_requested.connect(_request_startup_registration)
+	auth_gate.guest_requested.connect(_request_development_guest)
+	account_api.authentication_succeeded.connect(_on_startup_authentication_succeeded)
+	account_api.request_failed.connect(_on_startup_authentication_failed)
 	_setup_ammunition_pouch_window()
 	_setup_ring_rack_window()
 	_setup_rune_pouch_window()
@@ -929,9 +936,17 @@ func _ready() -> void:
 	_update_equipment_hud()
 	_append_game_message("Welcome. Game messages will appear here.")
 	_setup_hud_layout.call_deferred()
+	account_api.configure(network.server_url)
+	auth_gate.configure(network.allows_development_guest(), network.has_guest_identity())
+	if network.requires_authentication():
+		auth_gate.show_login()
+	else:
+		auth_gate.show_connecting("Restoring your session…")
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if auth_gate.visible:
+		return
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.pressed and not key_event.echo:
@@ -1069,6 +1084,9 @@ func _request_debug_skill_experience(skill_id: String, experience: int) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if auth_gate.visible:
+		_has_pending_click = false
+		return
 	if not _has_pending_click:
 		return
 	_has_pending_click = false
@@ -1349,6 +1367,8 @@ func _on_bank_header_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if auth_gate.visible:
+		return
 	if not _bank_dragging:
 		return
 	if event is InputEventMouseButton:
@@ -2430,6 +2450,37 @@ func _request_account_logout() -> void:
 		account_window.show_feedback("No account session is active.", true)
 
 
+func _request_startup_login(email: String, password: String) -> void:
+	account_api.login(email, password)
+
+
+func _request_startup_registration(email: String, password: String, link_guest: bool) -> void:
+	var guest_token: String = network.guest_token_for_registration() if link_guest else ""
+	account_api.register(email, password, guest_token)
+
+
+func _request_development_guest() -> void:
+	if network.connect_as_development_guest():
+		auth_gate.show_connecting("Connecting as a development guest…")
+	else:
+		auth_gate.show_error("Development guest play is only available locally.")
+
+
+func _on_startup_authentication_succeeded(
+	_player_id: String,
+	email: String,
+	session_token: String,
+) -> void:
+	if network.use_account_session(session_token, email):
+		auth_gate.show_connecting()
+	else:
+		auth_gate.show_error("The account session could not be used.")
+
+
+func _on_startup_authentication_failed(message: String) -> void:
+	auth_gate.show_error(message)
+
+
 func _on_account_session_received(email: String) -> void:
 	var label: String = email if not email.is_empty() else "your account"
 	account_window.set_session_active(true)
@@ -2438,13 +2489,13 @@ func _on_account_session_received(email: String) -> void:
 
 
 func _on_account_login_required(message: String) -> void:
-	account_window.open(false)
-	account_window.show_feedback(message, true)
+	auth_gate.show_login(message)
+	account_window.hide()
 
 
 func _on_account_logged_out() -> void:
 	account_window.set_session_active(false)
-	account_window.show_feedback("Logged out. Reconnecting as a guest.", false, true)
+	account_window.show_feedback("Logged out.", false, true)
 	_append_game_message("Logged out of the account on this device.")
 
 
@@ -2522,6 +2573,7 @@ func _on_prayer_catalog_received(prayers: Array, prayer_sets: Array) -> void:
 
 func _on_welcome_received(player_id: String) -> void:
 	_local_player_id = player_id
+	auth_gate.dismiss()
 	status_label.text = "Connected as %s — click a walkable surface to move" % player_id
 	_append_game_message("Connected as %s." % player_id)
 	for id: String in _player_views:
