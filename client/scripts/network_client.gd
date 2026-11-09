@@ -21,11 +21,11 @@ var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
 var _guest_token: String = ""
 var _session_token: String = ""
-var _pending_login_email: String = ""
-var _pending_login_password: String = ""
 var _retry_without_guest_token: bool = false
 var _retry_immediately: bool = false
 var _authentication_blocked: bool = false
+var _logout_pending: bool = false
+var _awaiting_welcome: bool = false
 var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg")
 var _guest_identity_section: String = ""
 var _reconnect_delay_seconds: float = INITIAL_RECONNECT_DELAY_SECONDS
@@ -110,36 +110,6 @@ func send_move(sequence: int, destination: Vector3) -> bool:
 	return true
 
 
-func register_account(sequence: int, email: String, password: String) -> bool:
-	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
-		status_changed.emit("Connect before creating an account")
-		return false
-	var result: Error = _socket.send_text(JSON.stringify({
-		"type": "register_account",
-		"sequence": sequence,
-		"email": email.strip_edges(),
-		"password": password,
-	}))
-	if result != OK:
-		status_changed.emit("Could not create account: %s" % error_string(result))
-		return false
-	return true
-
-
-func login(email: String, password: String) -> void:
-	_pending_login_email = email.strip_edges()
-	_pending_login_password = password
-	_authentication_blocked = false
-	_retry_immediately = true
-	_reconnect_at_msec = -1
-	var state: WebSocketPeer.State = _socket.get_ready_state()
-	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
-		_socket.close(1000, "switching account")
-		return
-	_retry_immediately = false
-	_schedule_reconnect(true)
-
-
 func has_account_session() -> bool:
 	return not _session_token.is_empty()
 
@@ -169,8 +139,7 @@ func use_account_session(session_token: String, _email: String = "") -> bool:
 	_save_session_token()
 	_guest_token = ""
 	_save_guest_token()
-	_pending_login_email = ""
-	_pending_login_password = ""
+	_logout_pending = false
 	_authentication_blocked = false
 	_retry_without_guest_token = false
 	_retry_immediately = false
@@ -186,8 +155,7 @@ func connect_as_development_guest() -> bool:
 		return false
 	_session_token = ""
 	_save_session_token()
-	_pending_login_email = ""
-	_pending_login_password = ""
+	_logout_pending = false
 	_authentication_blocked = false
 	_retry_without_guest_token = false
 	_retry_immediately = false
@@ -198,6 +166,7 @@ func connect_as_development_guest() -> bool:
 
 
 func _restart_connection() -> void:
+	_awaiting_welcome = false
 	var state: WebSocketPeer.State = _socket.get_ready_state()
 	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
 		_retry_immediately = true
@@ -219,7 +188,29 @@ func logout_account(sequence: int) -> bool:
 	if result != OK:
 		status_changed.emit("Could not log out: %s" % error_string(result))
 		return false
+	# Enter the logged-out state immediately. The server normally confirms with
+	# account_logged_out, but the UI must not depend on receiving a final packet
+	# immediately before the socket closes.
+	_logout_pending = true
+	_session_token = ""
+	_save_session_token()
+	_authentication_blocked = true
+	_retry_immediately = false
+	_reconnect_at_msec = -1
+	account_logged_out.emit()
+	account_login_required.emit("You have been logged out. Log in to continue.")
+	_socket.close(1000, "logged out")
 	return true
+
+
+func return_to_account_gate() -> void:
+	_authentication_blocked = true
+	_retry_immediately = false
+	_reconnect_at_msec = -1
+	account_login_required.emit("Log in or create an account to continue.")
+	var state: WebSocketPeer.State = _socket.get_ready_state()
+	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
+		_socket.close(1000, "returned to login")
 
 
 func send_engage_target(sequence: int, target_id: String) -> bool:
@@ -682,6 +673,7 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:
 			if _send_authentication():
+				_awaiting_welcome = true
 				status_changed.emit("Connected — authenticating")
 			else:
 				_socket.close(1008, "could not authenticate")
@@ -689,9 +681,13 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 			status_changed.emit("Disconnecting")
 		WebSocketPeer.STATE_CLOSED:
 			var reason: String = _socket.get_close_reason()
+			var close_code: int = _socket.get_close_code()
 			if reason.is_empty():
 				reason = "connection closed"
 			status_changed.emit("Disconnected: %s" % reason)
+			if _awaiting_welcome and close_code == 1008 and not _authentication_blocked:
+				_handle_authentication_close()
+			_awaiting_welcome = false
 			if _authentication_blocked:
 				status_changed.emit("Login required")
 			elif _retry_without_guest_token:
@@ -741,6 +737,7 @@ func _handle_packet(packet: PackedByteArray) -> void:
 	var message_type: String = str(message.get("type", ""))
 	match message_type:
 		"welcome":
+			_awaiting_welcome = false
 			_reconnect_at_msec = -1
 			_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
 			_authentication_blocked = false
@@ -756,8 +753,6 @@ func _handle_packet(packet: PackedByteArray) -> void:
 				_save_session_token()
 				_guest_token = ""
 				_save_guest_token()
-			_pending_login_email = ""
-			_pending_login_password = ""
 			if not account_email.is_empty():
 				account_session_received.emit(account_email)
 			var production_recipes: Variant = message.get("production_recipes", [])
@@ -793,8 +788,10 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			_authentication_blocked = true
 			_retry_immediately = false
 			_reconnect_at_msec = -1
-			account_logged_out.emit()
-			account_login_required.emit("Log in or create an account to continue.")
+			if not _logout_pending:
+				account_logged_out.emit()
+				account_login_required.emit("Log in or create an account to continue.")
+			_logout_pending = false
 			_socket.close(1000, "logged out")
 		"error":
 			var error_payload: Variant = message.get("error", {})
@@ -811,7 +808,6 @@ func _handle_packet(packet: PackedByteArray) -> void:
 					_authentication_blocked = true
 					account_login_required.emit("Your session expired. Log in again.")
 				elif error_code == "invalid_credentials":
-					_pending_login_password = ""
 					_authentication_blocked = true
 					account_login_required.emit("The email or password was incorrect.")
 				elif error_code == "account_required":
@@ -827,12 +823,27 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			server_error.emit("unknown_message", "Unknown server message: %s" % message_type)
 
 
+func _handle_authentication_close() -> void:
+	# A policy-close can arrive before its preceding JSON error packet. Apply the
+	# same recovery here so a revoked saved session cannot reconnect forever.
+	if not _session_token.is_empty():
+		_session_token = ""
+		_save_session_token()
+		_authentication_blocked = true
+		account_login_required.emit("Your session expired. Log in again.")
+		return
+	if not _guest_token.is_empty() and allows_development_guest():
+		_guest_token = ""
+		_save_guest_token()
+		_retry_without_guest_token = true
+		return
+	_authentication_blocked = true
+	account_login_required.emit("Log in or create an account to continue.")
+
+
 func _send_authentication() -> bool:
 	var message: Dictionary = {"type": "authenticate"}
-	if not _pending_login_email.is_empty() and not _pending_login_password.is_empty():
-		message["email"] = _pending_login_email
-		message["password"] = _pending_login_password
-	elif not _session_token.is_empty():
+	if not _session_token.is_empty():
 		message["session_token"] = _session_token
 	elif not _guest_token.is_empty():
 		message["guest_token"] = _guest_token

@@ -25,6 +25,7 @@ func _ready() -> void:
 	_build_content()
 	close_requested.connect(hide)
 	window_input.connect(_on_window_input)
+	hide()
 
 
 func show_for_skills(skill_progress: Dictionary) -> void:

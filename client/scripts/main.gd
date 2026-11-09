@@ -657,7 +657,8 @@ var _skill_context_name: String = ""
 var _skill_context_id: String = ""
 var _debug_skill_window: DebugSkillWindow
 var _next_debug_skill_sequence: int = 1
-var _next_account_sequence: int = 1
+var _next_logout_sequence: int = 1
+var _account_email: String = ""
 var _open_skill_name: String = ""
 var _open_skill_id: String = ""
 var _combat_stats: Dictionary = {}
@@ -812,9 +813,7 @@ func _ready() -> void:
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	merchant_window.sell_requested.connect(_request_merchant_sale)
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
-	account_window.registration_requested.connect(_request_account_registration)
-	account_window.login_requested.connect(_request_account_login)
-	account_window.logout_requested.connect(_request_account_logout)
+	account_window.session_action_requested.connect(_request_account_session_action)
 	settings_account_button.pressed.connect(_open_account_window)
 	_style_interface_close_button(account_window.close_button)
 	auth_gate.login_requested.connect(_request_startup_login)
@@ -2427,27 +2426,18 @@ func _on_status_changed(status: String) -> void:
 
 
 func _open_account_window() -> void:
-	account_window.open(network.has_account_session())
+	account_window.open(network.has_account_session(), _account_email)
 
 
-func _request_account_registration(email: String, password: String) -> void:
-	if network.register_account(_next_account_sequence, email, password):
-		_next_account_sequence += 1
-	else:
-		account_window.show_feedback("Connect before creating an account.", true)
-
-
-func _request_account_login(email: String, password: String) -> void:
-	account_window.show_feedback("Logging in and recovering your character…")
-	network.login(email, password)
-
-
-func _request_account_logout() -> void:
-	if network.logout_account(_next_account_sequence):
-		_next_account_sequence += 1
-		account_window.show_feedback("Logging out…")
-	else:
-		account_window.show_feedback("No account session is active.", true)
+func _request_account_session_action() -> void:
+	if network.has_account_session():
+		if network.logout_account(_next_logout_sequence):
+			_next_logout_sequence += 1
+		else:
+			account_window.show_feedback("Could not log out while disconnected.", true)
+		return
+	account_window.hide()
+	network.return_to_account_gate()
 
 
 func _request_startup_login(email: String, password: String) -> void:
@@ -2482,20 +2472,20 @@ func _on_startup_authentication_failed(message: String) -> void:
 
 
 func _on_account_session_received(email: String) -> void:
-	var label: String = email if not email.is_empty() else "your account"
-	account_window.set_session_active(true)
-	account_window.show_feedback("Connected to %s." % label, false, true)
+	_account_email = email
+	account_window.set_session(true, email)
 	_append_game_message("Account recovery is active for this character.")
 
 
 func _on_account_login_required(message: String) -> void:
+	auth_gate.configure(network.allows_development_guest(), network.has_guest_identity())
 	auth_gate.show_login(message)
 	account_window.hide()
 
 
 func _on_account_logged_out() -> void:
-	account_window.set_session_active(false)
-	account_window.show_feedback("Logged out.", false, true)
+	_account_email = ""
+	account_window.set_session(false)
 	_append_game_message("Logged out of the account on this device.")
 
 
@@ -3561,8 +3551,6 @@ func _on_server_error(code: String, message: String) -> void:
 	_last_network_error_code = code
 	_last_network_error_message = message
 	status_label.text = _friendly_server_error(code, message)
-	if code == "account_registration_failed":
-		account_window.show_feedback(status_label.text, true)
 	if code == "combat_style_rejected":
 		_queued_combat_style = ""
 		_update_combat_styles_hud()

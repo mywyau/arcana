@@ -5,8 +5,8 @@
 [node name="AccountWindow" type="Window"]
 borderless = true
 initial_position = 1
-size = Vector2i(480, 390)
-min_size = Vector2i(420, 350)
+size = Vector2i(460, 280)
+min_size = Vector2i(400, 250)
 visible = false
 script = ExtResource("1_account")
 
@@ -26,7 +26,7 @@ theme_override_constants/margin_bottom = 20
 
 [node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 16
 
 [node name="Header" type="HBoxContainer" parent="Panel/Margin/VBox"]
 layout_mode = 2
@@ -44,53 +44,21 @@ text = "×"
 
 [node name="Description" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
-text = "Register to protect this character, or log in to recover one."
+text = "This character is protected by an account."
 autowrap_mode = 2
 
-[node name="Email" type="LineEdit" parent="Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 44)
+[node name="Identity" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
-placeholder_text = "Email address"
-
-[node name="Password" type="LineEdit" parent="Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 44)
-layout_mode = 2
-placeholder_text = "Password"
-secret = true
-secret_character = "•"
-
-[node name="ConfirmPassword" type="LineEdit" parent="Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 44)
-layout_mode = 2
-placeholder_text = "Confirm password (registration only)"
-secret = true
-secret_character = "•"
+text = "Signed in with a saved account session"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.82, 0.92, 1)
 
 [node name="Feedback" type="Label" parent="Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
-text = "Link this character or recover an existing account."
 autowrap_mode = 2
 
-[node name="Actions" type="HBoxContainer" parent="Panel/Margin/VBox"]
+[node name="SessionAction" type="Button" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Register" type="Button" parent="Panel/Margin/VBox/Actions"]
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Register character"
-
-[node name="Login" type="Button" parent="Panel/Margin/VBox/Actions"]
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Log in"
-
-[node name="Logout" type="Button" parent="Panel/Margin/VBox/Actions"]
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
-size_flags_horizontal = 3
-disabled = true
 text = "Log out"
