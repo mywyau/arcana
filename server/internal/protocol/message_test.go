@@ -25,6 +25,10 @@ func TestDecodeAccountMessages(t *testing.T) {
 	if err != nil || registration.Sequence != 1 || registration.Email != "player@example.com" {
 		t.Fatalf("decoded registration = %+v, error %v", registration, err)
 	}
+	logout, err := DecodeClientMessage([]byte(`{"type":"logout_account","sequence":2}`))
+	if err != nil || logout.Sequence != 2 {
+		t.Fatalf("decoded logout = %+v, error %v", logout, err)
+	}
 }
 
 func TestDecodeClientMessage(t *testing.T) {

@@ -58,6 +58,35 @@ func TestManagerRejectsInvalidCredentialsAndSessions(t *testing.T) {
 	}
 }
 
+func TestManagerLogoutRevokesOneSession(t *testing.T) {
+	repository := NewMemoryRepository()
+	manager, err := NewManager(repository, repository)
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	first, err := manager.Register(
+		context.Background(), "player-one", "player@example.com", "strong-password",
+	)
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	second, err := manager.Login(context.Background(), "player@example.com", "strong-password")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	if err := manager.Logout(context.Background(), first.SessionToken); err != nil {
+		t.Fatalf("Logout() error = %v", err)
+	}
+	if _, err := manager.AuthenticateSession(
+		context.Background(), first.SessionToken,
+	); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("revoked session error = %v, want ErrInvalidSession", err)
+	}
+	if _, err := manager.AuthenticateSession(context.Background(), second.SessionToken); err != nil {
+		t.Fatalf("second session was also revoked: %v", err)
+	}
+}
+
 func TestManagerRejectsShortPassword(t *testing.T) {
 	repository := NewMemoryRepository()
 	manager, err := NewManager(repository, repository)

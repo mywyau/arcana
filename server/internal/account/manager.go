@@ -104,9 +104,9 @@ func (manager *Manager) AuthenticateSession(
 	ctx context.Context,
 	token string,
 ) (Authentication, error) {
-	rawToken, err := base64.RawURLEncoding.DecodeString(token)
-	if err != nil || len(rawToken) != sessionTokenBytes {
-		return Authentication{}, ErrInvalidSession
+	rawToken, err := decodeSessionToken(token)
+	if err != nil {
+		return Authentication{}, err
 	}
 	value, found, err := manager.sessions.FindSession(ctx, sha256.Sum256(rawToken))
 	if err != nil {
@@ -116,6 +116,27 @@ func (manager *Manager) AuthenticateSession(
 		return Authentication{}, ErrInvalidSession
 	}
 	return Authentication{PlayerID: value.PlayerID, Email: value.Email}, nil
+}
+
+// Logout revokes one device session. Deleting an already-revoked valid token
+// is harmless, which makes retries safe.
+func (manager *Manager) Logout(ctx context.Context, token string) error {
+	rawToken, err := decodeSessionToken(token)
+	if err != nil {
+		return err
+	}
+	if err := manager.sessions.DeleteSession(ctx, sha256.Sum256(rawToken)); err != nil {
+		return fmt.Errorf("delete account session: %w", err)
+	}
+	return nil
+}
+
+func decodeSessionToken(token string) ([]byte, error) {
+	rawToken, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil || len(rawToken) != sessionTokenBytes {
+		return nil, ErrInvalidSession
+	}
+	return rawToken, nil
 }
 
 func (manager *Manager) issueSession(

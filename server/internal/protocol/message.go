@@ -10,6 +10,7 @@ import (
 const (
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
+	MessageLogoutAccount      = "logout_account"
 	MessageMoveTo             = "move_to"
 	MessageEngageTarget       = "engage_target"
 	MessageDisengage          = "disengage"
@@ -41,6 +42,7 @@ const (
 	MessageRuneWithdraw       = "rune_withdraw"
 	MessageWelcome            = "welcome"
 	MessageAccountSession     = "account_session"
+	MessageAccountLoggedOut   = "account_logged_out"
 	MessageSnapshot           = "snapshot"
 	MessageError              = "error"
 )
@@ -446,7 +448,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		return ClientMessage{}, fmt.Errorf("message must contain one JSON value")
 	}
 
-	if message.Type != MessageAuthenticate && message.Type != MessageRegisterAccount && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
+	if message.Type != MessageAuthenticate && message.Type != MessageRegisterAccount && message.Type != MessageLogoutAccount && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&

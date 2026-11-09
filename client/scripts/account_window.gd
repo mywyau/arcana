@@ -3,6 +3,7 @@ extends Window
 
 signal registration_requested(email: String, password: String)
 signal login_requested(email: String, password: String)
+signal logout_requested
 
 @onready var email_input: LineEdit = $Panel/Margin/VBox/Email
 @onready var password_input: LineEdit = $Panel/Margin/VBox/Password
@@ -11,6 +12,7 @@ signal login_requested(email: String, password: String)
 @onready var close_button: Button = $Panel/Margin/VBox/Header/Close
 @onready var register_button: Button = $Panel/Margin/VBox/Actions/Register
 @onready var login_button: Button = $Panel/Margin/VBox/Actions/Login
+@onready var logout_button: Button = $Panel/Margin/VBox/Actions/Logout
 
 
 func _ready() -> void:
@@ -18,6 +20,7 @@ func _ready() -> void:
 	close_button.pressed.connect(hide)
 	register_button.pressed.connect(_request_registration)
 	login_button.pressed.connect(_request_login)
+	logout_button.pressed.connect(logout_requested.emit)
 
 
 func open(has_saved_session: bool) -> void:
@@ -27,16 +30,26 @@ func open(has_saved_session: bool) -> void:
 		else "Link this character or recover an existing account."
 	)
 	feedback.modulate = Color(0.82, 0.86, 0.9)
-	register_button.disabled = has_saved_session
-	register_button.tooltip_text = (
-		"This profile already has an account session for the current server."
-		if has_saved_session
-		else "Link the character currently being played to a new account."
-	)
+	set_session_active(has_saved_session)
 	password_input.clear()
 	confirm_password_input.clear()
 	popup_centered()
 	email_input.grab_focus()
+
+
+func set_session_active(active: bool) -> void:
+	register_button.disabled = active
+	logout_button.disabled = not active
+	register_button.tooltip_text = (
+		"This profile already has an account session for the current server."
+		if active
+		else "Link the character currently being played to a new account."
+	)
+	logout_button.tooltip_text = (
+		"Revoke this device session and reconnect as a guest."
+		if active
+		else "No account session is active for this server."
+	)
 
 
 func show_feedback(message: String, is_error: bool = false, clear_passwords: bool = false) -> void:

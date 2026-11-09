@@ -10,6 +10,7 @@ signal snapshot_received(snapshot: Dictionary)
 signal server_error(code: String, message: String)
 signal account_session_received(email: String)
 signal account_login_required(message: String)
+signal account_logged_out
 
 @export var server_url: String = ""
 
@@ -135,6 +136,20 @@ func login(email: String, password: String) -> void:
 
 func has_account_session() -> bool:
 	return not _session_token.is_empty()
+
+
+func logout_account(sequence: int) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN or _session_token.is_empty():
+		status_changed.emit("No account session is active")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "logout_account",
+		"sequence": sequence,
+	}))
+	if result != OK:
+		status_changed.emit("Could not log out: %s" % error_string(result))
+		return false
+	return true
 
 
 func send_engage_target(sequence: int, target_id: String) -> bool:
@@ -702,6 +717,13 @@ func _handle_packet(packet: PackedByteArray) -> void:
 				_guest_token = ""
 				_save_guest_token()
 				account_session_received.emit(account_email)
+		"account_logged_out":
+			_session_token = ""
+			_save_session_token()
+			_authentication_blocked = false
+			_retry_immediately = true
+			account_logged_out.emit()
+			_socket.close(1000, "logged out")
 		"error":
 			var error_payload: Variant = message.get("error", {})
 			if typeof(error_payload) == TYPE_DICTIONARY:

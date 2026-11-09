@@ -43,6 +43,11 @@ type HandlerOptions struct {
 	AccountManager     *account.Manager
 }
 
+type outboundResponse struct {
+	message    protocol.ServerMessage
+	closeAfter bool
+}
+
 func NewHandler(world *simulation.World, snapshotInterval time.Duration) (*Handler, error) {
 	return NewHandlerWithOptions(
 		world, snapshotInterval, HandlerOptions{AllowDebugCommands: true},
@@ -194,7 +199,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		_ = h.world.QueueLeave(playerID)
 	}()
 
-	responses := make(chan protocol.ServerMessage, 8)
+	responses := make(chan outboundResponse, 8)
 
 	if err := writeMessage(ctx, connection, protocol.ServerMessage{
 		Type:              protocol.MessageWelcome,
@@ -210,7 +215,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	}); err != nil {
 		return
 	}
-	go h.readCommands(ctx, cancel, connection, playerID, responses)
+	go h.readCommands(ctx, cancel, connection, playerID, authentication.SessionToken, responses)
 
 	ticker := time.NewTicker(h.snapshotInterval)
 	defer ticker.Stop()
@@ -221,8 +226,12 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		select {
 		case <-ctx.Done():
 			return
-		case message := <-responses:
-			if err := writeMessage(ctx, connection, message); err != nil {
+		case response := <-responses:
+			if err := writeMessage(ctx, connection, response.message); err != nil {
+				return
+			}
+			if response.closeAfter {
+				_ = connection.Close(websocket.StatusNormalClosure, "logged out")
 				return
 			}
 		case <-ticker.C:
@@ -379,7 +388,9 @@ func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) 
 		if err != nil {
 			return authenticatedIdentity{}, err
 		}
-		return authenticatedIdentity{PlayerID: value.PlayerID, AccountEmail: value.Email}, nil
+		return authenticatedIdentity{
+			PlayerID: value.PlayerID, SessionToken: message.SessionToken, AccountEmail: value.Email,
+		}, nil
 	}
 	if usesCredentials {
 		value, err := h.accounts.Login(ctx, message.Email, message.Password)
@@ -402,7 +413,8 @@ func (h *Handler) readCommands(
 	cancel context.CancelFunc,
 	connection *websocket.Conn,
 	playerID simulation.PlayerID,
-	responses chan<- protocol.ServerMessage,
+	currentSessionToken string,
+	responses chan<- outboundResponse,
 ) {
 	defer cancel()
 
@@ -428,6 +440,7 @@ func (h *Handler) readCommands(
 			var registered account.Authentication
 			registered, err = h.accounts.Register(ctx, string(playerID), message.Email, message.Password)
 			if err == nil {
+				currentSessionToken = registered.SessionToken
 				sendResponse(ctx, responses, protocol.ServerMessage{
 					Type:         protocol.MessageAccountSession,
 					SessionToken: registered.SessionToken,
@@ -435,6 +448,19 @@ func (h *Handler) readCommands(
 				})
 			} else {
 				err = accountRegistrationClientError(err)
+			}
+		case protocol.MessageLogoutAccount:
+			rejectionCode = "account_logout_failed"
+			if currentSessionToken == "" {
+				err = errors.New("this connection is not logged in")
+			} else {
+				err = h.accounts.Logout(ctx, currentSessionToken)
+				if err == nil {
+					currentSessionToken = ""
+					sendFinalResponse(ctx, responses, protocol.ServerMessage{
+						Type: protocol.MessageAccountLoggedOut,
+					})
+				}
 			}
 		case protocol.MessageMoveTo:
 			destination := simulation.Position{
@@ -659,9 +685,16 @@ func writeMessage(ctx context.Context, connection *websocket.Conn, message proto
 	return wsjson.Write(writeCtx, connection, message)
 }
 
-func sendResponse(ctx context.Context, responses chan<- protocol.ServerMessage, message protocol.ServerMessage) {
+func sendResponse(ctx context.Context, responses chan<- outboundResponse, message protocol.ServerMessage) {
 	select {
-	case responses <- message:
+	case responses <- outboundResponse{message: message}:
+	case <-ctx.Done():
+	}
+}
+
+func sendFinalResponse(ctx context.Context, responses chan<- outboundResponse, message protocol.ServerMessage) {
+	select {
+	case responses <- outboundResponse{message: message, closeAfter: true}:
 	case <-ctx.Done():
 	}
 }

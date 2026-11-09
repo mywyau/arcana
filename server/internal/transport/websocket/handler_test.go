@@ -221,6 +221,35 @@ func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
 	if sessionWelcome.PlayerID != guestWelcome.PlayerID {
 		t.Fatalf("session player = %s, want %s", sessionWelcome.PlayerID, guestWelcome.PlayerID)
 	}
+	if err := wsjson.Write(ctx, sessionConnection, protocol.ClientMessage{
+		Type: protocol.MessageLogoutAccount, Sequence: 1,
+	}); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	var logout protocol.ServerMessage
+	for logout.Type != protocol.MessageAccountLoggedOut {
+		logout = readServerMessage(t, ctx, sessionConnection)
+	}
+	if err := sessionConnection.Close(websocket.StatusNormalClosure, "logged out"); err != nil {
+		t.Fatalf("close logged-out connection: %v", err)
+	}
+	waitForPlayerToLeave(t, world, simulation.PlayerID(guestWelcome.PlayerID))
+
+	revokedConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial revoked session: %v", err)
+	}
+	defer revokedConnection.CloseNow()
+	if err := wsjson.Write(ctx, revokedConnection, protocol.ClientMessage{
+		Type: protocol.MessageAuthenticate, SessionToken: loginWelcome.SessionToken,
+	}); err != nil {
+		t.Fatalf("write revoked session authentication: %v", err)
+	}
+	revokedResponse := readServerMessage(t, ctx, revokedConnection)
+	if revokedResponse.Type != protocol.MessageError || revokedResponse.Error == nil ||
+		revokedResponse.Error.Code != "invalid_account_session" {
+		t.Fatalf("revoked session response = %+v", revokedResponse)
+	}
 }
 
 func waitForPlayerToLeave(t *testing.T, world *simulation.World, playerID simulation.PlayerID) {

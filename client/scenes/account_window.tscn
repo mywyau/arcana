@@ -87,3 +87,10 @@ custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Log in"
+
+[node name="Logout" type="Button" parent="Panel/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+disabled = true
+text = "Log out"

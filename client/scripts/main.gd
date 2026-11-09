@@ -812,6 +812,7 @@ func _ready() -> void:
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
 	account_window.registration_requested.connect(_request_account_registration)
 	account_window.login_requested.connect(_request_account_login)
+	account_window.logout_requested.connect(_request_account_logout)
 	settings_account_button.pressed.connect(_open_account_window)
 	_style_interface_close_button(account_window.close_button)
 	_setup_ammunition_pouch_window()
@@ -826,6 +827,7 @@ func _ready() -> void:
 	network.server_error.connect(_on_server_error)
 	network.account_session_received.connect(_on_account_session_received)
 	network.account_login_required.connect(_on_account_login_required)
+	network.account_logged_out.connect(_on_account_logged_out)
 	sword_button.pressed.connect(_request_equip.bind("sword"))
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
 	bow_button.pressed.connect(_request_equip.bind("bow"))
@@ -2420,8 +2422,17 @@ func _request_account_login(email: String, password: String) -> void:
 	network.login(email, password)
 
 
+func _request_account_logout() -> void:
+	if network.logout_account(_next_account_sequence):
+		_next_account_sequence += 1
+		account_window.show_feedback("Logging out…")
+	else:
+		account_window.show_feedback("No account session is active.", true)
+
+
 func _on_account_session_received(email: String) -> void:
 	var label: String = email if not email.is_empty() else "your account"
+	account_window.set_session_active(true)
 	account_window.show_feedback("Connected to %s." % label, false, true)
 	_append_game_message("Account recovery is active for this character.")
 
@@ -2429,6 +2440,12 @@ func _on_account_session_received(email: String) -> void:
 func _on_account_login_required(message: String) -> void:
 	account_window.open(false)
 	account_window.show_feedback(message, true)
+
+
+func _on_account_logged_out() -> void:
+	account_window.set_session_active(false)
+	account_window.show_feedback("Logged out. Reconnecting as a guest.", false, true)
+	_append_game_message("Logged out of the account on this device.")
 
 
 func _on_production_recipes_received(recipes: Array) -> void:

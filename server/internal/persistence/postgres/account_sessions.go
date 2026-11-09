@@ -53,3 +53,17 @@ func (store *Store) FindSession(
 	}
 	return value, true, nil
 }
+
+func (store *Store) DeleteSession(
+	ctx context.Context,
+	tokenHash [sha256.Size]byte,
+) error {
+	if _, err := store.database.ExecContext(
+		ctx,
+		"DELETE FROM account_sessions WHERE token_hash = $1",
+		tokenHash[:],
+	); err != nil {
+		return fmt.Errorf("delete account session: %w", err)
+	}
+	return nil
+}

@@ -166,7 +166,11 @@ while the client stores the raw token per profile and server URL. Passwords are
 sent only during registration or login over the WebSocket connection and are
 not saved by the client.
 
-Email verification, password reset, logout, session revocation, and login rate
+Settings > Manage account also supports logging out on the current device. The
+server deletes that session, the client removes its local token, and the game
+reconnects as a new guest. Other device sessions remain active.
+
+Email verification, password reset, "log out everywhere", and login rate
 limiting are not implemented yet. These remain required before opening account
 registration beyond a small trusted private beta.
 

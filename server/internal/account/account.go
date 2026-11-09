@@ -45,6 +45,7 @@ type Session struct {
 type SessionRepository interface {
 	CreateSession(context.Context, Session) error
 	FindSession(context.Context, [sha256.Size]byte) (Session, bool, error)
+	DeleteSession(context.Context, [sha256.Size]byte) error
 }
 
 // NormalizeEmail defines Arcana's account identity rules. Email addresses are
@@ -102,6 +103,16 @@ func (repository *MemoryRepository) FindSession(
 		return Session{}, false, nil
 	}
 	return value, true, nil
+}
+
+func (repository *MemoryRepository) DeleteSession(
+	_ context.Context,
+	tokenHash [sha256.Size]byte,
+) error {
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	delete(repository.sessions, tokenHash)
+	return nil
 }
 
 func (repository *MemoryRepository) CreateAccount(_ context.Context, value Account) error {
