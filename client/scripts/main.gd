@@ -58,6 +58,7 @@ const ITEM_DISPLAY_NAMES: Dictionary = {
 	"skin_bible": "Skin Bible", "holy_book": "Holy Book", "clerics_tome": "Cleric's Tome",
 	"ruby_ring": "Ruby Ring", "emerald_ring": "Emerald Ring",
 	"sapphire_ring": "Sapphire Ring", "diamond_ring": "Diamond Ring",
+	"tyrants_ring": "Tyrant's Ring",
 	"vanguard_cape": "Vanguard Cape", "wayfarer_cape": "Wayfarer Cape", "arcanist_cape": "Arcanist Cape",
 }
 const CRAFTING_RECIPES: Dictionary = {
@@ -155,6 +156,7 @@ const TAB_EQUIPMENT_ICON: Texture2D = IconCatalog.TAB_EQUIPMENT
 const TAB_MAGIC_ICON: Texture2D = IconCatalog.TAB_MAGIC
 const TAB_PRAYER_ICON: Texture2D = IconCatalog.TAB_PRAYER
 const TAB_SETTINGS_ICON: Texture2D = IconCatalog.TAB_SETTINGS
+const TAB_ACCOUNT_ICON: Texture2D = IconCatalog.TAB_ACCOUNT
 
 
 const COMBAT_STYLES: Dictionary = {
@@ -254,6 +256,7 @@ const ARMOUR_SLOTS: Dictionary = {
 	"amulet_fury": "neck",
 	"ruby_ring": "ring", "emerald_ring": "ring",
 	"sapphire_ring": "ring", "diamond_ring": "ring",
+	"tyrants_ring": "ring",
 }
 const REINFORCEMENT_TIERS: Dictionary = {
 	"bronze": {"bar": "bronze_bar", "bar_name": "Bronze Bars", "level": 2, "items": ["bronze_sword", "bronze_helm", "bronze_platebody", "bronze_shield", "bronze_legs", "bronze_gloves", "bronze_boots"]},
@@ -279,6 +282,7 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_fury": "+2 accuracy • +2 strength for melee, ranged, and magic",
 	"ruby_ring": "+2 melee strength", "emerald_ring": "+2 ranged strength",
 	"sapphire_ring": "+2 magic strength", "diamond_ring": "+1 accuracy and strength for all styles",
+	"tyrants_ring": "+100 melee strength",
 	"vanguard_cape": "+3 melee accuracy • +2 melee strength",
 	"wayfarer_cape": "+3 ranged accuracy • +2 ranged strength",
 	"arcanist_cape": "+3 magic accuracy • +2 magic strength",
@@ -383,7 +387,6 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var settings_diagnostics_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowDiagnostics
 @onready var settings_xp_tracker_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowXPTracker
 @onready var settings_disable_xp_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/DisableXP
-@onready var settings_account_button: Button = $UI/SettingsHUD/Margin/VBox/Account
 @onready var settings_music_slider: HSlider = $UI/SettingsHUD/Margin/VBox/MusicVolume/Slider
 @onready var settings_music_value: Label = $UI/SettingsHUD/Margin/VBox/MusicVolume/Value
 @onready var settings_effects_slider: HSlider = $UI/SettingsHUD/Margin/VBox/EffectsVolume/Slider
@@ -399,6 +402,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var menu_magic_tab: Button = $UI/MenuTabsHUD/Margin/Row/Magic
 @onready var menu_prayer_tab: Button = $UI/MenuTabsHUD/Margin/Row/Prayer
 @onready var menu_settings_tab: Button = $UI/MenuUtilityTabsHUD/Margin/Row/Settings
+@onready var menu_account_tab: Button = $UI/MenuUtilityTabsHUD/Margin/Row/Account
 @onready var bank_hud: PanelContainer = $UI/BankHUD
 @onready var bank_header: HBoxContainer = $UI/BankHUD/Margin/VBox/Header
 @onready var bank_title: Label = $UI/BankHUD/Margin/VBox/Header/Title
@@ -623,7 +627,7 @@ var _combat_style: String = "crush"
 var _last_combat_style_sequence: int = 0
 var _next_combat_style_sequence: int = 1
 var _queued_combat_style: String = ""
-var _inventory_capacity: int = 8
+var _inventory_capacity: int = 20
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
 var _skill_progress: Dictionary = {
@@ -815,7 +819,8 @@ func _ready() -> void:
 	merchant_window.buy_requested.connect(_request_merchant_purchase)
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
 	account_window.session_action_requested.connect(_request_account_session_action)
-	settings_account_button.pressed.connect(_open_account_window)
+	menu_account_tab.pressed.connect(_toggle_account_tab)
+	account_window.visibility_changed.connect(_on_account_window_visibility_changed)
 	_style_interface_close_button(account_window.close_button)
 	auth_gate.login_requested.connect(_request_startup_login)
 	auth_gate.registration_requested.connect(_request_startup_registration)
@@ -2461,6 +2466,17 @@ func _open_account_window() -> void:
 	account_window.open(network.has_account_session(), _account_email)
 
 
+func _toggle_account_tab() -> void:
+	if account_window.visible:
+		account_window.hide()
+		return
+	_open_account_window()
+
+
+func _on_account_window_visibility_changed() -> void:
+	menu_account_tab.set_pressed_no_signal(account_window.visible)
+
+
 func _request_account_session_action() -> void:
 	if network.has_account_session():
 		if network.logout_account(_next_logout_sequence):
@@ -3762,11 +3778,16 @@ func _configure_player_menu() -> void:
 		"Magic": menu_magic_tab,
 		"Prayer": menu_prayer_tab,
 		"Settings": menu_settings_tab,
+		"Account": menu_account_tab,
 	}
 	for tab_name_value: Variant in persistent_tabs.keys():
 		var tab_name: String = str(tab_name_value)
 		var tab_button := persistent_tabs[tab_name] as Button
-		tab_button.icon = TAB_SETTINGS_ICON if tab_name == "Settings" else tab_icons[tab_name] as Texture2D
+		tab_button.icon = (
+			TAB_SETTINGS_ICON if tab_name == "Settings"
+			else TAB_ACCOUNT_ICON if tab_name == "Account"
+			else tab_icons[tab_name] as Texture2D
+		)
 		tab_button.expand_icon = true
 		tab_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tab_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER

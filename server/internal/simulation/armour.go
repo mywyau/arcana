@@ -60,6 +60,7 @@ const (
 	ItemEmeraldRing        = "emerald_ring"
 	ItemSapphireRing       = "sapphire_ring"
 	ItemDiamondRing        = "diamond_ring"
+	ItemTyrantsRing        = "tyrants_ring"
 
 	armourSetSwift ArmourSetID = "swift"
 

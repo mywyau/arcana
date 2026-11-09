@@ -70,6 +70,7 @@ const (
 	dummyAttackRange                     = 1.55
 	dummyLeashRange                      = 6.0
 	roamingEnemySpeed                    = 3.0
+	riftTyrantMovementSpeed              = DefaultPlayerMovementSpeed + 0.5
 	roamingRepathPulses                  = 1
 	respawnDelayPulses                   = 5
 	dummyTargetID                        = "dummy"
@@ -78,9 +79,13 @@ const (
 	hillWardenTargetID                   = "hill_warden"
 	wildFowlTargetID                     = "wild_fowl"
 	cowTargetID                          = "cow"
+	riftTyrantTargetID                   = "rift_tyrant"
 	hillWardenEvasionScore               = 18
 	wildFowlEvasionScore                 = 2
 	cowEvasionScore                      = 4
+	riftTyrantMaximumHealth              = 650
+	riftTyrantAccuracyScore              = 40
+	riftTyrantEvasionScore               = 30
 	combatEventHistoryLimit              = 32
 )
 
@@ -89,6 +94,7 @@ const (
 	targetKindCreature = "creature"
 	targetKindBird     = "bird"
 	targetKindCow      = "cow"
+	targetKindBoss     = "boss"
 )
 
 type WeaponID string
@@ -294,6 +300,7 @@ type TargetSnapshot struct {
 	CombatLevel     int
 	Defence         DefenceBonuses
 	Elements        ElementalResistances
+	attackSequence  uint64
 }
 
 type combatState struct {
@@ -345,6 +352,7 @@ func newCombatState() *combatState {
 	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
 	wildFowlHome := Position{X: -20, Z: -5}
 	cowHome := Position{X: -16, Z: -10}
+	riftTyrantHome := Position{X: 38, Z: 34}
 	hillWardenProfile := combatProfileForEnemy(hillWardenTargetID)
 	hillWarden := &TargetSnapshot{
 		ID:            hillWardenTargetID,
@@ -384,6 +392,14 @@ func newCombatState() *combatState {
 		DodgeRate: defaultBaseDodgeBonus, Accuracy: 7, Evasion: cowEvasionScore,
 		AttackType: cowProfile.DamageType, Defence: cowProfile.Defence, Elements: cowProfile.Elements,
 		CombatLevel: cowProfile.CombatLevel,
+	}
+	riftTyrantProfile := combatProfileForEnemy(riftTyrantTargetID)
+	riftTyrant := &TargetSnapshot{
+		ID: riftTyrantTargetID, Name: "Rift Tyrant", Kind: targetKindBoss, Position: riftTyrantHome,
+		Health: riftTyrantMaximumHealth, MaximumHealth: riftTyrantMaximumHealth,
+		DodgeRate: defaultBaseDodgeBonus, Accuracy: riftTyrantAccuracyScore, Evasion: riftTyrantEvasionScore,
+		AttackType: enemyAttackType(riftTyrantProfile, 0), Defence: riftTyrantProfile.Defence,
+		Elements: riftTyrantProfile.Elements, CombatLevel: riftTyrantProfile.CombatLevel,
 	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
@@ -429,6 +445,7 @@ func newCombatState() *combatState {
 			hillWardenTargetID: hillWarden,
 			wildFowlTargetID:   wildFowl,
 			cowTargetID:        cow,
+			riftTyrantTargetID: riftTyrant,
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
@@ -450,6 +467,11 @@ func newCombatState() *combatState {
 				target: cow,
 				home:   cowHome,
 				speed:  roamingEnemySpeed * 0.65,
+			},
+			riftTyrantTargetID: {
+				target: riftTyrant,
+				home:   riftTyrantHome,
+				speed:  riftTyrantMovementSpeed,
 			},
 		},
 	}
@@ -875,6 +897,9 @@ func (w *World) respawnDefeatedEntities() {
 				enemy.path = nil
 				enemy.nextRepathPulse = 0
 			}
+			target.dummy.attackSequence = 0
+			profile := combatProfileForEnemy(target.id)
+			target.dummy.AttackType = enemyAttackType(profile, 0)
 		}
 	}
 	for _, player := range w.players {
@@ -1240,6 +1265,9 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
+	damageType := enemyAttackType(profile, dummy.attackSequence)
+	dummy.attackSequence++
+	dummy.AttackType = damageType
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 	if w.rollSource.Float64() < playerDodgeChance(dummy.Accuracy, player) {
 		w.combat.recordEvent(CombatEvent{
@@ -1251,7 +1279,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
-	damageDealt := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType)
+	damageDealt := reduceIncomingDamage(player, profile.AttackDamage, damageType)
 	player.health = max(0, player.health-damageDealt)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,

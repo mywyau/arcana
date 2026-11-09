@@ -463,6 +463,22 @@ func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
 	}
 }
 
+func TestRiftTyrantRareRingDropRateAndLoot(t *testing.T) {
+	entries := lootTableForTarget(riftTyrantTargetID)
+	if len(entries) != 3 || entries[2].ItemID != ItemTyrantsRing || entries[2].DropChance != 1.0/512.0 {
+		t.Fatalf("Rift Tyrant loot table = %+v", entries)
+	}
+
+	world := NewWorldWithRollSource(fixedRollSource(0.001))
+	target := world.combat.targets[riftTyrantTargetID]
+	world.defeatDummy(riftTyrantTargetID, target)
+	drops := world.Snapshot().Drops
+	if len(drops) != 3 || drops[0].ItemID != ItemBones || drops[1].ItemID != ItemCoins ||
+		drops[2].ItemID != ItemTyrantsRing || drops[2].Quantity != 1 {
+		t.Fatalf("Rift Tyrant rare drops = %+v", drops)
+	}
+}
+
 func TestWildFowlDropsFeathersInConfiguredRange(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	target := world.combat.targets[wildFowlTargetID]

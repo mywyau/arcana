@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// DefaultPlayerMovementSpeed is the starting movement speed before Agility bonuses.
+const DefaultPlayerMovementSpeed = 6.0
+
 type PlayerID string
 
 type RollSource interface {

@@ -109,6 +109,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if !combatStyleValidForWeapon(state.CombatStyle, state.EquippedWeapon) {
 		return fmt.Errorf("combat style %q is invalid for %q", state.CombatStyle, state.EquippedWeapon)
 	}
+	if state.Inventory.Capacity < BaseInventoryCapacity {
+		state.Inventory.Capacity = BaseInventoryCapacity
+	}
 	inventory, err := inventoryFromSnapshot(state.Inventory)
 	if err != nil {
 		return fmt.Errorf("restore inventory: %w", err)

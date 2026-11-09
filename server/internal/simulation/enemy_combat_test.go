@@ -13,8 +13,72 @@ func TestEnemyCombatProfilesCreateDistinctEncounters(t *testing.T) {
 		t.Fatalf("Wild Fowl profile = %+v", fowl)
 	}
 	if warden.CombatLevel != 18 || warden.AttackDamage != 18 || warden.AttackInterval != 5 || warden.DamageType != DamageTypeSlash ||
-		warden.DetectionRange != 6 || warden.LeashRange != 10 {
+		warden.DetectionRange != 6 || warden.LeashRange != 22 {
 		t.Fatalf("Hill Warden profile = %+v", warden)
+	}
+}
+
+func TestRiftTyrantHasLongRangeAndAllAttackStyles(t *testing.T) {
+	profile := combatProfileForEnemy(riftTyrantTargetID)
+	wantStyles := []DamageType{
+		DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic,
+	}
+	if profile.CombatLevel != 35 || profile.AttackRange != enemyLongRangeAttackRange || profile.DetectionRange != 18 ||
+		profile.AttackDamage != 22 || len(profile.AttackTypes) != len(wantStyles) {
+		t.Fatalf("Rift Tyrant profile = %+v", profile)
+	}
+	for index, want := range wantStyles {
+		if got := enemyAttackType(profile, uint64(index)); got != want {
+			t.Errorf("attack type %d = %q, want %q", index, got, want)
+		}
+	}
+	if got := enemyAttackType(profile, uint64(len(wantStyles))); got != wantStyles[0] {
+		t.Fatalf("cycled attack type = %q, want %q", got, wantStyles[0])
+	}
+}
+
+func TestWardenAndTyrantOutrangeLongRangeBow(t *testing.T) {
+	longRangeBow, exists := weaponDefinitionForStyle(WeaponBow, CombatStyleLongRange)
+	if !exists {
+		t.Fatal("long-range bow definition is missing")
+	}
+	for _, targetID := range []string{hillWardenTargetID, riftTyrantTargetID} {
+		profile := combatProfileForEnemy(targetID)
+		if profile.AttackRange <= longRangeBow.Range {
+			t.Errorf("%s attack range = %.2f, want greater than long-range bow %.2f", targetID, profile.AttackRange, longRangeBow.Range)
+		}
+		if profile.LeashRange <= longRangeBow.Range {
+			t.Errorf("%s leash range = %.2f, want greater than long-range bow %.2f", targetID, profile.LeashRange, longRangeBow.Range)
+		}
+	}
+}
+
+func TestRiftTyrantMovesSlightlyFasterThanNewPlayer(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.roamingEnemies[riftTyrantTargetID]
+	if boss.speed != DefaultPlayerMovementSpeed+0.5 {
+		t.Fatalf("Rift Tyrant speed = %.2f, want %.2f", boss.speed, DefaultPlayerMovementSpeed+0.5)
+	}
+}
+
+func TestRiftTyrantCyclesAttackStyleOnEachAttack(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	boss := world.combat.targets[riftTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", boss.Position, 4)
+	player := world.players["player-one"]
+	player.maximumHealth = 1_000
+	player.health = 1_000
+	boss.TargetID = player.id
+	profile := combatProfileForEnemy(riftTyrantTargetID)
+
+	wantStyles := []DamageType{DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic}
+	for index, want := range wantStyles {
+		world.combat.pulse = uint64(index+1) * profile.AttackInterval
+		boss.NextAttackPulse = world.combat.pulse
+		world.resolveOneDummyAttack(riftTyrantTargetID, boss)
+		if boss.AttackType != want {
+			t.Fatalf("attack %d type = %q, want %q", index+1, boss.AttackType, want)
+		}
 	}
 }
 

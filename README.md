@@ -382,14 +382,11 @@ requires new protocol fields or hardcoded nodes in the main scene.
 
 ### Inventory prototype
 
-Each player has an authoritative eight-slot base inventory, with capacity sent
-in snapshots so future upgrades can expand it per player. The starter inventory
-contains the prototype sword, dagger, and bow. Use the Inventory tab in the
-bottom-right HUD to view its 4×2 grid. Slots are display-only in this first
-slice for non-equipment actions: weapon slots show their icons and can be
-clicked to send the same server-authoritative equip request as the `1`, `2`,
-and `3` shortcuts. The selected slot distinguishes equipped and queued state.
-Inventory dragging, manual dropping, and item use are not implemented.
+Each player has an authoritative 20-slot base inventory within a maximum of 50
+slots. Capacity and item placement are sent in snapshots, while the HUD renders
+the unlocked slots with item icons, stack quantities and drag-and-drop ordering.
+Fresh characters begin with an empty inventory and collect their equipment and
+tools from the world.
 
 Defeated training targets drop stackable Coins. Drops are authoritative world
 entities with unique IDs. Click a drop from within 3 world units to collect it; the server

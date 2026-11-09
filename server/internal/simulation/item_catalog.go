@@ -355,6 +355,9 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		MeleeAccuracy: 1, RangedAccuracy: 1, MagicAccuracy: 1,
 		MeleeStrength: 1, RangedStrength: 1, MagicStrength: 1,
 	}}},
+	{ID: ItemTyrantsRing, Name: "Tyrant's Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{
+		Slot: ArmourSlotRing, Offence: OffenceBonuses{MeleeStrength: 100},
+	}},
 	{
 		ID: ItemStandardSpellbook, Name: "Standard Spellbook", Kind: ItemKindSpellbook,
 		Spellbook: SpellbookStandard,

@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-func TestPlayerStartsUnarmedWithEmptyEightSlotInventory(t *testing.T) {
+func TestPlayerStartsUnarmedWithEmptyTwentySlotInventory(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 
 	player := mustPlayer(t, world, "player-one")
-	if got, want := player.Inventory.Capacity, 8; got != want {
+	if got, want := player.Inventory.Capacity, 20; got != want {
 		t.Fatalf("Inventory.Capacity = %d, want %d", got, want)
 	}
 	if got, want := len(player.Inventory.Items), 0; got != want {

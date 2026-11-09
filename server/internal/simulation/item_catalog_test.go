@@ -49,6 +49,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemAmuletFury, ItemKindArmour},
 		{ItemRubyRing, ItemKindArmour}, {ItemEmeraldRing, ItemKindArmour},
 		{ItemSapphireRing, ItemKindArmour}, {ItemDiamondRing, ItemKindArmour},
+		{ItemTyrantsRing, ItemKindArmour},
 		{ItemStandardSpellbook, ItemKindSpellbook},
 		{ItemSkinBible, ItemKindSpellbook},
 		{ItemHolyBook, ItemKindSpellbook},

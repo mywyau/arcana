@@ -56,3 +56,16 @@ func TestEquippedRingsContributeTheirCombatBonuses(t *testing.T) {
 		t.Fatalf("melee ring bonuses = accuracy %d, strength %d", accuracy, strength)
 	}
 }
+
+func TestTyrantsRingGrantsOneHundredMeleeStrength(t *testing.T) {
+	player := &playerState{
+		equippedArmour: make(map[ArmourSlot]string),
+		ringRack: inventoryState{capacity: RingRackCapacity, items: []InventoryItem{
+			{Slot: 0, ItemID: ItemTyrantsRing, Quantity: 1, InstanceID: "tyrant"},
+		}},
+	}
+	accuracy, strength := equipmentOffenceForWeapon(player, WeaponDefinition{MeleeStrength: 1})
+	if accuracy != 0 || strength != 100 {
+		t.Fatalf("Tyrant's Ring bonuses = accuracy %d, strength %d; want 0, 100", accuracy, strength)
+	}
+}

@@ -57,10 +57,10 @@ func mustGiveIronArrows(t *testing.T, world *World, id PlayerID, quantity int) {
 func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	world := newCombatTestWorld()
 	snapshot := world.Snapshot()
-	if got, want := len(snapshot.Targets), 6; got != want {
+	if got, want := len(snapshot.Targets), 7; got != want {
 		t.Fatalf("len(Targets) = %d, want %d", got, want)
 	}
-	wantIDs := []string{cowTargetID, dummyTargetID, hillWardenTargetID, overlookDummyTargetID, upperDummyTargetID, wildFowlTargetID}
+	wantIDs := []string{cowTargetID, dummyTargetID, hillWardenTargetID, overlookDummyTargetID, riftTyrantTargetID, upperDummyTargetID, wildFowlTargetID}
 	for index, want := range wantIDs {
 		if got := snapshot.Targets[index].ID; got != want {
 			t.Fatalf("Targets[%d].ID = %q, want %q", index, got, want)
@@ -73,7 +73,7 @@ func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	}
 }
 
-func TestRoamingEnemyDetectsAndChasesNearbyPlayer(t *testing.T) {
+func TestRoamingEnemyDetectsNearbyPlayer(t *testing.T) {
 	world := newCombatTestWorld()
 	home := world.combat.roamingEnemies[hillWardenTargetID].home
 	mustAddPlayer(t, world, "player-one", Position{X: home.X + 4, Y: home.Y, Z: home.Z}, 4)
@@ -83,10 +83,8 @@ func TestRoamingEnemyDetectsAndChasesNearbyPlayer(t *testing.T) {
 	if enemy.TargetID != "player-one" {
 		t.Fatalf("roaming enemy target = %q, want player-one", enemy.TargetID)
 	}
-	world.Step(100 * time.Millisecond)
-	moved := mustTarget(t, world.Snapshot(), hillWardenTargetID)
-	if moved.Position.X <= home.X {
-		t.Fatalf("roaming enemy position = %+v, want movement toward player", moved.Position)
+	if enemy.Position != home {
+		t.Fatalf("roaming enemy position = %+v, want it to attack from range at %+v", enemy.Position, home)
 	}
 }
 
@@ -110,13 +108,9 @@ func TestRoamingEnemyLeashesAndReturnsHome(t *testing.T) {
 	world := newCombatTestWorld()
 	enemyState := world.combat.roamingEnemies[hillWardenTargetID]
 	home := enemyState.home
-	mustAddPlayer(t, world, "player-one", Position{X: home.X + 4, Y: home.Y, Z: home.Z}, 4)
-
-	world.Step(actionPulseInterval)
-	world.Step(500 * time.Millisecond)
-	if got := mustTarget(t, world.Snapshot(), hillWardenTargetID).Position; got == home {
-		t.Fatal("roaming enemy did not leave home before leash test")
-	}
+	mustAddPlayer(t, world, "player-one", home, 4)
+	enemyState.target.TargetID = "player-one"
+	enemyState.target.Position = Position{X: home.X + 1, Y: home.Y, Z: home.Z}
 	world.players["player-one"].position = Position{
 		X: home.X + combatProfileForEnemy(hillWardenTargetID).LeashRange + 1,
 		Y: home.Y,
@@ -414,6 +408,7 @@ func TestUnequipRejectsFullInventory(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	player := world.players["player-one"]
+	player.inventory.capacity = 8
 	player.inventory.add(ItemTrainingHelm, 1)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemTrainingHelm)}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)

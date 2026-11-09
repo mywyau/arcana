@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	BaseInventoryCapacity = 8
+	BaseInventoryCapacity = 20
 	MaxInventoryCapacity  = 50
 	ItemAirRune           = "air_rune"
 )

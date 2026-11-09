@@ -21,7 +21,7 @@ import (
 
 const (
 	connectionReadLimit          = 4 * 1024
-	playerSpeed                  = 6.0
+	playerSpeed                  = simulation.DefaultPlayerMovementSpeed
 	writeTimeout                 = 2 * time.Second
 	authenticationTimeout        = 5 * time.Second
 	characterSaveTimeout         = 2 * time.Second

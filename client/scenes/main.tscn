@@ -1287,7 +1287,7 @@ theme_override_constants/margin_bottom = 12
 
 [node name="VBox" type="VBoxContainer" parent="UI/SettingsHUD/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
 [node name="TabRow" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
 layout_mode = 2
@@ -1343,29 +1343,19 @@ text = "Interface"
 theme_override_font_sizes/font_size = 20
 
 [node name="ShowDiagnostics" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 button_pressed = true
 text = "Show network diagnostics"
 
 [node name="ShowXPTracker" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 button_pressed = true
 text = "Show XP tracker"
 
-[node name="CustomAccountTitle" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
-layout_mode = 2
-text = "Account and customisation"
-theme_override_font_sizes/font_size = 20
-
-[node name="Account" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
-layout_mode = 2
-text = "Manage account"
-
 [node name="DisableXP" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Disable all XP gain"
 tooltip_text = "Actions still work, but no skills gain experience while this is enabled."
@@ -1376,7 +1366,7 @@ text = "Audio"
 theme_override_font_sizes/font_size = 20
 
 [node name="MusicVolume" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_constants/separation = 12
 
@@ -1401,7 +1391,7 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="EffectsVolume" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_constants/separation = 12
 
@@ -1426,12 +1416,12 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="EditHUD" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Edit HUD layout"
 
 [node name="ResetHUD" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Reset HUD layout"
 
@@ -1567,6 +1557,13 @@ custom_minimum_size = Vector2(70, 52)
 layout_mode = 2
 toggle_mode = true
 text = ""
+
+[node name="Account" type="Button" parent="UI/MenuUtilityTabsHUD/Margin/Row"]
+custom_minimum_size = Vector2(70, 52)
+layout_mode = 2
+toggle_mode = true
+text = ""
+tooltip_text = "Open account"
 
 [node name="SkillsHUD" type="PanelContainer" parent="UI"]
 visible = false

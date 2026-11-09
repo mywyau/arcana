@@ -80,6 +80,25 @@ func TestQueueJoinWithPersistentStateAllowsInnateUnarmedProfile(t *testing.T) {
 	}
 }
 
+func TestQueueJoinUpgradesLegacyInventoryCapacity(t *testing.T) {
+	world := NewWorld()
+	state := DefaultPersistentPlayerState()
+	state.Inventory.Capacity = 8
+	state.Inventory.Items = []InventoryItem{{Slot: 7, ItemID: ItemCoins, Quantity: 1}}
+
+	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
+		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+	}
+	world.Step(time.Millisecond)
+	player := mustPlayer(t, world, "player-one")
+	if player.Inventory.Capacity != BaseInventoryCapacity {
+		t.Fatalf("restored inventory capacity = %d, want %d", player.Inventory.Capacity, BaseInventoryCapacity)
+	}
+	if player.Inventory.itemsQuantity(ItemCoins) != 1 {
+		t.Fatalf("restored inventory lost its items: %+v", player.Inventory)
+	}
+}
+
 func TestQueueJoinDerivesMovementSpeedFromPersistedAgility(t *testing.T) {
 	world := NewWorld()
 	state := DefaultPersistentPlayerState()

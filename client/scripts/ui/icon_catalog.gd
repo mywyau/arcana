@@ -114,6 +114,7 @@ const TAB_EQUIPMENT: Texture2D = preload("res://assets/icons/navigation/tab_equi
 const TAB_MAGIC: Texture2D = preload("res://assets/icons/navigation/tab_magic.svg")
 const TAB_PRAYER: Texture2D = preload("res://assets/icons/navigation/tab_prayer.svg")
 const TAB_SETTINGS: Texture2D = preload("res://assets/icons/navigation/tab_settings.svg")
+const TAB_ACCOUNT: Texture2D = preload("res://assets/icons/navigation/tab_account.svg")
 
 const SPELL_ICONS: Dictionary = {
 	"wind_bolt": preload("res://assets/icons/spells/wind_blade.svg"),
@@ -333,6 +334,7 @@ const ITEMS: Dictionary = {
 	"emerald_ring": preload("res://assets/icons/items/materials/emerald.svg"),
 	"sapphire_ring": preload("res://assets/icons/items/materials/sapphire.svg"),
 	"diamond_ring": preload("res://assets/icons/items/materials/diamond.svg"),
+	"tyrants_ring": preload("res://assets/icons/items/materials/ruby.svg"),
 }
 
 const SKILLS: Dictionary = {

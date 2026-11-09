@@ -1,5 +1,7 @@
 package simulation
 
+const enemyLongRangeAttackRange = bowRange + longRangeStyleRangeBonus + 1.0
+
 type enemyCombatProfile struct {
 	CombatLevel    int
 	AttackDamage   int
@@ -8,6 +10,7 @@ type enemyCombatProfile struct {
 	DetectionRange float64
 	LeashRange     float64
 	DamageType     DamageType
+	AttackTypes    []DamageType
 	Defence        DefenceBonuses
 	Elements       ElementalResistances
 }
@@ -27,9 +30,9 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		CombatLevel:    18,
 		AttackDamage:   18,
 		AttackInterval: 5,
-		AttackRange:    1.7,
+		AttackRange:    enemyLongRangeAttackRange,
 		DetectionRange: 6,
-		LeashRange:     10,
+		LeashRange:     22,
 		DamageType:     DamageTypeSlash,
 		Defence:        DefenceBonuses{Stab: 10, Slash: 18, Crush: 4, Ranged: 12, Magic: 6},
 		Elements:       ElementalResistances{Air: -10, Earth: 10},
@@ -52,6 +55,27 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Defence:  DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 2, Magic: 1},
 		Elements: ElementalResistances{Earth: 5, Fire: -10},
 	},
+	riftTyrantTargetID: {
+		CombatLevel:    35,
+		AttackDamage:   22,
+		AttackInterval: 4,
+		AttackRange:    enemyLongRangeAttackRange,
+		DetectionRange: 18,
+		LeashRange:     24,
+		DamageType:     DamageTypeStab,
+		AttackTypes: []DamageType{
+			DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic,
+		},
+		Defence:  DefenceBonuses{Stab: 24, Slash: 28, Crush: 20, Ranged: 26, Magic: 22},
+		Elements: ElementalResistances{Air: 10, Water: 10, Earth: 10, Fire: 10, Holy: -10, Dark: 20},
+	},
+}
+
+func enemyAttackType(profile enemyCombatProfile, attackSequence uint64) DamageType {
+	if len(profile.AttackTypes) == 0 {
+		return profile.DamageType
+	}
+	return profile.AttackTypes[attackSequence%uint64(len(profile.AttackTypes))]
 }
 
 func combatProfileForEnemy(targetID string) enemyCombatProfile {

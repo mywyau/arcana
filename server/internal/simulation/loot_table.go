@@ -32,6 +32,12 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemLeather, MinimumQuantity: 1, MaximumQuantity: 2, DropChance: 1},
 		}
+	case riftTyrantTargetID:
+		return []lootTableEntry{
+			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
+			{ItemID: ItemCoins, MinimumQuantity: 100, MaximumQuantity: 250, DropChance: 1},
+			{ItemID: ItemTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1.0 / 512.0},
+		}
 	default:
 		return []lootTableEntry{{
 			ItemID: ItemCoins, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1,
