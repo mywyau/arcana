@@ -144,6 +144,11 @@ name can therefore connect to localhost and the hosted beta without presenting
 one server's guest token to the other. Existing profile tokens are migrated as
 localhost identities the first time that profile connects locally.
 
+If a connection drops, the client reconnects and authenticates automatically.
+Ordinary failures retry after 1, 2, 4, and progressively longer delays capped
+at 30 seconds. A stale guest token is cleared and retried immediately. Once the
+server welcomes the client, authoritative snapshots restore the visible world.
+
 An exported build can use the project setting or a user argument such as
 `-- --server-url=wss://arcana-beta-server.onrender.com/ws`. Public deployments
 must use `wss://`, not `ws://`.

@@ -2390,7 +2390,8 @@ func _append_game_message(message: String, is_error: bool = false) -> void:
 
 func _on_status_changed(status: String) -> void:
 	status_label.text = status
-	if status.contains("disconnected") or status.contains("failed"):
+	var normalized_status: String = status.to_lower()
+	if normalized_status.contains("disconnected") or normalized_status.contains("failed"):
 		_append_game_message(status, true)
 
 

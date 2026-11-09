@@ -11,12 +11,17 @@ signal server_error(code: String, message: String)
 
 @export var server_url: String = ""
 
+const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
+const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
+
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
 var _guest_token: String = ""
 var _retry_without_guest_token: bool = false
 var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg")
 var _guest_identity_section: String = ""
+var _reconnect_delay_seconds: float = INITIAL_RECONNECT_DELAY_SECONDS
+var _reconnect_at_msec: int = -1
 
 
 func _ready() -> void:
@@ -45,6 +50,7 @@ func _connect_to_server() -> void:
 	var result: Error = _socket.connect_to_url(server_url)
 	if result != OK:
 		status_changed.emit("Connection failed: %s" % error_string(result))
+		_schedule_reconnect()
 		return
 	_last_state = WebSocketPeer.STATE_CONNECTING
 	status_changed.emit("Connecting to %s" % server_url)
@@ -62,6 +68,11 @@ func _process(_delta: float) -> void:
 	if state != _last_state:
 		_handle_state_change(state)
 		_last_state = state
+
+	if _reconnect_at_msec >= 0 and Time.get_ticks_msec() >= _reconnect_at_msec:
+		_reconnect_at_msec = -1
+		_socket = WebSocketPeer.new()
+		_connect_to_server()
 
 
 func send_move(sequence: int, destination: Vector3) -> bool:
@@ -557,8 +568,30 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 			status_changed.emit("Disconnected: %s" % reason)
 			if _retry_without_guest_token:
 				_retry_without_guest_token = false
-				_socket = WebSocketPeer.new()
-				_connect_to_server.call_deferred()
+				_schedule_reconnect(true)
+			else:
+				_schedule_reconnect()
+
+
+func _schedule_reconnect(immediate: bool = false) -> void:
+	if _reconnect_at_msec >= 0:
+		return
+	if immediate:
+		_reconnect_at_msec = Time.get_ticks_msec()
+		status_changed.emit("Reconnecting")
+		return
+	var delay_msec: int = roundi(_reconnect_delay_seconds * 1000.0)
+	_reconnect_at_msec = Time.get_ticks_msec() + delay_msec
+	var delay_label: String = (
+		"1 second"
+		if is_equal_approx(_reconnect_delay_seconds, 1.0)
+		else "%.0f seconds" % _reconnect_delay_seconds
+	)
+	status_changed.emit("Reconnecting in %s" % delay_label)
+	_reconnect_delay_seconds = minf(
+		_reconnect_delay_seconds * 2.0,
+		MAXIMUM_RECONNECT_DELAY_SECONDS,
+	)
 
 
 func _handle_packet(packet: PackedByteArray) -> void:
@@ -577,6 +610,8 @@ func _handle_packet(packet: PackedByteArray) -> void:
 	var message_type: String = str(message.get("type", ""))
 	match message_type:
 		"welcome":
+			_reconnect_at_msec = -1
+			_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
 			var issued_token: String = str(message.get("guest_token", ""))
 			if not issued_token.is_empty():
 				_guest_token = issued_token
