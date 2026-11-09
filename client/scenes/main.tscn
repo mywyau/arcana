@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/xp_tracker.tscn" id="8_xp_tracker"]
 [ext_resource type="Script" path="res://scripts/sound_effects.gd" id="9_sound_effects"]
 [ext_resource type="PackedScene" path="res://scenes/merchant_window.tscn" id="11_merchant_window"]
+[ext_resource type="PackedScene" path="res://scenes/account_window.tscn" id="12_account_window"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -222,6 +223,8 @@ shape = SubResource("GroundObstacleShape")
 [node name="Players" type="Node3D" parent="." unique_id=459163009]
 
 [node name="MerchantWindow" parent="." instance=ExtResource("11_merchant_window")]
+
+[node name="AccountWindow" parent="." instance=ExtResource("12_account_window")]
 
 [node name="CameraRig" type="Node3D" parent="." unique_id=2094638855]
 script = ExtResource("3_camera")
@@ -1346,8 +1349,13 @@ text = "Show XP tracker"
 
 [node name="CustomAccountTitle" type="Label" parent="UI/SettingsHUD/Margin/VBox"]
 layout_mode = 2
-text = "Custom account"
+text = "Account and customisation"
 theme_override_font_sizes/font_size = 20
+
+[node name="Account" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Manage account"
 
 [node name="DisableXP" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
 custom_minimum_size = Vector2(0, 48)

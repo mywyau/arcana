@@ -352,6 +352,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var bank_chests: Node3D = $BankChests
 @onready var merchants: Node3D = $Merchants
 @onready var merchant_window: MerchantWindow = $MerchantWindow
+@onready var account_window: AccountWindow = $AccountWindow
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var xp_tracker_hud: XPTracker = $UI/XPTrackerHUD
@@ -380,6 +381,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var settings_diagnostics_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowDiagnostics
 @onready var settings_xp_tracker_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/ShowXPTracker
 @onready var settings_disable_xp_toggle: CheckButton = $UI/SettingsHUD/Margin/VBox/DisableXP
+@onready var settings_account_button: Button = $UI/SettingsHUD/Margin/VBox/Account
 @onready var settings_music_slider: HSlider = $UI/SettingsHUD/Margin/VBox/MusicVolume/Slider
 @onready var settings_music_value: Label = $UI/SettingsHUD/Margin/VBox/MusicVolume/Value
 @onready var settings_effects_slider: HSlider = $UI/SettingsHUD/Margin/VBox/EffectsVolume/Slider
@@ -653,6 +655,7 @@ var _skill_context_name: String = ""
 var _skill_context_id: String = ""
 var _debug_skill_window: DebugSkillWindow
 var _next_debug_skill_sequence: int = 1
+var _next_account_sequence: int = 1
 var _open_skill_name: String = ""
 var _open_skill_id: String = ""
 var _combat_stats: Dictionary = {}
@@ -807,6 +810,10 @@ func _ready() -> void:
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	merchant_window.sell_requested.connect(_request_merchant_sale)
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
+	account_window.registration_requested.connect(_request_account_registration)
+	account_window.login_requested.connect(_request_account_login)
+	settings_account_button.pressed.connect(_open_account_window)
+	_style_interface_close_button(account_window.close_button)
 	_setup_ammunition_pouch_window()
 	_setup_ring_rack_window()
 	_setup_rune_pouch_window()
@@ -817,6 +824,8 @@ func _ready() -> void:
 	network.prayer_catalog_received.connect(_on_prayer_catalog_received)
 	network.snapshot_received.connect(_on_snapshot_received)
 	network.server_error.connect(_on_server_error)
+	network.account_session_received.connect(_on_account_session_received)
+	network.account_login_required.connect(_on_account_login_required)
 	sword_button.pressed.connect(_request_equip.bind("sword"))
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
 	bow_button.pressed.connect(_request_equip.bind("bow"))
@@ -2395,6 +2404,33 @@ func _on_status_changed(status: String) -> void:
 		_append_game_message(status, true)
 
 
+func _open_account_window() -> void:
+	account_window.open(network.has_account_session())
+
+
+func _request_account_registration(email: String, password: String) -> void:
+	if network.register_account(_next_account_sequence, email, password):
+		_next_account_sequence += 1
+	else:
+		account_window.show_feedback("Connect before creating an account.", true)
+
+
+func _request_account_login(email: String, password: String) -> void:
+	account_window.show_feedback("Logging in and recovering your character…")
+	network.login(email, password)
+
+
+func _on_account_session_received(email: String) -> void:
+	var label: String = email if not email.is_empty() else "your account"
+	account_window.show_feedback("Connected to %s." % label, false, true)
+	_append_game_message("Account recovery is active for this character.")
+
+
+func _on_account_login_required(message: String) -> void:
+	account_window.open(false)
+	account_window.show_feedback(message, true)
+
+
 func _on_production_recipes_received(recipes: Array) -> void:
 	var grouped: Dictionary = {}
 	for payload: Variant in recipes:
@@ -3456,6 +3492,8 @@ func _on_server_error(code: String, message: String) -> void:
 	_last_network_error_code = code
 	_last_network_error_message = message
 	status_label.text = _friendly_server_error(code, message)
+	if code == "account_registration_failed":
+		account_window.show_feedback(status_label.text, true)
 	if code == "combat_style_rejected":
 		_queued_combat_style = ""
 		_update_combat_styles_hud()

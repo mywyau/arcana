@@ -144,6 +144,97 @@ func TestHandlerReportsInvalidMessages(t *testing.T) {
 	}
 }
 
+func TestHandlerRegistersAndRecoversAccountCharacter(t *testing.T) {
+	world := simulation.NewWorld()
+	const interval = 5 * time.Millisecond
+	runner, err := simulation.NewRunner(world, interval)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	runnerCtx, stopRunner := context.WithCancel(context.Background())
+	defer stopRunner()
+	go runner.Run(runnerCtx)
+
+	handler, err := NewHandler(world, interval)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	server := startTestServer(t, handler)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	guestConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial guest: %v", err)
+	}
+	authenticateGuest(t, ctx, guestConnection, "")
+	guestWelcome := readServerMessage(t, ctx, guestConnection)
+	if err := wsjson.Write(ctx, guestConnection, protocol.ClientMessage{
+		Type: protocol.MessageRegisterAccount, Sequence: 1,
+		Email: "player@example.com", Password: "strong-password",
+	}); err != nil {
+		t.Fatalf("write registration: %v", err)
+	}
+	var registration protocol.ServerMessage
+	for registration.Type != protocol.MessageAccountSession {
+		registration = readServerMessage(t, ctx, guestConnection)
+	}
+	if registration.SessionToken == "" || registration.AccountEmail != "player@example.com" {
+		t.Fatalf("registration response = %+v", registration)
+	}
+	if err := guestConnection.Close(websocket.StatusNormalClosure, "registered"); err != nil {
+		t.Fatalf("close guest connection: %v", err)
+	}
+	waitForPlayerToLeave(t, world, simulation.PlayerID(guestWelcome.PlayerID))
+
+	loginConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial login: %v", err)
+	}
+	if err := wsjson.Write(ctx, loginConnection, protocol.ClientMessage{
+		Type:  protocol.MessageAuthenticate,
+		Email: "PLAYER@example.com", Password: "strong-password",
+	}); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	loginWelcome := readServerMessage(t, ctx, loginConnection)
+	if loginWelcome.PlayerID != guestWelcome.PlayerID || loginWelcome.SessionToken == "" {
+		t.Fatalf("login welcome = %+v, original player = %s", loginWelcome, guestWelcome.PlayerID)
+	}
+	if err := loginConnection.Close(websocket.StatusNormalClosure, "login complete"); err != nil {
+		t.Fatalf("close login connection: %v", err)
+	}
+	waitForPlayerToLeave(t, world, simulation.PlayerID(guestWelcome.PlayerID))
+
+	sessionConnection, _, err := websocket.Dial(ctx, websocketURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial session: %v", err)
+	}
+	defer sessionConnection.CloseNow()
+	if err := wsjson.Write(ctx, sessionConnection, protocol.ClientMessage{
+		Type: protocol.MessageAuthenticate, SessionToken: loginWelcome.SessionToken,
+	}); err != nil {
+		t.Fatalf("write session authentication: %v", err)
+	}
+	sessionWelcome := readServerMessage(t, ctx, sessionConnection)
+	if sessionWelcome.PlayerID != guestWelcome.PlayerID {
+		t.Fatalf("session player = %s, want %s", sessionWelcome.PlayerID, guestWelcome.PlayerID)
+	}
+}
+
+func waitForPlayerToLeave(t *testing.T, world *simulation.World, playerID simulation.PlayerID) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if _, found := world.Player(playerID); !found {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("player %s did not leave the world", playerID)
+}
+
 func TestHandlerRejectsDebugCommandsWhenDisabled(t *testing.T) {
 	world := simulation.NewWorld()
 	handler, err := NewHandlerWithOptions(

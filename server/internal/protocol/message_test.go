@@ -12,6 +12,21 @@ func TestDecodeAuthenticateMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeAccountMessages(t *testing.T) {
+	login, err := DecodeClientMessage([]byte(`{"type":"authenticate","email":"player@example.com","password":"strong-password"}`))
+	if err != nil || login.Email != "player@example.com" || login.Password != "strong-password" {
+		t.Fatalf("decoded login = %+v, error %v", login, err)
+	}
+	session, err := DecodeClientMessage([]byte(`{"type":"authenticate","session_token":"session-token"}`))
+	if err != nil || session.SessionToken != "session-token" {
+		t.Fatalf("decoded session authentication = %+v, error %v", session, err)
+	}
+	registration, err := DecodeClientMessage([]byte(`{"type":"register_account","sequence":1,"email":"player@example.com","password":"strong-password"}`))
+	if err != nil || registration.Sequence != 1 || registration.Email != "player@example.com" {
+		t.Fatalf("decoded registration = %+v, error %v", registration, err)
+	}
+}
+
 func TestDecodeClientMessage(t *testing.T) {
 	message, err := DecodeClientMessage([]byte(`{"type":"move_to","sequence":3,"destination":{"x":1.5,"y":4,"z":-2}}`))
 	if err != nil {

@@ -8,6 +8,8 @@ signal spell_catalog_received(books: Array, spells: Array)
 signal prayer_catalog_received(prayers: Array, prayer_sets: Array)
 signal snapshot_received(snapshot: Dictionary)
 signal server_error(code: String, message: String)
+signal account_session_received(email: String)
+signal account_login_required(message: String)
 
 @export var server_url: String = ""
 
@@ -17,7 +19,12 @@ const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _last_state: WebSocketPeer.State = WebSocketPeer.STATE_CLOSED
 var _guest_token: String = ""
+var _session_token: String = ""
+var _pending_login_email: String = ""
+var _pending_login_password: String = ""
 var _retry_without_guest_token: bool = false
+var _retry_immediately: bool = false
+var _authentication_blocked: bool = false
 var _guest_identity_path: String = ClientProfile.config_path("guest_identity.cfg")
 var _guest_identity_section: String = ""
 var _reconnect_delay_seconds: float = INITIAL_RECONNECT_DELAY_SECONDS
@@ -94,6 +101,40 @@ func send_move(sequence: int, destination: Vector3) -> bool:
 		status_changed.emit("Could not send movement: %s" % error_string(result))
 		return false
 	return true
+
+
+func register_account(sequence: int, email: String, password: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Connect before creating an account")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "register_account",
+		"sequence": sequence,
+		"email": email.strip_edges(),
+		"password": password,
+	}))
+	if result != OK:
+		status_changed.emit("Could not create account: %s" % error_string(result))
+		return false
+	return true
+
+
+func login(email: String, password: String) -> void:
+	_pending_login_email = email.strip_edges()
+	_pending_login_password = password
+	_authentication_blocked = false
+	_retry_immediately = true
+	_reconnect_at_msec = -1
+	var state: WebSocketPeer.State = _socket.get_ready_state()
+	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
+		_socket.close(1000, "switching account")
+		return
+	_retry_immediately = false
+	_schedule_reconnect(true)
+
+
+func has_account_session() -> bool:
+	return not _session_token.is_empty()
 
 
 func send_engage_target(sequence: int, target_id: String) -> bool:
@@ -566,8 +607,13 @@ func _handle_state_change(state: WebSocketPeer.State) -> void:
 			if reason.is_empty():
 				reason = "connection closed"
 			status_changed.emit("Disconnected: %s" % reason)
-			if _retry_without_guest_token:
+			if _authentication_blocked:
+				status_changed.emit("Login required")
+			elif _retry_without_guest_token:
 				_retry_without_guest_token = false
+				_schedule_reconnect(true)
+			elif _retry_immediately:
+				_retry_immediately = false
 				_schedule_reconnect(true)
 			else:
 				_schedule_reconnect()
@@ -612,10 +658,23 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		"welcome":
 			_reconnect_at_msec = -1
 			_reconnect_delay_seconds = INITIAL_RECONNECT_DELAY_SECONDS
+			_authentication_blocked = false
+			_retry_immediately = false
 			var issued_token: String = str(message.get("guest_token", ""))
 			if not issued_token.is_empty():
 				_guest_token = issued_token
 				_save_guest_token()
+			var issued_session: String = str(message.get("session_token", ""))
+			var account_email: String = str(message.get("account_email", ""))
+			if not issued_session.is_empty():
+				_session_token = issued_session
+				_save_session_token()
+				_guest_token = ""
+				_save_guest_token()
+			_pending_login_email = ""
+			_pending_login_password = ""
+			if not account_email.is_empty():
+				account_session_received.emit(account_email)
 			var production_recipes: Variant = message.get("production_recipes", [])
 			if typeof(production_recipes) == TYPE_ARRAY:
 				production_recipes_received.emit(production_recipes as Array)
@@ -634,6 +693,15 @@ func _handle_packet(packet: PackedByteArray) -> void:
 				snapshot_received.emit(snapshot as Dictionary)
 			else:
 				server_error.emit("invalid_snapshot", "Snapshot payload is missing")
+		"account_session":
+			var issued_session: String = str(message.get("session_token", ""))
+			var account_email: String = str(message.get("account_email", ""))
+			if not issued_session.is_empty():
+				_session_token = issued_session
+				_save_session_token()
+				_guest_token = ""
+				_save_guest_token()
+				account_session_received.emit(account_email)
 		"error":
 			var error_payload: Variant = message.get("error", {})
 			if typeof(error_payload) == TYPE_DICTIONARY:
@@ -643,6 +711,15 @@ func _handle_packet(packet: PackedByteArray) -> void:
 					_guest_token = ""
 					_save_guest_token()
 					_retry_without_guest_token = true
+				elif error_code == "invalid_account_session":
+					_session_token = ""
+					_save_session_token()
+					_authentication_blocked = true
+					account_login_required.emit("Your session expired. Log in again.")
+				elif error_code == "invalid_credentials":
+					_pending_login_password = ""
+					_authentication_blocked = true
+					account_login_required.emit("The email or password was incorrect.")
 				server_error.emit(
 					error_code,
 					str(details.get("message", "Unknown server error")),
@@ -653,7 +730,12 @@ func _handle_packet(packet: PackedByteArray) -> void:
 
 func _send_authentication() -> bool:
 	var message: Dictionary = {"type": "authenticate"}
-	if not _guest_token.is_empty():
+	if not _pending_login_email.is_empty() and not _pending_login_password.is_empty():
+		message["email"] = _pending_login_email
+		message["password"] = _pending_login_password
+	elif not _session_token.is_empty():
+		message["session_token"] = _session_token
+	elif not _guest_token.is_empty():
 		message["guest_token"] = _guest_token
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
@@ -667,6 +749,7 @@ func _load_guest_token() -> void:
 	if config.load(_guest_identity_path) != OK:
 		return
 	_guest_token = str(config.get_value(_guest_identity_section, "guest_token", ""))
+	_session_token = str(config.get_value(_guest_identity_section, "session_token", ""))
 	if (
 		_guest_token.is_empty()
 		and ClientProfile.is_local_server(server_url)
@@ -682,13 +765,21 @@ func _load_guest_token() -> void:
 
 
 func _save_guest_token() -> void:
+	_save_identity_token("guest_token", _guest_token)
+
+
+func _save_session_token() -> void:
+	_save_identity_token("session_token", _session_token)
+
+
+func _save_identity_token(key: String, value: String) -> void:
 	var config := ConfigFile.new()
 	var load_result: Error = config.load(_guest_identity_path)
 	if load_result != OK and load_result != ERR_FILE_NOT_FOUND:
 		status_changed.emit("Could not read guest identities: %s" % error_string(load_result))
 		return
 	config.set_value(_guest_identity_section, "server_url", server_url)
-	config.set_value(_guest_identity_section, "guest_token", _guest_token)
+	config.set_value(_guest_identity_section, key, value)
 	var result: Error = config.save(_guest_identity_path)
 	if result != OK:
 		status_changed.emit("Could not save guest identity: %s" % error_string(result))

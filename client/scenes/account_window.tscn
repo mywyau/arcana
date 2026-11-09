@@ -1,0 +1,89 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/account_window.gd" id="1_account"]
+
+[node name="AccountWindow" type="Window"]
+borderless = true
+initial_position = 1
+size = Vector2i(480, 390)
+min_size = Vector2i(420, 350)
+visible = false
+script = ExtResource("1_account")
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Header" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Panel/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Account"
+theme_override_font_sizes/font_size = 25
+
+[node name="Close" type="Button" parent="Panel/Margin/VBox/Header"]
+custom_minimum_size = Vector2(44, 38)
+layout_mode = 2
+text = "×"
+
+[node name="Description" type="Label" parent="Panel/Margin/VBox"]
+layout_mode = 2
+text = "Register to protect this character, or log in to recover one."
+autowrap_mode = 2
+
+[node name="Email" type="LineEdit" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+placeholder_text = "Email address"
+
+[node name="Password" type="LineEdit" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+placeholder_text = "Password"
+secret = true
+secret_character = "•"
+
+[node name="ConfirmPassword" type="LineEdit" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+placeholder_text = "Confirm password (registration only)"
+secret = true
+secret_character = "•"
+
+[node name="Feedback" type="Label" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Link this character or recover an existing account."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Register" type="Button" parent="Panel/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Register character"
+
+[node name="Login" type="Button" parent="Panel/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Log in"

@@ -17,10 +17,14 @@ const (
 	argonParallelism     = 1
 	argonSaltBytes       = 16
 	argonHashBytes       = 32
+	minimumPasswordBytes = 8
 	maximumPasswordBytes = 1024
 )
 
-var ErrInvalidPasswordHash = errors.New("invalid password hash")
+var (
+	ErrInvalidPassword     = errors.New("password is invalid")
+	ErrInvalidPasswordHash = errors.New("invalid password hash")
+)
 
 type PasswordHasher struct{}
 
@@ -29,11 +33,11 @@ func NewPasswordHasher() PasswordHasher {
 }
 
 func (PasswordHasher) Hash(password string) (string, error) {
-	if password == "" {
-		return "", fmt.Errorf("password is required")
+	if len(password) < minimumPasswordBytes {
+		return "", fmt.Errorf("%w: must contain at least %d characters", ErrInvalidPassword, minimumPasswordBytes)
 	}
 	if len(password) > maximumPasswordBytes {
-		return "", fmt.Errorf("password exceeds maximum length")
+		return "", fmt.Errorf("%w: exceeds maximum length", ErrInvalidPassword)
 	}
 	salt := make([]byte, argonSaltBytes)
 	if _, err := rand.Read(salt); err != nil {

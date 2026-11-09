@@ -2,10 +2,12 @@ package account
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 )
 
 const maximumEmailBytes = 254
@@ -13,6 +15,8 @@ const maximumEmailBytes = 254
 var (
 	ErrAccountExists        = errors.New("account already exists")
 	ErrCharacterUnavailable = errors.New("character is unavailable")
+	ErrInvalidEmail         = errors.New("email address is invalid")
+	ErrSessionExists        = errors.New("account session already exists")
 )
 
 // Account is the private authentication record linked to one character.
@@ -28,16 +32,31 @@ type Repository interface {
 	FindAccountByEmail(context.Context, string) (Account, bool, error)
 }
 
+// Session contains only a token hash. Raw session tokens are returned to the
+// client once and are never persisted by a repository.
+type Session struct {
+	TokenHash [sha256.Size]byte
+	AccountID string
+	PlayerID  string
+	Email     string
+	ExpiresAt time.Time
+}
+
+type SessionRepository interface {
+	CreateSession(context.Context, Session) error
+	FindSession(context.Context, [sha256.Size]byte) (Session, bool, error)
+}
+
 // NormalizeEmail defines Arcana's account identity rules. Email addresses are
 // deliberately case-insensitive for login and uniqueness.
 func NormalizeEmail(email string) (string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(email))
 	if normalized == "" || len(normalized) > maximumEmailBytes || strings.ContainsAny(normalized, " \t\r\n") {
-		return "", fmt.Errorf("email address is invalid")
+		return "", ErrInvalidEmail
 	}
 	parts := strings.Split(normalized, "@")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" || !strings.Contains(parts[1], ".") {
-		return "", fmt.Errorf("email address is invalid")
+		return "", ErrInvalidEmail
 	}
 	return normalized, nil
 }
@@ -47,6 +66,7 @@ type MemoryRepository struct {
 	accountsByID    map[string]Account
 	accountByEmail  map[string]string
 	accountByPlayer map[string]string
+	sessions        map[[sha256.Size]byte]Session
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -54,7 +74,34 @@ func NewMemoryRepository() *MemoryRepository {
 		accountsByID:    make(map[string]Account),
 		accountByEmail:  make(map[string]string),
 		accountByPlayer: make(map[string]string),
+		sessions:        make(map[[sha256.Size]byte]Session),
 	}
+}
+
+func (repository *MemoryRepository) CreateSession(_ context.Context, value Session) error {
+	if value.AccountID == "" || value.PlayerID == "" || value.ExpiresAt.IsZero() {
+		return fmt.Errorf("account session is incomplete")
+	}
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	if _, exists := repository.sessions[value.TokenHash]; exists {
+		return ErrSessionExists
+	}
+	repository.sessions[value.TokenHash] = value
+	return nil
+}
+
+func (repository *MemoryRepository) FindSession(
+	_ context.Context,
+	tokenHash [sha256.Size]byte,
+) (Session, bool, error) {
+	repository.mu.RLock()
+	defer repository.mu.RUnlock()
+	value, found := repository.sessions[tokenHash]
+	if !found || !value.ExpiresAt.After(time.Now()) {
+		return Session{}, false, nil
+	}
+	return value, true, nil
 }
 
 func (repository *MemoryRepository) CreateAccount(_ context.Context, value Account) error {

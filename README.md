@@ -159,9 +159,16 @@ The server database separates private account credentials from character state.
 Email addresses are normalized for case-insensitive login, each account can own
 one character, and account creation links an existing guest character in one
 transaction. Passwords use salted Argon2id hashes with their cost parameters
-stored in the encoded hash. Registration, login sessions, and client account UI
-are intentionally deferred to the next slices; guest authentication remains the
-only active login flow for now.
+stored in the encoded hash. From Settings > Manage account, a guest can register
+the current character or log in to recover an existing one. Successful login
+issues a random 30-day session token; PostgreSQL stores only its SHA-256 hash,
+while the client stores the raw token per profile and server URL. Passwords are
+sent only during registration or login over the WebSocket connection and are
+not saved by the client.
+
+Email verification, password reset, logout, session revocation, and login rate
+limiting are not implemented yet. These remain required before opening account
+registration beyond a small trusted private beta.
 
 ## WebSocket protocol
 

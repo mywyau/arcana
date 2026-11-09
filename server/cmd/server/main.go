@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mywyau/arcana/server/internal/account"
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/navigation"
 	postgrespersistence "github.com/mywyau/arcana/server/internal/persistence/postgres"
@@ -197,6 +198,10 @@ func main() {
 		if identityErr != nil {
 			log.Fatal(identityErr)
 		}
+		accountManager, accountErr := account.NewManager(store, store)
+		if accountErr != nil {
+			log.Fatal(accountErr)
+		}
 		handler, err = websockettransport.NewHandlerWithRepositoriesAndOptions(
 			world,
 			tickInterval,
@@ -205,6 +210,7 @@ func main() {
 			websockettransport.HandlerOptions{
 				AllowDebugCommands: config.DebugContentEnabled,
 				AllowedOrigins:     config.AllowedOrigins,
+				AccountManager:     accountManager,
 			},
 		)
 		if err != nil {

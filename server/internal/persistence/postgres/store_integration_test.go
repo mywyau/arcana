@@ -127,6 +127,18 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(loadedAccount, wantAccount) {
 		t.Fatalf("loaded account = %+v, want %+v", loadedAccount, wantAccount)
 	}
+	accountManager, err := account.NewManager(secondStore, secondStore)
+	if err != nil {
+		t.Fatalf("create account manager: %v", err)
+	}
+	loggedIn, err := accountManager.Login(ctx, wantAccount.Email, "integration-test-password")
+	if err != nil {
+		t.Fatalf("Login() returned an unexpected error: %v", err)
+	}
+	accountSession, err := accountManager.AuthenticateSession(ctx, loggedIn.SessionToken)
+	if err != nil || accountSession.PlayerID != guest.PlayerID {
+		t.Fatalf("AuthenticateSession() = %+v, error %v", accountSession, err)
+	}
 
 	secondManager, err := identity.NewGuestManager(secondStore)
 	if err != nil {

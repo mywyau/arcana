@@ -9,6 +9,7 @@ import (
 
 const (
 	MessageAuthenticate       = "authenticate"
+	MessageRegisterAccount    = "register_account"
 	MessageMoveTo             = "move_to"
 	MessageEngageTarget       = "engage_target"
 	MessageDisengage          = "disengage"
@@ -39,6 +40,7 @@ const (
 	MessageRuneDeposit        = "rune_deposit"
 	MessageRuneWithdraw       = "rune_withdraw"
 	MessageWelcome            = "welcome"
+	MessageAccountSession     = "account_session"
 	MessageSnapshot           = "snapshot"
 	MessageError              = "error"
 )
@@ -77,12 +79,17 @@ type ClientMessage struct {
 	Experience     int64     `json:"experience,omitempty"`
 	SetExperience  bool      `json:"set_experience,omitempty"`
 	GuestToken     string    `json:"guest_token,omitempty"`
+	SessionToken   string    `json:"session_token,omitempty"`
+	Email          string    `json:"email,omitempty"`
+	Password       string    `json:"password,omitempty"`
 }
 
 type ServerMessage struct {
 	Type              string                     `json:"type"`
 	PlayerID          string                     `json:"player_id,omitempty"`
 	GuestToken        string                     `json:"guest_token,omitempty"`
+	SessionToken      string                     `json:"session_token,omitempty"`
+	AccountEmail      string                     `json:"account_email,omitempty"`
 	ProductionRecipes []ProductionRecipeSnapshot `json:"production_recipes,omitempty"`
 	Spellbooks        []SpellbookCatalogSnapshot `json:"spellbooks,omitempty"`
 	Spells            []SpellCatalogSnapshot     `json:"spells,omitempty"`
@@ -439,7 +446,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		return ClientMessage{}, fmt.Errorf("message must contain one JSON value")
 	}
 
-	if message.Type != MessageAuthenticate && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
+	if message.Type != MessageAuthenticate && message.Type != MessageRegisterAccount && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
 		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
@@ -454,6 +461,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {
 		return ClientMessage{}, fmt.Errorf("sequence must be positive")
+	}
+	if message.Type == MessageRegisterAccount && (message.Email == "" || message.Password == "") {
+		return ClientMessage{}, fmt.Errorf("email and password are required")
 	}
 	if message.Type == MessageMoveTo && message.Destination == nil {
 		return ClientMessage{}, fmt.Errorf("destination is required")

@@ -11,6 +11,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 
+	"github.com/mywyau/arcana/server/internal/account"
 	"github.com/mywyau/arcana/server/internal/character"
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/protocol"
@@ -30,6 +31,7 @@ type Handler struct {
 	world            *simulation.World
 	snapshotInterval time.Duration
 	guestIdentities  *identity.GuestManager
+	accounts         *account.Manager
 	characters       character.Repository
 	allowDebug       bool
 	acceptOptions    websocket.AcceptOptions
@@ -38,6 +40,7 @@ type Handler struct {
 type HandlerOptions struct {
 	AllowDebugCommands bool
 	AllowedOrigins     []string
+	AccountManager     *account.Manager
 }
 
 func NewHandler(world *simulation.World, snapshotInterval time.Duration) (*Handler, error) {
@@ -108,9 +111,18 @@ func NewHandlerWithRepositoriesAndOptions(
 	if characters == nil {
 		return nil, fmt.Errorf("character repository is required")
 	}
+	accountManager := options.AccountManager
+	if accountManager == nil {
+		accountRepository := account.NewMemoryRepository()
+		var err error
+		accountManager, err = account.NewManager(accountRepository, accountRepository)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &Handler{
 		world: world, snapshotInterval: snapshotInterval,
-		guestIdentities: guestIdentities, characters: characters,
+		guestIdentities: guestIdentities, accounts: accountManager, characters: characters,
 		allowDebug: options.AllowDebugCommands,
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
@@ -129,13 +141,19 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	guestIdentity, err := h.authenticate(ctx, connection)
+	authentication, err := h.authenticate(ctx, connection)
 	if err != nil {
 		code := "authentication_failed"
 		clientError := errors.New("authentication unavailable")
 		if errors.Is(err, identity.ErrInvalidGuestToken) {
 			code = "invalid_guest_token"
 			clientError = identity.ErrInvalidGuestToken
+		} else if errors.Is(err, account.ErrInvalidSession) {
+			code = "invalid_account_session"
+			clientError = account.ErrInvalidSession
+		} else if errors.Is(err, account.ErrInvalidCredentials) {
+			code = "invalid_credentials"
+			clientError = account.ErrInvalidCredentials
 		} else {
 			log.Printf("authenticate WebSocket connection: %v", err)
 		}
@@ -143,7 +161,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
 		return
 	}
-	playerID := simulation.PlayerID(guestIdentity.PlayerID)
+	playerID := simulation.PlayerID(authentication.PlayerID)
 	characterState, found, err := h.characters.Load(ctx, string(playerID))
 	if err != nil {
 		log.Printf("load character %s: %v", playerID, err)
@@ -181,7 +199,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	if err := writeMessage(ctx, connection, protocol.ServerMessage{
 		Type:              protocol.MessageWelcome,
 		PlayerID:          string(playerID),
-		GuestToken:        guestIdentity.Token,
+		GuestToken:        authentication.GuestToken,
+		SessionToken:      authentication.SessionToken,
+		AccountEmail:      authentication.AccountEmail,
 		ProductionRecipes: productionRecipeMessages(simulation.ProductionRecipeCatalog()),
 		Spellbooks:        spellbookCatalogMessages(simulation.SpellbookCatalog()),
 		Spells:            spellCatalogMessages(simulation.SpellCatalog()),
@@ -321,21 +341,60 @@ func (h *Handler) SaveAll(ctx context.Context) error {
 	return errors.Join(saveErrors...)
 }
 
-func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) (identity.GuestIdentity, error) {
+type authenticatedIdentity struct {
+	PlayerID     string
+	GuestToken   string
+	SessionToken string
+	AccountEmail string
+}
+
+func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) (authenticatedIdentity, error) {
 	authCtx, cancel := context.WithTimeout(ctx, authenticationTimeout)
 	defer cancel()
 	_, data, err := connection.Read(authCtx)
 	if err != nil {
-		return identity.GuestIdentity{}, fmt.Errorf("read authentication: %w", err)
+		return authenticatedIdentity{}, fmt.Errorf("read authentication: %w", err)
 	}
 	message, err := protocol.DecodeClientMessage(data)
 	if err != nil {
-		return identity.GuestIdentity{}, err
+		return authenticatedIdentity{}, err
 	}
 	if message.Type != protocol.MessageAuthenticate {
-		return identity.GuestIdentity{}, fmt.Errorf("authentication must be the first message")
+		return authenticatedIdentity{}, fmt.Errorf("authentication must be the first message")
 	}
-	return h.guestIdentities.Authenticate(ctx, message.GuestToken)
+	usesSession := message.SessionToken != ""
+	usesCredentials := message.Email != "" || message.Password != ""
+	usesGuest := message.GuestToken != ""
+	methodCount := 0
+	for _, used := range []bool{usesSession, usesCredentials, usesGuest} {
+		if used {
+			methodCount++
+		}
+	}
+	if methodCount > 1 || (usesCredentials && (message.Email == "" || message.Password == "")) {
+		return authenticatedIdentity{}, fmt.Errorf("provide exactly one authentication method")
+	}
+	if usesSession {
+		value, err := h.accounts.AuthenticateSession(ctx, message.SessionToken)
+		if err != nil {
+			return authenticatedIdentity{}, err
+		}
+		return authenticatedIdentity{PlayerID: value.PlayerID, AccountEmail: value.Email}, nil
+	}
+	if usesCredentials {
+		value, err := h.accounts.Login(ctx, message.Email, message.Password)
+		if err != nil {
+			return authenticatedIdentity{}, err
+		}
+		return authenticatedIdentity{
+			PlayerID: value.PlayerID, SessionToken: value.SessionToken, AccountEmail: value.Email,
+		}, nil
+	}
+	guestIdentity, err := h.guestIdentities.Authenticate(ctx, message.GuestToken)
+	if err != nil {
+		return authenticatedIdentity{}, err
+	}
+	return authenticatedIdentity{PlayerID: guestIdentity.PlayerID, GuestToken: guestIdentity.Token}, nil
 }
 
 func (h *Handler) readCommands(
@@ -364,6 +423,19 @@ func (h *Handler) readCommands(
 		case protocol.MessageAuthenticate:
 			rejectionCode = "invalid_message"
 			err = fmt.Errorf("connection is already authenticated")
+		case protocol.MessageRegisterAccount:
+			rejectionCode = "account_registration_failed"
+			var registered account.Authentication
+			registered, err = h.accounts.Register(ctx, string(playerID), message.Email, message.Password)
+			if err == nil {
+				sendResponse(ctx, responses, protocol.ServerMessage{
+					Type:         protocol.MessageAccountSession,
+					SessionToken: registered.SessionToken,
+					AccountEmail: registered.Email,
+				})
+			} else {
+				err = accountRegistrationClientError(err)
+			}
 		case protocol.MessageMoveTo:
 			destination := simulation.Position{
 				X: message.Destination.X,
@@ -564,6 +636,20 @@ func (h *Handler) readCommands(
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
 		}
+	}
+}
+
+func accountRegistrationClientError(err error) error {
+	switch {
+	case errors.Is(err, account.ErrAccountExists):
+		return errors.New("that email address is already registered")
+	case errors.Is(err, account.ErrCharacterUnavailable):
+		return errors.New("this character is already linked to an account")
+	case errors.Is(err, account.ErrInvalidEmail), errors.Is(err, account.ErrInvalidPassword):
+		return err
+	default:
+		log.Printf("register account: %v", err)
+		return errors.New("could not create account")
 	}
 }
 
