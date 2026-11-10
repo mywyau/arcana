@@ -232,6 +232,10 @@ not launch the executable from inside the ZIP or receive the executable without
 its PCK file. The packaged `BETA_TESTER_README.md` contains the complete launch,
 SmartScreen and server-availability instructions.
 
+The staged design for automatic client updates is documented in
+[`CLIENT_LAUNCHER_PLAN.md`](CLIENT_LAUNCHER_PLAN.md). It starts with generating
+a release manifest from these existing versioned archives and checksums.
+
 ### Account foundation
 
 The server database separates private account credentials from character state.
