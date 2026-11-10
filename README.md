@@ -236,6 +236,10 @@ The staged design for automatic client updates is documented in
 [`CLIENT_LAUNCHER_PLAN.md`](CLIENT_LAUNCHER_PLAN.md). It starts with generating
 a release manifest from these existing versioned archives and checksums.
 
+The incremental server work needed to target large worlds is tracked in
+[`SERVER_SCALING_PLAN.md`](SERVER_SCALING_PLAN.md), including snapshot privacy,
+interest management, delta updates and load testing.
+
 ### Account foundation
 
 The server database separates private account credentials from character state.
@@ -293,8 +297,12 @@ create an identity). After the `welcome` message, movement intentions look like:
 }
 ```
 
-The server sends a `welcome` message followed by authoritative `snapshot`
-messages. Sequence numbers must increase for the duration of the connection.
+The server advances the authoritative simulation every 50 ms and sends
+`snapshot` messages every 100 ms. This keeps combat and movement timing
+responsive without serialising the entire world at the simulation rate.
+Snapshots contain full private state only for the receiving player; remote
+players expose the public state needed to render and interact with them.
+Sequence numbers must increase for the duration of the connection.
 
 ## Client
 

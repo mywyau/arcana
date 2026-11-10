@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	tickInterval = 50 * time.Millisecond
+	tickInterval     = 50 * time.Millisecond
+	snapshotInterval = 100 * time.Millisecond
 )
 
 type testSupply struct {
@@ -216,7 +217,7 @@ func main() {
 	}
 	handler, err := websockettransport.NewHandlerWithRepositoriesAndOptions(
 		world,
-		tickInterval,
+		snapshotInterval,
 		guestIdentities,
 		characters,
 		websockettransport.HandlerOptions{
@@ -251,8 +252,8 @@ func main() {
 	}
 
 	log.Printf(
-		"simulation started in %s mode with a %s tick interval (debug content: %t, test supply chests: %t)",
-		config.Environment, tickInterval, config.DebugContentEnabled, config.TestSupplyChestsEnabled,
+		"simulation started in %s mode with a %s tick interval and %s snapshot interval (debug content: %t, test supply chests: %t)",
+		config.Environment, tickInterval, snapshotInterval, config.DebugContentEnabled, config.TestSupplyChestsEnabled,
 	)
 	go runner.Run(ctx)
 

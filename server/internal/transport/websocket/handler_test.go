@@ -2,6 +2,7 @@ package websockettransport
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -628,6 +629,59 @@ func TestSnapshotMessageOnlyIncludesLocalPlayersBank(t *testing.T) {
 	}
 	if message.Players[1].Bank != nil {
 		t.Fatalf("remote bank was exposed: %+v", message.Players[1].Bank)
+	}
+}
+
+func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
+	privatePlayer := simulation.PlayerSnapshot{
+		Inventory: simulation.InventorySnapshot{
+			Capacity: 8,
+			Items:    []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemCoins, Quantity: 50}},
+		},
+		Bank: simulation.BankSnapshot{
+			Capacity: simulation.BankCapacity,
+			Items:    []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 50}},
+		},
+		CombatStats:   simulation.CombatStatsSnapshot{TotalAccuracy: 12},
+		CombatMatchup: simulation.CombatMatchupSnapshot{TargetID: "dummy", PlayerHitChance: 0.75},
+		Skills:        []simulation.SkillSnapshot{{ID: simulation.SkillAttack, Level: 10}},
+	}
+	localPlayer := privatePlayer
+	localPlayer.ID = "player-one"
+	remotePlayer := privatePlayer
+	remotePlayer.ID = "player-two"
+
+	message := snapshotMessage(simulation.Snapshot{
+		Players: []simulation.PlayerSnapshot{localPlayer, remotePlayer},
+	}, "player-one")
+	local := message.Players[0]
+	if local.Inventory == nil || local.CombatStats == nil || local.CombatMatchup == nil ||
+		local.AmmunitionPouch == nil || local.RingRack == nil || local.RunePouch == nil ||
+		len(local.Skills) != 1 {
+		t.Fatalf("local private state is incomplete: %+v", local)
+	}
+	remote := message.Players[1]
+	if remote.Inventory != nil || remote.Bank != nil || remote.CombatStats != nil || remote.CombatMatchup != nil ||
+		remote.AmmunitionPouch != nil || remote.RingRack != nil || remote.RunePouch != nil ||
+		len(remote.Skills) != 0 || len(remote.ActiveCombatBoosts) != 0 {
+		t.Fatalf("remote private state was exposed: %+v", remote)
+	}
+
+	encoded, err := json.Marshal(remote)
+	if err != nil {
+		t.Fatalf("Marshal(remote) error = %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatalf("Unmarshal(remote) error = %v", err)
+	}
+	for _, field := range []string{
+		"inventory", "bank", "combat_stats", "combat_matchup", "ammunition_pouch",
+		"ring_rack", "rune_pouch", "skills", "active_combat_boosts",
+	} {
+		if _, exposed := payload[field]; exposed {
+			t.Errorf("remote JSON includes private field %q: %s", field, encoded)
+		}
 	}
 }
 

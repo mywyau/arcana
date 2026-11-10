@@ -995,7 +995,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			CombatLevel:                  player.CombatLevel,
 			ExperienceLocked:             player.ExperienceLocked,
 			LastExperienceLockSequence:   player.LastExperienceLockSequence,
-			CombatMatchup: protocol.CombatMatchupSnapshot{
+			CombatMatchup: &protocol.CombatMatchupSnapshot{
 				TargetID:            player.CombatMatchup.TargetID,
 				PlayerHitChance:     player.CombatMatchup.PlayerHitChance,
 				PlayerMinimumDamage: player.CombatMatchup.PlayerMinimumDamage,
@@ -1006,7 +1006,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				TargetMaximumDamage: player.CombatMatchup.TargetMaximumDamage,
 				TargetAttackRange:   player.CombatMatchup.TargetAttackRange,
 			},
-			CombatStats: protocol.CombatStatsSnapshot{
+			CombatStats: &protocol.CombatStatsSnapshot{
 				Weapon:                  string(player.CombatStats.Weapon),
 				Style:                   string(player.CombatStats.Style),
 				Spell:                   string(player.CombatStats.Spell),
@@ -1044,7 +1044,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				EquipmentEvasionBonus: player.CombatStats.EquipmentEvasionBonus,
 				TotalEvasion:          player.CombatStats.TotalEvasion,
 			},
-			Inventory: protocol.InventorySnapshot{
+			Inventory: &protocol.InventorySnapshot{
 				Capacity: player.Inventory.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 			},
@@ -1094,7 +1094,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			})
 		}
 		if player.ID == localPlayerID {
-			playerMessage.AmmunitionPouch = protocol.AmmunitionPouchSnapshot{
+			playerMessage.AmmunitionPouch = &protocol.AmmunitionPouchSnapshot{
 				Capacity: player.AmmunitionPouch.Capacity, UnlockedSlots: player.AmmunitionPouch.UnlockedSlots,
 				Items: make([]protocol.InventoryItem, 0, len(player.AmmunitionPouch.Items)),
 			}
@@ -1104,7 +1104,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 				})
 			}
-			playerMessage.RingRack = protocol.RingRackSnapshot{
+			playerMessage.RingRack = &protocol.RingRackSnapshot{
 				Capacity: player.RingRack.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(player.RingRack.Items)),
 			}
@@ -1115,7 +1115,7 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 					InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
 				})
 			}
-			playerMessage.RunePouch = protocol.RunePouchSnapshot{
+			playerMessage.RunePouch = &protocol.RunePouchSnapshot{
 				Capacity: player.RunePouch.Capacity, UnlockedSlots: player.RunePouch.UnlockedSlots,
 				Items: make([]protocol.InventoryItem, 0, len(player.RunePouch.Items)),
 			}
@@ -1158,6 +1158,17 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				Y: player.Destination.Y,
 				Z: player.Destination.Z,
 			}
+		}
+		if player.ID != localPlayerID {
+			playerMessage.CombatStats = nil
+			playerMessage.CombatMatchup = nil
+			playerMessage.Inventory = nil
+			playerMessage.Bank = nil
+			playerMessage.AmmunitionPouch = nil
+			playerMessage.RingRack = nil
+			playerMessage.RunePouch = nil
+			playerMessage.Skills = nil
+			playerMessage.ActiveCombatBoosts = nil
 		}
 		message.Players = append(message.Players, playerMessage)
 	}
