@@ -17,6 +17,7 @@ type Config struct {
 	ListenAddress              string
 	DatabaseURL                string
 	DebugContentEnabled        bool
+	TestSupplyChestsEnabled    bool
 	GuestAuthenticationEnabled bool
 	TrustProxyHeaders          bool
 	AllowedOrigins             []string
@@ -52,6 +53,13 @@ func Load(getenv func(string) string) (Config, error) {
 	if environment == EnvironmentProduction && debugContentEnabled {
 		return Config{}, fmt.Errorf("debug content cannot be enabled in production")
 	}
+	testSupplyChestsEnabled := environment == EnvironmentDevelopment
+	if rawChests := strings.TrimSpace(getenv("ARCANA_ENABLE_TEST_SUPPLY_CHESTS")); rawChests != "" {
+		testSupplyChestsEnabled, err = strconv.ParseBool(rawChests)
+		if err != nil {
+			return Config{}, fmt.Errorf("ARCANA_ENABLE_TEST_SUPPLY_CHESTS must be true or false")
+		}
+	}
 	guestAuthenticationEnabled := environment == EnvironmentDevelopment
 	if rawGuests := strings.TrimSpace(getenv("ARCANA_ALLOW_GUEST_AUTH")); rawGuests != "" {
 		guestAuthenticationEnabled, err = strconv.ParseBool(rawGuests)
@@ -74,6 +82,7 @@ func Load(getenv func(string) string) (Config, error) {
 		ListenAddress:              ":" + port,
 		DatabaseURL:                databaseURL,
 		DebugContentEnabled:        debugContentEnabled,
+		TestSupplyChestsEnabled:    testSupplyChestsEnabled,
 		GuestAuthenticationEnabled: guestAuthenticationEnabled,
 		TrustProxyHeaders:          trustProxyHeaders,
 		AllowedOrigins:             splitList(getenv("ARCANA_ALLOWED_ORIGINS")),

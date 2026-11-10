@@ -21,6 +21,8 @@ services:
         value: production
       - key: ARCANA_ENABLE_DEBUG_CONTENT
         value: "false"
+      - key: ARCANA_ENABLE_TEST_SUPPLY_CHESTS
+        value: "true"
       - key: ARCANA_ALLOW_GUEST_AUTH
         value: "false"
       - key: ARCANA_TRUST_PROXY_HEADERS

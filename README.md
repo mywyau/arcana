@@ -55,6 +55,11 @@ shutdown. The raw guest token stays only in the Godot client's
 `user://guest_identity.cfg` file; losing that file currently means losing
 access to that guest character.
 
+Closing the client or losing its connection leaves the character in the world
+for two minutes. Its actions stop, but enemies can still attack it. Reconnecting
+during that window resumes the same character and cancels its removal; using
+the in-game Logout action removes it immediately.
+
 Stop PostgreSQL with `docker compose down`. Its named volume is retained. Only
 run `docker compose down -v` when you deliberately want to erase local
 identities and characters.
@@ -123,6 +128,9 @@ The relevant environment variables are:
 - `PORT`: hosting platform HTTP port; defaults to `8080` locally.
 - `ARCANA_ENABLE_DEBUG_CONTENT`: defaults on only in development and cannot be
   enabled in production.
+- `ARCANA_ENABLE_TEST_SUPPLY_CHESTS`: exposes the infinite testing supply
+  chests without enabling privileged debug commands; enabled by the beta Render
+  configuration and intended to be disabled before a public launch.
 - `ARCANA_ALLOW_GUEST_AUTH`: defaults on in development and off elsewhere; it
   cannot be enabled in production.
 - `ARCANA_ALLOWED_ORIGINS`: optional comma-separated WebSocket origin hosts for

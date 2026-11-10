@@ -250,6 +250,7 @@ type World struct {
 	tick                        uint64
 	players                     map[PlayerID]*playerState
 	pendingJoins                map[PlayerID]*playerState
+	pendingSuspensions          map[PlayerID]struct{}
 	pendingLeaves               map[PlayerID]struct{}
 	pendingMoves                map[PlayerID]pendingMove
 	pendingPickups              map[PlayerID]pendingPickup
@@ -280,6 +281,7 @@ type World struct {
 	gatheringSpots              map[string]gatheringSpotDefinition
 	merchantStock               []merchantStockEntry
 	debugContentEnabled         bool
+	testSupplyChestsEnabled     bool
 }
 
 type pendingMove struct {
@@ -305,6 +307,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 	return &World{
 		players:                     make(map[PlayerID]*playerState),
 		pendingJoins:                make(map[PlayerID]*playerState),
+		pendingSuspensions:          make(map[PlayerID]struct{}),
 		pendingLeaves:               make(map[PlayerID]struct{}),
 		pendingMoves:                make(map[PlayerID]pendingMove),
 		pendingPickups:              make(map[PlayerID]pendingPickup),
@@ -330,7 +333,41 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		rollSource:                  rollSource,
 		gatheringSpots:              newGatheringSpots(),
 		debugContentEnabled:         true,
+		testSupplyChestsEnabled:     true,
 	}
+}
+
+// QueueSuspend stops a disconnected character's voluntary actions on the next
+// simulation step without removing it from the world. Enemies may continue to
+// target and attack the character during its logout delay.
+func (w *World) QueueSuspend(id PlayerID) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, active := w.players[id]; !active {
+		if _, joining := w.pendingJoins[id]; !joining {
+			return fmt.Errorf("player %q does not exist", id)
+		}
+	}
+	w.pendingSuspensions[id] = struct{}{}
+	w.cancelPendingPlayerCommands(id)
+	return nil
+}
+
+// ResumePlayer cancels a queued suspension and reports whether the character
+// can be reused by a replacement or reconnecting client.
+func (w *World) ResumePlayer(id PlayerID) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, leaving := w.pendingLeaves[id]; leaving {
+		return false
+	}
+	_, active := w.players[id]
+	_, joining := w.pendingJoins[id]
+	if !active && !joining {
+		return false
+	}
+	delete(w.pendingSuspensions, id)
+	return true
 }
 
 func NewWorldWithPathfinder(pathfinder Pathfinder) *World {
@@ -345,6 +382,14 @@ func (w *World) SetDebugContentEnabled(enabled bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.debugContentEnabled = enabled
+}
+
+// SetTestSupplyChestsEnabled controls the testing chests independently from
+// privileged debug commands and fixtures such as the skill-editing shrine.
+func (w *World) SetTestSupplyChestsEnabled(enabled bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.testSupplyChestsEnabled = enabled
 }
 
 // AddPlayer registers a player before it enters the active simulation.
@@ -430,6 +475,17 @@ func (w *World) QueueLeave(id PlayerID) error {
 	}
 
 	w.pendingLeaves[id] = struct{}{}
+	delete(w.pendingSuspensions, id)
+	w.cancelPendingPlayerCommands(id)
+	for _, target := range w.combat.dummyTargets() {
+		if target.dummy.TargetID == id {
+			clearDummyTarget(target.dummy)
+		}
+	}
+	return nil
+}
+
+func (w *World) cancelPendingPlayerCommands(id PlayerID) {
 	delete(w.pendingMoves, id)
 	delete(w.pendingPickups, id)
 	delete(w.pendingItemDrops, id)
@@ -449,12 +505,7 @@ func (w *World) QueueLeave(id PlayerID) error {
 	delete(w.combat.pendingEquipment, id)
 	delete(w.combat.pendingStyles, id)
 	delete(w.combat.pendingPrayers, id)
-	for _, target := range w.combat.dummyTargets() {
-		if target.dummy.TargetID == id {
-			clearDummyTarget(target.dummy)
-		}
-	}
-	return nil
+	delete(w.combat.pendingSpells, id)
 }
 
 // QueueMove validates and records a click-to-move intention. For each player,
@@ -529,6 +580,7 @@ func (w *World) Step(elapsed time.Duration) {
 		w.players[id] = player
 		delete(w.pendingJoins, id)
 	}
+	w.applyPendingSuspensions()
 	w.applyPendingExperienceLocks()
 	w.applyPendingDebugSkills()
 
@@ -568,6 +620,27 @@ func (w *World) Step(elapsed time.Duration) {
 	for id := range w.pendingLeaves {
 		delete(w.players, id)
 		delete(w.pendingLeaves, id)
+	}
+}
+
+func (w *World) applyPendingSuspensions() {
+	for id := range w.pendingSuspensions {
+		player, exists := w.players[id]
+		if exists {
+			stopPlayer(player)
+			player.combatTarget = ""
+			player.nextAttackPulse = 0
+			player.autoApproaching = false
+			player.autoPickingUp = false
+			player.brewRemaining = 0
+			player.nextBrewPulse = 0
+			player.fletchRemaining = 0
+			player.nextFletchPulse = 0
+			clearGathering(player, "disconnected")
+			clearActivePrayers(player)
+			player.lastActionResult = "disconnected"
+		}
+		delete(w.pendingSuspensions, id)
 	}
 }
 
@@ -633,7 +706,7 @@ func (w *World) Snapshot() Snapshot {
 	defer w.mu.RUnlock()
 
 	bankChests := []BankChestSnapshot{starterBankChest}
-	if w.debugContentEnabled {
+	if w.testSupplyChestsEnabled {
 		bankChests = append(bankChests, testSupplyChests...)
 	}
 	snapshot := Snapshot{

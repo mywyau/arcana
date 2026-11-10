@@ -7,6 +7,8 @@ import "fmt"
 type PersistentPlayerState struct {
 	Position                     Position
 	Health                       int
+	Prayer                       int
+	ActivePrayerSet              PrayerSetID
 	EquippedWeapon               WeaponID
 	EquippedWeaponInstanceID     string
 	EquippedWeaponReinforcement  int
@@ -28,6 +30,8 @@ type PersistentPlayerState struct {
 func DefaultPersistentPlayerState() PersistentPlayerState {
 	return PersistentPlayerState{
 		Health:                       playerMaximumHealth,
+		Prayer:                       playerMaximumPrayer,
+		ActivePrayerSet:              PrayerSetCommon,
 		EquippedWeapon:               WeaponUnarmed,
 		EquippedArmour:               make(map[ArmourSlot]string),
 		EquippedArmourInstances:      make(map[ArmourSlot]string),
@@ -47,6 +51,8 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 	state := PersistentPlayerState{
 		Position:                     snapshot.Position,
 		Health:                       snapshot.Health,
+		Prayer:                       snapshot.Prayer,
+		ActivePrayerSet:              snapshot.ActivePrayerSet,
 		EquippedWeapon:               snapshot.EquippedWeapon,
 		EquippedWeaponInstanceID:     snapshot.EquippedWeaponInstanceID,
 		EquippedWeaponReinforcement:  snapshot.EquippedWeaponReinforcement,
@@ -99,6 +105,15 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	}
 	if state.Health <= 0 {
 		return fmt.Errorf("player health must be positive")
+	}
+	if state.Prayer < 0 || state.Prayer > playerMaximumPrayer {
+		return fmt.Errorf("player prayer must be between 0 and %d", playerMaximumPrayer)
+	}
+	if state.ActivePrayerSet == "" {
+		state.ActivePrayerSet = PrayerSetCommon
+	}
+	if _, exists := prayerSets[state.ActivePrayerSet]; !exists {
+		return fmt.Errorf("unknown prayer set %q", state.ActivePrayerSet)
 	}
 	if _, exists := weaponDefinition(state.EquippedWeapon); !exists {
 		return fmt.Errorf("unknown equipped weapon %q", state.EquippedWeapon)
@@ -238,8 +253,8 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		id: id, position: state.Position, spawnPosition: Position{},
 		baseSpeed: speed, speed: movementSpeedForAgility(speed, SkillLevelForExperience(skills[SkillAgility])),
 		navigationLocation: location, health: state.Health, maximumHealth: maximumHealth,
-		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
-		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
+		prayer: state.Prayer, maximumPrayer: playerMaximumPrayer,
+		activePrayers: make(map[PrayerID]bool), activePrayerSet: state.ActivePrayerSet, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: state.EquippedWeapon, equippedWeaponInstanceID: state.EquippedWeaponInstanceID,
 		equippedWeaponReinforcement: state.EquippedWeaponReinforcement, equippedSpellbook: state.EquippedSpellbook,
 		dodgeRate: playerDodgeRate, inventory: inventory, ammunitionPouch: ammunitionPouch,

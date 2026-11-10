@@ -160,15 +160,17 @@ func (store *Store) Load(
 	var state simulation.PersistentPlayerState
 	err := store.database.QueryRowContext(ctx, `
 		SELECT position_x, position_y, position_z, health,
+		       prayer_points, active_prayer_set,
 		       equipped_weapon, COALESCE(equipped_weapon_instance_id, ''), equipped_weapon_reinforcement,
 		       combat_style, inventory_capacity, bank_capacity, experience_locked,
-		       rune_pouch_unlocked_slots
+		       rune_pouch_unlocked_slots, ammunition_pouch_unlocked_slots
 		FROM characters WHERE player_id = $1`, playerID,
 	).Scan(
 		&state.Position.X, &state.Position.Y, &state.Position.Z, &state.Health,
+		&state.Prayer, &state.ActivePrayerSet,
 		&state.EquippedWeapon, &state.EquippedWeaponInstanceID, &state.EquippedWeaponReinforcement,
 		&state.CombatStyle, &state.Inventory.Capacity, &state.Bank.Capacity, &state.ExperienceLocked,
-		&state.RunePouch.UnlockedSlots,
+		&state.RunePouch.UnlockedSlots, &state.AmmunitionPouch.UnlockedSlots,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return simulation.PersistentPlayerState{}, false, nil
@@ -199,7 +201,6 @@ func (store *Store) Load(
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close inventory rows: %w", err)
 	}
 	state.AmmunitionPouch.Capacity = simulation.AmmunitionPouchCapacity
-	state.AmmunitionPouch.UnlockedSlots = simulation.BaseAmmunitionPouchUnlocked
 	ammunitionRows, err := store.database.QueryContext(ctx, `
 		SELECT slot, item_id, quantity FROM character_ammunition_pouch
 		WHERE player_id = $1 ORDER BY slot`, playerID)
@@ -348,15 +349,18 @@ func (store *Store) Save(
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO characters (
 			player_id, position_x, position_y, position_z, health,
+			prayer_points, active_prayer_set,
 			equipped_weapon, equipped_weapon_instance_id, equipped_weapon_reinforcement,
 			combat_style, inventory_capacity, bank_capacity, experience_locked,
-			rune_pouch_unlocked_slots, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+			rune_pouch_unlocked_slots, ammunition_pouch_unlocked_slots, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now())
 		ON CONFLICT (player_id) DO UPDATE SET
 			position_x = EXCLUDED.position_x,
 			position_y = EXCLUDED.position_y,
 			position_z = EXCLUDED.position_z,
 			health = EXCLUDED.health,
+			prayer_points = EXCLUDED.prayer_points,
+			active_prayer_set = EXCLUDED.active_prayer_set,
 			equipped_weapon = EXCLUDED.equipped_weapon,
 			equipped_weapon_instance_id = EXCLUDED.equipped_weapon_instance_id,
 			equipped_weapon_reinforcement = EXCLUDED.equipped_weapon_reinforcement,
@@ -365,11 +369,13 @@ func (store *Store) Save(
 			bank_capacity = EXCLUDED.bank_capacity,
 			experience_locked = EXCLUDED.experience_locked,
 			rune_pouch_unlocked_slots = EXCLUDED.rune_pouch_unlocked_slots,
+			ammunition_pouch_unlocked_slots = EXCLUDED.ammunition_pouch_unlocked_slots,
 			updated_at = now()`,
 		playerID, state.Position.X, state.Position.Y, state.Position.Z, state.Health,
+		state.Prayer, state.ActivePrayerSet,
 		state.EquippedWeapon, nullableString(state.EquippedWeaponInstanceID), state.EquippedWeaponReinforcement,
 		state.CombatStyle, state.Inventory.Capacity, state.Bank.Capacity, state.ExperienceLocked,
-		state.RunePouch.UnlockedSlots,
+		state.RunePouch.UnlockedSlots, state.AmmunitionPouch.UnlockedSlots,
 	); err != nil {
 		return fmt.Errorf("upsert character: %w", err)
 	}

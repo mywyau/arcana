@@ -195,6 +195,68 @@ func TestWorldAppliesQueuedPlayerLifecycleOnStep(t *testing.T) {
 	}
 }
 
+func TestWorldSuspendsDisconnectedPlayerWithoutClearingEnemyTarget(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	warden := world.combat.targets[hillWardenTargetID]
+	mustAddPlayer(t, world, "player-one", warden.Position, 4)
+	player := world.players["player-one"]
+	destination := Position{X: player.position.X + 8, Y: player.position.Y, Z: player.position.Z}
+	player.destination = &destination
+	player.path = []Position{destination}
+	player.combatTarget = hillWardenTargetID
+	player.activePrayers[PrayerStrength] = true
+	warden.TargetID = player.id
+
+	if err := world.QueueSuspend("player-one"); err != nil {
+		t.Fatalf("QueueSuspend() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+
+	got := mustPlayer(t, world, "player-one")
+	assertPosition(t, got.Position, warden.Position)
+	if got.Destination != nil || len(got.Path) != 0 {
+		t.Fatalf("suspended movement = destination %+v, path %+v; want stopped", got.Destination, got.Path)
+	}
+	if got.CombatTarget != "" {
+		t.Fatalf("suspended CombatTarget = %q, want empty", got.CombatTarget)
+	}
+	if len(got.ActivePrayers) != 0 {
+		t.Fatalf("suspended ActivePrayers = %+v, want none", got.ActivePrayers)
+	}
+	if got.LastActionResult != "disconnected" {
+		t.Fatalf("LastActionResult = %q, want disconnected", got.LastActionResult)
+	}
+	if warden.TargetID != player.id {
+		t.Fatalf("enemy TargetID = %q, want %q so the disconnected player remains vulnerable", warden.TargetID, player.id)
+	}
+	if got.Health >= playerMaximumHealth {
+		t.Fatalf("disconnected player health = %d, want less than %d after enemy attack", got.Health, playerMaximumHealth)
+	}
+}
+
+func TestWorldResumeCancelsQueuedSuspension(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	player := world.players["player-one"]
+	destination := Position{X: 8}
+	player.destination = &destination
+	player.path = []Position{destination}
+
+	if err := world.QueueSuspend("player-one"); err != nil {
+		t.Fatalf("QueueSuspend() returned an unexpected error: %v", err)
+	}
+	if resumed := world.ResumePlayer("player-one"); !resumed {
+		t.Fatal("ResumePlayer() = false, want true")
+	}
+	world.Step(250 * time.Millisecond)
+
+	got := mustPlayer(t, world, "player-one")
+	assertPosition(t, got.Position, Position{X: 1})
+	if got.Destination == nil {
+		t.Fatal("Destination is nil after reconnect cancelled suspension")
+	}
+}
+
 func TestWorldStepAdvancesTick(t *testing.T) {
 	world := NewWorld()
 

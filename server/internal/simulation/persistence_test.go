@@ -1,9 +1,88 @@
 package simulation
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
+
+func TestPersistentPlayerStateRoundTripsEveryDurableSubsystem(t *testing.T) {
+	originalWorld := NewWorld()
+	state := DefaultPersistentPlayerState()
+	state.Position = Position{X: 3, Y: 2, Z: -1}
+	state.Health = 91
+	state.Prayer = 37
+	state.ActivePrayerSet = PrayerSetWar
+	state.EquippedWeapon = WeaponRuneSword
+	state.EquippedWeaponInstanceID = "equipped-rune-sword"
+	state.EquippedWeaponReinforcement = 5
+	state.CombatStyle = CombatStyleSlash
+	state.EquippedArmour = map[ArmourSlot]string{
+		ArmourSlotHead: ItemIronHelm, ArmourSlotBody: ItemIronPlate, ArmourSlotLeftHand: ItemIronShield,
+	}
+	state.EquippedArmourInstances = map[ArmourSlot]string{
+		ArmourSlotHead: "equipped-iron-helm", ArmourSlotBody: "equipped-iron-plate", ArmourSlotLeftHand: "equipped-iron-shield",
+	}
+	state.EquippedArmourReinforcements = map[ArmourSlot]int{
+		ArmourSlotHead: 2, ArmourSlotBody: 3, ArmourSlotLeftHand: 1,
+	}
+	state.EquippedSpellbook = ItemHolyBook
+	state.Inventory = InventorySnapshot{Capacity: 35, Items: []InventoryItem{
+		{Slot: 0, ItemID: ItemCoins, Quantity: 12_345},
+		{Slot: 7, ItemID: string(WeaponDagger), Quantity: 1, InstanceID: "inventory-dagger", Reinforcement: 2},
+	}}
+	state.AmmunitionPouch = AmmunitionPouchSnapshot{
+		Capacity: AmmunitionPouchCapacity, UnlockedSlots: 4,
+		Items: []InventoryItem{
+			{Slot: 0, ItemID: ItemBronzeArrow, Quantity: 125},
+			{Slot: 3, ItemID: ItemIronBolt, Quantity: 80},
+		},
+	}
+	state.RingRack = RingRackSnapshot{Capacity: RingRackCapacity, Items: []InventoryItem{
+		{Slot: 0, ItemID: ItemTyrantsRing, Quantity: 1, InstanceID: "tyrant-ring"},
+		{Slot: 4, ItemID: ItemEmeraldRing, Quantity: 1, InstanceID: "emerald-ring"},
+	}}
+	state.RunePouch = RunePouchSnapshot{
+		Capacity: RunePouchCapacity, UnlockedSlots: 4,
+		Items: []InventoryItem{
+			{Slot: 0, ItemID: ItemAirRune, Quantity: 500},
+			{Slot: 3, ItemID: ItemFocusRune, Quantity: 75},
+		},
+	}
+	state.Bank = BankSnapshot{Capacity: BankCapacity + BankExpansionSize, Items: []InventoryItem{
+		{Slot: 12, ItemID: ItemWaterRune, Quantity: 2_500},
+		{Slot: 80, ItemID: string(WeaponSteelSword), Quantity: 1, InstanceID: "bank-steel-sword", Reinforcement: 4},
+	}}
+	state.ExperienceLocked = true
+	for index := range state.Skills {
+		switch state.Skills[index].ID {
+		case SkillAttack:
+			state.Skills[index].Experience = SkillExperienceForLevel(22)
+		case SkillAgility:
+			state.Skills[index].Experience = SkillExperienceForLevel(14)
+		case SkillSmithing:
+			state.Skills[index].Experience = SkillExperienceForLevel(9)
+		}
+	}
+
+	if err := originalWorld.QueueJoinWithPersistentState("original", state, DefaultPlayerMovementSpeed); err != nil {
+		t.Fatalf("join original character: %v", err)
+	}
+	originalWorld.Step(time.Millisecond)
+	original := mustPlayer(t, originalWorld, "original")
+	saved := PersistentStateFromSnapshot(original)
+
+	restoredWorld := NewWorld()
+	if err := restoredWorld.QueueJoinWithPersistentState("restored", saved, DefaultPlayerMovementSpeed); err != nil {
+		t.Fatalf("join restored character: %v", err)
+	}
+	restoredWorld.Step(time.Millisecond)
+	restored := PersistentStateFromSnapshot(mustPlayer(t, restoredWorld, "restored"))
+
+	if !reflect.DeepEqual(restored, saved) {
+		t.Fatalf("restored durable state differs\nrestored: %+v\n   saved: %+v", restored, saved)
+	}
+}
 
 func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	world := NewWorld()

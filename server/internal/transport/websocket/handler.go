@@ -26,6 +26,7 @@ const (
 	authenticationTimeout        = 5 * time.Second
 	characterSaveTimeout         = 2 * time.Second
 	characterSaveInterval        = 30 * time.Second
+	disconnectedLogoutDelay      = 2 * time.Minute
 	connectionReplacementTimeout = 5 * time.Second
 )
 
@@ -34,16 +35,24 @@ var errIncompatibleClient = errors.New("this client is incompatible with the ser
 var errHTTPAccountRequired = errors.New("email and password authentication must use the account HTTP API")
 
 type Handler struct {
-	world            *simulation.World
-	snapshotInterval time.Duration
-	guestIdentities  *identity.GuestManager
-	accounts         *account.Manager
-	characters       character.Repository
-	allowDebug       bool
-	allowGuests      bool
-	acceptOptions    websocket.AcceptOptions
-	activeMu         sync.Mutex
-	activeClients    map[simulation.PlayerID]*activeClient
+	world                   *simulation.World
+	snapshotInterval        time.Duration
+	guestIdentities         *identity.GuestManager
+	accounts                *account.Manager
+	characters              character.Repository
+	characterSaveInterval   time.Duration
+	disconnectedLogoutDelay time.Duration
+	allowDebug              bool
+	allowGuests             bool
+	acceptOptions           websocket.AcceptOptions
+	activeMu                sync.Mutex
+	activeClients           map[simulation.PlayerID]*activeClient
+	pendingLogoutMu         sync.Mutex
+	pendingLogouts          map[simulation.PlayerID]*pendingLogout
+}
+
+type pendingLogout struct {
+	timer *time.Timer
 }
 
 type activeClient struct {
@@ -143,12 +152,15 @@ func NewHandlerWithRepositoriesAndOptions(
 	return &Handler{
 		world: world, snapshotInterval: snapshotInterval,
 		guestIdentities: guestIdentities, accounts: accountManager, characters: characters,
-		allowDebug:  options.AllowDebugCommands,
-		allowGuests: !options.RequireAccounts,
+		characterSaveInterval:   characterSaveInterval,
+		disconnectedLogoutDelay: disconnectedLogoutDelay,
+		allowDebug:              options.AllowDebugCommands,
+		allowGuests:             !options.RequireAccounts,
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
 		},
-		activeClients: make(map[simulation.PlayerID]*activeClient),
+		activeClients:  make(map[simulation.PlayerID]*activeClient),
+		pendingLogouts: make(map[simulation.PlayerID]*pendingLogout),
 	}, nil
 }
 
@@ -198,12 +210,15 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	}
 	playerID := simulation.PlayerID(authentication.PlayerID)
 	client, previous := h.claimActiveClient(playerID)
-	joinedWorld := false
+	immediateDeparture := false
 	defer func() {
-		if joinedWorld {
-			h.saveCharacter(playerID)
-			_ = h.world.QueueLeave(playerID)
-			h.waitForPlayerDeparture(playerID)
+		if h.isActiveClient(playerID, client) && h.world.HasPlayerOrPending(playerID) {
+			if immediateDeparture {
+				h.cancelPendingLogout(playerID)
+				h.removeCharacterNow(playerID)
+			} else {
+				h.scheduleDelayedLogout(playerID)
+			}
 		}
 		h.releaseActiveClient(playerID, client)
 	}()
@@ -223,34 +238,39 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		h.closeReplacedClient(ctx, connection)
 		return
 	}
-	characterState, found, err := h.characters.Load(ctx, string(playerID))
-	if err != nil {
-		log.Printf("load character %s: %v", playerID, err)
-		_ = writeMessage(ctx, connection, errorMessage(
-			"character_load_failed",
-			errors.New("could not load character"),
-		))
-		_ = connection.Close(websocket.StatusInternalError, "could not load character")
-		return
-	}
-	if !found {
-		characterState = simulation.DefaultPersistentPlayerState()
-		if err := h.characters.Save(ctx, string(playerID), characterState); err != nil {
-			log.Printf("create character %s: %v", playerID, err)
+	h.cancelPendingLogout(playerID)
+	if !h.world.ResumePlayer(playerID) {
+		if h.world.HasPlayerOrPending(playerID) {
+			h.waitForPlayerDeparture(playerID)
+		}
+		characterState, found, loadErr := h.characters.Load(ctx, string(playerID))
+		if loadErr != nil {
+			log.Printf("load character %s: %v", playerID, loadErr)
 			_ = writeMessage(ctx, connection, errorMessage(
-				"character_save_failed",
-				errors.New("could not create character"),
+				"character_load_failed",
+				errors.New("could not load character"),
 			))
-			_ = connection.Close(websocket.StatusInternalError, "could not create character")
+			_ = connection.Close(websocket.StatusInternalError, "could not load character")
+			return
+		}
+		if !found {
+			characterState = simulation.DefaultPersistentPlayerState()
+			if saveErr := h.characters.Save(ctx, string(playerID), characterState); saveErr != nil {
+				log.Printf("create character %s: %v", playerID, saveErr)
+				_ = writeMessage(ctx, connection, errorMessage(
+					"character_save_failed",
+					errors.New("could not create character"),
+				))
+				_ = connection.Close(websocket.StatusInternalError, "could not create character")
+				return
+			}
+		}
+		if joinErr := h.world.QueueJoinWithPersistentState(playerID, characterState, playerSpeed); joinErr != nil {
+			log.Printf("join character %s: %v", playerID, joinErr)
+			_ = connection.Close(websocket.StatusInternalError, "could not join world")
 			return
 		}
 	}
-	if err := h.world.QueueJoinWithPersistentState(playerID, characterState, playerSpeed); err != nil {
-		log.Printf("join character %s: %v", playerID, err)
-		_ = connection.Close(websocket.StatusInternalError, "could not join world")
-		return
-	}
-	joinedWorld = true
 
 	responses := make(chan outboundResponse, 8)
 
@@ -272,7 +292,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 
 	ticker := time.NewTicker(h.snapshotInterval)
 	defer ticker.Stop()
-	saveTicker := time.NewTicker(characterSaveInterval)
+	saveTicker := time.NewTicker(h.characterSaveInterval)
 	defer saveTicker.Stop()
 
 	for {
@@ -287,6 +307,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				return
 			}
 			if response.closeAfter {
+				immediateDeparture = true
 				_ = connection.Close(websocket.StatusNormalClosure, "logged out")
 				return
 			}
@@ -425,6 +446,12 @@ func (h *Handler) claimActiveClient(playerID simulation.PlayerID) (*activeClient
 	return client, previous
 }
 
+func (h *Handler) isActiveClient(playerID simulation.PlayerID, client *activeClient) bool {
+	h.activeMu.Lock()
+	defer h.activeMu.Unlock()
+	return h.activeClients[playerID] == client
+}
+
 func (h *Handler) releaseActiveClient(playerID simulation.PlayerID, client *activeClient) {
 	h.activeMu.Lock()
 	if h.activeClients[playerID] == client {
@@ -432,6 +459,55 @@ func (h *Handler) releaseActiveClient(playerID simulation.PlayerID, client *acti
 	}
 	close(client.done)
 	h.activeMu.Unlock()
+}
+
+func (h *Handler) scheduleDelayedLogout(playerID simulation.PlayerID) {
+	_ = h.world.QueueSuspend(playerID)
+	h.saveCharacter(playerID)
+
+	h.pendingLogoutMu.Lock()
+	defer h.pendingLogoutMu.Unlock()
+	if current := h.pendingLogouts[playerID]; current != nil {
+		current.timer.Stop()
+	}
+	pending := &pendingLogout{}
+	pending.timer = time.AfterFunc(h.disconnectedLogoutDelay, func() {
+		h.completeDelayedLogout(playerID, pending)
+	})
+	h.pendingLogouts[playerID] = pending
+}
+
+func (h *Handler) cancelPendingLogout(playerID simulation.PlayerID) bool {
+	h.pendingLogoutMu.Lock()
+	defer h.pendingLogoutMu.Unlock()
+	pending := h.pendingLogouts[playerID]
+	if pending == nil {
+		return false
+	}
+	delete(h.pendingLogouts, playerID)
+	pending.timer.Stop()
+	return true
+}
+
+func (h *Handler) completeDelayedLogout(playerID simulation.PlayerID, pending *pendingLogout) {
+	h.pendingLogoutMu.Lock()
+	if h.pendingLogouts[playerID] != pending {
+		h.pendingLogoutMu.Unlock()
+		return
+	}
+	// Hold the logout lock through saving and queuing removal so a reconnect
+	// either cancels the delay first or observes a character that is leaving.
+	h.saveCharacter(playerID)
+	_ = h.world.QueueLeave(playerID)
+	delete(h.pendingLogouts, playerID)
+	h.pendingLogoutMu.Unlock()
+	h.waitForPlayerDeparture(playerID)
+}
+
+func (h *Handler) removeCharacterNow(playerID simulation.PlayerID) {
+	h.saveCharacter(playerID)
+	_ = h.world.QueueLeave(playerID)
+	h.waitForPlayerDeparture(playerID)
 }
 
 func (h *Handler) waitForPlayerDeparture(playerID simulation.PlayerID) {

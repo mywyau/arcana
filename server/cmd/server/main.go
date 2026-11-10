@@ -41,6 +41,7 @@ func main() {
 
 	world := simulation.NewWorldWithPathfinder(navigation.NewPrototypeMap())
 	world.SetDebugContentEnabled(config.DebugContentEnabled)
+	world.SetTestSupplyChestsEnabled(config.TestSupplyChestsEnabled)
 	if err := world.AddStarterToolSpawns(); err != nil {
 		log.Fatal(err)
 	}
@@ -156,7 +157,7 @@ func main() {
 		{simulation.TestCraftingChestPosition, craftingSupplies},
 		{simulation.TestFoodChestPosition, foodSupplies},
 	}
-	if config.DebugContentEnabled {
+	if config.TestSupplyChestsEnabled {
 		for _, group := range debugSupplyGroups {
 			for _, supply := range group.items {
 				if err := world.AddTestSupply(group.position, supply.itemID, supply.quantity); err != nil {
@@ -250,8 +251,8 @@ func main() {
 	}
 
 	log.Printf(
-		"simulation started in %s mode with a %s tick interval (debug content: %t)",
-		config.Environment, tickInterval, config.DebugContentEnabled,
+		"simulation started in %s mode with a %s tick interval (debug content: %t, test supply chests: %t)",
+		config.Environment, tickInterval, config.DebugContentEnabled, config.TestSupplyChestsEnabled,
 	)
 	go runner.Run(ctx)
 

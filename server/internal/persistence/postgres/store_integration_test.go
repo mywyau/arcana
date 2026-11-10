@@ -70,6 +70,8 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	want := simulation.DefaultPersistentPlayerState()
 	want.Position = simulation.Position{X: 7.5, Y: 3, Z: -2.25}
 	want.Health = 73
+	want.Prayer = 42
+	want.ActivePrayerSet = simulation.PrayerSetWar
 	want.EquippedWeapon = simulation.WeaponBow
 	want.EquippedWeaponInstanceID = "integration-bow-instance"
 	want.EquippedWeaponReinforcement = 1
@@ -80,6 +82,11 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 	}
 	want.Bank.Items = []simulation.InventoryItem{
 		{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 250},
+	}
+	want.AmmunitionPouch.UnlockedSlots = 4
+	want.AmmunitionPouch.Items = []simulation.InventoryItem{
+		{Slot: 0, ItemID: simulation.ItemIronArrow, Quantity: 120},
+		{Slot: 3, ItemID: simulation.ItemIronBolt, Quantity: 45},
 	}
 	want.RingRack.Items = []simulation.InventoryItem{
 		{Slot: 0, ItemID: simulation.ItemRubyRing, Quantity: 1, InstanceID: "integration-ring-instance"},

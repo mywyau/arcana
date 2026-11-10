@@ -465,7 +465,7 @@ func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
 
 func TestRiftTyrantRareRingDropRateAndLoot(t *testing.T) {
 	entries := lootTableForTarget(riftTyrantTargetID)
-	if len(entries) != 3 || entries[2].ItemID != ItemTyrantsRing || entries[2].DropChance != 1.0/512.0 {
+	if len(entries) != 3 || entries[2].ItemID != ItemTyrantsRing || entries[2].DropChance != 1.0/100.0 {
 		t.Fatalf("Rift Tyrant loot table = %+v", entries)
 	}
 

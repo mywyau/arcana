@@ -33,6 +33,7 @@ func TestSupplyChestsAreSplitAndDoNotOverlap(t *testing.T) {
 func TestProductionWorldSnapshotHidesDebugFixtures(t *testing.T) {
 	world := NewWorld()
 	world.SetDebugContentEnabled(false)
+	world.SetTestSupplyChestsEnabled(false)
 	snapshot := world.Snapshot()
 	if len(snapshot.BankChests) != 1 || snapshot.BankChests[0].ID != StarterBankChestID {
 		t.Fatalf("production bank chests = %+v", snapshot.BankChests)
@@ -40,6 +41,22 @@ func TestProductionWorldSnapshotHidesDebugFixtures(t *testing.T) {
 	for _, spot := range snapshot.GatheringSpots {
 		if spot.Station == craftingStationDebugSkills {
 			t.Fatalf("production gathering spots include debug shrine: %+v", spot)
+		}
+	}
+}
+
+func TestSupplyChestsCanBeEnabledWithoutOtherDebugFixtures(t *testing.T) {
+	world := NewWorld()
+	world.SetDebugContentEnabled(false)
+	world.SetTestSupplyChestsEnabled(true)
+
+	snapshot := world.Snapshot()
+	if got, want := len(snapshot.BankChests), 1+len(testSupplyChests); got != want {
+		t.Fatalf("bank chest count = %d, want %d", got, want)
+	}
+	for _, spot := range snapshot.GatheringSpots {
+		if spot.Station == craftingStationDebugSkills {
+			t.Fatalf("gathering spots include debug shrine: %+v", spot)
 		}
 	}
 }

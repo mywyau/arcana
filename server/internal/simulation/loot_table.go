@@ -36,7 +36,7 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 		return []lootTableEntry{
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemCoins, MinimumQuantity: 100, MaximumQuantity: 250, DropChance: 1},
-			{ItemID: ItemTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1.0 / 512.0},
+			{ItemID: ItemTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1.0 / 100.0},
 		}
 	default:
 		return []lootTableEntry{{

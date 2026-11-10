@@ -33,6 +33,10 @@ REQUIRED BEFORE INVITING TESTERS
 
 1. Persistence safety pass
 
+   - [DONE] Add automated full-state round-trip coverage for inventory,
+     equipment, storage, skills, position, health, prayer and spellbook state.
+   - [DONE] Add automated account-session lifecycle coverage for periodic,
+     disconnect, graceful-shutdown and new-handler restoration paths.
    - Verify periodic character saves and graceful shutdown saves.
    - Test reconnect restoration for inventory, equipment, bank, skills,
      position and active account identity.

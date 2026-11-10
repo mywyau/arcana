@@ -55,6 +55,8 @@ func (repository *MemoryRepository) Delete(_ context.Context, playerID string) e
 func cloneState(state simulation.PersistentPlayerState) simulation.PersistentPlayerState {
 	state.Inventory.Items = append([]simulation.InventoryItem(nil), state.Inventory.Items...)
 	state.AmmunitionPouch.Items = append([]simulation.InventoryItem(nil), state.AmmunitionPouch.Items...)
+	state.RingRack.Items = append([]simulation.InventoryItem(nil), state.RingRack.Items...)
+	state.RunePouch.Items = append([]simulation.InventoryItem(nil), state.RunePouch.Items...)
 	state.Bank.Items = append([]simulation.InventoryItem(nil), state.Bank.Items...)
 	state.Skills = append([]simulation.PersistentSkillState(nil), state.Skills...)
 	armour := make(map[simulation.ArmourSlot]string, len(state.EquippedArmour))
