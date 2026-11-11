@@ -615,6 +615,54 @@ func TestSnapshotMessageIncludesCombatEvents(t *testing.T) {
 	}
 }
 
+func TestRealtimeSnapshotOmitsEnvironmentCollections(t *testing.T) {
+	snapshot := simulation.Snapshot{
+		Targets:        []simulation.TargetSnapshot{{ID: "target"}},
+		Drops:          []simulation.DropSnapshot{{ID: "drop"}},
+		Fires:          []simulation.FireSnapshot{{ID: "fire"}},
+		GatheringSpots: []simulation.GatheringSpotSnapshot{{ID: "spot"}},
+		BankChests:     []simulation.BankChestSnapshot{{ID: "bank"}},
+		Merchants:      []simulation.MerchantSnapshot{{ID: "merchant"}},
+		Players:        []simulation.PlayerSnapshot{{ID: "player-one"}},
+	}
+	message := snapshotMessageWithPrivateOptions(snapshot, "player-one", &snapshot.Players[0], false)
+	if message.EnvironmentIncluded || len(message.Targets) != 1 || len(message.Players) != 1 {
+		t.Fatalf("realtime snapshot lost realtime state: %+v", message)
+	}
+	if message.Drops != nil || message.Fires != nil || message.GatheringSpots != nil ||
+		message.BankChests != nil || message.Merchants != nil {
+		t.Fatalf("realtime snapshot contains environment state: %+v", message)
+	}
+	encoded, err := json.Marshal(message)
+	if err != nil {
+		t.Fatalf("Marshal(realtime snapshot) error = %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatalf("Unmarshal(realtime snapshot) error = %v", err)
+	}
+	for _, field := range []string{"environment_included", "drops", "fires", "gathering_spots", "bank_chests", "merchants"} {
+		if _, included := payload[field]; included {
+			t.Errorf("realtime snapshot JSON includes %q: %s", field, encoded)
+		}
+	}
+}
+
+func TestEnvironmentSnapshotIncludesEnvironmentCollections(t *testing.T) {
+	snapshot := simulation.Snapshot{
+		Drops:          []simulation.DropSnapshot{{ID: "drop"}},
+		Fires:          []simulation.FireSnapshot{{ID: "fire"}},
+		GatheringSpots: []simulation.GatheringSpotSnapshot{{ID: "spot"}},
+		BankChests:     []simulation.BankChestSnapshot{{ID: "bank"}},
+		Merchants:      []simulation.MerchantSnapshot{{ID: "merchant"}},
+	}
+	message := snapshotMessageWithPrivateOptions(snapshot, "player-one", nil, true)
+	if !message.EnvironmentIncluded || len(message.Drops) != 1 || len(message.Fires) != 1 ||
+		len(message.GatheringSpots) != 1 || len(message.BankChests) != 1 || len(message.Merchants) != 1 {
+		t.Fatalf("environment snapshot = %+v", message)
+	}
+}
+
 func TestSnapshotMessageOnlyIncludesLocalPlayersBank(t *testing.T) {
 	bank := simulation.BankSnapshot{
 		Capacity: simulation.BankCapacity,
@@ -697,6 +745,43 @@ func TestSnapshotMessageAttachesOnlyRequestedPrivatePlayerToPublicFrame(t *testi
 
 func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 	privatePlayer := simulation.PlayerSnapshot{
+		Position:                   simulation.Position{X: 2, Z: 3},
+		Destination:                &simulation.Position{X: 8, Z: 9},
+		Path:                       []simulation.Position{{X: 4, Z: 5}, {X: 8, Z: 9}},
+		Speed:                      7,
+		LastCommandSequence:        21,
+		LastCommandTick:            22,
+		LastActionSequence:         23,
+		LastActionPulse:            24,
+		LastActionResult:           "approaching",
+		NextAttackPulse:            25,
+		AutoApproaching:            true,
+		AutoPickingUp:              true,
+		Prayer:                     80,
+		MaximumPrayer:              100,
+		EquippedSpellbook:          simulation.ItemStandardSpellbook,
+		ActiveSpellbook:            simulation.SpellbookStandard,
+		LastEquipmentSequence:      26,
+		LastEquipmentPulse:         27,
+		CombatStyle:                simulation.CombatStyleStab,
+		LastCombatStyleSequence:    28,
+		ActivePrayers:              []simulation.PrayerID{simulation.PrayerEvasion},
+		LastPrayerSequence:         29,
+		SelectedSpell:              simulation.SpellWindBolt,
+		LastSpellSequence:          30,
+		DodgeRate:                  0.15,
+		ExperienceLocked:           true,
+		LastExperienceLockSequence: 31,
+		CombatTarget:               "dummy",
+		Health:                     40,
+		MaximumHealth:              100,
+		Defeated:                   true,
+		RespawnAtPulse:             50,
+		EquippedWeapon:             simulation.WeaponDagger,
+		EquippedArmour: map[simulation.ArmourSlot]string{
+			simulation.ArmourSlotHead: simulation.ItemIronHelm,
+		},
+		CombatLevel: 12,
 		Inventory: simulation.InventorySnapshot{
 			Capacity: 8,
 			Items:    []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemCoins, Quantity: 50}},
@@ -736,6 +821,12 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 		len(remote.Skills) != 0 || len(remote.ActiveCombatBoosts) != 0 {
 		t.Fatalf("remote private state was exposed: %+v", remote)
 	}
+	if remote.Position.X != 2 || remote.Position.Z != 3 || remote.Speed != 7 ||
+		remote.CombatTarget != "dummy" || remote.Health != 40 || remote.MaximumHealth != 100 ||
+		!remote.Defeated || remote.RespawnAtPulse != 50 || remote.EquippedWeapon != "dagger" ||
+		remote.EquippedArmour["head"] != simulation.ItemIronHelm || remote.CombatLevel != 12 {
+		t.Fatalf("remote public state is incomplete: %+v", remote)
+	}
 
 	encoded, err := json.Marshal(remote)
 	if err != nil {
@@ -750,11 +841,32 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 		"ring_rack", "rune_pouch", "skills", "active_combat_boosts",
 		"last_drop_sequence", "last_inventory_move_sequence", "last_gem_cut_sequence",
 		"last_fire_sequence", "last_debug_skill_sequence",
+		"destination", "path", "last_command_sequence", "last_command_tick", "navigation_location",
+		"last_action_sequence", "last_action_pulse", "last_action_result", "next_attack_pulse",
+		"auto_approaching", "auto_picking_up", "prayer", "maximum_prayer",
+		"equipped_weapon_instance_id", "equipped_weapon_reinforcement",
+		"equipped_armour_instances", "equipped_armour_reinforcements", "equipped_spellbook",
+		"active_spellbook", "last_equipment_sequence", "last_equipment_pulse", "combat_style",
+		"last_combat_style_sequence", "active_prayers", "active_prayer_set",
+		"last_prayer_sequence", "selected_spell", "last_spell_sequence", "dodge_rate",
+		"experience_locked", "last_experience_lock_sequence", "last_pickup_sequence",
+		"last_consume_sequence", "next_consume_pulse", "last_brew_sequence", "brew_remaining",
+		"next_brew_pulse", "brewing_result", "last_fletch_sequence", "fletch_remaining",
+		"next_fletch_pulse", "fletching_result", "gathering_spot", "gathering_result",
+		"next_gather_pulse", "last_gather_sequence",
 	} {
 		if _, exposed := payload[field]; exposed {
 			t.Errorf("remote JSON includes private field %q: %s", field, encoded)
 		}
 	}
+	localEncoded, err := json.Marshal(local)
+	if err != nil {
+		t.Fatalf("Marshal(local) error = %v", err)
+	}
+	if len(encoded)*2 >= len(localEncoded) {
+		t.Fatalf("remote payload is not substantially leaner: remote=%dB local=%dB", len(encoded), len(localEncoded))
+	}
+	t.Logf("representative player payload sizes: remote=%dB local=%dB", len(encoded), len(localEncoded))
 }
 
 func readServerMessage(t *testing.T, ctx context.Context, connection *websocket.Conn) protocol.ServerMessage {

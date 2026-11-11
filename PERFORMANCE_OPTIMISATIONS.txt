@@ -1,0 +1,234 @@
+ARCANA PERFORMANCE OPTIMISATION ROADMAP
+Target: up to 2,000 connected players in one logical world
+Updated: 2026-11-11
+
+PURPOSE
+
+This is the prioritised performance work remaining after the initial 100-player
+load tests. Changes should continue to be measured and introduced in small
+slices. Do not switch transport, split the server into microservices, or adopt
+a binary protocol until profiling demonstrates that the simpler architecture
+is the limiting factor.
+
+
+CURRENT MEASURED BASELINE
+
+- Server simulation: 20 Hz.
+- Network snapshots: 10 Hz.
+- Slow-changing environment updates: approximately 2 Hz.
+- Visibility radius: 40 world units, backed by a spatial grid.
+- 100 spread clients: no connection failures or unexpected disconnects.
+- Previous measured traffic: approximately 15 MiB/s total, or 150 KiB/s per
+  connected client, before public player and target deltas were introduced.
+- Tick and interest-query timings have substantial CPU headroom at 100 players.
+- Bandwidth, allocation churn, crowded locations, slow clients, and persistence
+  bursts are the important remaining risks.
+
+
+ALREADY COMPLETED
+
+[x] Keep authoritative simulation at 20 Hz and networking at 10 Hz.
+[x] Separate public remote-player state from private character state.
+[x] Build and reuse one public world frame per network interval.
+[x] Add a spatial grid and per-connection area-of-interest filtering.
+[x] Send environment collections at a slower cadence.
+[x] Add field-level public player and target deltas.
+[x] Send explicit entity removals and reconcile fully every 10 seconds.
+[x] Add headless WebSocket load testing and server performance summaries.
+[x] Measure realtime, environment, full-reconciliation, and delta payloads.
+
+
+PRIORITY 1: MEASURE THE NEW DELTA BASELINE
+
+Run repeatable spread and clustered tests at 100 clients. Record:
+
+- received_per_second from the load tester;
+- payload_avg, realtime_payload_avg, and environment_payload_avg;
+- full_payload_avg and delta_payload_avg;
+- player_updates_avg and target_updates_avg;
+- tick, interest-query, encoding, and write timings;
+- heap growth and garbage-collection count.
+
+Do not select the next low-level encoding optimisation until these results show
+which part of the payload remains dominant.
+
+
+PRIORITY 2: DELTA THE LOCAL PLAYER'S PRIVATE STATE
+
+The local character still receives inventory, equipment, skills, storage,
+combat calculations, boosts, and action progress at 10 Hz even when unchanged.
+
+Work:
+
+- Give private subsystems independent revision numbers.
+- Send inventory only after an inventory revision changes.
+- Do the same for equipment, skills, bank, ammunition, rings, runes, boosts,
+  prayer state, and production progress.
+- Keep movement, health, combat target, acknowledgements, and active action
+  timing on the responsive realtime path.
+- Include complete private state on login and periodic reconciliation.
+
+Expected benefit:
+
+- A large reduction in the fixed per-client payload, especially for idle and
+  moving players who are not changing inventory or skills.
+
+
+PRIORITY 3: BUILD DELTAS WITHOUT BUILDING THROWAWAY FULL OBJECTS
+
+The server currently constructs complete public protocol objects and compares
+them with each connection's baseline before discarding unchanged fields. This
+saves bandwidth but still creates avoidable maps, slices, and temporary values.
+
+Work:
+
+- Put public revisions or compact change markers on simulation entities.
+- Compare revisions before constructing protocol update objects.
+- Reuse immutable public entity records between connections where safe.
+- Benchmark allocations per snapshot and use object pooling only where a
+  profile proves it helps.
+
+Expected benefit:
+
+- Lower garbage-collection frequency and encoding preparation cost.
+
+
+PRIORITY 4: REMOVE STATIC CONTENT FROM PERIODIC ENVIRONMENT UPDATES
+
+Positions, names, ranges, and definitions for gathering spots, banks, stations,
+altars, merchants, and test chests rarely change.
+
+Work:
+
+- Send static area definitions on login or area entry.
+- Periodically send only dynamic values such as resource quantity, merchant
+  stock revision, fires, and ground-item changes.
+- Send test-chest contents only when that interface opens.
+- Add area/content revision identifiers so the client can refresh definitions
+  safely after a server content update.
+
+
+PRIORITY 5: DELIVER TRANSIENT EVENTS ONCE
+
+Combat and feedback events should not be carried repeatedly in snapshots.
+
+Work:
+
+- Track the last event ID delivered to each connection.
+- Send each hit, miss, sound, XP notification, and action result once.
+- Bound server event retention.
+- Treat events as presentation only; authoritative state must remain recoverable
+  from reconciliation snapshots.
+
+
+PRIORITY 6: ADD BOUNDED OUTBOUND DELIVERY AND BACKPRESSURE
+
+A slow or paused client must not retain an unlimited number of obsolete frames.
+
+Work:
+
+- Add a small bounded outbound queue per connection.
+- Coalesce replaceable state updates, retaining the newest state.
+- Keep account responses and important one-time events separate from
+  replaceable snapshots.
+- Measure queue depth, coalesced frames, write stalls, and disconnects.
+- Disconnect clients that remain stalled beyond a defined timeout.
+
+This is required before raising the public player cap, even if normal load-test
+clients currently consume updates quickly.
+
+
+PRIORITY 7: DEFINE A CROWDED-AREA VISIBILITY BUDGET
+
+A visibility radius alone does not protect the server or client if hundreds of
+players gather in one location.
+
+Work:
+
+- Set a maximum number of incidental players sent to each client.
+- Always prioritise attackers, targets, party members, nearby players, and
+  important NPCs.
+- Use lower update rates for distant or low-priority players.
+- Add hysteresis so entities do not flicker at priority boundaries.
+- Decide whether major boss crowds need encounter instances.
+- Measure both spread and deliberately clustered load scenarios.
+
+
+PRIORITY 8: CONTROL GODOT CLIENT COST
+
+Server capacity is not useful if a normal player's client cannot render a busy
+area smoothly.
+
+Work:
+
+- Hide or reduce distant names, health bars, shadows, and animations.
+- Pool projectiles, hit indicators, XP effects, and other frequent objects.
+- Avoid rebuilding unchanged inventory, equipment, and world UI.
+- Add client diagnostics for frame time, node count, visible players, active
+  effects, and received bytes.
+- Apply the same crowded-area priority policy used by the server.
+
+
+PRIORITY 9: SMOOTH AND ISOLATE PERSISTENCE
+
+The load tests show save spikes when many clients disconnect together.
+
+Work:
+
+- Save only dirty characters.
+- Stagger periodic saves instead of synchronising them.
+- Use a bounded asynchronous save queue outside the simulation loop.
+- Prevent older saves from overwriting newer character state.
+- Add retry/backoff and graceful-shutdown draining.
+- Measure queue depth, database pool pressure, save latency, and failures.
+
+
+PRIORITY 10: IMPROVE PROFILING AND LOAD SCENARIOS
+
+Work:
+
+- Group load-test server errors by error code.
+- Add idle, continuous movement, combat, gathering, reconnect, and hotspot
+  scenarios.
+- Capture CPU and allocation profiles during representative tests.
+- Add percentile metrics rather than relying only on averages and maxima.
+- Track process CPU, resident memory, network throughput, queue depth, and GC
+  pause time in the hosted environment.
+- Run staged tests at 100, 250, 500, 1,000, and finally 2,000 connections.
+- Run multi-hour soak tests after short tests are stable.
+
+
+CAPACITY ACCEPTANCE TARGETS
+
+Before claiming support for a particular world capacity:
+
+- No routine simulation tick exceeds the 50 ms budget.
+- Tick p99 retains substantial headroom below 50 ms.
+- Snapshot cost follows nearby activity rather than total world population.
+- Outbound queues remain bounded under a deliberately slow client.
+- Memory reaches a stable plateau during a soak test.
+- There are no unexpected disconnects or unbounded error growth.
+- Database stalls do not pause simulation.
+- The Godot client remains playable in the agreed crowded-area budget.
+- Hosted bandwidth and monthly transfer costs are acceptable.
+- Capacity includes operational headroom rather than succeeding only at the
+  absolute failure boundary.
+
+
+DEFER UNTIL PROFILING REQUIRES IT
+
+- WebSocket compression. It may save bandwidth but adds CPU and latency, so
+  test it only after reducing redundant data.
+- A compact binary protocol. JSON remains easier to debug during development.
+- Replacing WebSockets with UDP, QUIC, or another transport.
+- Multiple simulation processes for one seamless world.
+- Dedicated network gateways, Kubernetes, or automatic world orchestration.
+- Parallel simulation cells. The current tick timings do not justify this yet.
+
+
+RECOMMENDED NEXT ACTION
+
+Rebuild the protocol-version-5 client and repeat the 100-client spread test.
+Compare full_payload_avg with delta_payload_avg and record the new aggregate
+received_per_second. If the local private snapshot is now the dominant fixed
+cost, implement private subsystem revisions as the next small slice.

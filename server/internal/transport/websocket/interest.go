@@ -16,21 +16,46 @@ func filterSnapshotForPlayer(
 	privateViewer *simulation.PlayerSnapshot,
 	radius float64,
 ) (simulation.Snapshot, servermetrics.EntityCounts) {
+	return filterSnapshotForPlayerOptions(snapshot, viewerID, privateViewer, radius, true)
+}
+
+func filterSnapshotForPlayerOptions(
+	snapshot simulation.Snapshot,
+	viewerID simulation.PlayerID,
+	privateViewer *simulation.PlayerSnapshot,
+	radius float64,
+	includeEnvironment bool,
+) (simulation.Snapshot, servermetrics.EntityCounts) {
 	viewer, found := snapshotPlayerByID(snapshot.Players, viewerID)
 	if privateViewer != nil && privateViewer.ID == viewerID {
 		viewer = *privateViewer
 		found = true
 	}
 	if !found || radius <= 0 || math.IsNaN(radius) || math.IsInf(radius, 0) {
+		if !includeEnvironment {
+			snapshot.Drops = nil
+			snapshot.Fires = nil
+			snapshot.GatheringSpots = nil
+			snapshot.BankChests = nil
+			snapshot.Merchants = nil
+		}
 		return snapshot, snapshotEntityCounts(snapshot)
 	}
 
 	filtered := snapshot
 	filtered.Players = make([]simulation.PlayerSnapshot, 0, len(snapshot.Players))
 	filtered.Targets = make([]simulation.TargetSnapshot, 0, len(snapshot.Targets))
-	filtered.Drops = make([]simulation.DropSnapshot, 0, len(snapshot.Drops))
-	filtered.Fires = make([]simulation.FireSnapshot, 0, len(snapshot.Fires))
-	filtered.GatheringSpots = make([]simulation.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots))
+	if includeEnvironment {
+		filtered.Drops = make([]simulation.DropSnapshot, 0, len(snapshot.Drops))
+		filtered.Fires = make([]simulation.FireSnapshot, 0, len(snapshot.Fires))
+		filtered.GatheringSpots = make([]simulation.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots))
+	} else {
+		filtered.Drops = nil
+		filtered.Fires = nil
+		filtered.GatheringSpots = nil
+		filtered.BankChests = nil
+		filtered.Merchants = nil
+	}
 	filtered.CombatEvents = make([]simulation.CombatEvent, 0, len(snapshot.CombatEvents))
 
 	radiusSquared := radius * radius
@@ -66,22 +91,24 @@ func filterSnapshotForPlayer(
 		filtered.Targets = append(filtered.Targets, target)
 		visibleIDs[target.ID] = struct{}{}
 	}
-	for _, drop := range snapshot.Drops {
-		if positionWithinRadius(viewer.Position, drop.Position, radiusSquared) {
-			filtered.Drops = append(filtered.Drops, drop)
-			visibleIDs[drop.ID] = struct{}{}
+	if includeEnvironment {
+		for _, drop := range snapshot.Drops {
+			if positionWithinRadius(viewer.Position, drop.Position, radiusSquared) {
+				filtered.Drops = append(filtered.Drops, drop)
+				visibleIDs[drop.ID] = struct{}{}
+			}
 		}
-	}
-	for _, fire := range snapshot.Fires {
-		if positionWithinRadius(viewer.Position, fire.Position, radiusSquared) {
-			filtered.Fires = append(filtered.Fires, fire)
-			visibleIDs[fire.ID] = struct{}{}
+		for _, fire := range snapshot.Fires {
+			if positionWithinRadius(viewer.Position, fire.Position, radiusSquared) {
+				filtered.Fires = append(filtered.Fires, fire)
+				visibleIDs[fire.ID] = struct{}{}
+			}
 		}
-	}
-	for _, spot := range snapshot.GatheringSpots {
-		if positionWithinRadius(viewer.Position, spot.Position, radiusSquared) {
-			filtered.GatheringSpots = append(filtered.GatheringSpots, spot)
-			visibleIDs[spot.ID] = struct{}{}
+		for _, spot := range snapshot.GatheringSpots {
+			if positionWithinRadius(viewer.Position, spot.Position, radiusSquared) {
+				filtered.GatheringSpots = append(filtered.GatheringSpots, spot)
+				visibleIDs[spot.ID] = struct{}{}
+			}
 		}
 	}
 	for _, event := range snapshot.CombatEvents {

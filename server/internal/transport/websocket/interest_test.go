@@ -146,3 +146,30 @@ func TestInterestIndexMatchesFullScanAcrossCellBoundaries(t *testing.T) {
 		t.Fatalf("spatial query did not reduce candidates: %+v", candidates)
 	}
 }
+
+func TestInterestIndexSkipsEnvironmentWorkForRealtimeSnapshot(t *testing.T) {
+	viewer := simulation.PlayerSnapshot{ID: "viewer"}
+	snapshot := simulation.Snapshot{
+		Players:        []simulation.PlayerSnapshot{viewer},
+		Targets:        []simulation.TargetSnapshot{{ID: "target", Position: simulation.Position{X: 1}}},
+		Drops:          []simulation.DropSnapshot{{ID: "drop", Position: simulation.Position{X: 1}}},
+		Fires:          []simulation.FireSnapshot{{ID: "fire", Position: simulation.Position{X: 1}}},
+		GatheringSpots: []simulation.GatheringSpotSnapshot{{ID: "spot", Position: simulation.Position{X: 1}}},
+		BankChests:     []simulation.BankChestSnapshot{{ID: "bank"}},
+		Merchants:      []simulation.MerchantSnapshot{{ID: "merchant"}},
+	}
+	filtered, candidates, visible := filterSnapshotForPlayerWithIndexOptions(
+		snapshot, buildInterestIndex(snapshot, interestCellSize), viewer.ID, &viewer, 5, false,
+	)
+	if len(filtered.Players) != 1 || len(filtered.Targets) != 1 {
+		t.Fatalf("realtime state was filtered out: %+v", filtered)
+	}
+	if filtered.Drops != nil || filtered.Fires != nil || filtered.GatheringSpots != nil ||
+		filtered.BankChests != nil || filtered.Merchants != nil {
+		t.Fatalf("environment state survived realtime filtering: %+v", filtered)
+	}
+	if candidates.Drops != 0 || candidates.Fires != 0 || candidates.GatheringSpots != 0 ||
+		visible.Drops != 0 || visible.Fires != 0 || visible.GatheringSpots != 0 {
+		t.Fatalf("realtime environment metrics: candidates=%+v visible=%+v", candidates, visible)
+	}
+}

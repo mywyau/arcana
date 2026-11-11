@@ -100,7 +100,11 @@ func (i *interestIndex) keyFor(position simulation.Position) interestCellKey {
 	}
 }
 
-func (i *interestIndex) candidates(viewer simulation.PlayerSnapshot, radius float64) interestCandidates {
+func (i *interestIndex) candidates(
+	viewer simulation.PlayerSnapshot,
+	radius float64,
+	includeEnvironment bool,
+) interestCandidates {
 	candidates := interestCandidates{}
 	minimumX := int(math.Floor((viewer.Position.X - radius) / i.cellSize))
 	maximumX := int(math.Floor((viewer.Position.X + radius) / i.cellSize))
@@ -114,9 +118,11 @@ func (i *interestIndex) candidates(viewer simulation.PlayerSnapshot, radius floa
 			}
 			candidates.players = append(candidates.players, cell.players...)
 			candidates.targets = append(candidates.targets, cell.targets...)
-			candidates.drops = append(candidates.drops, cell.drops...)
-			candidates.fires = append(candidates.fires, cell.fires...)
-			candidates.gatheringSpots = append(candidates.gatheringSpots, cell.gatheringSpots...)
+			if includeEnvironment {
+				candidates.drops = append(candidates.drops, cell.drops...)
+				candidates.fires = append(candidates.fires, cell.fires...)
+				candidates.gatheringSpots = append(candidates.gatheringSpots, cell.gatheringSpots...)
+			}
 		}
 	}
 
@@ -140,14 +146,19 @@ func (i *interestIndex) candidateSnapshot(
 	snapshot simulation.Snapshot,
 	viewer simulation.PlayerSnapshot,
 	radius float64,
+	includeEnvironment bool,
 ) (simulation.Snapshot, servermetrics.EntityCounts) {
-	candidates := i.candidates(viewer, radius)
+	candidates := i.candidates(viewer, radius, includeEnvironment)
 	result := snapshot
 	result.Players = selectCandidates(snapshot.Players, candidates.players)
 	result.Targets = selectCandidates(snapshot.Targets, candidates.targets)
 	result.Drops = selectCandidates(snapshot.Drops, candidates.drops)
 	result.Fires = selectCandidates(snapshot.Fires, candidates.fires)
 	result.GatheringSpots = selectCandidates(snapshot.GatheringSpots, candidates.gatheringSpots)
+	if !includeEnvironment {
+		result.BankChests = nil
+		result.Merchants = nil
+	}
 	return result, snapshotEntityCounts(result)
 }
 
@@ -158,17 +169,38 @@ func filterSnapshotForPlayerWithIndex(
 	privateViewer *simulation.PlayerSnapshot,
 	radius float64,
 ) (simulation.Snapshot, servermetrics.EntityCounts, servermetrics.EntityCounts) {
+	return filterSnapshotForPlayerWithIndexOptions(snapshot, index, viewerID, privateViewer, radius, true)
+}
+
+func filterSnapshotForPlayerWithIndexOptions(
+	snapshot simulation.Snapshot,
+	index *interestIndex,
+	viewerID simulation.PlayerID,
+	privateViewer *simulation.PlayerSnapshot,
+	radius float64,
+	includeEnvironment bool,
+) (simulation.Snapshot, servermetrics.EntityCounts, servermetrics.EntityCounts) {
 	viewer, found := snapshotPlayerByID(snapshot.Players, viewerID)
 	if privateViewer != nil && privateViewer.ID == viewerID {
 		viewer = *privateViewer
 		found = true
 	}
 	if index == nil || !found {
-		filtered, visible := filterSnapshotForPlayer(snapshot, viewerID, privateViewer, radius)
-		return filtered, snapshotEntityCounts(snapshot), visible
+		filtered, visible := filterSnapshotForPlayerOptions(
+			snapshot, viewerID, privateViewer, radius, includeEnvironment,
+		)
+		candidates := snapshot
+		if !includeEnvironment {
+			candidates.Drops = nil
+			candidates.Fires = nil
+			candidates.GatheringSpots = nil
+		}
+		return filtered, snapshotEntityCounts(candidates), visible
 	}
-	candidateSnapshot, candidates := index.candidateSnapshot(snapshot, viewer, radius)
-	filtered, visible := filterSnapshotForPlayer(candidateSnapshot, viewerID, privateViewer, radius)
+	candidateSnapshot, candidates := index.candidateSnapshot(snapshot, viewer, radius, includeEnvironment)
+	filtered, visible := filterSnapshotForPlayerOptions(
+		candidateSnapshot, viewerID, privateViewer, radius, includeEnvironment,
+	)
 	return filtered, candidates, visible
 }
 

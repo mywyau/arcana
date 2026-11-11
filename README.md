@@ -302,15 +302,59 @@ create an identity). After the `welcome` message, movement intentions look like:
 The server advances the authoritative simulation every 50 ms and sends
 `snapshot` messages every 100 ms. This keeps combat and movement timing
 responsive without serialising the entire world at the simulation rate.
-Snapshots contain full private state only for the receiving player; remote
-players expose the public state needed to render and interact with them.
-Sequence numbers must increase for the duration of the connection.
+Players, combat targets and combat events remain on that 100 ms realtime
+cadence. Slower-changing environment collections such as ground drops, fires,
+gathering spots, chests and merchants are included every 500 ms, and may be
+refreshed sooner after an action which changes them. The
+`environment_included` snapshot flag tells the client whether to reconcile
+those collections; an omitted collection in a realtime-only snapshot must not
+be interpreted as empty.
+
+Snapshots contain full private state only for the receiving player. Remote
+players and combat targets use per-connection field updates, explicit removal
+IDs and a full reconciliation every 10 seconds. This means ordinary movement
+can send a changed position without repeatedly sending unchanged equipment and
+combat metadata. Sequence numbers must increase for the duration of the
+connection. Protocol version 5 introduced public entity deltas, so older
+clients must be rebuilt before connecting.
 
 The server logs an aggregate `performance` line every 30 seconds with tick,
 snapshot, encoding, payload, WebSocket write, character-save, entity-count,
-heap and garbage-collection measurements. These summaries contain no account
-or character identifiers and provide the baseline for the staged work in
+heap and garbage-collection measurements. `environment_snapshots`,
+`realtime_payload_avg` and `environment_payload_avg` separate the two snapshot
+cadences when evaluating bandwidth. `full_reconciliations`,
+`player_updates_avg`, `target_updates_avg` and the removal counters describe
+the public delta stream, while `full_payload_avg` and `delta_payload_avg`
+measure its wire-size effect. These summaries contain no account or character
+identifiers and provide the baseline for the staged work in
 [`SERVER_SCALING_PLAN.md`](SERVER_SCALING_PLAN.md).
+
+### Local multiplayer load testing
+
+The headless Go load tester opens real guest WebSocket connections, reads every
+snapshot and optionally sends movement commands. Start the development server,
+then run a small clustered test from another terminal:
+
+```sh
+cd server
+go run ./cmd/loadtest --clients 50 --ramp 10s --duration 1m --scenario clustered
+```
+
+Use `--scenario spread` to distribute movement destinations across the map,
+or `--move-every 0` to measure connected snapshot readers without commands.
+The duration begins after the connection ramp completes. Increase the client
+count in stages while watching both the load-test report and the server's
+`performance` lines.
+
+Disconnected characters remain in the world for the normal two-minute
+reconnection grace period. Restart the local server or wait for that period
+between independent test runs so previous simulated players do not affect the
+next result.
+
+The tester accepts local endpoints by default. A non-local `--url` is rejected
+unless `--allow-remote` is also supplied, and the target must permit guest
+authentication. Do not load test a hosted service without confirming its
+capacity and provider rules.
 
 ## Client
 

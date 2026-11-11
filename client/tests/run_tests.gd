@@ -189,8 +189,47 @@ func _test_welcome_hides_account_gate() -> void:
 		"resumed inventory movement continues after the server sequence",
 	)
 	_check(int(main.get("_next_fire_sequence")) == 7, "resumed skilling continues after the server sequence")
+	_test_snapshot_deltas_preserve_unchanged_public_state(main)
 	_cleanup_main_harness(main, network)
 	await process_frame
+
+
+func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
+	main.set("_local_player_id", "local")
+	var initial_players: Array = main.call("_materialize_player_payloads", {
+		"players": [{"id": "local", "position": {"x": 0.0, "y": 0.0, "z": 0.0}}],
+		"player_updates": [{
+			"id": "remote",
+			"position": {"x": 2.0, "y": 0.0, "z": 3.0},
+			"speed": 6.0,
+			"health": 20,
+			"maximum_health": 20,
+			"equipped_weapon": "iron_sword",
+		}],
+	}, true)
+	_check(initial_players.size() == 2, "full delta materializes local and remote players")
+	var changed_players: Array = main.call("_materialize_player_payloads", {
+		"players": [{"id": "local", "position": {"x": 0.0, "y": 0.0, "z": 0.0}}],
+		"player_updates": [{"id": "remote", "position": {"x": 4.0, "y": 0.0, "z": 3.0}}],
+	}, false)
+	var remote: Dictionary = changed_players[1]
+	_check(float((remote["position"] as Dictionary)["x"]) == 4.0, "player delta applies changed position")
+	_check(str(remote["equipped_weapon"]) == "iron_sword", "player delta retains unchanged equipment")
+	_check(int(remote["health"]) == 20, "player delta retains unchanged health")
+
+	var initial_targets: Array = main.call("_materialize_target_payloads", {
+		"target_updates": [{
+			"id": "target", "name": "Target", "kind": "creature",
+			"position": {"x": 3.0, "y": 0.0, "z": 1.0}, "health": 10,
+		}],
+	}, true)
+	_check(initial_targets.size() == 1, "full delta materializes targets")
+	var changed_targets: Array = main.call("_materialize_target_payloads", {
+		"target_updates": [{"id": "target", "health": 0}],
+	}, false)
+	var target: Dictionary = changed_targets[0]
+	_check(int(target["health"]) == 0, "target delta preserves meaningful zero values")
+	_check(str(target["name"]) == "Target", "target delta retains unchanged identity")
 
 
 func _test_duplicate_login_submission_is_blocked() -> void:

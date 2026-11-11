@@ -682,6 +682,7 @@ var _last_experience_lock_sequence: int = 0
 var _next_experience_lock_sequence: int = 1
 var _combat_stats_page: String = "offence"
 var _player_views: Dictionary = {}
+var _remote_player_states: Dictionary = {}
 var _last_combat_event_id: int = 0
 var _combat_events_initialized: bool = false
 var _pending_click: Vector2
@@ -2644,6 +2645,7 @@ func _on_prayer_catalog_received(prayers: Array, prayer_sets: Array) -> void:
 
 func _on_welcome_received(player_id: String) -> void:
 	_local_player_id = player_id
+	_remote_player_states.clear()
 	auth_gate.dismiss()
 	status_label.text = "Connected as %s — click a walkable surface to move" % player_id
 	_append_game_message("Connected as %s." % player_id)
@@ -2659,9 +2661,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 	var snapshot_tick: int = int(snapshot.get("tick", 0))
 	_action_pulse = int(snapshot.get("action_pulse", 0))
 	_sync_snapshot_world(snapshot)
-	var player_payloads: Variant = snapshot.get("players", [])
-	if typeof(player_payloads) != TYPE_ARRAY:
-		return
+	var full_reconciliation: bool = bool(snapshot.get("full_reconciliation", false))
+	var player_payloads: Array = _materialize_player_payloads(snapshot, full_reconciliation)
 
 	var active_ids: Dictionary = {}
 	for payload: Variant in player_payloads:
@@ -2714,7 +2715,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_health_initialized = true
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
 			_player_combat_level = int(player_data.get("combat_level", _player_combat_level))
-			_experience_locked = bool(player_data.get("experience_locked", _experience_locked))
+			_experience_locked = bool(player_data.get("experience_locked", false))
 			_last_experience_lock_sequence = int(player_data.get(
 				"last_experience_lock_sequence", _last_experience_lock_sequence,
 			))
@@ -2722,7 +2723,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_next_experience_lock_sequence, _last_experience_lock_sequence + 1,
 			)
 			settings_disable_xp_toggle.set_pressed_no_signal(_experience_locked)
-			var prayer_points: int = int(player_data.get("prayer", _player_prayer))
+			var prayer_points: int = int(player_data.get("prayer", 0))
 			if prayer_points != _player_prayer:
 				_player_prayer = prayer_points
 				prayer_changed = true
@@ -2777,7 +2778,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				prayer_changed = true
 				_update_magic_hud()
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
-			_player_dodge_rate = float(player_data.get("dodge_rate", _player_dodge_rate))
+			_player_dodge_rate = float(player_data.get("dodge_rate", 0.0))
 			var combat_stats_data: Variant = player_data.get("combat_stats", {})
 			if typeof(combat_stats_data) == TYPE_DICTIONARY and combat_stats_data != _combat_stats:
 				_combat_stats = (combat_stats_data as Dictionary).duplicate(true)
@@ -3042,8 +3043,36 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		active_ids[id] = true
 	_update_combat_hud()
 
-	_remove_departed_player_views(active_ids)
+	if full_reconciliation:
+		_remove_departed_player_views(active_ids)
+	_remove_player_views(snapshot.get("removed_player_ids", []))
 	_process_combat_events(snapshot)
+
+
+func _materialize_player_payloads(snapshot: Dictionary, full_reconciliation: bool) -> Array:
+	var payloads: Array = []
+	var local_payloads: Variant = snapshot.get("players", [])
+	if typeof(local_payloads) == TYPE_ARRAY:
+		payloads.append_array(local_payloads as Array)
+	if full_reconciliation:
+		_remote_player_states.clear()
+	var updates: Variant = snapshot.get("player_updates", [])
+	if typeof(updates) != TYPE_ARRAY:
+		return payloads
+	for update_value: Variant in updates as Array:
+		if typeof(update_value) != TYPE_DICTIONARY:
+			continue
+		var update := update_value as Dictionary
+		var player_id: String = str(update.get("id", ""))
+		if player_id.is_empty() or player_id == _local_player_id:
+			continue
+		var state: Dictionary = (_remote_player_states.get(player_id, {}) as Dictionary).duplicate(true)
+		for key: Variant in update.keys():
+			state[key] = update[key]
+		state["id"] = player_id
+		_remote_player_states[player_id] = state
+		payloads.append(state)
+	return payloads
 
 
 func _synchronize_command_sequences(player_data: Dictionary) -> void:
@@ -3119,12 +3148,42 @@ func _synchronize_command_sequences(player_data: Dictionary) -> void:
 
 
 func _sync_snapshot_world(snapshot: Dictionary) -> void:
-	_sync_targets(snapshot.get("targets", []))
-	_sync_drops(snapshot.get("drops", []))
-	_sync_fires(snapshot.get("fires", []))
-	_sync_gathering_spots(snapshot.get("gathering_spots", []))
-	_sync_bank_chests(snapshot.get("bank_chests", []))
-	_sync_merchants(snapshot.get("merchants", []))
+	var full_reconciliation: bool = bool(snapshot.get("full_reconciliation", false))
+	var target_payloads: Array = _materialize_target_payloads(snapshot, full_reconciliation)
+	_sync_targets(
+		target_payloads,
+		snapshot.get("removed_target_ids", []),
+		full_reconciliation,
+	)
+	if bool(snapshot.get("environment_included", false)):
+		_sync_drops(snapshot.get("drops", []))
+		_sync_fires(snapshot.get("fires", []))
+		_sync_gathering_spots(snapshot.get("gathering_spots", []))
+		_sync_bank_chests(snapshot.get("bank_chests", []))
+		_sync_merchants(snapshot.get("merchants", []))
+
+
+func _materialize_target_payloads(snapshot: Dictionary, full_reconciliation: bool) -> Array:
+	if full_reconciliation:
+		_target_states.clear()
+	var payloads: Array = []
+	var updates: Variant = snapshot.get("target_updates", [])
+	if typeof(updates) != TYPE_ARRAY:
+		return payloads
+	for update_value: Variant in updates as Array:
+		if typeof(update_value) != TYPE_DICTIONARY:
+			continue
+		var update := update_value as Dictionary
+		var target_id: String = str(update.get("id", ""))
+		if target_id.is_empty():
+			continue
+		var state: Dictionary = (_target_states.get(target_id, {}) as Dictionary).duplicate(true)
+		for key: Variant in update.keys():
+			state[key] = update[key]
+		state["id"] = target_id
+		_target_states[target_id] = state
+		payloads.append(state)
+	return payloads
 
 
 func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -> void:
@@ -3296,9 +3355,28 @@ func _remove_departed_player_views(active_ids: Dictionary) -> void:
 			camera_rig.follow(null)
 		departed.queue_free()
 		_player_views.erase(player_id)
+		_remote_player_states.erase(player_id)
 
 
-func _sync_targets(target_payloads: Variant) -> void:
+func _remove_player_views(player_ids: Variant) -> void:
+	if typeof(player_ids) != TYPE_ARRAY:
+		return
+	for player_id_value: Variant in player_ids as Array:
+		var player_id: String = str(player_id_value)
+		if player_id.is_empty() or player_id == _local_player_id:
+			continue
+		var departed := _player_views.get(player_id) as PlayerView
+		if departed != null:
+			departed.queue_free()
+			_player_views.erase(player_id)
+		_remote_player_states.erase(player_id)
+
+
+func _sync_targets(
+	target_payloads: Variant,
+	removed_target_ids: Variant = [],
+	full_reconciliation: bool = true,
+) -> void:
 	if typeof(target_payloads) != TYPE_ARRAY:
 		return
 	var active_ids: Dictionary = {}
@@ -3328,13 +3406,24 @@ func _sync_targets(target_payloads: Variant) -> void:
 		_target_states[target_id] = target_data.duplicate(true)
 		active_ids[target_id] = true
 
-	for target_id: String in _target_views.keys():
-		if active_ids.has(target_id):
-			continue
-		var departed: TargetDummy = _target_views[target_id]
+	if full_reconciliation:
+		for target_id: String in _target_views.keys():
+			if active_ids.has(target_id):
+				continue
+			_remove_target_view(target_id)
+	if typeof(removed_target_ids) == TYPE_ARRAY:
+		for target_id_value: Variant in removed_target_ids as Array:
+			_remove_target_view(str(target_id_value))
+
+
+func _remove_target_view(target_id: String) -> void:
+	if target_id.is_empty():
+		return
+	var departed := _target_views.get(target_id) as TargetDummy
+	if departed != null:
 		departed.queue_free()
 		_target_views.erase(target_id)
-		_target_states.erase(target_id)
+	_target_states.erase(target_id)
 
 
 func _sync_drops(drop_payloads: Variant) -> void:

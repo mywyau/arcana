@@ -18,7 +18,7 @@ signal session_replaced(message: String)
 
 const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
 const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
-const PROTOCOL_VERSION: int = 2
+const PROTOCOL_VERSION: int = 5
 const BETA_BUILD_FEATURE: String = "arcana_beta"
 
 var _socket: WebSocketPeer = WebSocketPeer.new()

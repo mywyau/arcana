@@ -293,6 +293,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	}
 
 	responses := make(chan outboundResponse, 8)
+	environmentRefreshes := make(chan struct{}, 1)
 
 	if err := h.writeMessage(ctx, connection, protocol.ServerMessage{
 		Type:              protocol.MessageWelcome,
@@ -308,12 +309,16 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	}); err != nil {
 		return
 	}
-	go h.readCommands(ctx, cancel, connection, playerID, authentication.SessionToken, responses)
+	go h.readCommands(
+		ctx, cancel, connection, playerID, authentication.SessionToken, responses, environmentRefreshes,
+	)
 
 	ticker := time.NewTicker(h.snapshotInterval)
 	defer ticker.Stop()
 	saveTicker := time.NewTicker(h.characterSaveInterval)
 	defer saveTicker.Stop()
+	environmentSchedule := newEnvironmentSchedule(environmentSnapshotInterval)
+	deltaTracker := newSnapshotDeltaTracker()
 
 	for {
 		select {
@@ -331,24 +336,40 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				_ = connection.Close(websocket.StatusNormalClosure, "logged out")
 				return
 			}
+		case <-environmentRefreshes:
+			environmentSchedule.request()
 		case <-ticker.C:
-			publicFrame, publicInterest, built, buildDuration := h.sharedPublicFrame(time.Now())
+			now := time.Now()
+			includeEnvironment := environmentSchedule.due(now)
+			publicFrame, publicInterest, built, buildDuration := h.sharedPublicFrame(now)
 			privatePlayer, hasPrivatePlayer := h.world.Player(playerID)
 			var privatePlayerPointer *simulation.PlayerSnapshot
 			if hasPrivatePlayer {
 				privatePlayerPointer = &privatePlayer
 			}
 			queryStartedAt := time.Now()
-			visibleFrame, candidateEntities, visibleEntities := filterSnapshotForPlayerWithIndex(
-				*publicFrame, publicInterest, playerID, privatePlayerPointer, h.visibilityRadius,
+			visibleFrame, candidateEntities, visibleEntities := filterSnapshotForPlayerWithIndexOptions(
+				*publicFrame, publicInterest, playerID, privatePlayerPointer, h.visibilityRadius, includeEnvironment,
 			)
 			queryDuration := time.Since(queryStartedAt)
 			message := protocol.ServerMessage{
-				Type:     protocol.MessageSnapshot,
-				Snapshot: snapshotMessageWithPrivate(visibleFrame, playerID, privatePlayerPointer),
+				Type: protocol.MessageSnapshot,
+				Snapshot: snapshotMessageWithPrivateOptions(
+					visibleFrame, playerID, privatePlayerPointer, includeEnvironment,
+				),
 			}
+			deltaStats := deltaTracker.apply(message.Snapshot, string(playerID), now)
 			if h.metrics != nil {
-				h.metrics.RecordInterestQuery(queryDuration, candidateEntities, visibleEntities)
+				h.metrics.RecordInterestQuery(
+					queryDuration, candidateEntities, visibleEntities, includeEnvironment,
+				)
+				h.metrics.RecordSnapshotDelta(
+					deltaStats.Full,
+					deltaStats.PlayerUpdates,
+					deltaStats.TargetUpdates,
+					deltaStats.PlayerRemovals,
+					deltaStats.TargetRemovals,
+				)
 			}
 			if h.metrics != nil && built {
 				h.metrics.RecordSnapshot(buildDuration, servermetrics.EntityCounts{
@@ -674,6 +695,7 @@ func (h *Handler) readCommands(
 	playerID simulation.PlayerID,
 	currentSessionToken string,
 	responses chan<- outboundResponse,
+	environmentRefreshes chan<- struct{},
 ) {
 	defer cancel()
 
@@ -917,6 +939,11 @@ func (h *Handler) readCommands(
 		}
 		if err != nil {
 			sendResponse(ctx, responses, errorMessage(rejectionCode, err))
+		} else if commandMayChangeEnvironment(message.Type) {
+			select {
+			case environmentRefreshes <- struct{}{}:
+			default:
+			}
 		}
 	}
 }
@@ -925,7 +952,17 @@ func (h *Handler) writeMessage(ctx context.Context, connection *websocket.Conn, 
 	encodeStartedAt := time.Now()
 	payload, err := json.Marshal(message)
 	if h.metrics != nil {
-		h.metrics.RecordEncoding(time.Since(encodeStartedAt), len(payload))
+		kind := servermetrics.PayloadOther
+		if message.Type == protocol.MessageSnapshot && message.Snapshot != nil {
+			kind = servermetrics.PayloadRealtimeSnapshot
+			if message.Snapshot.EnvironmentIncluded {
+				kind = servermetrics.PayloadEnvironmentSnapshot
+			}
+			if err == nil {
+				h.metrics.RecordSnapshotPayload(len(payload), message.Snapshot.FullReconciliation)
+			}
+		}
+		h.metrics.RecordEncoding(time.Since(encodeStartedAt), len(payload), kind)
 	}
 	if err != nil {
 		return err
@@ -980,37 +1017,51 @@ func snapshotMessageWithPrivate(
 	localPlayerID simulation.PlayerID,
 	privatePlayer *simulation.PlayerSnapshot,
 ) *protocol.WorldSnapshot {
+	return snapshotMessageWithPrivateOptions(snapshot, localPlayerID, privatePlayer, true)
+}
+
+func snapshotMessageWithPrivateOptions(
+	snapshot simulation.Snapshot,
+	localPlayerID simulation.PlayerID,
+	privatePlayer *simulation.PlayerSnapshot,
+	includeEnvironment bool,
+) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
-		Tick:           snapshot.Tick,
-		ActionPulse:    snapshot.ActionPulse,
-		Targets:        make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
-		Drops:          make([]protocol.DropSnapshot, 0, len(snapshot.Drops)),
-		Fires:          make([]protocol.FireSnapshot, 0, len(snapshot.Fires)),
-		CombatEvents:   make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
-		GatheringSpots: make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots)),
-		BankChests:     make([]protocol.BankChestSnapshot, 0, len(snapshot.BankChests)),
-		Merchants:      make([]protocol.MerchantSnapshot, 0, len(snapshot.Merchants)),
-		Players:        make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+		Tick:                snapshot.Tick,
+		ActionPulse:         snapshot.ActionPulse,
+		EnvironmentIncluded: includeEnvironment,
+		Targets:             make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
+		CombatEvents:        make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
+		Players:             make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+	}
+	if includeEnvironment {
+		message.Drops = make([]protocol.DropSnapshot, 0, len(snapshot.Drops))
+		message.Fires = make([]protocol.FireSnapshot, 0, len(snapshot.Fires))
+		message.GatheringSpots = make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots))
+		message.BankChests = make([]protocol.BankChestSnapshot, 0, len(snapshot.BankChests))
+		message.Merchants = make([]protocol.MerchantSnapshot, 0, len(snapshot.Merchants))
 	}
 	for _, target := range snapshot.Targets {
 		message.Targets = append(message.Targets, targetSnapshotMessage(target))
 	}
-	for _, drop := range snapshot.Drops {
-		message.Drops = append(message.Drops, protocol.DropSnapshot{
-			ID:            drop.ID,
-			Position:      protocol.Position{X: drop.Position.X, Y: drop.Position.Y, Z: drop.Position.Z},
-			ItemID:        drop.ItemID,
-			Quantity:      drop.Quantity,
-			InstanceID:    drop.InstanceID,
-			Reinforcement: drop.Reinforcement,
-			Infinite:      drop.Infinite,
-		})
-	}
-	for _, fire := range snapshot.Fires {
-		message.Fires = append(message.Fires, protocol.FireSnapshot{
-			ID: fire.ID, LogItem: fire.LogItem,
-			Position: protocol.Position{X: fire.Position.X, Y: fire.Position.Y, Z: fire.Position.Z},
-		})
+	if includeEnvironment {
+		for _, drop := range snapshot.Drops {
+			message.Drops = append(message.Drops, protocol.DropSnapshot{
+				ID:            drop.ID,
+				Position:      protocol.Position{X: drop.Position.X, Y: drop.Position.Y, Z: drop.Position.Z},
+				ItemID:        drop.ItemID,
+				Quantity:      drop.Quantity,
+				InstanceID:    drop.InstanceID,
+				Reinforcement: drop.Reinforcement,
+				Infinite:      drop.Infinite,
+			})
+		}
+		for _, fire := range snapshot.Fires {
+			message.Fires = append(message.Fires, protocol.FireSnapshot{
+				ID: fire.ID, LogItem: fire.LogItem,
+				Position: protocol.Position{X: fire.Position.X, Y: fire.Position.Y, Z: fire.Position.Z},
+			})
+		}
 	}
 	for _, event := range snapshot.CombatEvents {
 		message.CombatEvents = append(message.CombatEvents, protocol.CombatEvent{
@@ -1023,122 +1074,47 @@ func snapshotMessageWithPrivate(
 			SpellID:  string(event.SpellID),
 		})
 	}
-	for _, spot := range snapshot.GatheringSpots {
-		message.GatheringSpots = append(message.GatheringSpots, protocol.GatheringSpotSnapshot{
-			ID: spot.ID, Name: spot.Name, Skill: string(spot.Skill),
-			Position: protocol.Position{X: spot.Position.X, Y: spot.Position.Y, Z: spot.Position.Z},
-			Range:    spot.Range, RequiredLevel: spot.RequiredLevel,
-			CurrentAmount: spot.CurrentAmount, MaximumAmount: spot.MaximumAmount,
-			Station: string(spot.Station), RecipeID: spot.RecipeID,
-		})
-	}
-	for _, chest := range snapshot.BankChests {
-		message.BankChests = append(message.BankChests, protocol.BankChestSnapshot{
-			ID: chest.ID, Name: chest.Name,
-			Position: protocol.Position{X: chest.Position.X, Y: chest.Position.Y, Z: chest.Position.Z},
-			Range:    chest.Range,
-		})
-	}
-	for _, merchant := range snapshot.Merchants {
-		stock := make([]protocol.MerchantStockSnapshot, 0, len(merchant.Stock))
-		for _, item := range merchant.Stock {
-			stock = append(stock, protocol.MerchantStockSnapshot{
-				ItemID: item.ItemID, Quantity: item.Quantity,
-				InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
-				BuyPrice: item.BuyPrice,
+	if includeEnvironment {
+		for _, spot := range snapshot.GatheringSpots {
+			message.GatheringSpots = append(message.GatheringSpots, protocol.GatheringSpotSnapshot{
+				ID: spot.ID, Name: spot.Name, Skill: string(spot.Skill),
+				Position: protocol.Position{X: spot.Position.X, Y: spot.Position.Y, Z: spot.Position.Z},
+				Range:    spot.Range, RequiredLevel: spot.RequiredLevel,
+				CurrentAmount: spot.CurrentAmount, MaximumAmount: spot.MaximumAmount,
+				Station: string(spot.Station), RecipeID: spot.RecipeID,
 			})
 		}
-		message.Merchants = append(message.Merchants, protocol.MerchantSnapshot{
-			ID: merchant.ID, Name: merchant.Name,
-			Position: protocol.Position{X: merchant.Position.X, Y: merchant.Position.Y, Z: merchant.Position.Z},
-			Range:    merchant.Range, Stock: stock,
-		})
+		for _, chest := range snapshot.BankChests {
+			message.BankChests = append(message.BankChests, protocol.BankChestSnapshot{
+				ID: chest.ID, Name: chest.Name,
+				Position: protocol.Position{X: chest.Position.X, Y: chest.Position.Y, Z: chest.Position.Z},
+				Range:    chest.Range,
+			})
+		}
+		for _, merchant := range snapshot.Merchants {
+			stock := make([]protocol.MerchantStockSnapshot, 0, len(merchant.Stock))
+			for _, item := range merchant.Stock {
+				stock = append(stock, protocol.MerchantStockSnapshot{
+					ItemID: item.ItemID, Quantity: item.Quantity,
+					InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
+					BuyPrice: item.BuyPrice,
+				})
+			}
+			message.Merchants = append(message.Merchants, protocol.MerchantSnapshot{
+				ID: merchant.ID, Name: merchant.Name,
+				Position: protocol.Position{X: merchant.Position.X, Y: merchant.Position.Y, Z: merchant.Position.Z},
+				Range:    merchant.Range, Stock: stock,
+			})
+		}
 	}
 	for _, player := range snapshot.Players {
 		privateState := player
 		if privatePlayer != nil && privatePlayer.ID == player.ID {
 			privateState = *privatePlayer
 		}
-		playerMessage := protocol.PlayerSnapshot{
-			ID: string(player.ID),
-			Position: protocol.Position{
-				X: player.Position.X,
-				Y: player.Position.Y,
-				Z: player.Position.Z,
-			},
-			Speed:               player.Speed,
-			LastCommandSequence: player.LastCommandSequence,
-			LastCommandTick:     player.LastCommandTick,
-			NavigationLocation: protocol.NavigationLocation{
-				Kind: string(player.NavigationLocation.Kind),
-				ID:   player.NavigationLocation.ID,
-			},
-			LastActionSequence:           player.LastActionSequence,
-			LastActionPulse:              player.LastActionPulse,
-			LastActionResult:             player.LastActionResult,
-			CombatTarget:                 player.CombatTarget,
-			NextAttackPulse:              player.NextAttackPulse,
-			AutoApproaching:              player.AutoApproaching,
-			AutoPickingUp:                player.AutoPickingUp,
-			Health:                       player.Health,
-			MaximumHealth:                player.MaximumHealth,
-			Prayer:                       player.Prayer,
-			MaximumPrayer:                player.MaximumPrayer,
-			Defeated:                     player.Defeated,
-			RespawnAtPulse:               player.RespawnAtPulse,
-			EquippedWeapon:               string(player.EquippedWeapon),
-			EquippedWeaponInstanceID:     player.EquippedWeaponInstanceID,
-			EquippedWeaponReinforcement:  player.EquippedWeaponReinforcement,
-			EquippedArmour:               make(map[string]string, len(player.EquippedArmour)),
-			EquippedArmourInstances:      make(map[string]string, len(player.EquippedArmourInstances)),
-			EquippedArmourReinforcements: make(map[string]int, len(player.EquippedArmourReinforcements)),
-			EquippedSpellbook:            player.EquippedSpellbook,
-			ActiveSpellbook:              string(player.ActiveSpellbook),
-			LastEquipmentSequence:        player.LastEquipmentSequence,
-			LastEquipmentPulse:           player.LastEquipmentPulse,
-			CombatStyle:                  string(player.CombatStyle),
-			LastCombatStyleSequence:      player.LastCombatStyleSequence,
-			ActivePrayers:                make([]string, 0, len(player.ActivePrayers)),
-			ActivePrayerSet:              string(player.ActivePrayerSet),
-			LastPrayerSequence:           player.LastPrayerSequence,
-			SelectedSpell:                string(player.SelectedSpell),
-			LastSpellSequence:            player.LastSpellSequence,
-			DodgeRate:                    player.DodgeRate,
-			CombatLevel:                  player.CombatLevel,
-			ExperienceLocked:             player.ExperienceLocked,
-			LastExperienceLockSequence:   player.LastExperienceLockSequence,
-			LastBankSequence:             player.LastBankSequence,
-			LastMerchantSequence:         player.LastMerchantSequence,
-			LastPickupSequence:           player.LastPickupSequence,
-			LastConsumeSequence:          player.LastConsumeSequence,
-			NextConsumePulse:             player.NextConsumePulse,
-			LastBrewSequence:             player.LastBrewSequence,
-			BrewRemaining:                player.BrewRemaining,
-			NextBrewPulse:                player.NextBrewPulse,
-			BrewingResult:                player.BrewingResult,
-			LastFletchSequence:           player.LastFletchSequence,
-			FletchRemaining:              player.FletchRemaining,
-			NextFletchPulse:              player.NextFletchPulse,
-			FletchingResult:              player.FletchingResult,
-			GatheringSpot:                player.GatheringSpot,
-			GatheringResult:              player.GatheringResult,
-			NextGatherPulse:              player.NextGatherPulse,
-			LastGatherSequence:           player.LastGatherSequence,
-			Path:                         make([]protocol.Position, 0, len(player.Path)),
-		}
-		for _, prayerID := range player.ActivePrayers {
-			playerMessage.ActivePrayers = append(playerMessage.ActivePrayers, string(prayerID))
-		}
-		for slot, itemID := range player.EquippedArmour {
-			playerMessage.EquippedArmour[string(slot)] = itemID
-		}
-		for slot, instanceID := range player.EquippedArmourInstances {
-			playerMessage.EquippedArmourInstances[string(slot)] = instanceID
-		}
-		for slot, reinforcement := range player.EquippedArmourReinforcements {
-			playerMessage.EquippedArmourReinforcements[string(slot)] = reinforcement
-		}
+		playerMessage := publicPlayerMessage(player)
 		if player.ID == localPlayerID && privatePlayer != nil && privatePlayer.ID == player.ID {
+			populateLocalPlayerMessage(&playerMessage, privateState)
 			populatePrivatePlayerMessage(&playerMessage, privateState)
 			playerMessage.LastDropSequence = privateState.LastDropSequence
 			playerMessage.LastInventoryMoveSequence = privateState.LastInventoryMoveSequence
@@ -1187,23 +1163,118 @@ func snapshotMessageWithPrivate(
 				})
 			}
 		}
-		for _, waypoint := range player.Path {
-			playerMessage.Path = append(playerMessage.Path, protocol.Position{
-				X: waypoint.X,
-				Y: waypoint.Y,
-				Z: waypoint.Z,
-			})
-		}
-		if player.Destination != nil {
-			playerMessage.Destination = &protocol.Position{
-				X: player.Destination.X,
-				Y: player.Destination.Y,
-				Z: player.Destination.Z,
-			}
-		}
 		message.Players = append(message.Players, playerMessage)
 	}
 	return message
+}
+
+// publicPlayerMessage contains only state needed to render and interact with a
+// visible player. Command acknowledgements, production progress and private
+// character state are attached only to the receiving player's entry.
+func publicPlayerMessage(player simulation.PlayerSnapshot) protocol.PlayerSnapshot {
+	message := protocol.PlayerSnapshot{
+		ID: string(player.ID),
+		Position: protocol.Position{
+			X: player.Position.X,
+			Y: player.Position.Y,
+			Z: player.Position.Z,
+		},
+		Speed:          player.Speed,
+		CombatTarget:   player.CombatTarget,
+		Health:         player.Health,
+		MaximumHealth:  player.MaximumHealth,
+		Defeated:       player.Defeated,
+		RespawnAtPulse: player.RespawnAtPulse,
+		EquippedWeapon: string(player.EquippedWeapon),
+		EquippedArmour: make(map[string]string, len(player.EquippedArmour)),
+		CombatLevel:    player.CombatLevel,
+	}
+	for slot, itemID := range player.EquippedArmour {
+		message.EquippedArmour[string(slot)] = itemID
+	}
+	return message
+}
+
+func populateLocalPlayerMessage(message *protocol.PlayerSnapshot, player simulation.PlayerSnapshot) {
+	message.LastCommandSequence = player.LastCommandSequence
+	message.LastCommandTick = player.LastCommandTick
+	message.NavigationLocation = &protocol.NavigationLocation{
+		Kind: string(player.NavigationLocation.Kind), ID: player.NavigationLocation.ID,
+	}
+	message.LastActionSequence = player.LastActionSequence
+	message.LastActionPulse = player.LastActionPulse
+	message.LastActionResult = player.LastActionResult
+	message.CombatTarget = player.CombatTarget
+	message.NextAttackPulse = player.NextAttackPulse
+	message.AutoApproaching = player.AutoApproaching
+	message.AutoPickingUp = player.AutoPickingUp
+	message.Health = player.Health
+	message.MaximumHealth = player.MaximumHealth
+	message.Prayer = player.Prayer
+	message.MaximumPrayer = player.MaximumPrayer
+	message.Defeated = player.Defeated
+	message.RespawnAtPulse = player.RespawnAtPulse
+	message.EquippedWeapon = string(player.EquippedWeapon)
+	message.EquippedWeaponInstanceID = player.EquippedWeaponInstanceID
+	message.EquippedWeaponReinforcement = player.EquippedWeaponReinforcement
+	message.EquippedArmour = make(map[string]string, len(player.EquippedArmour))
+	message.EquippedArmourInstances = make(map[string]string, len(player.EquippedArmourInstances))
+	message.EquippedArmourReinforcements = make(map[string]int, len(player.EquippedArmourReinforcements))
+	for slot, itemID := range player.EquippedArmour {
+		message.EquippedArmour[string(slot)] = itemID
+	}
+	for slot, instanceID := range player.EquippedArmourInstances {
+		message.EquippedArmourInstances[string(slot)] = instanceID
+	}
+	for slot, reinforcement := range player.EquippedArmourReinforcements {
+		message.EquippedArmourReinforcements[string(slot)] = reinforcement
+	}
+	message.EquippedSpellbook = player.EquippedSpellbook
+	message.ActiveSpellbook = string(player.ActiveSpellbook)
+	message.LastEquipmentSequence = player.LastEquipmentSequence
+	message.LastEquipmentPulse = player.LastEquipmentPulse
+	message.CombatStyle = string(player.CombatStyle)
+	message.LastCombatStyleSequence = player.LastCombatStyleSequence
+	message.ActivePrayers = make([]string, 0, len(player.ActivePrayers))
+	for _, prayerID := range player.ActivePrayers {
+		message.ActivePrayers = append(message.ActivePrayers, string(prayerID))
+	}
+	message.ActivePrayerSet = string(player.ActivePrayerSet)
+	message.LastPrayerSequence = player.LastPrayerSequence
+	message.SelectedSpell = string(player.SelectedSpell)
+	message.LastSpellSequence = player.LastSpellSequence
+	message.DodgeRate = player.DodgeRate
+	message.CombatLevel = player.CombatLevel
+	message.ExperienceLocked = player.ExperienceLocked
+	message.LastExperienceLockSequence = player.LastExperienceLockSequence
+	message.LastBankSequence = player.LastBankSequence
+	message.LastMerchantSequence = player.LastMerchantSequence
+	message.LastPickupSequence = player.LastPickupSequence
+	message.LastConsumeSequence = player.LastConsumeSequence
+	message.NextConsumePulse = player.NextConsumePulse
+	message.LastBrewSequence = player.LastBrewSequence
+	message.BrewRemaining = player.BrewRemaining
+	message.NextBrewPulse = player.NextBrewPulse
+	message.BrewingResult = player.BrewingResult
+	message.LastFletchSequence = player.LastFletchSequence
+	message.FletchRemaining = player.FletchRemaining
+	message.NextFletchPulse = player.NextFletchPulse
+	message.FletchingResult = player.FletchingResult
+	message.GatheringSpot = player.GatheringSpot
+	message.GatheringResult = player.GatheringResult
+	message.NextGatherPulse = player.NextGatherPulse
+	message.LastGatherSequence = player.LastGatherSequence
+	message.Path = make([]protocol.Position, 0, len(player.Path))
+	for _, waypoint := range player.Path {
+		message.Path = append(message.Path, protocol.Position{
+			X: waypoint.X, Y: waypoint.Y, Z: waypoint.Z,
+		})
+	}
+	if player.Destination != nil {
+		message.Destination = &protocol.Position{
+			X: player.Destination.X, Y: player.Destination.Y, Z: player.Destination.Z,
+		}
+	}
 }
 
 func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simulation.PlayerSnapshot) {
