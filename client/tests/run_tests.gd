@@ -34,6 +34,7 @@ func _run() -> void:
 	await _test_account_rate_limit_feedback_includes_retry_time()
 	await _test_local_movement_reconciliation_ignores_stale_routes()
 	await _test_equipped_boots_follow_leg_pivots()
+	_test_fletching_options_follow_clicked_item_and_inventory()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
 	# process exits. This keeps headless runs deterministic on slower machines.
@@ -312,6 +313,64 @@ func _test_equipped_boots_follow_leg_pivots() -> void:
 	_check(player.swift_right_boot.get_parent() == player.right_leg, "right boot is attached to the right leg pivot")
 	player.queue_free()
 	await process_frame
+
+
+func _test_fletching_options_follow_clicked_item_and_inventory() -> void:
+	var fletching := FletchingWindow.new()
+	var recipes: Array = [
+		{
+			"id": "arrow_shafts", "required_level": 1, "required_tool": "knife",
+			"costs": [{"item_id": "normal_logs", "quantity": 1}],
+		},
+		{
+			"id": "unstrung_shortbow", "required_level": 1, "required_tool": "knife",
+			"costs": [{"item_id": "normal_logs", "quantity": 1}],
+		},
+		{
+			"id": "unstrung_oak_shortbow", "required_level": 2, "required_tool": "knife",
+			"costs": [{"item_id": "oak_logs", "quantity": 1}],
+		},
+		{
+			"id": "shortbow", "required_level": 1,
+			"costs": [
+				{"item_id": "unstrung_shortbow", "quantity": 1},
+				{"item_id": "bowstring", "quantity": 1},
+			],
+		},
+		{
+			"id": "iron_arrows", "required_level": 2,
+			"costs": [
+				{"item_id": "arrow_shafts", "quantity": 20},
+				{"item_id": "feathers", "quantity": 20},
+				{"item_id": "iron_arrow_tips", "quantity": 20},
+			],
+		},
+	]
+	fletching.update_data(recipes, [
+		{"item_id": "knife", "quantity": 1},
+		{"item_id": "normal_logs", "quantity": 2},
+	], 1, false, 0)
+	var log_options := fletching.available_recipe_ids_for_item("normal_logs")
+	_check(
+		log_options.size() == 2 and log_options.has("arrow_shafts") and log_options.has("unstrung_shortbow"),
+		"normal logs show only shafts and their unstrung bow",
+	)
+
+	fletching.update_data(recipes, [
+		{"item_id": "unstrung_shortbow", "quantity": 1},
+		{"item_id": "bowstring", "quantity": 1},
+	], 2, false, 0)
+	var bow_options := fletching.available_recipe_ids_for_item("unstrung_shortbow")
+	_check(bow_options == ["shortbow"], "an unstrung bow shows only its matching stringing recipe")
+
+	fletching.update_data(recipes, [
+		{"item_id": "arrow_shafts", "quantity": 20},
+		{"item_id": "feathers", "quantity": 20},
+		{"item_id": "iron_arrow_tips", "quantity": 20},
+	], 2, false, 0)
+	var arrow_options := fletching.available_recipe_ids_for_item("arrow_shafts")
+	_check(arrow_options == ["iron_arrows"], "arrow components show only fully makeable arrow recipes")
+	fletching.free()
 
 
 func _test_beta_build_uses_hosted_server() -> void:

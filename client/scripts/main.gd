@@ -54,7 +54,8 @@ const FIREMAKING_LOGS: Dictionary = {
 }
 const ITEM_DISPLAY_NAMES: Dictionary = {
 	"amulet_ferocity": "Ruby Amulet", "amulet_hawk": "Emerald Amulet",
-	"amulet_embers": "Sapphire Amulet", "amulet_fury": "Diamond Amulet",
+	"amulet_embers": "Sapphire Amulet", "amulet_fury": "Amulet of Fury",
+	"diamond_amulet": "Diamond Amulet",
 	"skin_bible": "Skin Bible", "holy_book": "Holy Book", "clerics_tome": "Cleric's Tome",
 	"ruby_ring": "Ruby Ring", "emerald_ring": "Emerald Ring",
 	"sapphire_ring": "Sapphire Ring", "diamond_ring": "Diamond Ring",
@@ -256,6 +257,7 @@ const ARMOUR_SLOTS: Dictionary = {
 	"amulet_hawk": "neck",
 	"amulet_embers": "neck",
 	"amulet_fury": "neck",
+	"diamond_amulet": "neck",
 	"ruby_ring": "ring", "emerald_ring": "ring",
 	"sapphire_ring": "ring", "diamond_ring": "ring",
 	"tyrants_ring": "ring",
@@ -283,6 +285,7 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_hawk": "+5 ranged accuracy • +5 ranged strength",
 	"amulet_embers": "+5 magic accuracy • +5 magic strength",
 	"amulet_fury": "+2 accuracy • +2 strength for melee, ranged, and magic",
+	"diamond_amulet": "+2 accuracy • +2 strength for melee, ranged, and magic",
 	"ruby_ring": "+2 melee strength", "emerald_ring": "+2 ranged strength",
 	"sapphire_ring": "+2 magic strength", "diamond_ring": "+1 accuracy and strength for all styles",
 	"tyrants_ring": "+100 melee strength",
@@ -311,6 +314,7 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"amulet_hawk": "Range level 5",
 	"amulet_embers": "Magic level 5",
 	"amulet_fury": "Defence level 5",
+	"diamond_amulet": "Defence level 5",
 }
 const CONSUMABLE_ITEMS: Dictionary = {
 	"cooked_minnow": {"healing": 8, "stack_limit": 10},

@@ -341,7 +341,15 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MagicAccuracy: 5, MagicStrength: 5}},
 	},
 	{
-		ID: ItemAmuletFury, Name: "Diamond Amulet", Kind: ItemKindArmour,
+		ID: ItemAmuletFury, Name: "Amulet of Fury", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
+		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{
+			MeleeAccuracy: 2, RangedAccuracy: 2, MagicAccuracy: 2,
+			MeleeStrength: 2, RangedStrength: 2, MagicStrength: 2,
+		}},
+	},
+	{
+		ID: ItemDiamondAmulet, Name: "Diamond Amulet", Kind: ItemKindArmour,
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
 		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{
 			MeleeAccuracy: 2, RangedAccuracy: 2, MagicAccuracy: 2,

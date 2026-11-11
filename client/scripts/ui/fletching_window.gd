@@ -22,7 +22,9 @@ var _skill_level: int = 1
 var _pending: bool = false
 var _remaining: int = 0
 var _selected_recipe: String = "arrow_shafts"
+var _context_item_id: String = ""
 var _recipe_signature: String = ""
+var _visible_recipe_signature: String = ""
 var _display_signature: String = ""
 
 
@@ -69,13 +71,17 @@ func update_data(
 	if recipe_signature != _recipe_signature:
 		_recipe_signature = recipe_signature
 		_rebuild_recipes(recipes)
+	_rebuild_visible_recipes_if_changed()
 	_refresh_if_changed()
 
 
 func show_for_item(item_id: String = "") -> void:
+	_context_item_id = item_id
 	var matching_recipe := recipe_for_item(item_id)
 	if not matching_recipe.is_empty():
 		_selected_recipe = matching_recipe
+	_visible_recipe_signature = ""
+	_rebuild_visible_recipes_if_changed()
 	_display_signature = ""
 	_refresh_if_changed()
 	_window.popup_centered()
@@ -116,8 +122,6 @@ func close_overlays() -> bool:
 
 func _rebuild_recipes(recipes: Array) -> void:
 	_recipes.clear()
-	_recipe_buttons.clear()
-	_clear_children(_recipe_grid)
 	for payload: Variant in recipes:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
@@ -126,6 +130,37 @@ func _rebuild_recipes(recipes: Array) -> void:
 		if recipe_id.is_empty():
 			continue
 		_recipes[recipe_id] = recipe
+	_visible_recipe_signature = ""
+
+
+func _rebuild_visible_recipes_if_changed() -> void:
+	if _recipe_grid == null:
+		return
+	var signature := "%s:%d:%s:%s:%s" % [
+		_context_item_id,
+		_skill_level,
+		_pending,
+		_recipe_signature,
+		JSON.stringify(_inventory_items),
+	]
+	if signature == _visible_recipe_signature:
+		return
+	_visible_recipe_signature = signature
+	_recipe_buttons.clear()
+	_clear_children(_recipe_grid)
+	var visible_recipe_ids := available_recipe_ids_for_item(_context_item_id)
+	if (
+		_pending
+		and _recipes.has(_selected_recipe)
+		and not visible_recipe_ids.has(_selected_recipe)
+		and (
+			_context_item_id.is_empty()
+			or _recipe_uses_item(_recipes[_selected_recipe] as Dictionary, _context_item_id)
+		)
+	):
+		visible_recipe_ids.append(_selected_recipe)
+	for recipe_id: String in visible_recipe_ids:
+		var recipe := _recipes[recipe_id] as Dictionary
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(280, 130)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -138,9 +173,34 @@ func _rebuild_recipes(recipes: Array) -> void:
 		button.pressed.connect(_select_recipe.bind(recipe_id))
 		_recipe_grid.add_child(button)
 		_recipe_buttons[recipe_id] = button
-	if not _recipes.has(_selected_recipe):
-		_selected_recipe = str(_recipes.keys()[0]) if not _recipes.is_empty() else ""
+	if not _recipe_buttons.has(_selected_recipe):
+		_selected_recipe = str(_recipe_buttons.keys()[0]) if not _recipe_buttons.is_empty() else ""
 	_display_signature = ""
+
+
+func _recipe_uses_item(recipe: Dictionary, item_id: String) -> bool:
+	if str(recipe.get("required_tool", "")) == item_id:
+		return true
+	for cost_data: Variant in recipe.get("costs", []) as Array:
+		if typeof(cost_data) == TYPE_DICTIONARY and str((cost_data as Dictionary).get("item_id", "")) == item_id:
+			return true
+	return false
+
+
+func _recipe_is_makeable(recipe: Dictionary) -> bool:
+	return _maximum_batches_for_recipe(recipe) > 0
+
+
+func available_recipe_ids_for_item(item_id: String = "") -> Array[String]:
+	var available: Array[String] = []
+	for recipe_id_value: Variant in _recipes:
+		var recipe_id := str(recipe_id_value)
+		var recipe := _recipes[recipe_id] as Dictionary
+		if not item_id.is_empty() and not _recipe_uses_item(recipe, item_id):
+			continue
+		if _recipe_is_makeable(recipe):
+			available.append(recipe_id)
+	return available
 
 
 func _recipe_button_text(recipe: Dictionary) -> String:
@@ -204,6 +264,10 @@ func _refresh_if_changed() -> void:
 
 func _maximum_batches() -> int:
 	var recipe: Dictionary = _recipes.get(_selected_recipe, {}) as Dictionary
+	return _maximum_batches_for_recipe(recipe)
+
+
+func _maximum_batches_for_recipe(recipe: Dictionary) -> int:
 	if recipe.is_empty() or _skill_level < int(recipe.get("required_level", 1)):
 		return 0
 	var tool_id: String = str(recipe.get("required_tool", ""))

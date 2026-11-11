@@ -56,6 +56,7 @@ const (
 	ItemAmuletHawk         = "amulet_hawk"
 	ItemAmuletEmbers       = "amulet_embers"
 	ItemAmuletFury         = "amulet_fury"
+	ItemDiamondAmulet      = "diamond_amulet"
 	ItemRubyRing           = "ruby_ring"
 	ItemEmeraldRing        = "emerald_ring"
 	ItemSapphireRing       = "sapphire_ring"

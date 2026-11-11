@@ -48,7 +48,7 @@ func TestGemAmuletRecipesUseGoldAndMatchingCutGem(t *testing.T) {
 		{ForgingRubyAmulet, ItemRuby, ItemAmuletFerocity},
 		{ForgingEmeraldAmulet, ItemEmerald, ItemAmuletHawk},
 		{ForgingSapphireAmulet, ItemSapphire, ItemAmuletEmbers},
-		{ForgingDiamondAmulet, ItemDiamond, ItemAmuletFury},
+		{ForgingDiamondAmulet, ItemDiamond, ItemDiamondAmulet},
 	}
 	for _, test := range tests {
 		recipe, exists := forgingRecipe(test.id)

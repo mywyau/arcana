@@ -47,6 +47,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemAmuletHawk, ItemKindArmour},
 		{ItemAmuletEmbers, ItemKindArmour},
 		{ItemAmuletFury, ItemKindArmour},
+		{ItemDiamondAmulet, ItemKindArmour},
 		{ItemRubyRing, ItemKindArmour}, {ItemEmeraldRing, ItemKindArmour},
 		{ItemSapphireRing, ItemKindArmour}, {ItemDiamondRing, ItemKindArmour},
 		{ItemTyrantsRing, ItemKindArmour}, {ItemRangedTyrantsRing, ItemKindArmour}, {ItemMageTyrantsRing, ItemKindArmour},
@@ -169,7 +170,8 @@ func TestGemAmuletsUsePlayerFacingGemNames(t *testing.T) {
 		ItemAmuletFerocity: "Ruby Amulet",
 		ItemAmuletHawk:     "Emerald Amulet",
 		ItemAmuletEmbers:   "Sapphire Amulet",
-		ItemAmuletFury:     "Diamond Amulet",
+		ItemAmuletFury:     "Amulet of Fury",
+		ItemDiamondAmulet:  "Diamond Amulet",
 	}
 	for itemID, want := range wantNames {
 		definition, exists := itemDefinition(itemID)
