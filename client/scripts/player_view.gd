@@ -71,9 +71,10 @@ func _process(delta: float) -> void:
 	if not _is_local:
 		var weight: float = 1.0 - exp(-interpolation_speed * delta)
 		global_position = global_position.lerp(_remote_target, weight)
-		_update_movement_pose(delta, previous_position)
+		_update_movement_pose(delta, previous_position, Vector3.ZERO, false)
 		return
 
+	var predicted_position: Vector3 = global_position
 	if not _predicted_path.is_empty():
 		global_position = global_position.move_toward(
 			_predicted_path[0],
@@ -81,20 +82,34 @@ func _process(delta: float) -> void:
 		)
 		if global_position.is_equal_approx(_predicted_path[0]) and _predicted_path.size() > 1:
 			_predicted_path.pop_front()
+		predicted_position = global_position
 
 	if not _pending_correction.is_zero_approx():
 		var correction_step: Vector3 = _pending_correction.limit_length(correction_speed * delta)
 		global_position += correction_step
 		_pending_correction -= correction_step
-	_update_movement_pose(delta, previous_position)
+	_update_movement_pose(
+		delta,
+		previous_position,
+		predicted_position - previous_position,
+		true,
+	)
 
 
-func _update_movement_pose(delta: float, previous_position: Vector3) -> void:
+func _update_movement_pose(
+		delta: float,
+		previous_position: Vector3,
+		predicted_motion: Vector3,
+		preserve_facing_during_correction: bool,
+) -> void:
 	var motion: Vector3 = global_position - previous_position
 	motion.y = 0.0
 	var moving: bool = motion.length_squared() > 0.000001 and not _defeated
 	if moving:
-		visual_root.look_at(visual_root.global_position + motion, Vector3.UP, true)
+		predicted_motion.y = 0.0
+		if not preserve_facing_during_correction or predicted_motion.length_squared() > 0.000001:
+			var facing_motion: Vector3 = predicted_motion if preserve_facing_during_correction else motion
+			visual_root.look_at(visual_root.global_position + facing_motion, Vector3.UP, true)
 		_walk_time += delta * 10.0
 		var swing: float = sin(_walk_time) * 26.0
 		left_leg.rotation_degrees.x = swing
@@ -164,16 +179,59 @@ func apply_authoritative_state(
 	else:
 		_pending_correction = Vector3.ZERO
 
+	var reconciled_path: Array[Vector3] = _trim_passed_waypoints(path, position)
 	if server_driven_path:
-		_predicted_path = path.duplicate()
+		if not _following_server_path or not _paths_share_destination(_predicted_path, reconciled_path):
+			_predicted_path = reconciled_path
 	elif _following_server_path:
-		_predicted_path = path.duplicate()
+		_predicted_path = reconciled_path
 	elif acknowledged_sequence >= latest_sent_sequence and acknowledged_sequence > _last_route_sequence:
-		_predicted_path = path.duplicate()
+		_predicted_path = reconciled_path
 		_last_route_sequence = acknowledged_sequence
 	_following_server_path = server_driven_path
 
 	return correction_distance
+
+
+func _trim_passed_waypoints(path: Array[Vector3], authoritative_position: Vector3) -> Array[Vector3]:
+	if path.size() <= 1:
+		return path.duplicate()
+	var nearest_segment: int = 0
+	var nearest_distance_squared: float = INF
+	var segment_start: Vector3 = authoritative_position
+	for index: int in range(path.size()):
+		var segment_end: Vector3 = path[index]
+		var segment: Vector3 = segment_end - segment_start
+		var weight: float = 0.0
+		if segment.length_squared() > 0.000001:
+			weight = clampf(
+				(global_position - segment_start).dot(segment) / segment.length_squared(),
+				0.0,
+				1.0,
+			)
+		var nearest_point: Vector3 = segment_start + segment * weight
+		var distance_squared: float = global_position.distance_squared_to(nearest_point)
+		if distance_squared < nearest_distance_squared:
+			nearest_distance_squared = distance_squared
+			nearest_segment = index
+		segment_start = segment_end
+
+	# If prediction is no longer close to the authoritative route, retain the
+	# complete path and let normal positional reconciliation recover it safely.
+	if nearest_distance_squared > correction_threshold * correction_threshold:
+		return path.duplicate()
+	var trimmed: Array[Vector3] = []
+	for index: int in range(nearest_segment, path.size()):
+		trimmed.append(path[index])
+	return trimmed
+
+
+func _paths_share_destination(first: Array[Vector3], second: Array[Vector3]) -> bool:
+	if first.is_empty() or second.is_empty():
+		return first.is_empty() and second.is_empty()
+	var first_destination: Vector3 = first[first.size() - 1]
+	var second_destination: Vector3 = second[second.size() - 1]
+	return first_destination.distance_squared_to(second_destination) <= 0.01
 
 
 func cancel_prediction() -> void:

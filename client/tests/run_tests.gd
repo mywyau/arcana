@@ -255,6 +255,48 @@ func _test_local_movement_reconciliation_ignores_stale_routes() -> void:
 		player._predicted_path == [latest_destination],
 		"stale acknowledgement preserves the newest predicted route",
 	)
+
+	player.global_position = Vector3(1.2, 0.0, 0.0)
+	var acknowledged_path: Array[Vector3] = [
+		Vector3(0.5, 0.0, 0.0),
+		Vector3(1.0, 0.0, 0.0),
+		Vector3(1.5, 0.0, 0.0),
+		Vector3(2.0, 0.0, 0.0),
+	]
+	player.apply_authoritative_state(
+		Vector3(0.6, 0.0, 0.0),
+		acknowledged_path,
+		6.0,
+		2,
+		2,
+		false,
+	)
+	_check(
+		player._predicted_path == [Vector3(1.5, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)],
+		"acknowledged route removes waypoints already passed by prediction",
+	)
+
+	player.apply_authoritative_state(
+		Vector3(0.8, 0.0, 0.0),
+		[Vector3(1.0, 0.0, 0.0), Vector3(1.5, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)],
+		6.0,
+		2,
+		2,
+		true,
+	)
+	player._predicted_path = [Vector3(1.6, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)]
+	player.apply_authoritative_state(
+		Vector3(1.0, 0.0, 0.0),
+		[Vector3(1.5, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)],
+		6.0,
+		2,
+		2,
+		true,
+	)
+	_check(
+		player._predicted_path == [Vector3(1.6, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)],
+		"equivalent server-driven route is not reset every snapshot",
+	)
 	player.queue_free()
 	await process_frame
 
