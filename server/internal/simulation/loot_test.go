@@ -325,6 +325,39 @@ func TestResourceDropAndPickupMovesEntireStack(t *testing.T) {
 	}
 }
 
+func TestDropLimitedStackRemovesOnlyClickedInventoryPile(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 4)
+	player := world.players["player-one"]
+	if !player.inventory.add(ItemPrayerPotion, 8) {
+		t.Fatal("could not add split prayer potion stacks")
+	}
+	dropSlot := -1
+	for _, item := range player.inventory.items {
+		if item.ItemID == ItemPrayerPotion && item.Quantity == 3 {
+			dropSlot = item.Slot
+		}
+	}
+	if dropSlot < 0 {
+		t.Fatalf("split prayer potion stacks = %+v", player.inventory.items)
+	}
+	if err := world.QueueDropItem(DropItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemPrayerPotion, InventorySlot: &dropSlot,
+	}); err != nil {
+		t.Fatalf("QueueDropItem() returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+
+	snapshot := mustPlayer(t, world, "player-one")
+	if got := snapshot.Inventory.itemsQuantity(ItemPrayerPotion); got != 5 {
+		t.Fatalf("inventory quantity after dropping the clicked stack = %d, want 5", got)
+	}
+	drops := world.Snapshot().Drops
+	if len(drops) != 1 || drops[0].ItemID != ItemPrayerPotion || drops[0].Quantity != 3 {
+		t.Fatalf("dropped stack = %+v, want 3 prayer potions", drops)
+	}
+}
+
 func TestDropRejectsEquippedItem(t *testing.T) {
 	world := NewWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
@@ -463,19 +496,31 @@ func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
 	}
 }
 
-func TestRiftTyrantRareRingDropRateAndLoot(t *testing.T) {
-	entries := lootTableForTarget(riftTyrantTargetID)
-	if len(entries) != 3 || entries[2].ItemID != ItemTyrantsRing || entries[2].DropChance != 1.0/100.0 {
-		t.Fatalf("Rift Tyrant loot table = %+v", entries)
+func TestTyrantRareRingDropRatesAndLoot(t *testing.T) {
+	tests := []struct {
+		targetID string
+		ringID   string
+	}{
+		{targetID: riftTyrantTargetID, ringID: ItemTyrantsRing},
+		{targetID: rangedTyrantTargetID, ringID: ItemRangedTyrantsRing},
+		{targetID: mageTyrantTargetID, ringID: ItemMageTyrantsRing},
 	}
+	for _, test := range tests {
+		t.Run(test.targetID, func(t *testing.T) {
+			entries := lootTableForTarget(test.targetID)
+			if len(entries) != 3 || entries[2].ItemID != test.ringID || entries[2].DropChance != 1.0/50.0 {
+				t.Fatalf("loot table = %+v", entries)
+			}
 
-	world := NewWorldWithRollSource(fixedRollSource(0.001))
-	target := world.combat.targets[riftTyrantTargetID]
-	world.defeatDummy(riftTyrantTargetID, target)
-	drops := world.Snapshot().Drops
-	if len(drops) != 3 || drops[0].ItemID != ItemBones || drops[1].ItemID != ItemCoins ||
-		drops[2].ItemID != ItemTyrantsRing || drops[2].Quantity != 1 {
-		t.Fatalf("Rift Tyrant rare drops = %+v", drops)
+			world := NewWorldWithRollSource(fixedRollSource(0.001))
+			target := world.combat.targets[test.targetID]
+			world.defeatDummy(test.targetID, target)
+			drops := world.Snapshot().Drops
+			if len(drops) != 3 || drops[0].ItemID != ItemBones || drops[1].ItemID != ItemCoins ||
+				drops[2].ItemID != test.ringID || drops[2].Quantity != 1 {
+				t.Fatalf("rare drops = %+v", drops)
+			}
+		})
 	}
 }
 

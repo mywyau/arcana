@@ -254,6 +254,17 @@ func TestDecodePickupItemMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeDropItemMessagePreservesClickedSlot(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"drop_item","sequence":6,"item_id":"prayer_potion","drop_slot":3}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageDropItem || message.Sequence != 6 || message.ItemID != "prayer_potion" ||
+		message.DropSlot == nil || *message.DropSlot != 3 {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
 func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 	tests := map[string]string{
 		"malformed JSON":      `{"type":`,
@@ -265,6 +276,7 @@ func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 		"missing item ID":     `{"type":"equip_item","sequence":1}`,
 		"missing unequip ID":  `{"type":"unequip_item","sequence":1}`,
 		"missing drop ID":     `{"type":"pickup_item","sequence":1}`,
+		"negative drop slot":  `{"type":"drop_item","sequence":1,"item_id":"prayer_potion","drop_slot":-1}`,
 		"missing style":       `{"type":"set_combat_style","sequence":1}`,
 		"missing prayer ID":   `{"type":"set_prayer","sequence":1,"active":true}`,
 		"missing debug skill": `{"type":"debug_set_skill","sequence":1,"level":10}`,

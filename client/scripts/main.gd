@@ -59,6 +59,8 @@ const ITEM_DISPLAY_NAMES: Dictionary = {
 	"ruby_ring": "Ruby Ring", "emerald_ring": "Emerald Ring",
 	"sapphire_ring": "Sapphire Ring", "diamond_ring": "Diamond Ring",
 	"tyrants_ring": "Tyrant's Ring",
+	"ranged_tyrants_ring": "Ranged Tyrant's Ring",
+	"mage_tyrants_ring": "Mage Tyrant's Ring",
 	"vanguard_cape": "Vanguard Cape", "wayfarer_cape": "Wayfarer Cape", "arcanist_cape": "Arcanist Cape",
 }
 const CRAFTING_RECIPES: Dictionary = {
@@ -257,6 +259,7 @@ const ARMOUR_SLOTS: Dictionary = {
 	"ruby_ring": "ring", "emerald_ring": "ring",
 	"sapphire_ring": "ring", "diamond_ring": "ring",
 	"tyrants_ring": "ring",
+	"ranged_tyrants_ring": "ring", "mage_tyrants_ring": "ring",
 }
 const REINFORCEMENT_TIERS: Dictionary = {
 	"bronze": {"bar": "bronze_bar", "bar_name": "Bronze Bars", "level": 2, "items": ["bronze_sword", "bronze_helm", "bronze_platebody", "bronze_shield", "bronze_legs", "bronze_gloves", "bronze_boots"]},
@@ -283,6 +286,8 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"ruby_ring": "+2 melee strength", "emerald_ring": "+2 ranged strength",
 	"sapphire_ring": "+2 magic strength", "diamond_ring": "+1 accuracy and strength for all styles",
 	"tyrants_ring": "+100 melee strength",
+	"ranged_tyrants_ring": "+100 ranged strength",
+	"mage_tyrants_ring": "+100 magic strength",
 	"vanguard_cape": "+3 melee accuracy • +2 melee strength",
 	"wayfarer_cape": "+3 ranged accuracy • +2 ranged strength",
 	"arcanist_cape": "+3 magic accuracy • +2 magic strength",
@@ -2112,7 +2117,7 @@ func _on_inventory_context_action(inventory_slot: int, action_kind: String) -> v
 	var item_id: String = str(item.get("item_id", ""))
 	var instance_id: String = str(item.get("instance_id", ""))
 	if action_kind == InventoryContextMenu.ACTION_DROP:
-		_request_drop_item(item_id, instance_id)
+		_request_drop_item(item_id, instance_id, inventory_slot)
 		return
 	if action_kind == InventoryContextMenu.ACTION_PRIMARY:
 		_on_inventory_item_pressed(
@@ -2276,7 +2281,7 @@ func _on_inventory_item_pressed(
 			if _request_unequip(item_id, instance_id):
 				_queued_drop_after_unequip = item_id
 		else:
-			_request_drop_item(item_id, instance_id)
+			_request_drop_item(item_id, instance_id, inventory_slot)
 		return
 	if _firemaking_mode and FIREMAKING_LOGS.has(item_id):
 		_request_light_fire(item_id)
@@ -2306,10 +2311,10 @@ func _request_light_fire(log_item: String) -> void:
 		status_label.text = "Lighting a fire…"
 
 
-func _request_drop_item(item_id: String, instance_id: String = "") -> void:
+func _request_drop_item(item_id: String, instance_id: String = "", inventory_slot: int = -1) -> void:
 	if item_id.is_empty() or _player_defeated or _is_item_equipped(item_id, instance_id):
 		return
-	if network.send_drop_item(_next_drop_sequence, item_id, instance_id):
+	if network.send_drop_item(_next_drop_sequence, item_id, instance_id, inventory_slot):
 		_next_drop_sequence += 1
 
 

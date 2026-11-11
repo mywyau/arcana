@@ -33,6 +33,7 @@ func _run() -> void:
 	await _test_duplicate_login_submission_is_blocked()
 	await _test_account_rate_limit_feedback_includes_retry_time()
 	await _test_local_movement_reconciliation_ignores_stale_routes()
+	await _test_equipped_boots_follow_leg_pivots()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
 	# process exits. This keeps headless runs deterministic on slower machines.
@@ -297,6 +298,18 @@ func _test_local_movement_reconciliation_ignores_stale_routes() -> void:
 		player._predicted_path == [Vector3(1.6, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)],
 		"equivalent server-driven route is not reset every snapshot",
 	)
+	player.queue_free()
+	await process_frame
+
+
+func _test_equipped_boots_follow_leg_pivots() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerView
+	root.add_child(player)
+	await process_frame
+	player.set_armour({"feet": "swift_boots"})
+	_check(player.swift_left_boot.visible and player.swift_right_boot.visible, "equipped boots are visible")
+	_check(player.swift_left_boot.get_parent() == player.left_leg, "left boot is attached to the left leg pivot")
+	_check(player.swift_right_boot.get_parent() == player.right_leg, "right boot is attached to the right leg pivot")
 	player.queue_free()
 	await process_frame
 

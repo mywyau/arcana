@@ -2,6 +2,8 @@ package simulation
 
 import "math"
 
+const tyrantRingDropChance = 1.0 / 50.0
+
 type lootTableEntry struct {
 	ItemID          string
 	MinimumQuantity int
@@ -36,7 +38,19 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 		return []lootTableEntry{
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemCoins, MinimumQuantity: 100, MaximumQuantity: 250, DropChance: 1},
-			{ItemID: ItemTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1.0 / 100.0},
+			{ItemID: ItemTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: tyrantRingDropChance},
+		}
+	case rangedTyrantTargetID:
+		return []lootTableEntry{
+			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
+			{ItemID: ItemCoins, MinimumQuantity: 100, MaximumQuantity: 250, DropChance: 1},
+			{ItemID: ItemRangedTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: tyrantRingDropChance},
+		}
+	case mageTyrantTargetID:
+		return []lootTableEntry{
+			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
+			{ItemID: ItemCoins, MinimumQuantity: 100, MaximumQuantity: 250, DropChance: 1},
+			{ItemID: ItemMageTyrantsRing, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: tyrantRingDropChance},
 		}
 	default:
 		return []lootTableEntry{{

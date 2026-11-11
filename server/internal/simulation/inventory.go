@@ -163,6 +163,15 @@ func (inventory inventoryState) itemByInstance(instanceID string) (InventoryItem
 	return InventoryItem{}, false
 }
 
+func (inventory inventoryState) itemAtSlot(slot int) (InventoryItem, bool) {
+	for _, item := range inventory.items {
+		if item.Slot == slot {
+			return item, true
+		}
+	}
+	return InventoryItem{}, false
+}
+
 func (inventory *inventoryState) removeInstance(instanceID string) (InventoryItem, bool) {
 	for index, item := range inventory.items {
 		if item.InstanceID != instanceID || instanceID == "" {

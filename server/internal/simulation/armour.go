@@ -61,6 +61,8 @@ const (
 	ItemSapphireRing       = "sapphire_ring"
 	ItemDiamondRing        = "diamond_ring"
 	ItemTyrantsRing        = "tyrants_ring"
+	ItemRangedTyrantsRing  = "ranged_tyrants_ring"
+	ItemMageTyrantsRing    = "mage_tyrants_ring"
 
 	armourSetSwift ArmourSetID = "swift"
 
@@ -187,6 +189,24 @@ func equippedOffenceBonuses(equipped map[ArmourSlot]string) OffenceBonuses {
 	return total
 }
 
+func equippedOffenceBonusesForPlayer(player *playerState) OffenceBonuses {
+	if player == nil {
+		return OffenceBonuses{}
+	}
+	bonuses := equippedOffenceBonuses(player.equippedArmour)
+	for _, ring := range player.ringRack.items {
+		if definition, exists := armourDefinition(ring.ItemID); exists {
+			bonuses.MeleeAccuracy += definition.Offence.MeleeAccuracy
+			bonuses.RangedAccuracy += definition.Offence.RangedAccuracy
+			bonuses.MagicAccuracy += definition.Offence.MagicAccuracy
+			bonuses.MeleeStrength += definition.Offence.MeleeStrength
+			bonuses.RangedStrength += definition.Offence.RangedStrength
+			bonuses.MagicStrength += definition.Offence.MagicStrength
+		}
+	}
+	return bonuses
+}
+
 func equippedEvasionBonusForPlayer(player *playerState) int {
 	if player == nil {
 		return 0
@@ -209,17 +229,7 @@ func equipmentOffenceForWeapon(player *playerState, weapon WeaponDefinition) (ac
 	if player == nil {
 		return 0, 0
 	}
-	bonuses := equippedOffenceBonuses(player.equippedArmour)
-	for _, ring := range player.ringRack.items {
-		if definition, exists := armourDefinition(ring.ItemID); exists {
-			bonuses.MeleeAccuracy += definition.Offence.MeleeAccuracy
-			bonuses.RangedAccuracy += definition.Offence.RangedAccuracy
-			bonuses.MagicAccuracy += definition.Offence.MagicAccuracy
-			bonuses.MeleeStrength += definition.Offence.MeleeStrength
-			bonuses.RangedStrength += definition.Offence.RangedStrength
-			bonuses.MagicStrength += definition.Offence.MagicStrength
-		}
-	}
+	bonuses := equippedOffenceBonusesForPlayer(player)
 	switch {
 	case weapon.RangedStrength > 0:
 		return bonuses.RangedAccuracy, bonuses.RangedStrength

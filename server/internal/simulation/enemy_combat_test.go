@@ -37,12 +37,37 @@ func TestRiftTyrantHasLongRangeAndAllAttackStyles(t *testing.T) {
 	}
 }
 
+func TestSpecialistTyrantsUseTheirOwnCombatStyles(t *testing.T) {
+	tests := []struct {
+		targetID       string
+		wantDamageType DamageType
+		wantDamage     int
+		wantInterval   uint64
+	}{
+		{targetID: rangedTyrantTargetID, wantDamageType: DamageTypeRanged, wantDamage: 20, wantInterval: 3},
+		{targetID: mageTyrantTargetID, wantDamageType: DamageTypeMagic, wantDamage: 24, wantInterval: 5},
+	}
+	for _, test := range tests {
+		t.Run(test.targetID, func(t *testing.T) {
+			profile := combatProfileForEnemy(test.targetID)
+			if profile.CombatLevel != 35 || profile.DamageType != test.wantDamageType ||
+				profile.AttackDamage != test.wantDamage || profile.AttackInterval != test.wantInterval ||
+				profile.AttackRange != enemyLongRangeAttackRange || profile.DetectionRange != 18 || profile.LeashRange != 24 {
+				t.Fatalf("profile = %+v", profile)
+			}
+			if len(profile.AttackTypes) != 0 {
+				t.Fatalf("specialist attack types = %v, want fixed %q", profile.AttackTypes, test.wantDamageType)
+			}
+		})
+	}
+}
+
 func TestWardenAndTyrantOutrangeLongRangeBow(t *testing.T) {
 	longRangeBow, exists := weaponDefinitionForStyle(WeaponBow, CombatStyleLongRange)
 	if !exists {
 		t.Fatal("long-range bow definition is missing")
 	}
-	for _, targetID := range []string{hillWardenTargetID, riftTyrantTargetID} {
+	for _, targetID := range []string{hillWardenTargetID, riftTyrantTargetID, rangedTyrantTargetID, mageTyrantTargetID} {
 		profile := combatProfileForEnemy(targetID)
 		if profile.AttackRange <= longRangeBow.Range {
 			t.Errorf("%s attack range = %.2f, want greater than long-range bow %.2f", targetID, profile.AttackRange, longRangeBow.Range)
@@ -50,6 +75,18 @@ func TestWardenAndTyrantOutrangeLongRangeBow(t *testing.T) {
 		if profile.LeashRange <= longRangeBow.Range {
 			t.Errorf("%s leash range = %.2f, want greater than long-range bow %.2f", targetID, profile.LeashRange, longRangeBow.Range)
 		}
+	}
+}
+
+func TestSpecialistTyrantsHaveDistinctWorldSpawnsAndVisualKinds(t *testing.T) {
+	world := NewWorld()
+	ranged := world.combat.targets[rangedTyrantTargetID]
+	mage := world.combat.targets[mageTyrantTargetID]
+	if ranged == nil || ranged.Position != (Position{X: -40, Z: -35}) || ranged.Kind != targetKindRangedBoss {
+		t.Fatalf("Ranged Tyrant = %+v", ranged)
+	}
+	if mage == nil || mage.Position != (Position{X: 38, Z: -34}) || mage.Kind != targetKindMageBoss {
+		t.Fatalf("Mage Tyrant = %+v", mage)
 	}
 }
 

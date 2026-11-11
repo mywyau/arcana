@@ -131,19 +131,15 @@ func _render_cooking() -> void:
 		var costs: Array = recipe.get("costs", []) as Array
 		var required_level: int = int(recipe.get("required_level", 1))
 		var available: int = _maximum_batches(costs)
+		if available < 1 or cooking_level < required_level:
+			continue
 		var input_text: String = _format_costs(costs, " + ")
 		var button := _recipe_button(reward_item, 62)
 		button.custom_minimum_size = Vector2(260, 116 if _cooking_details_visible else 92)
 		button.text = "%s\nLv %d" % [recipe.get("name", recipe_id.capitalize()), required_level]
 		if _cooking_details_visible:
 			button.text += "\n%s" % input_text
-		button.disabled = cooking_level < required_level or available < 1
-		if cooking_level < required_level:
-			button.tooltip_text = "Requires Cooking level %d" % required_level
-		elif available < 1:
-			button.tooltip_text = "Requires %s" % input_text
-		else:
-			button.tooltip_text = "Cook %s until you run out" % recipe.get("name", recipe_id.capitalize())
+		button.tooltip_text = "Cook %s until you run out" % recipe.get("name", recipe_id.capitalize())
 		button.pressed.connect(_request_default.bind("cooking", recipe_id, ""))
 		button.gui_input.connect(_on_recipe_input.bind("cooking", recipe_id))
 		_cooking_grid.add_child(button)
@@ -157,9 +153,12 @@ func _render_smelting() -> void:
 		var recipe_id: String = str(recipe.get("id", ""))
 		var reward_item: String = str(recipe.get("reward_item", recipe_id))
 		var required_level: int = int(recipe.get("required_level", 1))
-		var input_lines: String = _format_costs(recipe.get("costs", []) as Array, "\n")
+		var costs: Array = recipe.get("costs", []) as Array
+		var input_lines: String = _format_costs(costs, "\n")
 		var required_tool: String = str(recipe.get("required_tool", ""))
 		var has_tool: bool = required_tool.is_empty() or _inventory_quantity(required_tool) > 0
+		if _maximum_batches(costs) < 1 or not has_tool or smithing_level < required_level:
+			continue
 		var tool_name: String = _item_name(required_tool)
 		if not required_tool.is_empty():
 			input_lines += "\nTool: %s" % tool_name
@@ -168,17 +167,10 @@ func _render_smelting() -> void:
 		button.text = "%s\n%s\nSmithing %d" % [
 			recipe.get("name", recipe_id.capitalize()), input_lines, required_level,
 		]
-		button.disabled = smithing_level < required_level or not has_tool
-		button.tooltip_text = (
-			"Requires Smithing level %d" % required_level
-			if smithing_level < required_level
-			else "Requires a %s" % tool_name
-			if not has_tool
-			else "%s %s until materials run out" % [
-				"Craft" if str(recipe.get("group", "")) == "jewellery" else "Smelt",
-				recipe.get("name", recipe_id.capitalize()),
-			]
-		)
+		button.tooltip_text = "%s %s until materials run out" % [
+			"Craft" if str(recipe.get("group", "")) == "jewellery" else "Smelt",
+			recipe.get("name", recipe_id.capitalize()),
+		]
 		button.pressed.connect(_request_default.bind("smelting", recipe_id, ""))
 		button.gui_input.connect(_on_recipe_input.bind("smelting", recipe_id))
 		_smelting_grid.add_child(button)
@@ -186,7 +178,17 @@ func _render_smelting() -> void:
 
 func _render_forging() -> void:
 	_clear_children(_smithing_tabs)
-	var recipes := _station_recipes("forging")
+	var recipes: Array = []
+	for recipe_data: Variant in _station_recipes("forging"):
+		var recipe := recipe_data as Dictionary
+		var required_tool: String = str(recipe.get("required_tool", ""))
+		if int(_skill_levels.get("smithing", 1)) < int(recipe.get("required_level", 1)):
+			continue
+		if _maximum_batches(recipe.get("costs", []) as Array) < 1:
+			continue
+		if not required_tool.is_empty() and _inventory_quantity(required_tool) < 1:
+			continue
+		recipes.append(recipe)
 	for group: String in _ordered_recipe_groups(recipes):
 		var grid := _add_forging_tab(group.capitalize())
 		for recipe_data: Variant in recipes:
@@ -238,6 +240,15 @@ func _add_upgrade_tab() -> void:
 		if instance_id.is_empty() or reinforcement >= MAXIMUM_REINFORCEMENT or data.is_empty():
 			continue
 		var required_level: int = int(data.get("level", 1))
+		var bar_id: String = str(data.get("bar", ""))
+		var bar_cost: int = int(data.get("cost", 0))
+		if (
+			bar_id.is_empty()
+			or bar_cost < 1
+			or _inventory_quantity(bar_id) < bar_cost
+			or int(_skill_levels.get("smithing", 1)) < required_level
+		):
+			continue
 		var button := _recipe_button(item_id, 48)
 		button.custom_minimum_size = Vector2(0, 72)
 		button.text = "Upgrade %s to +%d\n%d %s  •  Lv %d  •  slot %d" % [

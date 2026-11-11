@@ -71,6 +71,8 @@ const (
 	dummyLeashRange                      = 6.0
 	roamingEnemySpeed                    = 3.0
 	riftTyrantMovementSpeed              = DefaultPlayerMovementSpeed + 0.5
+	rangedTyrantMovementSpeed            = DefaultPlayerMovementSpeed + 0.75
+	mageTyrantMovementSpeed              = DefaultPlayerMovementSpeed + 0.5
 	roamingRepathPulses                  = 1
 	respawnDelayPulses                   = 5
 	dummyTargetID                        = "dummy"
@@ -80,21 +82,31 @@ const (
 	wildFowlTargetID                     = "wild_fowl"
 	cowTargetID                          = "cow"
 	riftTyrantTargetID                   = "rift_tyrant"
+	rangedTyrantTargetID                 = "ranged_tyrant"
+	mageTyrantTargetID                   = "mage_tyrant"
 	hillWardenEvasionScore               = 18
 	wildFowlEvasionScore                 = 2
 	cowEvasionScore                      = 4
 	riftTyrantMaximumHealth              = 650
 	riftTyrantAccuracyScore              = 40
 	riftTyrantEvasionScore               = 30
+	rangedTyrantMaximumHealth            = 600
+	rangedTyrantAccuracyScore            = 44
+	rangedTyrantEvasionScore             = 34
+	mageTyrantMaximumHealth              = 575
+	mageTyrantAccuracyScore              = 46
+	mageTyrantEvasionScore               = 32
 	combatEventHistoryLimit              = 32
 )
 
 const (
-	targetKindDummy    = "dummy"
-	targetKindCreature = "creature"
-	targetKindBird     = "bird"
-	targetKindCow      = "cow"
-	targetKindBoss     = "boss"
+	targetKindDummy      = "dummy"
+	targetKindCreature   = "creature"
+	targetKindBird       = "bird"
+	targetKindCow        = "cow"
+	targetKindBoss       = "boss"
+	targetKindRangedBoss = "ranged_boss"
+	targetKindMageBoss   = "mage_boss"
 )
 
 type WeaponID string
@@ -353,6 +365,8 @@ func newCombatState() *combatState {
 	wildFowlHome := Position{X: -20, Z: -5}
 	cowHome := Position{X: -16, Z: -10}
 	riftTyrantHome := Position{X: 38, Z: 34}
+	rangedTyrantHome := Position{X: -40, Z: -35}
+	mageTyrantHome := Position{X: 38, Z: -34}
 	hillWardenProfile := combatProfileForEnemy(hillWardenTargetID)
 	hillWarden := &TargetSnapshot{
 		ID:            hillWardenTargetID,
@@ -401,6 +415,22 @@ func newCombatState() *combatState {
 		AttackType: enemyAttackType(riftTyrantProfile, 0), Defence: riftTyrantProfile.Defence,
 		Elements: riftTyrantProfile.Elements, CombatLevel: riftTyrantProfile.CombatLevel,
 	}
+	rangedTyrantProfile := combatProfileForEnemy(rangedTyrantTargetID)
+	rangedTyrant := &TargetSnapshot{
+		ID: rangedTyrantTargetID, Name: "Ranged Tyrant", Kind: targetKindRangedBoss, Position: rangedTyrantHome,
+		Health: rangedTyrantMaximumHealth, MaximumHealth: rangedTyrantMaximumHealth,
+		DodgeRate: defaultBaseDodgeBonus, Accuracy: rangedTyrantAccuracyScore, Evasion: rangedTyrantEvasionScore,
+		AttackType: rangedTyrantProfile.DamageType, Defence: rangedTyrantProfile.Defence,
+		Elements: rangedTyrantProfile.Elements, CombatLevel: rangedTyrantProfile.CombatLevel,
+	}
+	mageTyrantProfile := combatProfileForEnemy(mageTyrantTargetID)
+	mageTyrant := &TargetSnapshot{
+		ID: mageTyrantTargetID, Name: "Mage Tyrant", Kind: targetKindMageBoss, Position: mageTyrantHome,
+		Health: mageTyrantMaximumHealth, MaximumHealth: mageTyrantMaximumHealth,
+		DodgeRate: defaultBaseDodgeBonus, Accuracy: mageTyrantAccuracyScore, Evasion: mageTyrantEvasionScore,
+		AttackType: mageTyrantProfile.DamageType, Defence: mageTyrantProfile.Defence,
+		Elements: mageTyrantProfile.Elements, CombatLevel: mageTyrantProfile.CombatLevel,
+	}
 	return &combatState{
 		targets: map[string]*TargetSnapshot{
 			dummyTargetID: {
@@ -442,10 +472,12 @@ func newCombatState() *combatState {
 				AttackType:    DamageTypeCrush,
 				CombatLevel:   defaultEnemyCombatProfile.CombatLevel,
 			},
-			hillWardenTargetID: hillWarden,
-			wildFowlTargetID:   wildFowl,
-			cowTargetID:        cow,
-			riftTyrantTargetID: riftTyrant,
+			hillWardenTargetID:   hillWarden,
+			wildFowlTargetID:     wildFowl,
+			cowTargetID:          cow,
+			riftTyrantTargetID:   riftTyrant,
+			rangedTyrantTargetID: rangedTyrant,
+			mageTyrantTargetID:   mageTyrant,
 		},
 		pendingTargets:   make(map[PlayerID]TargetCommand),
 		pendingEquipment: make(map[PlayerID]EquipCommand),
@@ -472,6 +504,16 @@ func newCombatState() *combatState {
 				target: riftTyrant,
 				home:   riftTyrantHome,
 				speed:  riftTyrantMovementSpeed,
+			},
+			rangedTyrantTargetID: {
+				target: rangedTyrant,
+				home:   rangedTyrantHome,
+				speed:  rangedTyrantMovementSpeed,
+			},
+			mageTyrantTargetID: {
+				target: mageTyrant,
+				home:   mageTyrantHome,
+				speed:  mageTyrantMovementSpeed,
 			},
 		},
 	}

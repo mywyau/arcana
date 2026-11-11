@@ -242,6 +242,11 @@ mesh = SubResource("LowerLegMesh")
 position = Vector3(0, -0.82, 0.065)
 mesh = SubResource("ShoeMesh")
 
+[node name="SwiftBoot" type="MeshInstance3D" parent="LeftLeg"]
+position = Vector3(0, -0.82, 0.065)
+visible = false
+mesh = SubResource("SwiftBootMesh")
+
 [node name="RightLeg" type="Node3D" parent="."]
 position = Vector3(0.16, 0.87, 0)
 
@@ -256,6 +261,11 @@ mesh = SubResource("LowerLegMesh")
 [node name="Shoe" type="MeshInstance3D" parent="RightLeg"]
 position = Vector3(0, -0.82, 0.065)
 mesh = SubResource("ShoeMesh")
+
+[node name="SwiftBoot" type="MeshInstance3D" parent="RightLeg"]
+position = Vector3(0, -0.82, 0.065)
+visible = false
+mesh = SubResource("SwiftBootMesh")
 
 [node name="TrainingPlate" type="MeshInstance3D" parent="."]
 position = Vector3(0, 1.18, 0)
@@ -303,15 +313,4 @@ mesh = SubResource("SwiftBootMesh")
 [node name="RightGuard" type="MeshInstance3D" parent="SwiftHelm"]
 position = Vector3(0.245, 1.71, -0.01)
 scale = Vector3(0.28, 1.25, 0.23)
-mesh = SubResource("SwiftBootMesh")
-
-[node name="SwiftBoots" type="Node3D" parent="."]
-visible = false
-
-[node name="Left" type="MeshInstance3D" parent="SwiftBoots"]
-position = Vector3(-0.16, 0.05, 0.065)
-mesh = SubResource("SwiftBootMesh")
-
-[node name="Right" type="MeshInstance3D" parent="SwiftBoots"]
-position = Vector3(0.16, 0.05, 0.065)
 mesh = SubResource("SwiftBootMesh")

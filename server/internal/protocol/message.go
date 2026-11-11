@@ -64,6 +64,7 @@ type ClientMessage struct {
 	ItemIDs         []string  `json:"item_ids,omitempty"`
 	InstanceID      string    `json:"instance_id,omitempty"`
 	DropID          string    `json:"drop_id,omitempty"`
+	DropSlot        *int      `json:"drop_slot,omitempty"`
 	FromSlot        int       `json:"from_slot,omitempty"`
 	ToSlot          int       `json:"to_slot,omitempty"`
 	CombatStyle     string    `json:"combat_style,omitempty"`
@@ -504,6 +505,9 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	}
 	if message.Type == MessageDropItem && message.ItemID == "" {
 		return ClientMessage{}, fmt.Errorf("item ID is required")
+	}
+	if message.Type == MessageDropItem && message.DropSlot != nil && *message.DropSlot < 0 {
+		return ClientMessage{}, fmt.Errorf("drop slot cannot be negative")
 	}
 	if message.Type == MessageMoveInventoryItem && message.FromSlot == message.ToSlot {
 		return ClientMessage{}, fmt.Errorf("inventory slots must be different")

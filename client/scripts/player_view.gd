@@ -29,7 +29,8 @@ const TRAINING_COLOUR := Color("7b8790")
 @onready var swift_body: MeshInstance3D = $VisualRoot/Humanoid/SwiftBody
 @onready var swift_chest_trim: MeshInstance3D = $VisualRoot/Humanoid/SwiftChestTrim
 @onready var swift_helm: Node3D = $VisualRoot/Humanoid/SwiftHelm
-@onready var swift_boots: Node3D = $VisualRoot/Humanoid/SwiftBoots
+@onready var swift_left_boot: MeshInstance3D = $VisualRoot/Humanoid/LeftLeg/SwiftBoot
+@onready var swift_right_boot: MeshInstance3D = $VisualRoot/Humanoid/RightLeg/SwiftBoot
 @onready var cape: MeshInstance3D = $VisualRoot/Cape
 @onready var weapon_anchor: Node3D = $VisualRoot/WeaponAnchor
 @onready var sword_pivot: Node3D = $VisualRoot/WeaponAnchor/SwordPivot
@@ -478,7 +479,9 @@ func set_armour(equipped_armour: Dictionary) -> void:
 	training_plate.visible = body_item == "training_plate" or _is_tiered_item(body_item, "platebody")
 	swift_body.visible = body_item == "swift_body"
 	swift_chest_trim.visible = swift_body.visible
-	swift_boots.visible = feet_item == "swift_boots"
+	var swift_boots_equipped: bool = feet_item == "swift_boots"
+	swift_left_boot.visible = swift_boots_equipped
+	swift_right_boot.visible = swift_boots_equipped
 	cape.visible = not cape_item.is_empty()
 	if cape.visible:
 		cape.material_override = _cape_material_for_item(cape_item)

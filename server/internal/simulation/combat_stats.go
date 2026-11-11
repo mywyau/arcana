@@ -145,7 +145,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		)
 		magicLevel := effectiveCombatSkillLevel(player, SkillMagic)
 		agilityLevel := SkillLevelForExperience(player.skills[SkillAgility])
-		equipmentBonuses := equippedOffenceBonuses(player.equippedArmour)
+		equipmentBonuses := equippedOffenceBonusesForPlayer(player)
 		return CombatStatsSnapshot{
 			Weapon:                 weapon.ID,
 			Style:                  player.combatStyle,

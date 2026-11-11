@@ -28,10 +28,11 @@ type PickupCommand struct {
 }
 
 type DropItemCommand struct {
-	PlayerID   PlayerID
-	Sequence   uint64
-	ItemID     string
-	InstanceID string
+	PlayerID      PlayerID
+	Sequence      uint64
+	ItemID        string
+	InstanceID    string
+	InventorySlot *int
 }
 
 type respawningDrop struct {
@@ -143,6 +144,12 @@ func (w *World) QueueDropItem(command DropItemCommand) error {
 		item, exists := player.inventory.itemByInstance(command.InstanceID)
 		if !exists || item.ItemID != command.ItemID {
 			return fmt.Errorf("player %q does not own item instance %q", command.PlayerID, command.InstanceID)
+		}
+	}
+	if command.InventorySlot != nil {
+		item, exists := player.inventory.itemAtSlot(*command.InventorySlot)
+		if !exists || item.ItemID != command.ItemID || (command.InstanceID != "" && item.InstanceID != command.InstanceID) {
+			return fmt.Errorf("player %q does not own item %q in inventory slot %d", command.PlayerID, command.ItemID, *command.InventorySlot)
 		}
 	}
 	if (command.InstanceID != "" && command.InstanceID == player.equippedWeaponInstanceID) ||
@@ -328,6 +335,13 @@ func (w *World) applyPendingItemDrops() {
 		if !equipped && command.InstanceID != "" {
 			if item, removed := player.inventory.removeInstance(command.InstanceID); removed {
 				w.spawnInventoryItemDrop(player.position, item)
+			}
+			continue
+		}
+		if !equipped && command.InventorySlot != nil {
+			if item, exists := player.inventory.itemAtSlot(*command.InventorySlot); exists &&
+				item.ItemID == command.ItemID && player.inventory.removeFromSlot(item.Slot, item.ItemID, item.Quantity) {
+				w.spawnDrop(player.position, item.ItemID, item.Quantity)
 			}
 			continue
 		}

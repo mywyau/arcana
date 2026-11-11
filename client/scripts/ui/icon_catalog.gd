@@ -335,6 +335,8 @@ const ITEMS: Dictionary = {
 	"sapphire_ring": preload("res://assets/icons/items/materials/sapphire.svg"),
 	"diamond_ring": preload("res://assets/icons/items/materials/diamond.svg"),
 	"tyrants_ring": preload("res://assets/icons/items/materials/ruby.svg"),
+	"ranged_tyrants_ring": preload("res://assets/icons/items/materials/emerald.svg"),
+	"mage_tyrants_ring": preload("res://assets/icons/items/materials/sapphire.svg"),
 }
 
 const SKILLS: Dictionary = {

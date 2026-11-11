@@ -69,3 +69,42 @@ func TestTyrantsRingGrantsOneHundredMeleeStrength(t *testing.T) {
 		t.Fatalf("Tyrant's Ring bonuses = accuracy %d, strength %d; want 0, 100", accuracy, strength)
 	}
 }
+
+func TestSpecialistTyrantRingsGrantMatchingStrength(t *testing.T) {
+	tests := []struct {
+		name         string
+		itemID       string
+		weapon       WeaponDefinition
+		wantStrength int
+	}{
+		{name: "ranged", itemID: ItemRangedTyrantsRing, weapon: WeaponDefinition{RangedStrength: 1}, wantStrength: 100},
+		{name: "magic", itemID: ItemMageTyrantsRing, weapon: WeaponDefinition{MagicStrength: 1}, wantStrength: 100},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			player := &playerState{
+				equippedArmour: make(map[ArmourSlot]string),
+				ringRack: inventoryState{capacity: RingRackCapacity, items: []InventoryItem{
+					{Slot: 0, ItemID: test.itemID, Quantity: 1, InstanceID: test.name},
+				}},
+			}
+			accuracy, strength := equipmentOffenceForWeapon(player, test.weapon)
+			if accuracy != 0 || strength != test.wantStrength {
+				t.Fatalf("bonuses = accuracy %d, strength %d; want 0, %d", accuracy, strength, test.wantStrength)
+			}
+		})
+	}
+}
+
+func TestMageTyrantsRingAffectsSpellDamage(t *testing.T) {
+	player := &playerState{
+		equippedArmour: make(map[ArmourSlot]string),
+		ringRack: inventoryState{capacity: RingRackCapacity, items: []InventoryItem{
+			{Slot: 0, ItemID: ItemMageTyrantsRing, Quantity: 1, InstanceID: "mage"},
+		}},
+		skills: newDefaultSkills(),
+	}
+	if got, want := spellPoweredDamage(player, SpellDefinition{BasePower: 6}), 106.0; got != want {
+		t.Fatalf("spell power = %.1f, want %.1f", got, want)
+	}
+}

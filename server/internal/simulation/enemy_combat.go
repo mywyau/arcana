@@ -69,6 +69,28 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Defence:  DefenceBonuses{Stab: 24, Slash: 28, Crush: 20, Ranged: 26, Magic: 22},
 		Elements: ElementalResistances{Air: 10, Water: 10, Earth: 10, Fire: 10, Holy: -10, Dark: 20},
 	},
+	rangedTyrantTargetID: {
+		CombatLevel:    35,
+		AttackDamage:   20,
+		AttackInterval: 3,
+		AttackRange:    enemyLongRangeAttackRange,
+		DetectionRange: 18,
+		LeashRange:     24,
+		DamageType:     DamageTypeRanged,
+		Defence:        DefenceBonuses{Stab: 18, Slash: 20, Crush: 16, Ranged: 30, Magic: 18},
+		Elements:       ElementalResistances{Air: 5, Water: 10, Earth: -10, Fire: 5, Holy: 0, Dark: 10},
+	},
+	mageTyrantTargetID: {
+		CombatLevel:    35,
+		AttackDamage:   24,
+		AttackInterval: 5,
+		AttackRange:    enemyLongRangeAttackRange,
+		DetectionRange: 18,
+		LeashRange:     24,
+		DamageType:     DamageTypeMagic,
+		Defence:        DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 18, Magic: 32},
+		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},
+	},
 }
 
 func enemyAttackType(profile enemyCombatProfile, attackSequence uint64) DamageType {

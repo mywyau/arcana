@@ -356,7 +356,7 @@ func send_unequip_item(sequence: int, item_id: String, instance_id: String = "")
 	return true
 
 
-func send_drop_item(sequence: int, item_id: String, instance_id: String = "") -> bool:
+func send_drop_item(sequence: int, item_id: String, instance_id: String = "", inventory_slot: int = -1) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot drop items while disconnected")
 		return false
@@ -368,6 +368,8 @@ func send_drop_item(sequence: int, item_id: String, instance_id: String = "") ->
 	}
 	if not instance_id.is_empty():
 		message["instance_id"] = instance_id
+	if inventory_slot >= 0:
+		message["drop_slot"] = inventory_slot
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not drop item: %s" % error_string(result))

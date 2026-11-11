@@ -762,10 +762,11 @@ func (h *Handler) readCommands(
 		case protocol.MessageDropItem:
 			rejectionCode = "drop_rejected"
 			err = h.world.QueueDropItem(simulation.DropItemCommand{
-				PlayerID:   playerID,
-				Sequence:   message.Sequence,
-				ItemID:     message.ItemID,
-				InstanceID: message.InstanceID,
+				PlayerID:      playerID,
+				Sequence:      message.Sequence,
+				ItemID:        message.ItemID,
+				InstanceID:    message.InstanceID,
+				InventorySlot: message.DropSlot,
 			})
 		case protocol.MessageMoveInventoryItem:
 			rejectionCode = "inventory_move_rejected"
