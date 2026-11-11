@@ -50,23 +50,28 @@ Establish targets before optimising individual systems:
 Exact numerical limits for bandwidth, entity visibility and players per cell
 should be chosen from load-test measurements rather than assumptions.
 
-## Slice 2: Add baseline measurements
+## Completed Slice 2: Add baseline measurements
 
-Measure before making deeper changes:
+The server now emits a compact performance summary every 30 seconds containing:
 
 - Simulation tick duration and ticks exceeding budget.
 - Full world snapshot construction duration.
 - JSON encoding and WebSocket write duration.
 - Encoded snapshot bytes per connection.
-- Connected and disconnecting player counts.
+- Connected player count.
 - Counts of players, targets, drops, fires and gathering spots.
 - PostgreSQL save duration and failures.
-- Process memory, allocations and garbage-collection pauses.
+- Allocated heap size and completed garbage-collection count.
 
-Emit a compact periodic summary and expose machine-readable metrics later when
-the deployment platform and monitoring service are chosen.
+Measurements are aggregated in memory and reset after each report. Current
+connection and entity gauges carry forward, while timing, error and byte
+counters start a fresh window. Reports contain no player identifiers,
+credentials or private character data.
 
-Acceptance criteria:
+Machine-readable metrics, allocation rates and garbage-collection pause times
+can be added later when the deployment monitoring service is chosen.
+
+Completed acceptance criteria:
 
 - Metrics add negligible cost and contain no credentials or private data.
 - A two-player session provides tick, snapshot, bandwidth and save baselines.
@@ -279,6 +284,7 @@ the underlying transport.
 
 ## Recommended next slice
 
-Implement Slice 2 next: tick, snapshot-size, encoding and connection metrics.
-Use the resulting two-player baseline to measure the first slice and guide the
-static-data and shared-frame work that follows.
+Run a two-player session long enough to capture several 30-second performance
+windows, then implement Slice 3: construct public and private player state
+separately. Compare its tick, snapshot, encoding, payload and heap measurements
+against that baseline before moving static data or sharing public frames.

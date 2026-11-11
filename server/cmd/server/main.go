@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	postgrespersistence "github.com/mywyau/arcana/server/internal/persistence/postgres"
 	"github.com/mywyau/arcana/server/internal/serverconfig"
 	"github.com/mywyau/arcana/server/internal/serverhealth"
+	"github.com/mywyau/arcana/server/internal/servermetrics"
 	"github.com/mywyau/arcana/server/internal/simulation"
 	httpaccount "github.com/mywyau/arcana/server/internal/transport/httpaccount"
 	websockettransport "github.com/mywyau/arcana/server/internal/transport/websocket"
@@ -25,6 +27,7 @@ import (
 const (
 	tickInterval     = 50 * time.Millisecond
 	snapshotInterval = 100 * time.Millisecond
+	metricsInterval  = 30 * time.Second
 )
 
 type testSupply struct {
@@ -171,6 +174,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	performanceMetrics := servermetrics.NewCollector(time.Now())
+	runner.SetTickObserver(performanceMetrics.RecordTick)
 	var readinessChecker serverhealth.Checker
 	var guestIdentities *identity.GuestManager
 	var characters character.Repository
@@ -225,6 +230,7 @@ func main() {
 			AllowedOrigins:     config.AllowedOrigins,
 			AccountManager:     accountManager,
 			RequireAccounts:    !config.GuestAuthenticationEnabled,
+			PerformanceMetrics: performanceMetrics,
 		},
 	)
 	if err != nil {
@@ -256,6 +262,7 @@ func main() {
 		config.Environment, tickInterval, snapshotInterval, config.DebugContentEnabled, config.TestSupplyChestsEnabled,
 	)
 	go runner.Run(ctx)
+	go reportPerformance(ctx, performanceMetrics, metricsInterval)
 
 	serverErrors := make(chan error, 1)
 	go func() {
@@ -282,4 +289,20 @@ func main() {
 		log.Printf("HTTP server shutdown: %v", err)
 	}
 	log.Printf("simulation stopped after %d ticks", world.Tick())
+}
+
+func reportPerformance(ctx context.Context, metrics *servermetrics.Collector, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			var memory runtime.MemStats
+			runtime.ReadMemStats(&memory)
+			window := metrics.SnapshotAndReset(now)
+			log.Print(window.Summary(memory.HeapAlloc, uint64(memory.NumGC)))
+		}
+	}
 }

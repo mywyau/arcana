@@ -8,8 +8,15 @@ import (
 
 // Runner advances a world at a fixed interval until its context is cancelled.
 type Runner struct {
-	world    *World
-	interval time.Duration
+	world        *World
+	interval     time.Duration
+	tickObserver func(elapsed, budget time.Duration)
+}
+
+// SetTickObserver installs an inexpensive observer for operational metrics.
+// Configure it before Run starts.
+func (r *Runner) SetTickObserver(observer func(elapsed, budget time.Duration)) {
+	r.tickObserver = observer
 }
 
 func NewRunner(world *World, interval time.Duration) (*Runner, error) {
@@ -32,7 +39,11 @@ func (r *Runner) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			startedAt := time.Now()
 			r.world.Step(r.interval)
+			if r.tickObserver != nil {
+				r.tickObserver(time.Since(startedAt), r.interval)
+			}
 		}
 	}
 }

@@ -2,6 +2,7 @@ package websockettransport
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -10,12 +11,12 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 
 	"github.com/mywyau/arcana/server/internal/account"
 	"github.com/mywyau/arcana/server/internal/character"
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/protocol"
+	"github.com/mywyau/arcana/server/internal/servermetrics"
 	"github.com/mywyau/arcana/server/internal/simulation"
 )
 
@@ -44,6 +45,7 @@ type Handler struct {
 	disconnectedLogoutDelay time.Duration
 	allowDebug              bool
 	allowGuests             bool
+	metrics                 *servermetrics.Collector
 	acceptOptions           websocket.AcceptOptions
 	activeMu                sync.Mutex
 	activeClients           map[simulation.PlayerID]*activeClient
@@ -65,6 +67,7 @@ type HandlerOptions struct {
 	AllowedOrigins     []string
 	AccountManager     *account.Manager
 	RequireAccounts    bool
+	PerformanceMetrics *servermetrics.Collector
 }
 
 type outboundResponse struct {
@@ -156,6 +159,7 @@ func NewHandlerWithRepositoriesAndOptions(
 		disconnectedLogoutDelay: disconnectedLogoutDelay,
 		allowDebug:              options.AllowDebugCommands,
 		allowGuests:             !options.RequireAccounts,
+		metrics:                 options.PerformanceMetrics,
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
 		},
@@ -200,7 +204,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		} else {
 			log.Printf("authenticate WebSocket connection: %v", err)
 		}
-		_ = writeMessage(ctx, connection, errorMessage(code, clientError))
+		_ = h.writeMessage(ctx, connection, errorMessage(code, clientError))
 		closeReason := "authentication failed"
 		if errors.Is(err, errIncompatibleClient) {
 			closeReason = "incompatible client"
@@ -226,7 +230,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		select {
 		case <-previous.done:
 		case <-time.After(connectionReplacementTimeout):
-			_ = writeMessage(ctx, connection, errorMessage(
+			_ = h.writeMessage(ctx, connection, errorMessage(
 				"connection_replacement_failed",
 				errors.New("the previous connection did not close in time"),
 			))
@@ -246,7 +250,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		characterState, found, loadErr := h.characters.Load(ctx, string(playerID))
 		if loadErr != nil {
 			log.Printf("load character %s: %v", playerID, loadErr)
-			_ = writeMessage(ctx, connection, errorMessage(
+			_ = h.writeMessage(ctx, connection, errorMessage(
 				"character_load_failed",
 				errors.New("could not load character"),
 			))
@@ -255,9 +259,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		}
 		if !found {
 			characterState = simulation.DefaultPersistentPlayerState()
-			if saveErr := h.characters.Save(ctx, string(playerID), characterState); saveErr != nil {
+			if saveErr := h.saveCharacterState(ctx, playerID, characterState); saveErr != nil {
 				log.Printf("create character %s: %v", playerID, saveErr)
-				_ = writeMessage(ctx, connection, errorMessage(
+				_ = h.writeMessage(ctx, connection, errorMessage(
 					"character_save_failed",
 					errors.New("could not create character"),
 				))
@@ -274,7 +278,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 
 	responses := make(chan outboundResponse, 8)
 
-	if err := writeMessage(ctx, connection, protocol.ServerMessage{
+	if err := h.writeMessage(ctx, connection, protocol.ServerMessage{
 		Type:              protocol.MessageWelcome,
 		PlayerID:          string(playerID),
 		GuestToken:        authentication.GuestToken,
@@ -303,7 +307,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 			h.closeReplacedClient(ctx, connection)
 			return
 		case response := <-responses:
-			if err := writeMessage(ctx, connection, response.message); err != nil {
+			if err := h.writeMessage(ctx, connection, response.message); err != nil {
 				return
 			}
 			if response.closeAfter {
@@ -312,11 +316,20 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				return
 			}
 		case <-ticker.C:
+			startedAt := time.Now()
+			worldSnapshot := h.world.Snapshot()
 			message := protocol.ServerMessage{
 				Type:     protocol.MessageSnapshot,
-				Snapshot: snapshotMessage(h.world.Snapshot(), playerID),
+				Snapshot: snapshotMessage(worldSnapshot, playerID),
 			}
-			if err := writeMessage(ctx, connection, message); err != nil {
+			if h.metrics != nil {
+				h.metrics.RecordSnapshot(time.Since(startedAt), servermetrics.EntityCounts{
+					Players: len(worldSnapshot.Players), Targets: len(worldSnapshot.Targets),
+					Drops: len(worldSnapshot.Drops), Fires: len(worldSnapshot.Fires),
+					GatheringSpots: len(worldSnapshot.GatheringSpots),
+				})
+			}
+			if err := h.writeMessage(ctx, connection, message); err != nil {
 				return
 			}
 		case <-saveTicker.C:
@@ -406,9 +419,22 @@ func (h *Handler) saveCharacter(playerID simulation.PlayerID) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), characterSaveTimeout)
 	defer cancel()
-	if err := h.characters.Save(ctx, string(playerID), simulation.PersistentStateFromSnapshot(player)); err != nil {
+	if err := h.saveCharacterState(ctx, playerID, simulation.PersistentStateFromSnapshot(player)); err != nil {
 		log.Printf("save character %s: %v", playerID, err)
 	}
+}
+
+func (h *Handler) saveCharacterState(
+	ctx context.Context,
+	playerID simulation.PlayerID,
+	state simulation.PersistentPlayerState,
+) error {
+	startedAt := time.Now()
+	err := h.characters.Save(ctx, string(playerID), state)
+	if h.metrics != nil {
+		h.metrics.RecordSave(time.Since(startedAt), err)
+	}
+	return err
 }
 
 // SaveAll writes the durable state of every active player. It is used during
@@ -416,9 +442,9 @@ func (h *Handler) saveCharacter(playerID simulation.PlayerID) {
 func (h *Handler) SaveAll(ctx context.Context) error {
 	var saveErrors []error
 	for _, player := range h.world.Snapshot().Players {
-		if err := h.characters.Save(
+		if err := h.saveCharacterState(
 			ctx,
-			string(player.ID),
+			player.ID,
 			simulation.PersistentStateFromSnapshot(player),
 		); err != nil {
 			saveErrors = append(saveErrors, fmt.Errorf("save character %s: %w", player.ID, err))
@@ -442,6 +468,9 @@ func (h *Handler) claimActiveClient(playerID simulation.PlayerID) (*activeClient
 	if previous != nil {
 		close(previous.replaced)
 	}
+	if h.metrics != nil {
+		h.metrics.SetConnections(len(h.activeClients))
+	}
 	h.activeMu.Unlock()
 	return client, previous
 }
@@ -458,6 +487,9 @@ func (h *Handler) releaseActiveClient(playerID simulation.PlayerID, client *acti
 		delete(h.activeClients, playerID)
 	}
 	close(client.done)
+	if h.metrics != nil {
+		h.metrics.SetConnections(len(h.activeClients))
+	}
 	h.activeMu.Unlock()
 }
 
@@ -530,7 +562,7 @@ func isClientReplaced(client *activeClient) bool {
 }
 
 func (h *Handler) closeReplacedClient(ctx context.Context, connection *websocket.Conn) {
-	_ = writeMessage(ctx, connection, errorMessage(
+	_ = h.writeMessage(ctx, connection, errorMessage(
 		"session_replaced",
 		errors.New("this character was logged in from another client"),
 	))
@@ -841,10 +873,23 @@ func (h *Handler) readCommands(
 	}
 }
 
-func writeMessage(ctx context.Context, connection *websocket.Conn, message protocol.ServerMessage) error {
+func (h *Handler) writeMessage(ctx context.Context, connection *websocket.Conn, message protocol.ServerMessage) error {
+	encodeStartedAt := time.Now()
+	payload, err := json.Marshal(message)
+	if h.metrics != nil {
+		h.metrics.RecordEncoding(time.Since(encodeStartedAt), len(payload))
+	}
+	if err != nil {
+		return err
+	}
 	writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	return wsjson.Write(writeCtx, connection, message)
+	writeStartedAt := time.Now()
+	err = connection.Write(writeCtx, websocket.MessageText, payload)
+	if h.metrics != nil {
+		h.metrics.RecordWrite(time.Since(writeStartedAt), err)
+	}
+	return err
 }
 
 func sendResponse(ctx context.Context, responses chan<- outboundResponse, message protocol.ServerMessage) {

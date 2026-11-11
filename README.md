@@ -304,6 +304,12 @@ Snapshots contain full private state only for the receiving player; remote
 players expose the public state needed to render and interact with them.
 Sequence numbers must increase for the duration of the connection.
 
+The server logs an aggregate `performance` line every 30 seconds with tick,
+snapshot, encoding, payload, WebSocket write, character-save, entity-count,
+heap and garbage-collection measurements. These summaries contain no account
+or character identifiers and provide the baseline for the staged work in
+[`SERVER_SCALING_PLAN.md`](SERVER_SCALING_PLAN.md).
+
 ## Client
 
 The Godot client provides a placeholder 3D world for testing continuous

@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -30,5 +31,42 @@ func TestNewRunnerRejectsInvalidConfiguration(t *testing.T) {
 func TestNewRunnerAcceptsValidConfiguration(t *testing.T) {
 	if _, err := NewRunner(NewWorld(), time.Second); err != nil {
 		t.Fatalf("NewRunner() returned an unexpected error: %v", err)
+	}
+}
+
+func TestRunnerReportsTickDurationAndBudget(t *testing.T) {
+	const interval = time.Millisecond
+	runner, err := NewRunner(NewWorld(), interval)
+	if err != nil {
+		t.Fatalf("NewRunner() returned an unexpected error: %v", err)
+	}
+	reported := make(chan struct {
+		elapsed time.Duration
+		budget  time.Duration
+	}, 1)
+	runner.SetTickObserver(func(elapsed, budget time.Duration) {
+		select {
+		case reported <- struct {
+			elapsed time.Duration
+			budget  time.Duration
+		}{elapsed: elapsed, budget: budget}:
+		default:
+		}
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go runner.Run(ctx)
+
+	select {
+	case sample := <-reported:
+		if sample.elapsed < 0 {
+			t.Fatalf("reported elapsed duration = %s", sample.elapsed)
+		}
+		if sample.budget != interval {
+			t.Fatalf("reported budget = %s, want %s", sample.budget, interval)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runner did not report a tick")
 	}
 }
