@@ -2669,6 +2669,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var view := _ensure_snapshot_player_view(id)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
+		if id == _local_player_id:
+			_synchronize_command_sequences(player_data)
 		var server_driven_path: bool = (
 			bool(player_data.get("auto_approaching", false))
 			or bool(player_data.get("auto_picking_up", false))
@@ -3033,6 +3035,78 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 
 	_remove_departed_player_views(active_ids)
 	_process_combat_events(snapshot)
+
+
+func _synchronize_command_sequences(player_data: Dictionary) -> void:
+	# A replacement client starts its counters at one while its character can
+	# remain suspended during the reconnect grace period. Continue from the
+	# authoritative counters owned by that character.
+	_next_sequence = maxi(_next_sequence, int(player_data.get("last_command_sequence", 0)) + 1)
+	_next_action_sequence = maxi(
+		_next_action_sequence, int(player_data.get("last_action_sequence", 0)) + 1,
+	)
+	_next_equipment_sequence = maxi(
+		_next_equipment_sequence, int(player_data.get("last_equipment_sequence", 0)) + 1,
+	)
+	_next_combat_style_sequence = maxi(
+		_next_combat_style_sequence, int(player_data.get("last_combat_style_sequence", 0)) + 1,
+	)
+	_next_prayer_sequence = maxi(
+		_next_prayer_sequence, int(player_data.get("last_prayer_sequence", 0)) + 1,
+	)
+	_next_spell_sequence = maxi(
+		_next_spell_sequence, int(player_data.get("last_spell_sequence", 0)) + 1,
+	)
+	_next_experience_lock_sequence = maxi(
+		_next_experience_lock_sequence,
+		int(player_data.get("last_experience_lock_sequence", 0)) + 1,
+	)
+	_next_pickup_sequence = maxi(
+		_next_pickup_sequence, int(player_data.get("last_pickup_sequence", 0)) + 1,
+	)
+	_next_drop_sequence = maxi(
+		_next_drop_sequence, int(player_data.get("last_drop_sequence", 0)) + 1,
+	)
+	_next_inventory_move_sequence = maxi(
+		_next_inventory_move_sequence,
+		int(player_data.get("last_inventory_move_sequence", 0)) + 1,
+	)
+	_next_consume_sequence = maxi(
+		_next_consume_sequence, int(player_data.get("last_consume_sequence", 0)) + 1,
+	)
+	_next_gather_sequence = maxi(
+		_next_gather_sequence, int(player_data.get("last_gather_sequence", 0)) + 1,
+	)
+	_next_bank_sequence = maxi(
+		_next_bank_sequence, int(player_data.get("last_bank_sequence", 0)) + 1,
+	)
+	_next_merchant_sequence = maxi(
+		_next_merchant_sequence, int(player_data.get("last_merchant_sequence", 0)) + 1,
+	)
+	_next_ammunition_sequence = maxi(
+		_next_ammunition_sequence, int(player_data.get("last_ammunition_sequence", 0)) + 1,
+	)
+	_next_ring_sequence = maxi(
+		_next_ring_sequence, int(player_data.get("last_ring_sequence", 0)) + 1,
+	)
+	_next_rune_sequence = maxi(
+		_next_rune_sequence, int(player_data.get("last_rune_sequence", 0)) + 1,
+	)
+	_next_brew_sequence = maxi(
+		_next_brew_sequence, int(player_data.get("last_brew_sequence", 0)) + 1,
+	)
+	_next_fletch_sequence = maxi(
+		_next_fletch_sequence, int(player_data.get("last_fletch_sequence", 0)) + 1,
+	)
+	_next_gem_cut_sequence = maxi(
+		_next_gem_cut_sequence, int(player_data.get("last_gem_cut_sequence", 0)) + 1,
+	)
+	_next_fire_sequence = maxi(
+		_next_fire_sequence, int(player_data.get("last_fire_sequence", 0)) + 1,
+	)
+	_next_debug_skill_sequence = maxi(
+		_next_debug_skill_sequence, int(player_data.get("last_debug_skill_sequence", 0)) + 1,
+	)
 
 
 func _sync_snapshot_world(snapshot: Dictionary) -> void:

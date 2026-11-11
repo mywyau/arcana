@@ -2,6 +2,7 @@ extends SceneTree
 
 const AUTH_GATE_SCENE := preload("res://scenes/auth_gate.tscn")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const PLAYER_SCENE := preload("res://scenes/player.tscn")
 
 var _failures: int = 0
 var _checks: int = 0
@@ -31,6 +32,7 @@ func _run() -> void:
 	await _test_welcome_hides_account_gate()
 	await _test_duplicate_login_submission_is_blocked()
 	await _test_account_rate_limit_feedback_includes_retry_time()
+	await _test_local_movement_reconciliation_ignores_stale_routes()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
 	# process exits. This keeps headless runs deterministic on slower machines.
@@ -38,10 +40,10 @@ func _run() -> void:
 		await process_frame
 
 	if _failures > 0:
-		printerr("Auth tests failed: %d of %d checks failed." % [_failures, _checks])
+		printerr("Client tests failed: %d of %d checks failed." % [_failures, _checks])
 		quit(1)
 		return
-	print("Auth tests passed: %d checks." % _checks)
+	print("Client tests passed: %d checks." % _checks)
 	quit(0)
 
 
@@ -172,6 +174,19 @@ func _test_welcome_hides_account_gate() -> void:
 	network.welcome_received.emit("test-player")
 	await process_frame
 	_check(not gate.visible, "successful welcome hides the account gate")
+	main.call("_synchronize_command_sequences", {
+		"last_command_sequence": 291,
+		"last_action_sequence": 48,
+		"last_inventory_move_sequence": 17,
+		"last_fire_sequence": 6,
+	})
+	_check(int(main.get("_next_sequence")) == 292, "resumed movement continues after the server sequence")
+	_check(int(main.get("_next_action_sequence")) == 49, "resumed combat continues after the server sequence")
+	_check(
+		int(main.get("_next_inventory_move_sequence")) == 18,
+		"resumed inventory movement continues after the server sequence",
+	)
+	_check(int(main.get("_next_fire_sequence")) == 7, "resumed skilling continues after the server sequence")
 	_cleanup_main_harness(main, network)
 	await process_frame
 
@@ -215,6 +230,32 @@ func _test_account_rate_limit_feedback_includes_retry_time() -> void:
 		"rate-limit feedback includes a rounded retry time",
 	)
 	api.queue_free()
+	await process_frame
+
+
+func _test_local_movement_reconciliation_ignores_stale_routes() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerView
+	root.add_child(player)
+	await process_frame
+	player.set_local_player(true)
+	player.apply_authoritative_state(Vector3.ZERO, [], 6.0, 0, 0, false)
+
+	player.global_position = Vector3(1.0, 0.0, 0.0)
+	player.apply_authoritative_state(Vector3.ZERO, [], 6.0, 1, 1, false)
+	_check(not player._pending_correction.is_zero_approx(), "acknowledged movement drift creates a correction")
+
+	var latest_destination := Vector3(-5.0, 0.0, 0.0)
+	player.predict_move(latest_destination)
+	_check(player._pending_correction.is_zero_approx(), "new prediction clears the previous correction")
+
+	player.global_position = Vector3(2.0, 0.0, 0.0)
+	player.apply_authoritative_state(Vector3.ZERO, [], 6.0, 1, 2, false)
+	_check(player._pending_correction.is_zero_approx(), "stale acknowledgement does not pull local prediction backwards")
+	_check(
+		player._predicted_path == [latest_destination],
+		"stale acknowledgement preserves the newest predicted route",
+	)
+	player.queue_free()
 	await process_frame
 
 

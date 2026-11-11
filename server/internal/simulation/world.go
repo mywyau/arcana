@@ -126,6 +126,8 @@ type PlayerSnapshot struct {
 	LastBankSequence             uint64
 	LastMerchantSequence         uint64
 	LastPickupSequence           uint64
+	LastDropSequence             uint64
+	LastInventoryMoveSequence    uint64
 	LastConsumeSequence          uint64
 	NextConsumePulse             uint64
 	LastBrewSequence             uint64
@@ -135,6 +137,7 @@ type PlayerSnapshot struct {
 	LastFletchSequence           uint64
 	LastGemCutSequence           uint64
 	LastFireSequence             uint64
+	LastDebugSkillSequence       uint64
 	FletchRemaining              int
 	NextFletchPulse              uint64
 	FletchingResult              string
@@ -836,6 +839,8 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastBankSequence:             player.lastBankSequence,
 		LastMerchantSequence:         player.lastMerchantSequence,
 		LastPickupSequence:           player.lastPickupSequence,
+		LastDropSequence:             player.lastDropSequence,
+		LastInventoryMoveSequence:    player.lastInventoryMoveSequence,
 		LastConsumeSequence:          player.lastConsumeSequence,
 		NextConsumePulse:             player.nextConsumePulse,
 		LastBrewSequence:             player.lastBrewSequence,
@@ -845,6 +850,7 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		LastFletchSequence:           player.lastFletchSequence,
 		LastGemCutSequence:           player.lastGemCutSequence,
 		LastFireSequence:             player.lastFireSequence,
+		LastDebugSkillSequence:       player.lastDebugSkillSequence,
 		FletchRemaining:              player.fletchRemaining,
 		NextFletchPulse:              player.nextFletchPulse,
 		FletchingResult:              player.fletchingResult,

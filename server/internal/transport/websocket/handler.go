@@ -1139,6 +1139,11 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			})
 		}
 		if player.ID == localPlayerID {
+			playerMessage.LastDropSequence = player.LastDropSequence
+			playerMessage.LastInventoryMoveSequence = player.LastInventoryMoveSequence
+			playerMessage.LastGemCutSequence = player.LastGemCutSequence
+			playerMessage.LastFireSequence = player.LastFireSequence
+			playerMessage.LastDebugSkillSequence = player.LastDebugSkillSequence
 			playerMessage.AmmunitionPouch = &protocol.AmmunitionPouchSnapshot{
 				Capacity: player.AmmunitionPouch.Capacity, UnlockedSlots: player.AmmunitionPouch.UnlockedSlots,
 				Items: make([]protocol.InventoryItem, 0, len(player.AmmunitionPouch.Items)),

@@ -116,12 +116,16 @@ func _update_movement_pose(delta: float, previous_position: Vector3) -> void:
 func predict_move(destination: Vector3) -> void:
 	if not _is_local or not _has_position:
 		return
+	_pending_correction = Vector3.ZERO
+	_following_server_path = false
 	_predicted_path = [destination]
 
 
 func predict_path(path: Array[Vector3]) -> void:
 	if not _is_local or not _has_position:
 		return
+	_pending_correction = Vector3.ZERO
+	_following_server_path = false
 	_predicted_path = path.duplicate()
 
 
@@ -146,6 +150,12 @@ func apply_authoritative_state(
 		return global_position.distance_to(position)
 
 	var correction_distance: float = global_position.distance_to(position)
+	# A snapshot older than the latest local click describes the route that the
+	# player has just replaced. Applying its position correction would pull the
+	# view against current prediction until the next acknowledgement arrives.
+	if acknowledged_sequence < latest_sent_sequence and not server_driven_path:
+		_pending_correction = Vector3.ZERO
+		return correction_distance
 	if correction_distance >= snap_threshold:
 		global_position = position
 		_pending_correction = Vector3.ZERO

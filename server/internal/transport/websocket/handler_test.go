@@ -642,9 +642,14 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 			Capacity: simulation.BankCapacity,
 			Items:    []simulation.InventoryItem{{Slot: 0, ItemID: simulation.ItemAirRune, Quantity: 50}},
 		},
-		CombatStats:   simulation.CombatStatsSnapshot{TotalAccuracy: 12},
-		CombatMatchup: simulation.CombatMatchupSnapshot{TargetID: "dummy", PlayerHitChance: 0.75},
-		Skills:        []simulation.SkillSnapshot{{ID: simulation.SkillAttack, Level: 10}},
+		CombatStats:               simulation.CombatStatsSnapshot{TotalAccuracy: 12},
+		CombatMatchup:             simulation.CombatMatchupSnapshot{TargetID: "dummy", PlayerHitChance: 0.75},
+		Skills:                    []simulation.SkillSnapshot{{ID: simulation.SkillAttack, Level: 10}},
+		LastDropSequence:          11,
+		LastInventoryMoveSequence: 12,
+		LastGemCutSequence:        13,
+		LastFireSequence:          14,
+		LastDebugSkillSequence:    15,
 	}
 	localPlayer := privatePlayer
 	localPlayer.ID = "player-one"
@@ -657,7 +662,9 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 	local := message.Players[0]
 	if local.Inventory == nil || local.CombatStats == nil || local.CombatMatchup == nil ||
 		local.AmmunitionPouch == nil || local.RingRack == nil || local.RunePouch == nil ||
-		len(local.Skills) != 1 {
+		len(local.Skills) != 1 || local.LastDropSequence != 11 ||
+		local.LastInventoryMoveSequence != 12 || local.LastGemCutSequence != 13 ||
+		local.LastFireSequence != 14 || local.LastDebugSkillSequence != 15 {
 		t.Fatalf("local private state is incomplete: %+v", local)
 	}
 	remote := message.Players[1]
@@ -678,6 +685,8 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 	for _, field := range []string{
 		"inventory", "bank", "combat_stats", "combat_matchup", "ammunition_pouch",
 		"ring_rack", "rune_pouch", "skills", "active_combat_boosts",
+		"last_drop_sequence", "last_inventory_move_sequence", "last_gem_cut_sequence",
+		"last_fire_sequence", "last_debug_skill_sequence",
 	} {
 		if _, exposed := payload[field]; exposed {
 			t.Errorf("remote JSON includes private field %q: %s", field, encoded)

@@ -320,6 +320,8 @@ type PlayerSnapshot struct {
 	LastBankSequence             uint64                   `json:"last_bank_sequence,omitempty"`
 	LastMerchantSequence         uint64                   `json:"last_merchant_sequence,omitempty"`
 	LastPickupSequence           uint64                   `json:"last_pickup_sequence"`
+	LastDropSequence             uint64                   `json:"last_drop_sequence,omitempty"`
+	LastInventoryMoveSequence    uint64                   `json:"last_inventory_move_sequence,omitempty"`
 	LastConsumeSequence          uint64                   `json:"last_consume_sequence"`
 	NextConsumePulse             uint64                   `json:"next_consume_pulse"`
 	LastBrewSequence             uint64                   `json:"last_brew_sequence"`
@@ -327,6 +329,9 @@ type PlayerSnapshot struct {
 	NextBrewPulse                uint64                   `json:"next_brew_pulse"`
 	BrewingResult                string                   `json:"brewing_result"`
 	LastFletchSequence           uint64                   `json:"last_fletch_sequence"`
+	LastGemCutSequence           uint64                   `json:"last_gem_cut_sequence,omitempty"`
+	LastFireSequence             uint64                   `json:"last_fire_sequence,omitempty"`
+	LastDebugSkillSequence       uint64                   `json:"last_debug_skill_sequence,omitempty"`
 	FletchRemaining              int                      `json:"fletch_remaining"`
 	NextFletchPulse              uint64                   `json:"next_fletch_pulse"`
 	FletchingResult              string                   `json:"fletching_result"`
