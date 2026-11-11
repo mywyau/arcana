@@ -14,8 +14,132 @@ func TestStarterAgilityObstacleTuning(t *testing.T) {
 	}
 }
 
+func TestGatheringSuccessChanceImprovesWithLevelAndIsCapped(t *testing.T) {
+	spot := newGatheringSpots()[starterIronVeinID]
+	if got := gatheringSuccessChance(spot, spot.RequiredLevel-1); got != 0 {
+		t.Fatalf("chance below the level requirement = %.2f, want 0", got)
+	}
+	if got := gatheringSuccessChance(spot, spot.RequiredLevel); got < 0.599 || got > 0.601 {
+		t.Fatalf("chance at the level requirement = %.2f, want 0.60", got)
+	}
+	if got := gatheringSuccessChance(spot, spot.RequiredLevel+5); got < 0.799 || got > 0.801 {
+		t.Fatalf("chance five levels above the requirement = %.2f, want 0.80", got)
+	}
+	if got := gatheringSuccessChance(spot, spot.RequiredLevel+100); got < 0.949 || got > 0.951 {
+		t.Fatalf("maximum gathering chance = %.2f, want 0.95", got)
+	}
+}
+
+func TestHigherTierGatheringToolsProvideTheBestAvailableBonus(t *testing.T) {
+	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	player.skills[SkillMining] = SkillExperienceForLevel(mithrilEquipmentLevel)
+	player.inventory.add(ItemBronzePickaxe, 1)
+	player.inventory.add(ItemMithrilPickaxe, 1)
+	bonus, found := gatheringToolBonus(player, ItemBronzePickaxe)
+	if !found || bonus < 0.149 || bonus > 0.151 {
+		t.Fatalf("best pickaxe bonus = %.2f, found %t; want 0.15", bonus, found)
+	}
+	if _, found := gatheringToolBonus(player, ItemBronzeAxe); found {
+		t.Fatal("a pickaxe incorrectly satisfied an axe requirement")
+	}
+}
+
+func TestGatheringIgnoresToolsAboveThePlayersLevel(t *testing.T) {
+	player := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	player.inventory.add(ItemMithrilPickaxe, 1)
+	if _, found := gatheringToolBonus(player, ItemBronzePickaxe); found {
+		t.Fatal("level-one player used a mithril pickaxe")
+	}
+	if requirement, found := unmetGatheringToolRequirement(player, ItemBronzePickaxe); !found ||
+		requirement != (SkillRequirement{Skill: SkillMining, Level: mithrilEquipmentLevel}) {
+		t.Fatalf("unmet tool requirement = %+v, found %t; want Mining level %d", requirement, found, mithrilEquipmentLevel)
+	}
+	player.skills[SkillMining] = SkillExperienceForLevel(mithrilEquipmentLevel)
+	if bonus, found := gatheringToolBonus(player, ItemBronzePickaxe); !found || bonus != 0.15 {
+		t.Fatalf("eligible mithril pickaxe bonus = %.2f, found %t; want 0.15", bonus, found)
+	}
+}
+
+func TestIronToolCanSucceedWhereBronzeToolFails(t *testing.T) {
+	spot := newGatheringSpots()[starterCopperVeinID]
+	bronzePlayer := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	bronzePlayer.inventory.add(ItemBronzePickaxe, 1)
+	bronzeWorld := NewWorldWithRollSource(fixedRollSource(0.62))
+	if bronzeWorld.gatheringAttemptSucceeded(bronzePlayer, spot) {
+		t.Fatal("bronze pickaxe succeeded above its 60% level-one chance")
+	}
+
+	ironPlayer := &playerState{inventory: newEmptyInventory(), skills: newDefaultSkills()}
+	ironPlayer.skills[SkillMining] = SkillExperienceForLevel(ironEquipmentLevel)
+	ironPlayer.inventory.add(ItemIronPickaxe, 1)
+	ironWorld := NewWorldWithRollSource(fixedRollSource(0.62))
+	if !ironWorld.gatheringAttemptSucceeded(ironPlayer, spot) {
+		t.Fatal("iron pickaxe did not apply its 5% success bonus")
+	}
+}
+
+func TestUnsuccessfulMiningAttemptConsumesTimeButNotResources(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	spot := world.gatheringSpots[starterCopperVeinID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemBronzePickaxe, 1)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterCopperVeinID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	world.Step(miningInterval * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.GatheringResult != "mining_unsuccessful" || player.GatheringSpot != starterCopperVeinID {
+		t.Fatalf("unsuccessful attempt state = %+v", player)
+	}
+	if player.NextGatherPulse != 2*miningInterval {
+		t.Fatalf("next attempt pulse = %d, want %d", player.NextGatherPulse, 2*miningInterval)
+	}
+	if player.Inventory.itemsQuantity(ItemCopperOre) != 0 ||
+		mustSkill(t, player, SkillMining).Experience != 0 {
+		t.Fatalf("unsuccessful attempt awarded resources or XP: %+v", player)
+	}
+	if got := world.gatheringSpots[starterCopperVeinID].CurrentAmount; got != copperVeinCapacity {
+		t.Fatalf("vein amount after unsuccessful attempt = %d, want %d", got, copperVeinCapacity)
+	}
+	world.Step(50 * time.Millisecond)
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "mining_unsuccessful" {
+		t.Fatalf("unsuccessful result was cleared before the next attempt: %+v", player)
+	}
+}
+
+func TestUnsuccessfulFishingAttemptUsesRecipeInterval(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	spot := world.gatheringSpots[starterFishingSpotID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemFishingRod, 1)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	world.Step(fishingInterval * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.GatheringResult != "fishing_unsuccessful" || player.NextGatherPulse != 2*fishingInterval {
+		t.Fatalf("unsuccessful fishing state = %+v", player)
+	}
+	if player.Inventory.itemsQuantity(ItemRawMinnow) != 0 ||
+		mustSkill(t, player, SkillFishing).Experience != 0 {
+		t.Fatalf("unsuccessful fishing awarded resources or XP: %+v", player)
+	}
+}
+
 func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFishingSpotID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -53,7 +177,7 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 }
 
 func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAgilityObstacleID]
 	left, right := agilityBeamEndpoints(spot.Position)
 	if err := world.AddPlayer("player-one", left, 4); err != nil {
@@ -92,7 +216,7 @@ func TestAgilityObstacleAwardsXPAndIncreasesMovementSpeed(t *testing.T) {
 }
 
 func TestPrayerAltarRestoresPrayerToMaximum(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterPrayerAltarID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -117,7 +241,7 @@ func TestPrayerAltarRestoresPrayerToMaximum(t *testing.T) {
 }
 
 func TestPrayerAltarSacrificesAllBonesOnePerPulseAndGrantsXP(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterPrayerAltarID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -147,7 +271,7 @@ func TestPrayerAltarSacrificesAllBonesOnePerPulseAndGrantsXP(t *testing.T) {
 }
 
 func TestPrayerAltarRejectsBoneSacrificeWithoutBones(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterPrayerAltarID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -160,7 +284,7 @@ func TestPrayerAltarRejectsBoneSacrificeWithoutBones(t *testing.T) {
 }
 
 func TestGodAltarChangesPrayerSetAndClearsActivePrayers(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[warPrayerAltarID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatal(err)
@@ -180,7 +304,7 @@ func TestGodAltarChangesPrayerSetAndClearsActivePrayers(t *testing.T) {
 }
 
 func TestGodAltarRejectsAnotherAltarsPrayerSet(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterPrayerAltarID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatal(err)
@@ -193,7 +317,7 @@ func TestGodAltarRejectsAnotherAltarsPrayerSet(t *testing.T) {
 }
 
 func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	pond := world.gatheringSpots[starterSalmonSpotID]
 	if err := world.AddPlayer("player-one", pond.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -228,7 +352,7 @@ func TestFishingAndCookingUseSelectedFishRecipes(t *testing.T) {
 }
 
 func TestFishingSpotOnlyAllowsItsConfiguredFish(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFishingSpotID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -245,7 +369,7 @@ func TestFishingSpotOnlyAllowsItsConfiguredFish(t *testing.T) {
 }
 
 func TestEachFishingSpotContainsOneFishRecipe(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	want := map[string]string{
 		starterFishingSpotID: ItemRawMinnow,
 		starterTroutSpotID:   ItemRawTrout,
@@ -265,7 +389,7 @@ func TestEachFishingSpotContainsOneFishRecipe(t *testing.T) {
 }
 
 func TestMovementCancelsFishing(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFishingSpotID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -297,7 +421,7 @@ func TestFishingSpotsRequireTheMatchingTool(t *testing.T) {
 		t.Fatalf("lobster fishing tool = %q, want %q", got, ItemLobsterCage)
 	}
 
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterLobsterSpotID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -313,7 +437,7 @@ func TestFishingSpotsRequireTheMatchingTool(t *testing.T) {
 }
 
 func TestFishingStopsWithFullInventory(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFishingSpotID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -338,7 +462,7 @@ func TestFishingStopsWithFullInventory(t *testing.T) {
 }
 
 func TestCookingRangeConsumesRawMinnowsAndGrantsCookingXP(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterCookingRangeID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -385,7 +509,7 @@ func TestCookingRangeConsumesRawMinnowsAndGrantsCookingXP(t *testing.T) {
 }
 
 func TestCookingRangeRequiresRawMinnow(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterCookingRangeID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -398,7 +522,7 @@ func TestCookingRangeRequiresRawMinnow(t *testing.T) {
 }
 
 func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAirRuneAltarID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -443,7 +567,7 @@ func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
 }
 
 func TestCookingCanReplaceLastRawMinnowInFullInventory(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterCookingRangeID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -468,7 +592,7 @@ func TestCookingCanReplaceLastRawMinnowInFullInventory(t *testing.T) {
 }
 
 func TestCopperVeinRequiresPickaxeAndConsumesSharedCapacity(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterCopperVeinID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -478,7 +602,7 @@ func TestCopperVeinRequiresPickaxeAndConsumesSharedCapacity(t *testing.T) {
 		t.Fatalf("QueueGather() rejected an approach without a Bronze Pickaxe: %v", err)
 	}
 	world.Step(actionPulseInterval)
-	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_bronze_pickaxe" || player.GatheringSpot != "" {
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_pickaxe" || player.GatheringSpot != "" {
 		t.Fatalf("player without a pickaxe = %+v, want stopped with a missing-tool result", player)
 	}
 	if !world.players["player-one"].inventory.add(ItemBronzePickaxe, 1) {
@@ -500,7 +624,7 @@ func TestCopperVeinRequiresPickaxeAndConsumesSharedCapacity(t *testing.T) {
 }
 
 func TestCopperVeinDepletesAndGraduallyRecharges(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterCopperVeinID]
 	spot.CurrentAmount = 1
 	world.gatheringSpots[starterCopperVeinID] = spot
@@ -549,7 +673,7 @@ func TestMiningVeinProgressionDefinitions(t *testing.T) {
 }
 
 func TestNormalTreeRequiresAxeAndGrantsWoodcuttingXP(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterNormalTreeID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -559,7 +683,7 @@ func TestNormalTreeRequiresAxeAndGrantsWoodcuttingXP(t *testing.T) {
 		t.Fatalf("QueueGather() rejected an approach without a Bronze Axe: %v", err)
 	}
 	world.Step(actionPulseInterval)
-	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_bronze_axe" || player.GatheringSpot != "" {
+	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "missing_axe" || player.GatheringSpot != "" {
 		t.Fatalf("player without an axe = %+v, want stopped with a missing-tool result", player)
 	}
 	if !world.players["player-one"].inventory.add(ItemBronzeAxe, 1) {
@@ -587,7 +711,7 @@ func TestNormalTreeRequiresAxeAndGrantsWoodcuttingXP(t *testing.T) {
 }
 
 func TestMissingGatheringToolApproachesAndStopsWithinRange(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterNormalTreeID]
 	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
 	if err := world.AddPlayer("player-one", start, 4); err != nil {
@@ -605,13 +729,13 @@ func TestMissingGatheringToolApproachesAndStopsWithinRange(t *testing.T) {
 	if player.Destination != nil || len(player.Path) != 0 {
 		t.Fatalf("player continued moving after reaching the tree: %+v", player)
 	}
-	if player.GatheringResult != "missing_bronze_axe" {
-		t.Fatalf("gathering result = %q, want missing_bronze_axe", player.GatheringResult)
+	if player.GatheringResult != "missing_axe" {
+		t.Fatalf("gathering result = %q, want missing_axe", player.GatheringResult)
 	}
 }
 
 func TestLowLevelFishingApproachesAndStopsWithinRange(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterTroutSpotID]
 	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
 	if err := world.AddPlayer("player-one", start, 4); err != nil {
@@ -660,7 +784,7 @@ func TestWoodcuttingTreeProgressionAndRecharge(t *testing.T) {
 		t.Fatalf("yew tree = %+v", yew)
 	}
 
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	depleting := world.gatheringSpots[starterNormalTreeID]
 	depleting.CurrentAmount = 1
 	world.gatheringSpots[starterNormalTreeID] = depleting
@@ -687,7 +811,7 @@ func TestWoodcuttingTreeProgressionAndRecharge(t *testing.T) {
 }
 
 func TestOakTreeRequiresWoodcuttingLevelTwo(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterOakTreeID]
 	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
 	if err := world.AddPlayer("player-one", start, 4); err != nil {
@@ -714,7 +838,7 @@ func TestOakTreeRequiresWoodcuttingLevelTwo(t *testing.T) {
 }
 
 func TestFurnaceRepeatedlySmeltsSelectedRecipe(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFurnaceID]
 	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -758,7 +882,7 @@ func TestFurnaceRepeatedlySmeltsSelectedRecipe(t *testing.T) {
 }
 
 func TestFurnaceCraftsJewelleryWithReusableMould(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFurnaceID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatal(err)
@@ -784,7 +908,7 @@ func TestFurnaceCraftsJewelleryWithReusableMould(t *testing.T) {
 }
 
 func TestFurnaceStopsAfterRequestedQuantity(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFurnaceID]
 	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -818,7 +942,7 @@ func TestFurnaceStopsAfterRequestedQuantity(t *testing.T) {
 }
 
 func TestFurnaceRequiresAValidAffordableRecipe(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterFurnaceID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -836,7 +960,7 @@ func TestFurnaceRequiresAValidAffordableRecipe(t *testing.T) {
 }
 
 func TestAnvilRepeatedlyForgesSelectedRecipe(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAnvilID]
 	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -871,7 +995,7 @@ func TestAnvilRepeatedlyForgesSelectedRecipe(t *testing.T) {
 }
 
 func TestAnvilRequiresAValidAffordableRecipe(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAnvilID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -889,7 +1013,7 @@ func TestAnvilRequiresAValidAffordableRecipe(t *testing.T) {
 }
 
 func TestAnvilReinforcesOneEquipmentInstanceAndStops(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAnvilID]
 	if err := world.AddPlayer("player-one", spot.Position, 6); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)

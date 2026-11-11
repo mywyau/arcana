@@ -15,11 +15,36 @@ func TestForgingRecipesCreateExpectedBronzeEquipment(t *testing.T) {
 		{ForgingBronzeSword, 2, string(WeaponBronzeSword)},
 		{ForgingBronzeHelm, 2, ItemBronzeHelm},
 		{ForgingBronzePickaxe, 3, ItemBronzePickaxe},
+		{ForgingBronzeAxe, 2, ItemBronzeAxe},
 	}
 	for _, test := range tests {
 		recipe, exists := forgingRecipe(test.id)
 		if !exists || recipe.RequiredLevel != 1 || recipe.RewardItem != test.output ||
 			len(recipe.Costs) != 1 || recipe.Costs[0] != (ItemCost{ItemID: ItemBronzeBar, Quantity: test.bars}) {
+			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
+		}
+	}
+}
+
+func TestForgingRecipesCoverGatheringToolProgression(t *testing.T) {
+	tests := []struct {
+		id     ForgingRecipeID
+		level  int
+		bar    string
+		bars   int
+		output string
+	}{
+		{ForgingIronPickaxe, 3, ItemIronBar, 3, ItemIronPickaxe},
+		{ForgingIronAxe, 3, ItemIronBar, 2, ItemIronAxe},
+		{ForgingSteelPickaxe, 5, ItemSteelBar, 3, ItemSteelPickaxe},
+		{ForgingSteelAxe, 5, ItemSteelBar, 2, ItemSteelAxe},
+		{ForgingMithrilPickaxe, 7, ItemMithrilBar, 3, ItemMithrilPickaxe},
+		{ForgingMithrilAxe, 7, ItemMithrilBar, 2, ItemMithrilAxe},
+	}
+	for _, test := range tests {
+		recipe, exists := forgingRecipe(test.id)
+		if !exists || recipe.RequiredLevel != test.level || recipe.RewardItem != test.output ||
+			len(recipe.Costs) != 1 || recipe.Costs[0] != (ItemCost{ItemID: test.bar, Quantity: test.bars}) {
 			t.Errorf("forgingRecipe(%q) = %+v, %t", test.id, recipe, exists)
 		}
 	}
@@ -162,9 +187,13 @@ func TestForgingRecipesCoverMetalEquipmentProgression(t *testing.T) {
 		{ForgingIronSword, 3, ItemIronBar, 2, string(WeaponSword)},
 		{ForgingIronHelm, 3, ItemIronBar, 2, ItemIronHelm},
 		{ForgingIronPlate, 4, ItemIronBar, 5, ItemIronPlate},
+		{ForgingSteelHelm, 5, ItemSteelBar, 2, ItemSteelHelm},
+		{ForgingSteelPlate, 6, ItemSteelBar, 5, ItemSteelPlate},
 		{ForgingMithrilSword, 6, ItemMithrilBar, 3, string(WeaponMithrilSword)},
 		{ForgingMithrilHelm, 6, ItemMithrilBar, 3, ItemMithrilHelm},
 		{ForgingMithrilPlate, 7, ItemMithrilBar, 6, ItemMithrilPlate},
+		{ForgingAdamantiteHelm, 8, ItemAdamantiteBar, 3, ItemAdamantiteHelm},
+		{ForgingAdamantitePlate, 9, ItemAdamantiteBar, 6, ItemAdamantitePlate},
 	}
 	for _, test := range tests {
 		recipe, exists := forgingRecipe(test.id)
@@ -182,7 +211,9 @@ func TestForgingRecipesCoverCompleteMetalArmourProgression(t *testing.T) {
 	}{
 		{ForgingBronzeShield, ItemBronzeShield}, {ForgingBronzeLegs, ItemBronzeLegs}, {ForgingBronzeGloves, ItemBronzeGloves}, {ForgingBronzeBoots, ItemBronzeBoots},
 		{ForgingIronShield, ItemIronShield}, {ForgingIronLegs, ItemIronLegs}, {ForgingIronGloves, ItemIronGloves}, {ForgingIronBoots, ItemIronBoots},
+		{ForgingSteelShield, ItemSteelShield}, {ForgingSteelLegs, ItemSteelLegs}, {ForgingSteelGloves, ItemSteelGloves}, {ForgingSteelBoots, ItemSteelBoots},
 		{ForgingMithrilShield, ItemMithrilShield}, {ForgingMithrilLegs, ItemMithrilLegs}, {ForgingMithrilGloves, ItemMithrilGloves}, {ForgingMithrilBoots, ItemMithrilBoots},
+		{ForgingAdamantiteShield, ItemAdamantiteShield}, {ForgingAdamantiteLegs, ItemAdamantiteLegs}, {ForgingAdamantiteGloves, ItemAdamantiteGloves}, {ForgingAdamantiteBoots, ItemAdamantiteBoots},
 	}
 	for _, test := range tests {
 		recipe, exists := forgingRecipe(test.id)

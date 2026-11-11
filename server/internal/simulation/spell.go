@@ -66,6 +66,14 @@ func targetSpellDodgeChance(player *playerState, target *TargetSnapshot, spell S
 	)
 }
 
+func targetSpellAccuracyChance(player *playerState, spell SpellDefinition) float64 {
+	return calculatedAccuracyChance(spellAccuracyScore(player, spell))
+}
+
+func targetSpellHitChance(player *playerState, target *TargetSnapshot, spell SpellDefinition) float64 {
+	return targetSpellAccuracyChance(player, spell) * (1 - targetSpellDodgeChance(player, target, spell))
+}
+
 func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
 	level := 1
 	focusStrength := 0

@@ -108,7 +108,10 @@ func _build_item_visual(item_id: String) -> void:
 			coin.transform = coin_transform
 			visual.add_child(coin)
 		return
-	if item_id in ["bronze_pickaxe", "bronze_axe"]:
+	if item_id in [
+		"bronze_pickaxe", "iron_pickaxe", "steel_pickaxe", "mithril_pickaxe",
+		"bronze_axe", "iron_axe", "steel_axe", "mithril_axe",
+	]:
 		mesh.position.y = 0.38
 		var handle_mesh := BoxMesh.new()
 		handle_mesh.size = Vector3(0.09, 0.9, 0.09)
@@ -120,15 +123,23 @@ func _build_item_visual(item_id: String) -> void:
 		mesh.rotation_degrees.z = -42.0
 		var head := MeshInstance3D.new()
 		var head_mesh := BoxMesh.new()
-		head_mesh.size = Vector3(0.52 if item_id == "bronze_pickaxe" else 0.32, 0.13, 0.12)
-		var bronze_material := StandardMaterial3D.new()
-		bronze_material.albedo_color = Color(0.68, 0.32, 0.12)
-		bronze_material.metallic = 0.65
-		bronze_material.roughness = 0.35
-		head_mesh.material = bronze_material
+		var is_pickaxe: bool = item_id.ends_with("_pickaxe")
+		head_mesh.size = Vector3(0.52 if is_pickaxe else 0.32, 0.13, 0.12)
+		var tool_material := StandardMaterial3D.new()
+		var tool_colours: Dictionary = {
+			"bronze": Color(0.68, 0.32, 0.12),
+			"iron": Color(0.34, 0.38, 0.42),
+			"steel": Color(0.72, 0.77, 0.82),
+			"mithril": Color(0.15, 0.53, 0.72),
+		}
+		var metal: String = item_id.get_slice("_", 0)
+		tool_material.albedo_color = tool_colours.get(metal, Color(0.68, 0.32, 0.12))
+		tool_material.metallic = 0.65
+		tool_material.roughness = 0.35
+		head_mesh.material = tool_material
 		head.mesh = head_mesh
 		head.position = Vector3(0.0, 0.43, 0.0)
-		if item_id == "bronze_axe":
+		if not is_pickaxe:
 			head.position.x = 0.12
 		mesh.add_child(head)
 		return

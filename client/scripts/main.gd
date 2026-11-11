@@ -35,9 +35,12 @@ const GATHERING_PROGRESS_RESULTS: Dictionary = {
 	"balancing": true,
 	"praying": true,
 	"fishing": true,
+	"fishing_unsuccessful": true,
 	"cooking": true,
 	"mining": true,
+	"mining_unsuccessful": true,
 	"woodcutting": true,
+	"woodcutting_unsuccessful": true,
 	"smelting": true,
 	"forging": true,
 }
@@ -242,9 +245,15 @@ const ARMOUR_SLOTS: Dictionary = {
 	"iron_helm": "head",
 	"iron_platebody": "body",
 	"iron_shield": "left_hand", "iron_legs": "legs", "iron_gloves": "hands", "iron_boots": "feet",
+	"steel_helm": "head",
+	"steel_platebody": "body",
+	"steel_shield": "left_hand", "steel_legs": "legs", "steel_gloves": "hands", "steel_boots": "feet",
 	"mithril_helm": "head",
 	"mithril_platebody": "body",
 	"mithril_shield": "left_hand", "mithril_legs": "legs", "mithril_gloves": "hands", "mithril_boots": "feet",
+	"adamantite_helm": "head",
+	"adamantite_platebody": "body",
+	"adamantite_shield": "left_hand", "adamantite_legs": "legs", "adamantite_gloves": "hands", "adamantite_boots": "feet",
 	"training_helm": "head",
 	"training_plate": "body",
 	"swift_helm": "head",
@@ -252,6 +261,10 @@ const ARMOUR_SLOTS: Dictionary = {
 	"swift_boots": "feet",
 	"novice_robe_hood": "head", "novice_robe_top": "body", "novice_robe_gloves": "hands", "novice_robe_bottoms": "legs", "novice_robe_boots": "feet",
 	"novice_ranger_hood": "head", "novice_ranger_body": "body", "novice_ranger_gloves": "hands", "novice_ranger_legs": "legs", "novice_ranger_boots": "feet",
+	"scout_hood": "head", "scout_body": "body", "scout_gloves": "hands", "scout_legs": "legs", "scout_boots": "feet",
+	"tracker_hood": "head", "tracker_body": "body", "tracker_gloves": "hands", "tracker_legs": "legs", "tracker_boots": "feet",
+	"hunter_hood": "head", "hunter_body": "body", "hunter_gloves": "hands", "hunter_legs": "legs", "hunter_boots": "feet",
+	"marksman_hood": "head", "marksman_body": "body", "marksman_gloves": "hands", "marksman_legs": "legs", "marksman_boots": "feet",
 	"vanguard_cape": "cape", "wayfarer_cape": "cape", "arcanist_cape": "cape",
 	"amulet_ferocity": "neck",
 	"amulet_hawk": "neck",
@@ -266,7 +279,9 @@ const ARMOUR_SLOTS: Dictionary = {
 const REINFORCEMENT_TIERS: Dictionary = {
 	"bronze": {"bar": "bronze_bar", "bar_name": "Bronze Bars", "level": 2, "items": ["bronze_sword", "bronze_helm", "bronze_platebody", "bronze_shield", "bronze_legs", "bronze_gloves", "bronze_boots"]},
 	"iron": {"bar": "iron_bar", "bar_name": "Iron Bars", "level": 5, "items": ["sword", "iron_helm", "iron_platebody", "iron_shield", "iron_legs", "iron_gloves", "iron_boots"]},
+	"steel": {"bar": "steel_bar", "bar_name": "Steel Bars", "level": 7, "items": ["steel_helm", "steel_platebody", "steel_shield", "steel_legs", "steel_gloves", "steel_boots"]},
 	"mithril": {"bar": "mithril_bar", "bar_name": "Mithril Bars", "level": 8, "items": ["mithril_sword", "mithril_helm", "mithril_platebody", "mithril_shield", "mithril_legs", "mithril_gloves", "mithril_boots"]},
+	"adamantite": {"bar": "adamantite_bar", "bar_name": "Adamantite Bars", "level": 11, "items": ["adamantite_helm", "adamantite_platebody", "adamantite_shield", "adamantite_legs", "adamantite_gloves", "adamantite_boots"]},
 }
 const MAXIMUM_REINFORCEMENT: int = 5
 const AMMUNITION_ITEMS: Dictionary = {
@@ -296,17 +311,33 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"arcanist_cape": "+3 magic accuracy • +2 magic strength",
 }
 const EQUIPMENT_REQUIREMENTS: Dictionary = {
-	"steel_sword": "Attack level 5",
-	"mithril_sword": "Attack level 10",
-	"rune_sword": "Attack level 20",
+	"bronze_sword": "Attack level 1", "sword": "Attack level 5",
+	"steel_sword": "Attack level 10",
+	"mithril_sword": "Attack level 15",
+	"rune_sword": "Attack level 25",
 	"mace": "Attack level 5",
 	"battle_axe": "Attack level 10",
+	"bow": "Range level 1", "oak_shortbow": "Range level 5", "willow_shortbow": "Range level 10",
+	"maple_shortbow": "Range level 15", "yew_shortbow": "Range level 20",
+	"bronze_helm": "Defence level 1", "bronze_platebody": "Defence level 1",
+	"bronze_shield": "Defence level 1", "bronze_legs": "Defence level 1", "bronze_gloves": "Defence level 1", "bronze_boots": "Defence level 1",
 	"iron_helm": "Defence level 5",
 	"iron_platebody": "Defence level 5",
 	"iron_shield": "Defence level 5", "iron_legs": "Defence level 5", "iron_gloves": "Defence level 5", "iron_boots": "Defence level 5",
-	"mithril_helm": "Defence level 10",
-	"mithril_platebody": "Defence level 10",
-	"mithril_shield": "Defence level 10", "mithril_legs": "Defence level 10", "mithril_gloves": "Defence level 10", "mithril_boots": "Defence level 10",
+	"steel_helm": "Defence level 10", "steel_platebody": "Defence level 10",
+	"steel_shield": "Defence level 10", "steel_legs": "Defence level 10", "steel_gloves": "Defence level 10", "steel_boots": "Defence level 10",
+	"mithril_helm": "Defence level 15",
+	"mithril_platebody": "Defence level 15",
+	"mithril_shield": "Defence level 15", "mithril_legs": "Defence level 15", "mithril_gloves": "Defence level 15", "mithril_boots": "Defence level 15",
+	"adamantite_helm": "Defence level 20", "adamantite_platebody": "Defence level 20",
+	"adamantite_shield": "Defence level 20", "adamantite_legs": "Defence level 20", "adamantite_gloves": "Defence level 20", "adamantite_boots": "Defence level 20",
+	"bronze_arrow": "Range level 1", "bronze_bolt": "Range level 1",
+	"iron_arrow": "Range level 5", "iron_bolt": "Range level 5",
+	"steel_arrow": "Range level 10", "steel_bolt": "Range level 10",
+	"mithril_arrow": "Range level 15", "mithril_bolt": "Range level 15",
+	"adamantite_arrow": "Range level 20", "adamantite_bolt": "Range level 20",
+	"bronze_pickaxe": "Mining level 1", "iron_pickaxe": "Mining level 5", "steel_pickaxe": "Mining level 10", "mithril_pickaxe": "Mining level 15",
+	"bronze_axe": "Woodcutting level 1", "iron_axe": "Woodcutting level 5", "steel_axe": "Woodcutting level 10", "mithril_axe": "Woodcutting level 15",
 	"swift_helm": "Defence level 5",
 	"swift_body": "Defence level 5",
 	"swift_boots": "Defence level 5",
@@ -2826,6 +2857,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "All bones sacrificed • Prayer XP gained"
 					"fishing":
 						status_label.text = "Fishing…"
+					"fishing_unsuccessful":
+						status_label.text = "Nothing bites this attempt • Fishing continues…"
 					"missing_fishing_rod":
 						status_label.text = "Fishing stopped: a Fishing Rod is required"
 					"missing_lobster_cage":
@@ -2844,6 +2877,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Cooking stopped: no Raw Minnows"
 					"mining":
 						status_label.text = "Mining…"
+					"mining_unsuccessful":
+						status_label.text = "No ore gained this attempt • Mining continues…"
 					"mined_copper_ore":
 						status_label.text = "Mined Copper Ore • Mining continues…"
 					"mined_tin_ore":
@@ -2864,12 +2899,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Mined Adamantite Ore • Mining continues…"
 					"woodcutting":
 						status_label.text = "Chopping…"
+					"woodcutting_unsuccessful":
+						status_label.text = "No logs gained this attempt • Woodcutting continues…"
 					"chopped_normal_logs":
 						status_label.text = "Chopped Normal Logs • Woodcutting continues…"
 					"chopped_oak_logs":
 						status_label.text = "Chopped Oak Logs • Woodcutting continues…"
-					"missing_bronze_axe":
-						status_label.text = "Woodcutting stopped: a Bronze Axe is required"
+					"missing_axe":
+						status_label.text = "Woodcutting stopped: an axe is required"
 					"tree_depleted":
 						status_label.text = "Woodcutting stopped: the tree is depleted"
 					"smelting":
@@ -2908,8 +2945,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Smithing stopped: required bars are missing"
 					"reinforcement_failed":
 						status_label.text = "Upgrade stopped: item or bars are unavailable"
-					"missing_bronze_pickaxe":
-						status_label.text = "Mining stopped: a Bronze Pickaxe is required"
+					"missing_pickaxe":
+						status_label.text = "Mining stopped: a pickaxe is required"
 					"vein_depleted":
 						status_label.text = "Mining stopped: the vein is depleted"
 					"inventory_full":
@@ -3675,7 +3712,7 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 			continue
 		_last_combat_event_id = event_id
 		var event_type: String = str(event.get("type", ""))
-		if event_type != "damage" and event_type != "dodged":
+		if event_type != "damage" and event_type != "missed" and event_type != "dodged":
 			continue
 		var source_id: String = str(event.get("source_id", ""))
 		var target_id: String = str(event.get("target_id", ""))
@@ -3687,7 +3724,7 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		var local_combat: bool = source_id == _local_player_id or target_id == _local_player_id
 		var weapon_id: String = source.equipped_weapon() if source != null else "unarmed"
 		var feedback_color: Color = _combat_damage_color(source_id, weapon_id, spell_id)
-		var avoidance_text: String = "MISS" if source_id == _local_player_id else "DODGE"
+		var avoidance_text: String = "MISS" if event_type == "missed" else "DODGE"
 		if local_combat and source != null:
 			if spell_id.is_empty():
 				sound_effects.play_weapon_attack(weapon_id)
@@ -5339,6 +5376,7 @@ func _update_detailed_combat_stats() -> void:
 
 func _detailed_offence_text() -> String:
 	var spell_id: String = str(_combat_stats.get("spell", ""))
+	var equipment_offence: Dictionary = _combat_stats.get("equipment_offence", {}) as Dictionary
 	var loadout_text: String = "%s • %s" % [
 		str(_combat_stats.get("weapon", "unarmed")).capitalize(),
 		str(_combat_stats.get("style", "crush")).capitalize(),
@@ -5383,13 +5421,21 @@ func _detailed_offence_text() -> String:
 		attack_interval, attack_interval * 0.6, base_attack_interval,
 		_signed_stat(int(_combat_stats.get("attack_interval_modifier", 0))),
 	]
+	var armour_offence_text: String = "Melee: %s acc / %s str\nRanged: %s acc / %s str\nMagic: %s acc / %s str" % [
+		_signed_stat(int(equipment_offence.get("melee_accuracy", 0))),
+		_signed_stat(int(equipment_offence.get("melee_strength", 0))),
+		_signed_stat(int(equipment_offence.get("ranged_accuracy", 0))),
+		_signed_stat(int(equipment_offence.get("ranged_strength", 0))),
+		_signed_stat(int(equipment_offence.get("magic_accuracy", 0))),
+		_signed_stat(int(equipment_offence.get("magic_strength", 0))),
+	]
 	return (
 		"[table=2]"
 		+"[cell][b]LOADOUT[/b]\n%s\n\n" % loadout_text
 		+"[b]ACCURACY[/b]\nTotal: %d\n" % int(_combat_stats.get("total_accuracy", 0))
-		+"%s Lv: %d\n%s[/cell]" % [
+		+"%s Lv: %d\n%s\n\n[b]ARMOUR OFFENCE[/b]\n%s[/cell]" % [
 			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
-			int(_combat_stats.get("accuracy_level", 1)), accuracy_breakdown,
+			int(_combat_stats.get("accuracy_level", 1)), accuracy_breakdown, armour_offence_text,
 		]
 		+"[cell][b]DAMAGE[/b]\nRange: %d–%d\n" % [
 			int(_combat_stats.get("minimum_damage", 0)),

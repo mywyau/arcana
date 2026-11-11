@@ -18,10 +18,10 @@ func TestEnemyCombatProfilesCreateDistinctEncounters(t *testing.T) {
 	}
 }
 
-func TestRiftTyrantHasLongRangeAndAllAttackStyles(t *testing.T) {
+func TestRiftTyrantHasLongRangeAndMeleeAttackStyles(t *testing.T) {
 	profile := combatProfileForEnemy(riftTyrantTargetID)
 	wantStyles := []DamageType{
-		DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic,
+		DamageTypeStab, DamageTypeSlash, DamageTypeCrush,
 	}
 	if profile.CombatLevel != 35 || profile.AttackRange != enemyLongRangeAttackRange || profile.DetectionRange != 18 ||
 		profile.AttackDamage != 22 || len(profile.AttackTypes) != len(wantStyles) {
@@ -99,7 +99,7 @@ func TestRiftTyrantMovesSlightlyFasterThanNewPlayer(t *testing.T) {
 }
 
 func TestRiftTyrantCyclesAttackStyleOnEachAttack(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	boss := world.combat.targets[riftTyrantTargetID]
 	mustAddPlayer(t, world, "player-one", boss.Position, 4)
 	player := world.players["player-one"]
@@ -108,7 +108,7 @@ func TestRiftTyrantCyclesAttackStyleOnEachAttack(t *testing.T) {
 	boss.TargetID = player.id
 	profile := combatProfileForEnemy(riftTyrantTargetID)
 
-	wantStyles := []DamageType{DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic}
+	wantStyles := []DamageType{DamageTypeStab, DamageTypeSlash, DamageTypeCrush}
 	for index, want := range wantStyles {
 		world.combat.pulse = uint64(index+1) * profile.AttackInterval
 		boss.NextAttackPulse = world.combat.pulse
@@ -119,8 +119,26 @@ func TestRiftTyrantCyclesAttackStyleOnEachAttack(t *testing.T) {
 	}
 }
 
+func TestTyrantsHaveBossTierDefence(t *testing.T) {
+	tests := []struct {
+		targetID string
+		type_    DamageType
+		minimum  int
+	}{
+		{targetID: riftTyrantTargetID, type_: DamageTypeSlash, minimum: 60},
+		{targetID: rangedTyrantTargetID, type_: DamageTypeRanged, minimum: 65},
+		{targetID: mageTyrantTargetID, type_: DamageTypeMagic, minimum: 70},
+	}
+	for _, test := range tests {
+		profile := combatProfileForEnemy(test.targetID)
+		if got := defenceBonusForDamageType(profile.Defence, test.type_); got < test.minimum {
+			t.Errorf("%s %s defence = %d, want at least %d", test.targetID, test.type_, got, test.minimum)
+		}
+	}
+}
+
 func TestWildFowlUsesItsOwnDamageAndAttackInterval(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	fowl := world.combat.targets[wildFowlTargetID]
 	mustAddPlayer(t, world, "player-one", fowl.Position, 4)
 	fowl.TargetID = "player-one"
@@ -137,7 +155,7 @@ func TestWildFowlUsesItsOwnDamageAndAttackInterval(t *testing.T) {
 }
 
 func TestHillWardenUsesSlashDamageAgainstArmour(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	warden := world.combat.targets[hillWardenTargetID]
 	mustAddPlayer(t, world, "player-one", warden.Position, 4)
 	player := world.players["player-one"]

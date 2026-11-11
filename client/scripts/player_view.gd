@@ -5,6 +5,7 @@ const BRONZE_COLOUR := Color("9a5b32")
 const IRON_COLOUR := Color("4b535b")
 const STEEL_COLOUR := Color("c8d0d8")
 const MITHRIL_COLOUR := Color("2f9fda")
+const ADAMANTITE_COLOUR := Color("276b4b")
 const RUNE_COLOUR := Color("3ca66b")
 const TRAINING_COLOUR := Color("7b8790")
 
@@ -520,6 +521,7 @@ func _is_tiered_item(item_id: String, item_suffix: String) -> bool:
 		item_id.begins_with("iron_") or
 		item_id.begins_with("steel_") or
 		item_id.begins_with("mithril_") or
+		item_id.begins_with("adamantite_") or
 		item_id.begins_with("rune_")
 	)
 
@@ -536,6 +538,9 @@ func _material_for_item(item_id: String) -> StandardMaterial3D:
 	elif item_id.begins_with("mithril_"):
 		tier = "mithril"
 		colour = MITHRIL_COLOUR
+	elif item_id.begins_with("adamantite_"):
+		tier = "adamantite"
+		colour = ADAMANTITE_COLOUR
 	elif item_id.begins_with("rune_"):
 		tier = "rune"
 		colour = RUNE_COLOUR

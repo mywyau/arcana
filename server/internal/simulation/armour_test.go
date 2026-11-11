@@ -42,7 +42,9 @@ func TestMetalArmourProgressionCoversEveryImplementedSlot(t *testing.T) {
 	tiers := [][]string{
 		{ItemBronzeHelm, ItemBronzePlate, ItemBronzeShield, ItemBronzeLegs, ItemBronzeGloves, ItemBronzeBoots},
 		{ItemIronHelm, ItemIronPlate, ItemIronShield, ItemIronLegs, ItemIronGloves, ItemIronBoots},
+		{ItemSteelHelm, ItemSteelPlate, ItemSteelShield, ItemSteelLegs, ItemSteelGloves, ItemSteelBoots},
 		{ItemMithrilHelm, ItemMithrilPlate, ItemMithrilShield, ItemMithrilLegs, ItemMithrilGloves, ItemMithrilBoots},
+		{ItemAdamantiteHelm, ItemAdamantitePlate, ItemAdamantiteShield, ItemAdamantiteLegs, ItemAdamantiteGloves, ItemAdamantiteBoots},
 	}
 	wantSlots := []ArmourSlot{ArmourSlotHead, ArmourSlotBody, ArmourSlotLeftHand, ArmourSlotLegs, ArmourSlotHands, ArmourSlotFeet}
 	for _, tier := range tiers {
@@ -72,6 +74,78 @@ func TestNoviceCombatSetsProvideFocusedOffence(t *testing.T) {
 	}
 }
 
+func TestRangedArmourProgressionRequiresRangeAndImprovesRangedOffence(t *testing.T) {
+	tiers := []struct {
+		level        int
+		items        []string
+		wantAccuracy int
+		wantStrength int
+	}{
+		{level: 5, items: []string{ItemScoutHood, ItemScoutBody, ItemScoutGloves, ItemScoutLegs, ItemScoutBoots}, wantAccuracy: 12, wantStrength: 7},
+		{level: 10, items: []string{ItemTrackerHood, ItemTrackerBody, ItemTrackerGloves, ItemTrackerLegs, ItemTrackerBoots}, wantAccuracy: 15, wantStrength: 9},
+		{level: 15, items: []string{ItemHunterHood, ItemHunterBody, ItemHunterGloves, ItemHunterLegs, ItemHunterBoots}, wantAccuracy: 18, wantStrength: 11},
+		{level: 20, items: []string{ItemMarksmanHood, ItemMarksmanBody, ItemMarksmanGloves, ItemMarksmanLegs, ItemMarksmanBoots}, wantAccuracy: 22, wantStrength: 14},
+	}
+	bow, _ := weaponDefinition(WeaponBow)
+	sword, _ := weaponDefinition(WeaponSword)
+	for _, tier := range tiers {
+		equipped := make(map[ArmourSlot]string, len(tier.items))
+		for _, itemID := range tier.items {
+			item, exists := itemDefinition(itemID)
+			if !exists || len(item.EquipRequirements) != 1 ||
+				item.EquipRequirements[0] != (SkillRequirement{Skill: SkillRange, Level: tier.level}) {
+				t.Fatalf("%s requirements = %+v, want Range %d", itemID, item.EquipRequirements, tier.level)
+			}
+			equipped[item.Armour.Slot] = itemID
+		}
+		player := &playerState{equippedArmour: equipped}
+		bonuses := equippedOffenceBonuses(equipped)
+		if bonuses.RangedAccuracy != tier.wantAccuracy || bonuses.RangedStrength != tier.wantStrength ||
+			bonuses.MeleeAccuracy != 0 || bonuses.MagicAccuracy != 0 {
+			t.Errorf("level %d ranged bonuses = %+v", tier.level, bonuses)
+		}
+		if got := effectiveWeaponAttackInterval(player, bow); got != bow.AttackInterval {
+			t.Errorf("level %d set bow interval = %d, want unchanged %d", tier.level, got, bow.AttackInterval)
+		}
+		if got := effectiveWeaponAttackInterval(player, sword); got != sword.AttackInterval {
+			t.Errorf("level %d set sword interval = %d, want %d", tier.level, got, sword.AttackInterval)
+		}
+	}
+}
+
+func TestMetalArmourProgressesMeleeAccuracyAndRangedDefence(t *testing.T) {
+	tiers := []struct {
+		items             []string
+		wantMeleeAccuracy int
+		wantRangedDefence int
+	}{
+		{[]string{ItemBronzeHelm, ItemBronzePlate, ItemBronzeShield, ItemBronzeLegs, ItemBronzeGloves, ItemBronzeBoots}, 2, 18},
+		{[]string{ItemIronHelm, ItemIronPlate, ItemIronShield, ItemIronLegs, ItemIronGloves, ItemIronBoots}, 4, 33},
+		{[]string{ItemSteelHelm, ItemSteelPlate, ItemSteelShield, ItemSteelLegs, ItemSteelGloves, ItemSteelBoots}, 6, 45},
+		{[]string{ItemMithrilHelm, ItemMithrilPlate, ItemMithrilShield, ItemMithrilLegs, ItemMithrilGloves, ItemMithrilBoots}, 8, 58},
+		{[]string{ItemAdamantiteHelm, ItemAdamantitePlate, ItemAdamantiteShield, ItemAdamantiteLegs, ItemAdamantiteGloves, ItemAdamantiteBoots}, 10, 75},
+	}
+	previousAccuracy := 0
+	previousDefence := 0
+	for _, tier := range tiers {
+		equipped := make(map[ArmourSlot]string, len(tier.items))
+		for _, itemID := range tier.items {
+			definition, _ := armourDefinition(itemID)
+			equipped[definition.Slot] = itemID
+		}
+		offence := equippedOffenceBonuses(equipped)
+		defence := equippedDefenceBonuses(equipped)
+		if offence.MeleeAccuracy != tier.wantMeleeAccuracy || defence.Ranged != tier.wantRangedDefence {
+			t.Errorf("metal tier offence=%+v defence=%+v", offence, defence)
+		}
+		if offence.MeleeAccuracy <= previousAccuracy || defence.Ranged <= previousDefence {
+			t.Errorf("metal tier did not progress: offence=%+v defence=%+v", offence, defence)
+		}
+		previousAccuracy = offence.MeleeAccuracy
+		previousDefence = defence.Ranged
+	}
+}
+
 func TestCombatCapesUseCapeSlotAndFocusedBonuses(t *testing.T) {
 	tests := []struct {
 		itemID  string
@@ -98,8 +172,12 @@ func TestMetalArmourUsesHeadAndBodySlots(t *testing.T) {
 		{ItemBronzePlate, ArmourSlotBody},
 		{ItemIronHelm, ArmourSlotHead},
 		{ItemIronPlate, ArmourSlotBody},
+		{ItemSteelHelm, ArmourSlotHead},
+		{ItemSteelPlate, ArmourSlotBody},
 		{ItemMithrilHelm, ArmourSlotHead},
 		{ItemMithrilPlate, ArmourSlotBody},
+		{ItemAdamantiteHelm, ArmourSlotHead},
+		{ItemAdamantitePlate, ArmourSlotBody},
 	}
 	for _, test := range tests {
 		if got, exists := armourSlot(test.itemID); !exists || got != test.slot {

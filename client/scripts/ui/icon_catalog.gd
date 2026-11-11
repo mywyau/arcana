@@ -56,8 +56,12 @@ const BRONZE_HELM: Texture2D = preload("res://assets/icons/equipment/armour/bron
 const BRONZE_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/bronze_platebody.svg")
 const IRON_HELM: Texture2D = preload("res://assets/icons/equipment/armour/iron_helm.svg")
 const IRON_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/iron_platebody.svg")
+const STEEL_HELM: Texture2D = preload("res://assets/icons/equipment/armour/steel_helm.svg")
+const STEEL_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/steel_platebody.svg")
 const MITHRIL_HELM: Texture2D = preload("res://assets/icons/equipment/armour/mithril_helm.svg")
 const MITHRIL_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/mithril_platebody.svg")
+const ADAMANTITE_HELM: Texture2D = preload("res://assets/icons/equipment/armour/adamantite_helm.svg")
+const ADAMANTITE_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/adamantite_platebody.svg")
 const TRAINING_PLATE: Texture2D = preload("res://assets/icons/equipment/armour/training_plate.svg")
 const SWIFT_HELM: Texture2D = preload("res://assets/icons/equipment/armour/swift_helm.svg")
 const SWIFT_BODY: Texture2D = preload("res://assets/icons/equipment/armour/swift_body.svg")
@@ -65,7 +69,13 @@ const SWIFT_BOOTS: Texture2D = preload("res://assets/icons/equipment/armour/swif
 const EMPTY_SLOT: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const COINS: Texture2D = preload("res://assets/icons/items/coins.png")
 const BRONZE_PICKAXE: Texture2D = preload("res://assets/icons/items/bronze_pickaxe.svg")
+const IRON_PICKAXE: Texture2D = preload("res://assets/icons/items/iron_pickaxe.svg")
+const STEEL_PICKAXE: Texture2D = preload("res://assets/icons/items/steel_pickaxe.svg")
+const MITHRIL_PICKAXE: Texture2D = preload("res://assets/icons/items/mithril_pickaxe.svg")
 const BRONZE_AXE: Texture2D = preload("res://assets/icons/items/bronze_axe.svg")
+const IRON_AXE: Texture2D = preload("res://assets/icons/items/iron_axe.svg")
+const STEEL_AXE: Texture2D = preload("res://assets/icons/items/steel_axe.svg")
+const MITHRIL_AXE: Texture2D = preload("res://assets/icons/items/mithril_axe.svg")
 const KNIFE: Texture2D = preload("res://assets/icons/items/tools/knife.svg")
 const CHISEL: Texture2D = preload("res://assets/icons/items/tools/chisel.svg")
 const SEWING_NEEDLE: Texture2D = preload("res://assets/icons/items/tools/sewing_needle.svg")
@@ -248,7 +258,13 @@ const ITEMS: Dictionary = {
 	"cooked_lobster": preload("res://assets/icons/items/fish/cooked_lobster.png"),
 	"coins": COINS,
 	"bronze_pickaxe": BRONZE_PICKAXE,
+	"iron_pickaxe": IRON_PICKAXE,
+	"steel_pickaxe": STEEL_PICKAXE,
+	"mithril_pickaxe": MITHRIL_PICKAXE,
 	"bronze_axe": BRONZE_AXE,
+	"iron_axe": IRON_AXE,
+	"steel_axe": STEEL_AXE,
+	"mithril_axe": MITHRIL_AXE,
 	"knife": KNIFE,
 	"chisel": CHISEL,
 	"sewing_needle": SEWING_NEEDLE,
@@ -306,15 +322,25 @@ const ITEMS: Dictionary = {
 	"iron_helm": IRON_HELM,
 	"iron_platebody": IRON_PLATE,
 	"iron_shield": EQUIPMENT_SLOTS["left_hand"], "iron_legs": EQUIPMENT_SLOTS["legs"], "iron_gloves": EQUIPMENT_SLOTS["hands"], "iron_boots": EQUIPMENT_SLOTS["feet"],
+	"steel_helm": STEEL_HELM,
+	"steel_platebody": STEEL_PLATE,
+	"steel_shield": EQUIPMENT_SLOTS["left_hand"], "steel_legs": EQUIPMENT_SLOTS["legs"], "steel_gloves": EQUIPMENT_SLOTS["hands"], "steel_boots": EQUIPMENT_SLOTS["feet"],
 	"mithril_helm": MITHRIL_HELM,
 	"mithril_platebody": MITHRIL_PLATE,
 	"mithril_shield": EQUIPMENT_SLOTS["left_hand"], "mithril_legs": EQUIPMENT_SLOTS["legs"], "mithril_gloves": EQUIPMENT_SLOTS["hands"], "mithril_boots": EQUIPMENT_SLOTS["feet"],
+	"adamantite_helm": ADAMANTITE_HELM,
+	"adamantite_platebody": ADAMANTITE_PLATE,
+	"adamantite_shield": EQUIPMENT_SLOTS["left_hand"], "adamantite_legs": EQUIPMENT_SLOTS["legs"], "adamantite_gloves": EQUIPMENT_SLOTS["hands"], "adamantite_boots": EQUIPMENT_SLOTS["feet"],
 	"training_plate": TRAINING_PLATE,
 	"swift_helm": SWIFT_HELM,
 	"swift_body": SWIFT_BODY,
 	"swift_boots": SWIFT_BOOTS,
 	"novice_robe_hood": TAB_MAGIC, "novice_robe_top": TAB_MAGIC, "novice_robe_gloves": TAB_MAGIC, "novice_robe_bottoms": TAB_MAGIC, "novice_robe_boots": TAB_MAGIC,
 	"novice_ranger_hood": BOW, "novice_ranger_body": BOW, "novice_ranger_gloves": BOW, "novice_ranger_legs": BOW, "novice_ranger_boots": BOW,
+	"scout_hood": BOW, "scout_body": BOW, "scout_gloves": BOW, "scout_legs": BOW, "scout_boots": BOW,
+	"tracker_hood": BOW, "tracker_body": BOW, "tracker_gloves": BOW, "tracker_legs": BOW, "tracker_boots": BOW,
+	"hunter_hood": BOW, "hunter_body": BOW, "hunter_gloves": BOW, "hunter_legs": BOW, "hunter_boots": BOW,
+	"marksman_hood": BOW, "marksman_body": BOW, "marksman_gloves": BOW, "marksman_legs": BOW, "marksman_boots": BOW,
 	"vanguard_cape": preload("res://assets/icons/equipment/capes/vanguard.svg"),
 	"wayfarer_cape": preload("res://assets/icons/equipment/capes/wayfarer.svg"),
 	"arcanist_cape": preload("res://assets/icons/equipment/capes/arcanist.svg"),

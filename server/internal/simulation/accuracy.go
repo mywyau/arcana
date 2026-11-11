@@ -1,12 +1,15 @@
 package simulation
 
 const (
+	minimumAccuracyChance = 0.20
+	maximumAccuracyChance = 0.95
+	baseAccuracyChance    = 0.50
+	accuracyCurveStrength = 0.45
+	accuracyCurveScale    = 35.0
 	minimumDodgeChance    = 0.0
-	maximumDodgeChance    = 0.90
-	baseMissChance        = 0.45
-	baseMissCurveScale    = 30.0
-	accuracyCurveScale    = 50.0
-	evasionCurveStrength  = 0.30
+	maximumDodgeChance    = 0.60
+	evasionCurveScale     = 50.0
+	evasionCurveStrength  = 0.35
 	dummyAccuracyScore    = 11
 	dummyEvasionScore     = 5
 	defaultBaseDodgeBonus = 0.0
@@ -57,27 +60,39 @@ func combatStyleAccuracyBonus(style CombatStyleID) int {
 	}
 }
 
+func calculatedAccuracyChance(accuracyScore int) float64 {
+	accuracy := float64(max(0, accuracyScore))
+	chance := baseAccuracyChance + accuracyCurveStrength*accuracy/(accuracy+accuracyCurveScale)
+	return max(minimumAccuracyChance, min(chance, maximumAccuracyChance))
+}
+
 func calculatedDodgeChance(accuracyScore, evasionScore int, dodgeBonus float64) float64 {
 	accuracy := float64(max(0, accuracyScore))
 	evasion := float64(max(0, evasionScore))
-	// Accuracy first overcomes an inherent chance to miss. This keeps early
-	// combat from approaching guaranteed hits while allowing levels and gear to
-	// steadily improve reliability. Evasion is a separate, smaller contribution
-	// which still accounts for both the defender and the attacker's accuracy.
-	chance := dodgeBonus + baseMissChance*baseMissCurveScale/(accuracy+baseMissCurveScale)
+	// Dodge is deliberately separate from the attacker's chance to miss. This
+	// keeps early accuracy and Agility/equipment evasion independently tunable.
+	chance := dodgeBonus
 	if evasion > 0 {
-		chance += evasionCurveStrength * evasion / (accuracy + evasion + accuracyCurveScale)
+		chance += evasionCurveStrength * evasion / (accuracy + evasion + evasionCurveScale)
 	}
 	return max(minimumDodgeChance, min(chance, maximumDodgeChance))
 }
 
+func targetAccuracyChance(player *playerState, weapon WeaponDefinition) float64 {
+	chance := calculatedAccuracyChance(playerAccuracyScore(player, weapon)) + prayerHitChanceBonus(player, weapon)
+	return min(maximumAccuracyChance, chance)
+}
+
 func targetDodgeChance(player *playerState, target *TargetSnapshot, weapon WeaponDefinition) float64 {
-	dodgeChance := calculatedDodgeChance(
+	return calculatedDodgeChance(
 		playerAccuracyScore(player, weapon),
 		targetEvasion(target),
 		target.DodgeRate,
 	)
-	return max(minimumDodgeChance, dodgeChance-prayerHitChanceBonus(player, weapon))
+}
+
+func targetHitChance(player *playerState, target *TargetSnapshot, weapon WeaponDefinition) float64 {
+	return targetAccuracyChance(player, weapon) * (1 - targetDodgeChance(player, target, weapon))
 }
 
 func targetEvasion(target *TargetSnapshot) int {
@@ -89,4 +104,8 @@ func targetEvasion(target *TargetSnapshot) int {
 
 func playerDodgeChance(attackerAccuracy int, player *playerState) float64 {
 	return calculatedDodgeChance(attackerAccuracy, playerEvasionScore(player), effectivePlayerDodgeRate(player))
+}
+
+func playerHitChance(attackerAccuracy int, player *playerState) float64 {
+	return calculatedAccuracyChance(attackerAccuracy) * (1 - playerDodgeChance(attackerAccuracy, player))
 }

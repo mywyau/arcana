@@ -29,12 +29,24 @@ const (
 	ItemIronLegs           = "iron_legs"
 	ItemIronGloves         = "iron_gloves"
 	ItemIronBoots          = "iron_boots"
+	ItemSteelHelm          = "steel_helm"
+	ItemSteelPlate         = "steel_platebody"
+	ItemSteelShield        = "steel_shield"
+	ItemSteelLegs          = "steel_legs"
+	ItemSteelGloves        = "steel_gloves"
+	ItemSteelBoots         = "steel_boots"
 	ItemMithrilHelm        = "mithril_helm"
 	ItemMithrilPlate       = "mithril_platebody"
 	ItemMithrilShield      = "mithril_shield"
 	ItemMithrilLegs        = "mithril_legs"
 	ItemMithrilGloves      = "mithril_gloves"
 	ItemMithrilBoots       = "mithril_boots"
+	ItemAdamantiteHelm     = "adamantite_helm"
+	ItemAdamantitePlate    = "adamantite_platebody"
+	ItemAdamantiteShield   = "adamantite_shield"
+	ItemAdamantiteLegs     = "adamantite_legs"
+	ItemAdamantiteGloves   = "adamantite_gloves"
+	ItemAdamantiteBoots    = "adamantite_boots"
 	ItemTrainingPlate      = "training_plate"
 	ItemSwiftHelm          = "swift_helm"
 	ItemSwiftBody          = "swift_body"
@@ -49,6 +61,26 @@ const (
 	ItemNoviceRangerGloves = "novice_ranger_gloves"
 	ItemNoviceRangerLegs   = "novice_ranger_legs"
 	ItemNoviceRangerBoots  = "novice_ranger_boots"
+	ItemScoutHood          = "scout_hood"
+	ItemScoutBody          = "scout_body"
+	ItemScoutGloves        = "scout_gloves"
+	ItemScoutLegs          = "scout_legs"
+	ItemScoutBoots         = "scout_boots"
+	ItemTrackerHood        = "tracker_hood"
+	ItemTrackerBody        = "tracker_body"
+	ItemTrackerGloves      = "tracker_gloves"
+	ItemTrackerLegs        = "tracker_legs"
+	ItemTrackerBoots       = "tracker_boots"
+	ItemHunterHood         = "hunter_hood"
+	ItemHunterBody         = "hunter_body"
+	ItemHunterGloves       = "hunter_gloves"
+	ItemHunterLegs         = "hunter_legs"
+	ItemHunterBoots        = "hunter_boots"
+	ItemMarksmanHood       = "marksman_hood"
+	ItemMarksmanBody       = "marksman_body"
+	ItemMarksmanGloves     = "marksman_gloves"
+	ItemMarksmanLegs       = "marksman_legs"
+	ItemMarksmanBoots      = "marksman_boots"
 	ItemVanguardCape       = "vanguard_cape"
 	ItemWayfarerCape       = "wayfarer_cape"
 	ItemArcanistCape       = "arcanist_cape"
@@ -65,7 +97,12 @@ const (
 	ItemRangedTyrantsRing  = "ranged_tyrants_ring"
 	ItemMageTyrantsRing    = "mage_tyrants_ring"
 
-	armourSetSwift ArmourSetID = "swift"
+	armourSetSwift        ArmourSetID = "swift"
+	armourSetNoviceRanger ArmourSetID = "novice_ranger"
+	armourSetScout        ArmourSetID = "scout"
+	armourSetTracker      ArmourSetID = "tracker"
+	armourSetHunter       ArmourSetID = "hunter"
+	armourSetMarksman     ArmourSetID = "marksman"
 
 	minimumAttackIntervalPulses = 2
 )
@@ -102,7 +139,12 @@ type ArmourSetDefinition struct {
 }
 
 var armourSetDefinitions = map[ArmourSetID]ArmourSetDefinition{
-	armourSetSwift: {RequiredPieces: 3, AttackIntervalModifier: -1},
+	armourSetSwift:        {RequiredPieces: 3, AttackIntervalModifier: -1},
+	armourSetNoviceRanger: {RequiredPieces: 5},
+	armourSetScout:        {RequiredPieces: 5},
+	armourSetTracker:      {RequiredPieces: 5},
+	armourSetHunter:       {RequiredPieces: 5},
+	armourSetMarksman:     {RequiredPieces: 5},
 }
 
 func armourSlot(itemID string) (ArmourSlot, bool) {

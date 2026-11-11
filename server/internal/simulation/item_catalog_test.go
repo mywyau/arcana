@@ -33,15 +33,23 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemIronHelm, ItemKindArmour},
 		{ItemIronPlate, ItemKindArmour},
 		{ItemIronShield, ItemKindArmour}, {ItemIronLegs, ItemKindArmour}, {ItemIronGloves, ItemKindArmour}, {ItemIronBoots, ItemKindArmour},
+		{ItemSteelHelm, ItemKindArmour}, {ItemSteelPlate, ItemKindArmour},
+		{ItemSteelShield, ItemKindArmour}, {ItemSteelLegs, ItemKindArmour}, {ItemSteelGloves, ItemKindArmour}, {ItemSteelBoots, ItemKindArmour},
 		{ItemMithrilHelm, ItemKindArmour},
 		{ItemMithrilPlate, ItemKindArmour},
 		{ItemMithrilShield, ItemKindArmour}, {ItemMithrilLegs, ItemKindArmour}, {ItemMithrilGloves, ItemKindArmour}, {ItemMithrilBoots, ItemKindArmour},
+		{ItemAdamantiteHelm, ItemKindArmour}, {ItemAdamantitePlate, ItemKindArmour},
+		{ItemAdamantiteShield, ItemKindArmour}, {ItemAdamantiteLegs, ItemKindArmour}, {ItemAdamantiteGloves, ItemKindArmour}, {ItemAdamantiteBoots, ItemKindArmour},
 		{ItemTrainingPlate, ItemKindArmour},
 		{ItemSwiftHelm, ItemKindArmour},
 		{ItemSwiftBody, ItemKindArmour},
 		{ItemSwiftBoots, ItemKindArmour},
 		{ItemNoviceRobeHood, ItemKindArmour}, {ItemNoviceRobeTop, ItemKindArmour}, {ItemNoviceRobeGloves, ItemKindArmour}, {ItemNoviceRobeBottoms, ItemKindArmour}, {ItemNoviceRobeBoots, ItemKindArmour},
 		{ItemNoviceRangerHood, ItemKindArmour}, {ItemNoviceRangerBody, ItemKindArmour}, {ItemNoviceRangerGloves, ItemKindArmour}, {ItemNoviceRangerLegs, ItemKindArmour}, {ItemNoviceRangerBoots, ItemKindArmour},
+		{ItemScoutHood, ItemKindArmour}, {ItemScoutBody, ItemKindArmour}, {ItemScoutGloves, ItemKindArmour}, {ItemScoutLegs, ItemKindArmour}, {ItemScoutBoots, ItemKindArmour},
+		{ItemTrackerHood, ItemKindArmour}, {ItemTrackerBody, ItemKindArmour}, {ItemTrackerGloves, ItemKindArmour}, {ItemTrackerLegs, ItemKindArmour}, {ItemTrackerBoots, ItemKindArmour},
+		{ItemHunterHood, ItemKindArmour}, {ItemHunterBody, ItemKindArmour}, {ItemHunterGloves, ItemKindArmour}, {ItemHunterLegs, ItemKindArmour}, {ItemHunterBoots, ItemKindArmour},
+		{ItemMarksmanHood, ItemKindArmour}, {ItemMarksmanBody, ItemKindArmour}, {ItemMarksmanGloves, ItemKindArmour}, {ItemMarksmanLegs, ItemKindArmour}, {ItemMarksmanBoots, ItemKindArmour},
 		{ItemVanguardCape, ItemKindArmour}, {ItemWayfarerCape, ItemKindArmour}, {ItemArcanistCape, ItemKindArmour},
 		{ItemAmuletFerocity, ItemKindArmour},
 		{ItemAmuletHawk, ItemKindArmour},
@@ -79,7 +87,9 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemBones, ItemKindResource},
 		{ItemCoins, ItemKindResource},
 		{ItemBronzePickaxe, ItemKindResource},
+		{ItemIronPickaxe, ItemKindResource}, {ItemSteelPickaxe, ItemKindResource}, {ItemMithrilPickaxe, ItemKindResource},
 		{ItemBronzeAxe, ItemKindResource},
+		{ItemIronAxe, ItemKindResource}, {ItemSteelAxe, ItemKindResource}, {ItemMithrilAxe, ItemKindResource},
 		{ItemKnife, ItemKindResource},
 		{ItemChisel, ItemKindResource},
 		{ItemSewingNeedle, ItemKindResource},
@@ -154,6 +164,16 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 			t.Errorf("%s stack limit = %d, want 1", itemID, definition.StackLimit)
 		}
 	}
+	toolBonuses := map[string]float64{
+		ItemBronzePickaxe: 0, ItemIronPickaxe: 0.05, ItemSteelPickaxe: 0.10, ItemMithrilPickaxe: 0.15,
+		ItemBronzeAxe: 0, ItemIronAxe: 0.05, ItemSteelAxe: 0.10, ItemMithrilAxe: 0.15,
+	}
+	for itemID, wantBonus := range toolBonuses {
+		definition, _ := itemDefinition(itemID)
+		if definition.StackLimit != 1 || definition.GatheringTool.Family == "" || definition.GatheringTool.SuccessBonus != wantBonus {
+			t.Errorf("gathering tool %q = %+v, want bonus %.2f", itemID, definition, wantBonus)
+		}
+	}
 	if definition, _ := itemDefinition(ItemThread); definition.StackLimit != 100 {
 		t.Errorf("%s stack limit = %d, want 100", ItemThread, definition.StackLimit)
 	}
@@ -177,6 +197,53 @@ func TestGemAmuletsUsePlayerFacingGemNames(t *testing.T) {
 		definition, exists := itemDefinition(itemID)
 		if !exists || definition.Name != want {
 			t.Errorf("itemDefinition(%q).Name = %q, want %q", itemID, definition.Name, want)
+		}
+	}
+}
+
+func TestEquipmentProgressionUsesFiveLevelTiers(t *testing.T) {
+	tests := []struct {
+		itemIDs []string
+		skill   SkillID
+		level   int
+	}{
+		{[]string{string(WeaponBronzeSword)}, SkillAttack, 1},
+		{[]string{string(WeaponSword)}, SkillAttack, 5},
+		{[]string{string(WeaponSteelSword)}, SkillAttack, 10},
+		{[]string{string(WeaponMithrilSword)}, SkillAttack, 15},
+		{[]string{string(WeaponRuneSword)}, SkillAttack, 25},
+		{[]string{string(WeaponBow)}, SkillRange, 1},
+		{[]string{string(WeaponOakShortbow)}, SkillRange, 5},
+		{[]string{string(WeaponWillowShortbow)}, SkillRange, 10},
+		{[]string{string(WeaponMapleShortbow)}, SkillRange, 15},
+		{[]string{string(WeaponYewShortbow)}, SkillRange, 20},
+		{[]string{ItemBronzeHelm, ItemBronzePlate, ItemBronzeShield, ItemBronzeLegs, ItemBronzeGloves, ItemBronzeBoots}, SkillDefence, 1},
+		{[]string{ItemIronHelm, ItemIronPlate, ItemIronShield, ItemIronLegs, ItemIronGloves, ItemIronBoots}, SkillDefence, 5},
+		{[]string{ItemSteelHelm, ItemSteelPlate, ItemSteelShield, ItemSteelLegs, ItemSteelGloves, ItemSteelBoots}, SkillDefence, 10},
+		{[]string{ItemMithrilHelm, ItemMithrilPlate, ItemMithrilShield, ItemMithrilLegs, ItemMithrilGloves, ItemMithrilBoots}, SkillDefence, 15},
+		{[]string{ItemAdamantiteHelm, ItemAdamantitePlate, ItemAdamantiteShield, ItemAdamantiteLegs, ItemAdamantiteGloves, ItemAdamantiteBoots}, SkillDefence, 20},
+		{[]string{ItemBronzeArrow, ItemBronzeBolt}, SkillRange, 1},
+		{[]string{ItemIronArrow, ItemIronBolt}, SkillRange, 5},
+		{[]string{ItemSteelArrow, ItemSteelBolt}, SkillRange, 10},
+		{[]string{ItemMithrilArrow, ItemMithrilBolt}, SkillRange, 15},
+		{[]string{ItemAdamantiteArrow, ItemAdamantiteBolt}, SkillRange, 20},
+		{[]string{ItemBronzePickaxe}, SkillMining, 1},
+		{[]string{ItemIronPickaxe}, SkillMining, 5},
+		{[]string{ItemSteelPickaxe}, SkillMining, 10},
+		{[]string{ItemMithrilPickaxe}, SkillMining, 15},
+		{[]string{ItemBronzeAxe}, SkillWoodcutting, 1},
+		{[]string{ItemIronAxe}, SkillWoodcutting, 5},
+		{[]string{ItemSteelAxe}, SkillWoodcutting, 10},
+		{[]string{ItemMithrilAxe}, SkillWoodcutting, 15},
+	}
+
+	for _, test := range tests {
+		for _, itemID := range test.itemIDs {
+			definition, exists := itemDefinition(itemID)
+			if !exists || len(definition.EquipRequirements) != 1 ||
+				definition.EquipRequirements[0] != (SkillRequirement{Skill: test.skill, Level: test.level}) {
+				t.Errorf("item %q requirements = %+v, want %s level %d", itemID, definition.EquipRequirements, test.skill, test.level)
+			}
 		}
 	}
 }

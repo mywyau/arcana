@@ -28,10 +28,14 @@ func newAmmunitionPouch() inventoryState {
 	return inventoryState{capacity: BaseAmmunitionPouchUnlocked}
 }
 
-func ammunitionForWeapon(pouch inventoryState, weapon WeaponDefinition) (ItemCost, int, bool) {
+func ammunitionForWeapon(player *playerState, weapon WeaponDefinition) (ItemCost, int, bool) {
 	if weapon.Ammunition.Quantity <= 0 {
 		return ItemCost{}, 0, true
 	}
+	if player == nil {
+		return ItemCost{}, 0, false
+	}
+	pouch := player.ammunitionPouch
 	for slot := 0; slot < pouch.capacity; slot++ {
 		item, exists := inventoryItemAt(pouch, slot)
 		if !exists {
@@ -39,6 +43,9 @@ func ammunitionForWeapon(pouch inventoryState, weapon WeaponDefinition) (ItemCos
 		}
 		definition, defined := itemDefinition(item.ItemID)
 		if !defined || definition.AmmunitionFamily != weapon.AmmunitionFamily || item.Quantity < weapon.Ammunition.Quantity {
+			continue
+		}
+		if _, unmet := unmetEquipRequirement(player, definition); unmet {
 			continue
 		}
 		return ItemCost{ItemID: item.ItemID, Quantity: weapon.Ammunition.Quantity}, definition.AmmunitionStrength, true
@@ -50,7 +57,7 @@ func ammunitionStrengthForPlayer(player *playerState, weapon WeaponDefinition) i
 	if player == nil {
 		return 0
 	}
-	_, strength, available := ammunitionForWeapon(player.ammunitionPouch, weapon)
+	_, strength, available := ammunitionForWeapon(player, weapon)
 	if !available {
 		return 0
 	}
@@ -125,6 +132,9 @@ func ammunitionTransferAfter(player *playerState, command AmmunitionTransferComm
 		definition, defined := itemDefinition(item.ItemID)
 		if !exists || !defined || !definition.Ammunition {
 			return inventoryState{}, inventoryState{}, fmt.Errorf("inventory slot %d does not contain ammunition", command.InventorySlot)
+		}
+		if requirement, unmet := unmetEquipRequirement(player, definition); unmet {
+			return inventoryState{}, inventoryState{}, fmt.Errorf("item %q requires %s level %d", item.ItemID, requirement.Skill, requirement.Level)
 		}
 		if _, removed := removeInventorySlot(&inventory, command.InventorySlot); !removed || !pouch.add(item.ItemID, item.Quantity) {
 			return inventoryState{}, inventoryState{}, fmt.Errorf("ammunition pouch has no unlocked slot for %q", item.ItemID)

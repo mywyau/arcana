@@ -25,7 +25,9 @@ type reinforcementTier struct {
 
 var bronzeReinforcement = reinforcementTier{Bar: ItemBronzeBar, RequiredLevel: 2, XPPerBar: 10}
 var ironReinforcement = reinforcementTier{Bar: ItemIronBar, RequiredLevel: 5, XPPerBar: 18}
+var steelReinforcement = reinforcementTier{Bar: ItemSteelBar, RequiredLevel: 7, XPPerBar: 28}
 var mithrilReinforcement = reinforcementTier{Bar: ItemMithrilBar, RequiredLevel: 8, XPPerBar: 30}
+var adamantiteReinforcement = reinforcementTier{Bar: ItemAdamantiteBar, RequiredLevel: 11, XPPerBar: 65}
 
 var reinforcementTiers = map[string]reinforcementTier{
 	string(WeaponBronzeSword): bronzeReinforcement,
@@ -36,10 +38,16 @@ var reinforcementTiers = map[string]reinforcementTier{
 	ItemIronHelm:        ironReinforcement, ItemIronPlate: ironReinforcement,
 	ItemIronShield: ironReinforcement, ItemIronLegs: ironReinforcement,
 	ItemIronGloves: ironReinforcement, ItemIronBoots: ironReinforcement,
+	ItemSteelHelm: steelReinforcement, ItemSteelPlate: steelReinforcement,
+	ItemSteelShield: steelReinforcement, ItemSteelLegs: steelReinforcement,
+	ItemSteelGloves: steelReinforcement, ItemSteelBoots: steelReinforcement,
 	string(WeaponMithrilSword): mithrilReinforcement,
 	ItemMithrilHelm:            mithrilReinforcement, ItemMithrilPlate: mithrilReinforcement,
 	ItemMithrilShield: mithrilReinforcement, ItemMithrilLegs: mithrilReinforcement,
 	ItemMithrilGloves: mithrilReinforcement, ItemMithrilBoots: mithrilReinforcement,
+	ItemAdamantiteHelm: adamantiteReinforcement, ItemAdamantitePlate: adamantiteReinforcement,
+	ItemAdamantiteShield: adamantiteReinforcement, ItemAdamantiteLegs: adamantiteReinforcement,
+	ItemAdamantiteGloves: adamantiteReinforcement, ItemAdamantiteBoots: adamantiteReinforcement,
 }
 
 func reinforcementRecipe(id string) (reinforcementRecipeDefinition, bool) {

@@ -8,11 +8,11 @@ func TestAttackLevelCurve(t *testing.T) {
 		level      int
 		next       int64
 	}{
-		{experience: 0, level: 1, next: 41},
-		{experience: 40, level: 1, next: 41},
-		{experience: 41, level: 2, next: 87},
-		{experience: 86, level: 2, next: 87},
-		{experience: 87, level: 3, next: 138},
+		{experience: 0, level: 1, next: 83},
+		{experience: 82, level: 1, next: 83},
+		{experience: 83, level: 2, next: 174},
+		{experience: 173, level: 2, next: 174},
+		{experience: 174, level: 3, next: 276},
 	}
 	for _, test := range tests {
 		if got := SkillLevelForExperience(test.experience); got != test.level {
@@ -21,6 +21,19 @@ func TestAttackLevelCurve(t *testing.T) {
 		if got := SkillExperienceForLevel(test.level + 1); got != test.next {
 			t.Errorf("next XP after level %d = %d, want %d", test.level, got, test.next)
 		}
+	}
+}
+
+func TestSkillCurveUsesLevelNinetyNineCap(t *testing.T) {
+	maximumExperience := SkillExperienceForLevel(MaximumSkillLevel)
+	if MaximumSkillLevel != 99 {
+		t.Fatalf("maximum skill level = %d, want 99", MaximumSkillLevel)
+	}
+	if maximumExperience != 13_034_431 {
+		t.Fatalf("level 99 XP = %d, want 13034431", maximumExperience)
+	}
+	if got := SkillLevelForExperience(maximumExperience + 1_000_000); got != MaximumSkillLevel {
+		t.Fatalf("level above maximum XP = %d, want %d", got, MaximumSkillLevel)
 	}
 }
 
@@ -119,14 +132,14 @@ func TestDebugSkillShrineSetsExactExperience(t *testing.T) {
 	mustAddPlayer(t, world, "player-one", shrine.Position, 4)
 	if err := world.QueueDebugSetSkill(DebugSetSkillCommand{
 		PlayerID: "player-one", Sequence: 1, Skill: SkillMagic,
-		Experience: 86, SetExperience: true,
+		Experience: 173, SetExperience: true,
 	}); err != nil {
 		t.Fatalf("QueueDebugSetSkill() returned an unexpected error: %v", err)
 	}
 	world.Step(50)
 	magic := mustSkill(t, mustPlayer(t, world, "player-one"), SkillMagic)
-	if magic.Level != 2 || magic.Experience != 86 {
-		t.Fatalf("Magic = %+v, want level 2 with 86 XP", magic)
+	if magic.Level != 2 || magic.Experience != 173 {
+		t.Fatalf("Magic = %+v, want level 2 with 173 XP", magic)
 	}
 }
 

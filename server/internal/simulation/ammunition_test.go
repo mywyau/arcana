@@ -18,6 +18,7 @@ func TestAmmunitionTransferMovesWholeStackBothWays(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	player := world.players["player-one"]
+	player.skills[SkillRange] = SkillExperienceForLevel(ironEquipmentLevel)
 	if !player.inventory.add(ItemIronArrow, 25) {
 		t.Fatal("could not add iron arrows")
 	}
@@ -58,20 +59,35 @@ func TestAmmunitionPouchRejectsNonAmmunition(t *testing.T) {
 	}
 }
 
+func TestAmmunitionPouchRejectsTierAboveRangeLevel(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	world.players["player-one"].inventory.add(ItemIronArrow, 5)
+	err := world.QueueAmmunitionTransfer(AmmunitionTransferCommand{
+		PlayerID: "player-one", Sequence: 1, Deposit: true, InventorySlot: 0,
+	})
+	if err == nil {
+		t.Fatal("QueueAmmunitionTransfer() error = nil below the ammunition requirement")
+	}
+}
+
 func TestWeaponUsesFirstCompatibleAmmunitionSlotAndTierStrength(t *testing.T) {
 	bow, _ := weaponDefinition(WeaponBow)
-	pouch := newAmmunitionPouch()
-	if !pouch.add(ItemBronzeArrow, 1) || !pouch.add(ItemMithrilArrow, 5) {
+	player := &playerState{skills: newDefaultSkills(), ammunitionPouch: newAmmunitionPouch()}
+	player.skills[SkillRange] = SkillExperienceForLevel(mithrilEquipmentLevel)
+	if !player.ammunitionPouch.add(ItemBronzeArrow, 1) || !player.ammunitionPouch.add(ItemMithrilArrow, 5) {
 		t.Fatal("could not fill ammunition pouch")
 	}
-	cost, strength, available := ammunitionForWeapon(pouch, bow)
+	cost, strength, available := ammunitionForWeapon(player, bow)
 	if !available || cost.ItemID != ItemBronzeArrow || strength != -1 {
 		t.Fatalf("first ammunition = %+v, strength %d, available %t", cost, strength, available)
 	}
-	if !payItemCosts(&pouch, []ItemCost{cost}) {
+	if !payItemCosts(&player.ammunitionPouch, []ItemCost{cost}) {
 		t.Fatal("could not consume bronze arrow")
 	}
-	cost, strength, available = ammunitionForWeapon(pouch, bow)
+	cost, strength, available = ammunitionForWeapon(player, bow)
 	if !available || cost.ItemID != ItemMithrilArrow || strength != 2 {
 		t.Fatalf("second ammunition = %+v, strength %d, available %t", cost, strength, available)
 	}

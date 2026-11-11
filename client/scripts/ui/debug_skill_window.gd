@@ -85,7 +85,7 @@ func _build_level_row() -> HBoxContainer:
 	row.add_child(_field_label("Level"))
 	_skill_level = SpinBox.new()
 	_skill_level.min_value = 1
-	_skill_level.max_value = 100
+	_skill_level.max_value = 99
 	_skill_level.rounded = true
 	_skill_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_skill_level)

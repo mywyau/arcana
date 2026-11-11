@@ -54,7 +54,13 @@ const (
 	ItemBones                  = "bones"
 	ItemCoins                  = "coins"
 	ItemBronzePickaxe          = "bronze_pickaxe"
+	ItemIronPickaxe            = "iron_pickaxe"
+	ItemSteelPickaxe           = "steel_pickaxe"
+	ItemMithrilPickaxe         = "mithril_pickaxe"
 	ItemBronzeAxe              = "bronze_axe"
+	ItemIronAxe                = "iron_axe"
+	ItemSteelAxe               = "steel_axe"
+	ItemMithrilAxe             = "mithril_axe"
 	ItemKnife                  = "knife"
 	ItemChisel                 = "chisel"
 	ItemSewingNeedle           = "sewing_needle"
@@ -117,6 +123,13 @@ const (
 const (
 	AmmunitionFamilyArrow = "arrow"
 	AmmunitionFamilyBolt  = "bolt"
+
+	bronzeEquipmentLevel     = 1
+	ironEquipmentLevel       = 5
+	steelEquipmentLevel      = 10
+	mithrilEquipmentLevel    = 15
+	adamantiteEquipmentLevel = 20
+	runeEquipmentLevel       = 25
 )
 
 type ConsumableDefinition struct {
@@ -137,6 +150,11 @@ type SkillRequirement struct {
 	Level int
 }
 
+type GatheringToolDefinition struct {
+	Family       string
+	SuccessBonus float64
+}
+
 // ItemDefinition is the authoritative gameplay definition for one stable item
 // ID. Definitions are currently declared in Go; the registry boundary allows
 // them to move to validated data files without changing combat or inventory.
@@ -154,6 +172,7 @@ type ItemDefinition struct {
 	Armour             ArmourDefinition
 	Spellbook          SpellbookID
 	Consumable         ConsumableDefinition
+	GatheringTool      GatheringToolDefinition
 }
 
 var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
@@ -164,26 +183,27 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponSword), Name: "Iron Sword", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: ironEquipmentLevel}},
 		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponSword, AccuracyBonus: 10, MeleeStrength: swordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponBronzeSword), Name: "Bronze Sword", Kind: ItemKindWeapon,
-		Weapon: swordWeapon(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 7, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: bronzeEquipmentLevel}},
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 7, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 10}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: steelEquipmentLevel}},
 		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponSteelSword, AccuracyBonus: 12, MeleeStrength: steelSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponMithrilSword), Name: "Mithril Sword", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 17}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: mithrilEquipmentLevel}},
 		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponRuneSword), Name: "Rune Sword", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 20}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: runeEquipmentLevel}},
 		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponRuneSword, AccuracyBonus: 40, MeleeStrength: runeSwordMeleeStrength, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
@@ -192,30 +212,31 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponBow), Name: "Shortbow", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}},
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponBow, TwoHanded: true, AccuracyBonus: 12, RangedStrength: bowRangedStrength, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
 		ID: string(WeaponOakShortbow), Name: "Oak Shortbow", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}},
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponOakShortbow, TwoHanded: true, AccuracyBonus: 14, RangedStrength: 14, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
 		ID: string(WeaponWillowShortbow), Name: "Willow Shortbow", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}},
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponWillowShortbow, TwoHanded: true, AccuracyBonus: 16, RangedStrength: 16, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
 		ID: string(WeaponMapleShortbow), Name: "Maple Shortbow", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}},
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponMapleShortbow, TwoHanded: true, AccuracyBonus: 19, RangedStrength: 19, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
 	{
 		ID: string(WeaponYewShortbow), Name: "Yew Shortbow", Kind: ItemKindWeapon,
-		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 30}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}},
 		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponYewShortbow, TwoHanded: true, AccuracyBonus: 23, RangedStrength: 23, DamageVariance: bowDamageVariance, AttackInterval: bowAttackIntervalPulses, Range: bowRange, ApproachRange: bowApproachRange, Ammunition: ItemCost{ItemID: ItemIronArrow, Quantity: 1}, AmmunitionFamily: AmmunitionFamilyArrow}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeRanged), weaponStyle(CombatStyleAccurate, DamageTypeRanged), weaponStyle(CombatStyleLongRange, DamageTypeRanged)),
 	},
@@ -255,44 +276,74 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: ItemBronzeHelm, Name: "Bronze Helm", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 3, Ranged: 1, Magic: -1}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 3, Ranged: 2, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}},
 	},
 	{
 		ID: ItemBronzePlate, Name: "Bronze Platebody", Kind: ItemKindArmour,
-		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 6, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 3, Magic: -2}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 6, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 5, Magic: -2}},
 	},
-	{ID: ItemBronzeShield, Name: "Bronze Shield", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 6, Ranged: 4, Magic: -2}}},
-	{ID: ItemBronzeLegs, Name: "Bronze Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 3, Ranged: 2, Magic: -1}}},
-	{ID: ItemBronzeGloves, Name: "Bronze Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Slash: 2, Crush: 2, Ranged: 1}}},
-	{ID: ItemBronzeBoots, Name: "Bronze Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 1, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 1}}},
+	{ID: ItemBronzeShield, Name: "Bronze Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 6, Ranged: 5, Magic: -2}}},
+	{ID: ItemBronzeLegs, Name: "Bronze Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 3, Ranged: 3, Magic: -1}}},
+	{ID: ItemBronzeGloves, Name: "Bronze Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Slash: 2, Crush: 2, Ranged: 1}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{ID: ItemBronzeBoots, Name: "Bronze Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 1, Defence: DefenceBonuses{Stab: 2, Slash: 2, Crush: 1, Ranged: 2}}},
 	{
 		ID: ItemIronHelm, Name: "Iron Helm", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 4, Ranged: 2, Magic: -1}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: ironEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 4, Ranged: 4, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}},
 	},
 	{
 		ID: ItemIronPlate, Name: "Iron Platebody", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 10, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 9, Ranged: 7, Magic: -3}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: ironEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 10, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 9, Ranged: 9, Magic: -3}, Offence: OffenceBonuses{MeleeAccuracy: 1}},
 	},
-	{ID: ItemIronShield, Name: "Iron Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 9, Crush: 11, Ranged: 7, Magic: -3}}},
-	{ID: ItemIronLegs, Name: "Iron Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 7, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 6, Ranged: 5, Magic: -2}}},
-	{ID: ItemIronGloves, Name: "Iron Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 3, Crush: 4, Ranged: 2, Magic: -1}}},
-	{ID: ItemIronBoots, Name: "Iron Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 4, Crush: 3, Ranged: 2, Magic: -1}}},
+	{ID: ItemIronShield, Name: "Iron Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: ironEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 9, Crush: 11, Ranged: 9, Magic: -3}}},
+	{ID: ItemIronLegs, Name: "Iron Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: ironEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 7, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 6, Ranged: 6, Magic: -2}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{ID: ItemIronGloves, Name: "Iron Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: ironEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 3, Crush: 4, Ranged: 2, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{ID: ItemIronBoots, Name: "Iron Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: ironEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Slash: 4, Crush: 3, Ranged: 3, Magic: -1}}},
+	{
+		ID: ItemSteelHelm, Name: "Steel Helm", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: steelEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 5, Defence: DefenceBonuses{Stab: 6, Slash: 7, Crush: 6, Ranged: 6, Magic: -2}, Offence: OffenceBonuses{MeleeAccuracy: 1}},
+	},
+	{
+		ID: ItemSteelPlate, Name: "Steel Platebody", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: steelEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 12, Defence: DefenceBonuses{Stab: 13, Slash: 15, Crush: 11, Ranged: 12, Magic: -4}, Offence: OffenceBonuses{MeleeAccuracy: 2}},
+	},
+	{ID: ItemSteelShield, Name: "Steel Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: steelEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 6, Defence: DefenceBonuses{Stab: 10, Slash: 12, Crush: 14, Ranged: 12, Magic: -4}}},
+	{ID: ItemSteelLegs, Name: "Steel Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: steelEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 8, Defence: DefenceBonuses{Stab: 9, Slash: 10, Crush: 8, Ranged: 8, Magic: -2}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{ID: ItemSteelGloves, Name: "Steel Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: steelEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 5, Ranged: 3, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{ID: ItemSteelBoots, Name: "Steel Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: steelEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 4, Ranged: 4, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
 	{
 		ID: ItemMithrilHelm, Name: "Mithril Helm", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 6, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 4, Magic: -2}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: mithrilEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 6, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 8, Magic: -2}, Offence: OffenceBonuses{MeleeAccuracy: 2}},
 	},
 	{
 		ID: ItemMithrilPlate, Name: "Mithril Platebody", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 15, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 11, Magic: -5}},
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: mithrilEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 15, Defence: DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 15, Magic: -5}, Offence: OffenceBonuses{MeleeAccuracy: 2}},
 	},
-	{ID: ItemMithrilShield, Name: "Mithril Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 8, Defence: DefenceBonuses{Stab: 13, Slash: 15, Crush: 17, Ranged: 11, Magic: -5}}},
-	{ID: ItemMithrilLegs, Name: "Mithril Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 10, Defence: DefenceBonuses{Stab: 11, Slash: 13, Crush: 10, Ranged: 8, Magic: -3}}},
-	{ID: ItemMithrilGloves, Name: "Mithril Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 6, Ranged: 4, Magic: -1}}},
-	{ID: ItemMithrilBoots, Name: "Mithril Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 17}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 5, Ranged: 4, Magic: -1}}},
+	{ID: ItemMithrilShield, Name: "Mithril Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: mithrilEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 8, Defence: DefenceBonuses{Stab: 13, Slash: 15, Crush: 17, Ranged: 15, Magic: -5}}},
+	{ID: ItemMithrilLegs, Name: "Mithril Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: mithrilEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 10, Defence: DefenceBonuses{Stab: 11, Slash: 13, Crush: 10, Ranged: 10, Magic: -3}, Offence: OffenceBonuses{MeleeAccuracy: 2}}},
+	{ID: ItemMithrilGloves, Name: "Mithril Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: mithrilEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 6, Ranged: 5, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{ID: ItemMithrilBoots, Name: "Mithril Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: mithrilEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 3, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 5, Ranged: 5, Magic: -1}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
+	{
+		ID: ItemAdamantiteHelm, Name: "Adamantite Helm", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: adamantiteEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotHead, HealthBonus: 8, Defence: DefenceBonuses{Stab: 10, Slash: 11, Crush: 10, Ranged: 10, Magic: -3}, Offence: OffenceBonuses{MeleeAccuracy: 2}},
+	},
+	{
+		ID: ItemAdamantitePlate, Name: "Adamantite Platebody", Kind: ItemKindArmour,
+		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: adamantiteEquipmentLevel}},
+		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 20, Defence: DefenceBonuses{Stab: 21, Slash: 24, Crush: 19, Ranged: 20, Magic: -6}, Offence: OffenceBonuses{MeleeAccuracy: 3}},
+	},
+	{ID: ItemAdamantiteShield, Name: "Adamantite Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: adamantiteEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 10, Defence: DefenceBonuses{Stab: 17, Slash: 19, Crush: 22, Ranged: 19, Magic: -6}}},
+	{ID: ItemAdamantiteLegs, Name: "Adamantite Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: adamantiteEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 13, Defence: DefenceBonuses{Stab: 15, Slash: 17, Crush: 13, Ranged: 14, Magic: -4}, Offence: OffenceBonuses{MeleeAccuracy: 2}}},
+	{ID: ItemAdamantiteGloves, Name: "Adamantite Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: adamantiteEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, HealthBonus: 4, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 8, Ranged: 6, Magic: -2}, Offence: OffenceBonuses{MeleeAccuracy: 2}}},
+	{ID: ItemAdamantiteBoots, Name: "Adamantite Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: adamantiteEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, HealthBonus: 4, Defence: DefenceBonuses{Stab: 7, Slash: 8, Crush: 7, Ranged: 6, Magic: -2}, Offence: OffenceBonuses{MeleeAccuracy: 1}}},
 	{
 		ID: ItemTrainingPlate, Name: "Training Plate", Kind: ItemKindArmour,
 		Armour: ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 5, Defence: DefenceBonuses{Stab: 8, Slash: 10, Crush: 7, Ranged: 6, Magic: -2}},
@@ -317,11 +368,31 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemNoviceRobeGloves, Name: "Novice Robe Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 1}}},
 	{ID: ItemNoviceRobeBottoms, Name: "Novice Robe Bottoms", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, HealthBonus: 1, Defence: DefenceBonuses{Magic: 3}, Offence: OffenceBonuses{MagicAccuracy: 2, MagicStrength: 1}}},
 	{ID: ItemNoviceRobeBoots, Name: "Novice Robe Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 1, MagicStrength: 1}}},
-	{ID: ItemNoviceRangerHood, Name: "Novice Ranger Hood", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHead, EvasionBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 2, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
-	{ID: ItemNoviceRangerBody, Name: "Novice Ranger Body", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotBody, EvasionBonus: 2, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 1, Ranged: 4, Magic: 2}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
-	{ID: ItemNoviceRangerGloves, Name: "Novice Ranger Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1}}},
-	{ID: ItemNoviceRangerLegs, Name: "Novice Ranger Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, EvasionBonus: 1, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 3, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
-	{ID: ItemNoviceRangerBoots, Name: "Novice Ranger Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1, RangedStrength: 1}}},
+	{ID: ItemNoviceRangerHood, Name: "Novice Ranger Hood", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetNoviceRanger, EvasionBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 2, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemNoviceRangerBody, Name: "Novice Ranger Body", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetNoviceRanger, EvasionBonus: 2, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Slash: 1, Ranged: 4, Magic: 2}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemNoviceRangerGloves, Name: "Novice Ranger Gloves", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotHands, Set: armourSetNoviceRanger, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1}}},
+	{ID: ItemNoviceRangerLegs, Name: "Novice Ranger Legs", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLegs, Set: armourSetNoviceRanger, EvasionBonus: 1, HealthBonus: 1, Defence: DefenceBonuses{Stab: 1, Ranged: 3, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemNoviceRangerBoots, Name: "Novice Ranger Boots", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetNoviceRanger, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 1, RangedStrength: 1}}},
+	{ID: ItemScoutHood, Name: "Scout Hood", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetScout, EvasionBonus: 1, Defence: DefenceBonuses{Stab: 2, Ranged: 3, Magic: 1}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemScoutBody, Name: "Scout Body", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetScout, EvasionBonus: 2, HealthBonus: 3, Defence: DefenceBonuses{Stab: 3, Slash: 2, Ranged: 6, Magic: 3}, Offence: OffenceBonuses{RangedAccuracy: 4, RangedStrength: 2}}},
+	{ID: ItemScoutGloves, Name: "Scout Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, Set: armourSetScout, Defence: DefenceBonuses{Ranged: 2}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemScoutLegs, Name: "Scout Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, Set: armourSetScout, EvasionBonus: 1, HealthBonus: 2, Defence: DefenceBonuses{Stab: 2, Ranged: 4, Magic: 2}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 2}}},
+	{ID: ItemScoutBoots, Name: "Scout Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetScout, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 2}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemTrackerHood, Name: "Tracker Hood", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetTracker, EvasionBonus: 1, Defence: DefenceBonuses{Stab: 3, Ranged: 4, Magic: 2}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 1}}},
+	{ID: ItemTrackerBody, Name: "Tracker Body", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetTracker, EvasionBonus: 2, HealthBonus: 4, Defence: DefenceBonuses{Stab: 4, Slash: 3, Ranged: 8, Magic: 4}, Offence: OffenceBonuses{RangedAccuracy: 5, RangedStrength: 3}}},
+	{ID: ItemTrackerGloves, Name: "Tracker Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, Set: armourSetTracker, Defence: DefenceBonuses{Ranged: 2}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 1}}},
+	{ID: ItemTrackerLegs, Name: "Tracker Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, Set: armourSetTracker, EvasionBonus: 2, HealthBonus: 2, Defence: DefenceBonuses{Stab: 3, Ranged: 6, Magic: 3}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemTrackerBoots, Name: "Tracker Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 10}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetTracker, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 3}, Offence: OffenceBonuses{RangedAccuracy: 2, RangedStrength: 2}}},
+	{ID: ItemHunterHood, Name: "Hunter Hood", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 15}}, Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetHunter, EvasionBonus: 1, Defence: DefenceBonuses{Stab: 4, Ranged: 5, Magic: 3}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemHunterBody, Name: "Hunter Body", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 15}}, Armour: ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetHunter, EvasionBonus: 3, HealthBonus: 5, Defence: DefenceBonuses{Stab: 6, Slash: 4, Ranged: 10, Magic: 5}, Offence: OffenceBonuses{RangedAccuracy: 6, RangedStrength: 3}}},
+	{ID: ItemHunterGloves, Name: "Hunter Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 15}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, Set: armourSetHunter, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 3}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemHunterLegs, Name: "Hunter Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 15}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, Set: armourSetHunter, EvasionBonus: 2, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Ranged: 7, Magic: 4}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemHunterBoots, Name: "Hunter Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 15}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetHunter, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 4}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
+	{ID: ItemMarksmanHood, Name: "Marksman Hood", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}}, Armour: ArmourDefinition{Slot: ArmourSlotHead, Set: armourSetMarksman, EvasionBonus: 2, Defence: DefenceBonuses{Stab: 5, Ranged: 7, Magic: 4}, Offence: OffenceBonuses{RangedAccuracy: 4, RangedStrength: 2}}},
+	{ID: ItemMarksmanBody, Name: "Marksman Body", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}}, Armour: ArmourDefinition{Slot: ArmourSlotBody, Set: armourSetMarksman, EvasionBonus: 3, HealthBonus: 6, Defence: DefenceBonuses{Stab: 7, Slash: 5, Ranged: 12, Magic: 6}, Offence: OffenceBonuses{RangedAccuracy: 7, RangedStrength: 4}}},
+	{ID: ItemMarksmanGloves, Name: "Marksman Gloves", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}}, Armour: ArmourDefinition{Slot: ArmourSlotHands, Set: armourSetMarksman, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 4}, Offence: OffenceBonuses{RangedAccuracy: 4, RangedStrength: 2}}},
+	{ID: ItemMarksmanLegs, Name: "Marksman Legs", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}}, Armour: ArmourDefinition{Slot: ArmourSlotLegs, Set: armourSetMarksman, EvasionBonus: 2, HealthBonus: 4, Defence: DefenceBonuses{Stab: 5, Ranged: 9, Magic: 5}, Offence: OffenceBonuses{RangedAccuracy: 4, RangedStrength: 3}}},
+	{ID: ItemMarksmanBoots, Name: "Marksman Boots", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 20}}, Armour: ArmourDefinition{Slot: ArmourSlotFeet, Set: armourSetMarksman, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 5}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 3}}},
 	{ID: ItemVanguardCape, Name: "Vanguard Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, Defence: DefenceBonuses{Stab: 1, Slash: 1, Crush: 1}, Offence: OffenceBonuses{MeleeAccuracy: 3, MeleeStrength: 2}}},
 	{ID: ItemWayfarerCape, Name: "Wayfarer Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, EvasionBonus: 1, Defence: DefenceBonuses{Ranged: 1}, Offence: OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}}},
 	{ID: ItemArcanistCape, Name: "Arcanist Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 3, MagicStrength: 2}}},
@@ -409,20 +480,26 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemRuby, Name: "Ruby", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemUncutDiamond, Name: "Uncut Diamond", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemDiamond, Name: "Diamond", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemBronzeArrow, Name: "Bronze Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: -1},
-	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow},
-	{ID: ItemSteelArrow, Name: "Steel Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 1},
-	{ID: ItemMithrilArrow, Name: "Mithril Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 2},
-	{ID: ItemAdamantiteArrow, Name: "Adamantite Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 3},
-	{ID: ItemBronzeBolt, Name: "Bronze Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: -1},
-	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt},
-	{ID: ItemSteelBolt, Name: "Steel Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 1},
-	{ID: ItemMithrilBolt, Name: "Mithril Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 2},
-	{ID: ItemAdamantiteBolt, Name: "Adamantite Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 3},
+	{ID: ItemBronzeArrow, Name: "Bronze Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: -1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
+	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
+	{ID: ItemSteelArrow, Name: "Steel Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
+	{ID: ItemMithrilArrow, Name: "Mithril Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 2, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
+	{ID: ItemAdamantiteArrow, Name: "Adamantite Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 3, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
+	{ID: ItemBronzeBolt, Name: "Bronze Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: -1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
+	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
+	{ID: ItemSteelBolt, Name: "Steel Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
+	{ID: ItemMithrilBolt, Name: "Mithril Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 2, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
+	{ID: ItemAdamantiteBolt, Name: "Adamantite Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 3, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
 	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
-	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource},
-	{ID: ItemBronzeAxe, Name: "Bronze Axe", Kind: ItemKindResource},
+	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: bronzeEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe"}},
+	{ID: ItemIronPickaxe, Name: "Iron Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: ironEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe", SuccessBonus: 0.05}},
+	{ID: ItemSteelPickaxe, Name: "Steel Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: steelEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe", SuccessBonus: 0.10}},
+	{ID: ItemMithrilPickaxe, Name: "Mithril Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: mithrilEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe", SuccessBonus: 0.15}},
+	{ID: ItemBronzeAxe, Name: "Bronze Axe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillWoodcutting, Level: bronzeEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "axe"}},
+	{ID: ItemIronAxe, Name: "Iron Axe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillWoodcutting, Level: ironEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "axe", SuccessBonus: 0.05}},
+	{ID: ItemSteelAxe, Name: "Steel Axe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillWoodcutting, Level: steelEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "axe", SuccessBonus: 0.10}},
+	{ID: ItemMithrilAxe, Name: "Mithril Axe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillWoodcutting, Level: mithrilEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "axe", SuccessBonus: 0.15}},
 	{ID: ItemKnife, Name: "Knife", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemChisel, Name: "Chisel", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemSewingNeedle, Name: "Sewing Needle", Kind: ItemKindResource, StackLimit: 1},
@@ -558,6 +635,15 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		}
 		if definition.Ammunition && (definition.Kind != ItemKindResource || definition.AmmunitionFamily == "") {
 			return nil, fmt.Errorf("ammunition %q must be a resource with a family", definition.ID)
+		}
+		if definition.GatheringTool.Family != "" {
+			if definition.Kind != ItemKindResource ||
+				(definition.GatheringTool.Family != "pickaxe" && definition.GatheringTool.Family != "axe") ||
+				definition.GatheringTool.SuccessBonus < 0 || definition.GatheringTool.SuccessBonus > 0.50 {
+				return nil, fmt.Errorf("item %q has an invalid gathering tool definition", definition.ID)
+			}
+		} else if definition.GatheringTool.SuccessBonus != 0 {
+			return nil, fmt.Errorf("item %q has a gathering bonus without a tool family", definition.ID)
 		}
 		seenRequirements := make(map[SkillID]struct{}, len(definition.EquipRequirements))
 		for _, requirement := range definition.EquipRequirements {

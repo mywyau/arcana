@@ -253,6 +253,7 @@ type CombatEventType string
 
 const (
 	CombatEventDamage CombatEventType = "damage"
+	CombatEventMiss   CombatEventType = "missed"
 	CombatEventDodged CombatEventType = "dodged"
 )
 
@@ -1067,7 +1068,7 @@ func (w *World) resolveAutoAttacks() {
 		}
 		ammunitionStrength := 0
 		if !castingSpell && weapon.Ammunition.Quantity > 0 {
-			ammunitionCost, strength, available := ammunitionForWeapon(player.ammunitionPouch, weapon)
+			ammunitionCost, strength, available := ammunitionForWeapon(player, weapon)
 			if !available || !payItemCosts(&player.ammunitionPouch, []ItemCost{ammunitionCost}) {
 				player.lastActionResult = "missing_ammunition"
 				continue
@@ -1076,11 +1077,25 @@ func (w *World) resolveAutoAttacks() {
 		}
 		player.lastActionPulse = w.combat.pulse
 		player.nextAttackPulse = w.combat.pulse + attackInterval
+		accuracyChance := targetAccuracyChance(player, weapon)
 		dodgeChance := targetDodgeChance(player, target, weapon)
 		if castingSpell {
+			accuracyChance = targetSpellAccuracyChance(player, spell)
 			dodgeChance = targetSpellDodgeChance(player, target, spell)
 		}
-		if w.rollSource.Float64() < dodgeChance {
+		outcomeRoll := w.rollSource.Float64()
+		if outcomeRoll >= accuracyChance {
+			player.lastActionResult = "missed"
+			w.combat.recordEvent(CombatEvent{
+				Pulse:    w.combat.pulse,
+				Type:     CombatEventMiss,
+				SourceID: string(player.id),
+				TargetID: player.combatTarget,
+				SpellID:  player.selectedSpell,
+			})
+			continue
+		}
+		if outcomeRoll < accuracyChance*dodgeChance {
 			player.lastActionResult = "dodged"
 			w.combat.recordEvent(CombatEvent{
 				Pulse:    w.combat.pulse,
@@ -1311,7 +1326,19 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	dummy.attackSequence++
 	dummy.AttackType = damageType
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
-	if w.rollSource.Float64() < playerDodgeChance(dummy.Accuracy, player) {
+	accuracyChance := calculatedAccuracyChance(dummy.Accuracy)
+	dodgeChance := playerDodgeChance(dummy.Accuracy, player)
+	outcomeRoll := w.rollSource.Float64()
+	if outcomeRoll >= accuracyChance {
+		w.combat.recordEvent(CombatEvent{
+			Pulse:    w.combat.pulse,
+			Type:     CombatEventMiss,
+			SourceID: dummyID,
+			TargetID: string(player.id),
+		})
+		return
+	}
+	if outcomeRoll < accuracyChance*dodgeChance {
 		w.combat.recordEvent(CombatEvent{
 			Pulse:    w.combat.pulse,
 			Type:     CombatEventDodged,

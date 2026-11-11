@@ -18,6 +18,7 @@ const (
 	ForgingBronzeHelm          ForgingRecipeID = "bronze_helm"
 	ForgingBronzePlate         ForgingRecipeID = "bronze_platebody"
 	ForgingBronzePickaxe       ForgingRecipeID = "bronze_pickaxe"
+	ForgingBronzeAxe           ForgingRecipeID = "bronze_axe"
 	ForgingBronzeShield        ForgingRecipeID = "bronze_shield"
 	ForgingBronzeLegs          ForgingRecipeID = "bronze_legs"
 	ForgingBronzeGloves        ForgingRecipeID = "bronze_gloves"
@@ -25,6 +26,8 @@ const (
 	ForgingBronzeArrowTips     ForgingRecipeID = "bronze_arrow_tips"
 	ForgingBronzeBolts         ForgingRecipeID = "bronze_bolts"
 	ForgingIronSword           ForgingRecipeID = "iron_sword"
+	ForgingIronPickaxe         ForgingRecipeID = "iron_pickaxe"
+	ForgingIronAxe             ForgingRecipeID = "iron_axe"
 	ForgingIronArrowTips       ForgingRecipeID = "iron_arrow_tips"
 	ForgingIronBolts           ForgingRecipeID = "iron_bolts"
 	ForgingIronHelm            ForgingRecipeID = "iron_helm"
@@ -35,11 +38,27 @@ const (
 	ForgingIronBoots           ForgingRecipeID = "iron_boots"
 	ForgingSteelArrowTips      ForgingRecipeID = "steel_arrow_tips"
 	ForgingSteelBolts          ForgingRecipeID = "steel_bolts"
+	ForgingSteelPickaxe        ForgingRecipeID = "steel_pickaxe"
+	ForgingSteelAxe            ForgingRecipeID = "steel_axe"
+	ForgingSteelHelm           ForgingRecipeID = "steel_helm"
+	ForgingSteelPlate          ForgingRecipeID = "steel_platebody"
+	ForgingSteelShield         ForgingRecipeID = "steel_shield"
+	ForgingSteelLegs           ForgingRecipeID = "steel_legs"
+	ForgingSteelGloves         ForgingRecipeID = "steel_gloves"
+	ForgingSteelBoots          ForgingRecipeID = "steel_boots"
 	ForgingMithrilSword        ForgingRecipeID = "mithril_sword"
+	ForgingMithrilPickaxe      ForgingRecipeID = "mithril_pickaxe"
+	ForgingMithrilAxe          ForgingRecipeID = "mithril_axe"
 	ForgingMithrilArrowTips    ForgingRecipeID = "mithril_arrow_tips"
 	ForgingMithrilBolts        ForgingRecipeID = "mithril_bolts"
 	ForgingAdamantiteArrowTips ForgingRecipeID = "adamantite_arrow_tips"
 	ForgingAdamantiteBolts     ForgingRecipeID = "adamantite_bolts"
+	ForgingAdamantiteHelm      ForgingRecipeID = "adamantite_helm"
+	ForgingAdamantitePlate     ForgingRecipeID = "adamantite_platebody"
+	ForgingAdamantiteShield    ForgingRecipeID = "adamantite_shield"
+	ForgingAdamantiteLegs      ForgingRecipeID = "adamantite_legs"
+	ForgingAdamantiteGloves    ForgingRecipeID = "adamantite_gloves"
+	ForgingAdamantiteBoots     ForgingRecipeID = "adamantite_boots"
 	ForgingMithrilHelm         ForgingRecipeID = "mithril_helm"
 	ForgingMithrilPlate        ForgingRecipeID = "mithril_platebody"
 	ForgingMithrilShield       ForgingRecipeID = "mithril_shield"
@@ -89,6 +108,7 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}},
 		RewardItem: ItemBronzePickaxe, RewardQuantity: 1, RewardXP: 30, Interval: 5,
 	},
+	{ID: ForgingBronzeAxe, Name: "Bronze Axe", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}}, RewardItem: ItemBronzeAxe, RewardQuantity: 1, RewardXP: 20, Interval: 4},
 	{ID: ForgingBronzeShield, Name: "Bronze Shield", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}}, RewardItem: ItemBronzeShield, RewardQuantity: 1, RewardXP: 30, Interval: 5},
 	{ID: ForgingBronzeLegs, Name: "Bronze Legs", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 4}}, RewardItem: ItemBronzeLegs, RewardQuantity: 1, RewardXP: 40, Interval: 5},
 	{ID: ForgingBronzeGloves, Name: "Bronze Gloves", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}}, RewardItem: ItemBronzeGloves, RewardQuantity: 1, RewardXP: 10, Interval: 3},
@@ -106,6 +126,8 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 2}},
 		RewardItem: string(WeaponSword), RewardQuantity: 1, RewardXP: 36, Interval: 5,
 	},
+	{ID: ForgingIronPickaxe, Name: "Iron Pickaxe", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 3}}, RewardItem: ItemIronPickaxe, RewardQuantity: 1, RewardXP: 54, Interval: 5},
+	{ID: ForgingIronAxe, Name: "Iron Axe", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 2}}, RewardItem: ItemIronAxe, RewardQuantity: 1, RewardXP: 36, Interval: 4},
 	{
 		ID: ForgingIronHelm, Name: "Iron Helm", RequiredLevel: 3,
 		Costs:      []ItemCost{{ItemID: ItemIronBar, Quantity: 2}},
@@ -122,15 +144,31 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 	{ID: ForgingIronBoots, Name: "Iron Boots", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 2}}, RewardItem: ItemIronBoots, RewardQuantity: 1, RewardXP: 36, Interval: 4},
 	{ID: ForgingSteelArrowTips, Name: "20 Steel Arrow Tips", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 1}}, RewardItem: ItemSteelArrowTips, RewardQuantity: 20, RewardXP: 28, Interval: 3},
 	{ID: ForgingSteelBolts, Name: "20 Steel Bolts", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 1}}, RewardItem: ItemSteelBolt, RewardQuantity: 20, RewardXP: 30, Interval: 3},
+	{ID: ForgingSteelPickaxe, Name: "Steel Pickaxe", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 3}}, RewardItem: ItemSteelPickaxe, RewardQuantity: 1, RewardXP: 84, Interval: 5},
+	{ID: ForgingSteelAxe, Name: "Steel Axe", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 2}}, RewardItem: ItemSteelAxe, RewardQuantity: 1, RewardXP: 56, Interval: 4},
+	{ID: ForgingSteelHelm, Name: "Steel Helm", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 2}}, RewardItem: ItemSteelHelm, RewardQuantity: 1, RewardXP: 56, Interval: 5},
+	{ID: ForgingSteelPlate, Name: "Steel Platebody", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 5}}, RewardItem: ItemSteelPlate, RewardQuantity: 1, RewardXP: 140, Interval: 7},
+	{ID: ForgingSteelShield, Name: "Steel Shield", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 3}}, RewardItem: ItemSteelShield, RewardQuantity: 1, RewardXP: 84, Interval: 5},
+	{ID: ForgingSteelLegs, Name: "Steel Legs", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 4}}, RewardItem: ItemSteelLegs, RewardQuantity: 1, RewardXP: 112, Interval: 6},
+	{ID: ForgingSteelGloves, Name: "Steel Gloves", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 1}}, RewardItem: ItemSteelGloves, RewardQuantity: 1, RewardXP: 28, Interval: 3},
+	{ID: ForgingSteelBoots, Name: "Steel Boots", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemSteelBar, Quantity: 2}}, RewardItem: ItemSteelBoots, RewardQuantity: 1, RewardXP: 56, Interval: 4},
 	{
 		ID: ForgingMithrilSword, Name: "Mithril Sword", RequiredLevel: 6,
 		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},
 		RewardItem: string(WeaponMithrilSword), RewardQuantity: 1, RewardXP: 90, Interval: 6,
 	},
+	{ID: ForgingMithrilPickaxe, Name: "Mithril Pickaxe", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}}, RewardItem: ItemMithrilPickaxe, RewardQuantity: 1, RewardXP: 90, Interval: 6},
+	{ID: ForgingMithrilAxe, Name: "Mithril Axe", RequiredLevel: 7, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 2}}, RewardItem: ItemMithrilAxe, RewardQuantity: 1, RewardXP: 60, Interval: 5},
 	{ID: ForgingMithrilArrowTips, Name: "20 Mithril Arrow Tips", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 1}}, RewardItem: ItemMithrilArrowTips, RewardQuantity: 20, RewardXP: 40, Interval: 4},
 	{ID: ForgingMithrilBolts, Name: "20 Mithril Bolts", RequiredLevel: 6, Costs: []ItemCost{{ItemID: ItemMithrilBar, Quantity: 1}}, RewardItem: ItemMithrilBolt, RewardQuantity: 20, RewardXP: 45, Interval: 4},
 	{ID: ForgingAdamantiteArrowTips, Name: "20 Adamantite Arrow Tips", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 1}}, RewardItem: ItemAdamantiteArrowTips, RewardQuantity: 20, RewardXP: 65, Interval: 4},
 	{ID: ForgingAdamantiteBolts, Name: "20 Adamantite Bolts", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 1}}, RewardItem: ItemAdamantiteBolt, RewardQuantity: 20, RewardXP: 70, Interval: 4},
+	{ID: ForgingAdamantiteHelm, Name: "Adamantite Helm", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 3}}, RewardItem: ItemAdamantiteHelm, RewardQuantity: 1, RewardXP: 195, Interval: 6},
+	{ID: ForgingAdamantitePlate, Name: "Adamantite Platebody", RequiredLevel: 9, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 6}}, RewardItem: ItemAdamantitePlate, RewardQuantity: 1, RewardXP: 390, Interval: 8},
+	{ID: ForgingAdamantiteShield, Name: "Adamantite Shield", RequiredLevel: 9, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 4}}, RewardItem: ItemAdamantiteShield, RewardQuantity: 1, RewardXP: 260, Interval: 6},
+	{ID: ForgingAdamantiteLegs, Name: "Adamantite Legs", RequiredLevel: 9, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 5}}, RewardItem: ItemAdamantiteLegs, RewardQuantity: 1, RewardXP: 325, Interval: 7},
+	{ID: ForgingAdamantiteGloves, Name: "Adamantite Gloves", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 2}}, RewardItem: ItemAdamantiteGloves, RewardQuantity: 1, RewardXP: 130, Interval: 4},
+	{ID: ForgingAdamantiteBoots, Name: "Adamantite Boots", RequiredLevel: 8, Costs: []ItemCost{{ItemID: ItemAdamantiteBar, Quantity: 3}}, RewardItem: ItemAdamantiteBoots, RewardQuantity: 1, RewardXP: 195, Interval: 5},
 	{
 		ID: ForgingMithrilHelm, Name: "Mithril Helm", RequiredLevel: 6,
 		Costs:      []ItemCost{{ItemID: ItemMithrilBar, Quantity: 3}},

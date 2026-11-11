@@ -23,7 +23,7 @@ const (
 	SkillPrayer       SkillID = "prayer"
 	SkillRunecrafting SkillID = "runecrafting"
 
-	MaximumSkillLevel        = 100
+	MaximumSkillLevel        = 99
 	agilitySpeedPerLevel     = 0.0025
 	maximumAgilitySpeedBonus = 0.25
 )
@@ -125,7 +125,8 @@ func snapshotSkills(skills skillState) []SkillSnapshot {
 }
 
 // SkillExperienceForLevel follows the familiar accelerating RuneScape-style
-// curve at half of its normal total XP thresholds.
+// cumulative XP curve. Individual activities control progression speed through
+// their XP rewards rather than by applying a global multiplier to the curve.
 func SkillExperienceForLevel(level int) int64 {
 	if level <= 1 {
 		return 0
@@ -139,7 +140,7 @@ func SkillExperienceForLevel(level int) int64 {
 			float64(currentLevel) + 300.0*math.Pow(2.0, float64(currentLevel)/7.0),
 		))
 	}
-	return points / 8
+	return points / 4
 }
 
 func SkillLevelForExperience(experience int64) int {

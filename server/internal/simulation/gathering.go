@@ -6,66 +6,69 @@ import (
 )
 
 const (
-	starterFishingSpotID      = "starter_pond"
-	starterTroutSpotID        = "trout_pond"
-	starterSalmonSpotID       = "salmon_pond"
-	starterTunaSpotID         = "tuna_pond"
-	starterLobsterSpotID      = "lobster_pond"
-	starterCookingRangeID     = "starter_cooking_range"
-	starterFurnaceID          = "starter_furnace"
-	starterAnvilID            = "starter_anvil"
-	gatheringRange            = 2.5
-	fishingInterval           = 4
-	fishingExperience         = 10
-	cookingInterval           = 4
-	cookingExperience         = 10
-	starterCopperVeinID       = "starter_copper_vein"
-	starterTinVeinID          = "starter_tin_vein"
-	starterIronVeinID         = "starter_iron_vein"
-	starterCoalVeinID         = "starter_coal_vein"
-	starterMithrilVeinID      = "starter_mithril_vein"
-	starterGoldVeinID         = "starter_gold_vein"
-	starterSilverVeinID       = "starter_silver_vein"
-	starterClayDepositID      = "starter_clay_deposit"
-	starterAdamantiteVeinID   = "starter_adamantite_vein"
-	starterNormalTreeID       = "starter_normal_tree"
-	starterOakTreeID          = "starter_oak_tree"
-	starterWillowTreeID       = "starter_willow_tree"
-	starterMapleTreeID        = "starter_maple_tree"
-	starterYewTreeID          = "starter_yew_tree"
-	starterAgilityObstacleID  = "starter_balance_beam"
-	starterPrayerAltarID      = "starter_prayer_altar"
-	warPrayerAltarID          = "war_prayer_altar"
-	starterAirRuneAltarID     = "starter_air_rune_altar"
-	debugSkillShrineID        = "debug_skill_shrine"
-	miningInterval            = 4
-	miningExperience          = 10
-	copperVeinCapacity        = 20
-	tinVeinCapacity           = 20
-	copperRechargePulses      = 10
-	ironVeinCapacity          = 16
-	coalVeinCapacity          = 12
-	mithrilVeinCapacity       = 8
-	goldVeinCapacity          = 10
-	silverVeinCapacity        = 12
-	clayDepositCapacity       = 20
-	adamantiteVeinCapacity    = 6
-	normalTreeCapacity        = 10
-	oakTreeCapacity           = 8
-	willowTreeCapacity        = 8
-	mapleTreeCapacity         = 6
-	yewTreeCapacity           = 4
-	agilityObstacleExperience = 50
-	agilityObstacleInterval   = 5
-	agilityBeamHalfLength     = 3.25
-	agilityEndpointTolerance  = 0.15
-	prayerBoneExperience      = 10
-	prayerRestoreRecipeID     = "restore_prayer"
-	prayerSacrificeBonesID    = "sacrifice_bones"
-	prayerAdoptCommonID       = "adopt_common_litany"
-	prayerAdoptWarID          = "adopt_war_covenant"
-	runecraftingInterval      = 3
-	runecraftingExperience    = 12
+	starterFishingSpotID          = "starter_pond"
+	starterTroutSpotID            = "trout_pond"
+	starterSalmonSpotID           = "salmon_pond"
+	starterTunaSpotID             = "tuna_pond"
+	starterLobsterSpotID          = "lobster_pond"
+	starterCookingRangeID         = "starter_cooking_range"
+	starterFurnaceID              = "starter_furnace"
+	starterAnvilID                = "starter_anvil"
+	gatheringRange                = 2.5
+	fishingInterval               = 4
+	fishingExperience             = 10
+	cookingInterval               = 4
+	cookingExperience             = 10
+	starterCopperVeinID           = "starter_copper_vein"
+	starterTinVeinID              = "starter_tin_vein"
+	starterIronVeinID             = "starter_iron_vein"
+	starterCoalVeinID             = "starter_coal_vein"
+	starterMithrilVeinID          = "starter_mithril_vein"
+	starterGoldVeinID             = "starter_gold_vein"
+	starterSilverVeinID           = "starter_silver_vein"
+	starterClayDepositID          = "starter_clay_deposit"
+	starterAdamantiteVeinID       = "starter_adamantite_vein"
+	starterNormalTreeID           = "starter_normal_tree"
+	starterOakTreeID              = "starter_oak_tree"
+	starterWillowTreeID           = "starter_willow_tree"
+	starterMapleTreeID            = "starter_maple_tree"
+	starterYewTreeID              = "starter_yew_tree"
+	starterAgilityObstacleID      = "starter_balance_beam"
+	starterPrayerAltarID          = "starter_prayer_altar"
+	warPrayerAltarID              = "war_prayer_altar"
+	starterAirRuneAltarID         = "starter_air_rune_altar"
+	debugSkillShrineID            = "debug_skill_shrine"
+	miningInterval                = 4
+	miningExperience              = 10
+	copperVeinCapacity            = 20
+	tinVeinCapacity               = 20
+	copperRechargePulses          = 10
+	ironVeinCapacity              = 16
+	coalVeinCapacity              = 12
+	mithrilVeinCapacity           = 8
+	goldVeinCapacity              = 10
+	silverVeinCapacity            = 12
+	clayDepositCapacity           = 20
+	adamantiteVeinCapacity        = 6
+	normalTreeCapacity            = 10
+	oakTreeCapacity               = 8
+	willowTreeCapacity            = 8
+	mapleTreeCapacity             = 6
+	yewTreeCapacity               = 4
+	agilityObstacleExperience     = 50
+	agilityObstacleInterval       = 5
+	agilityBeamHalfLength         = 3.25
+	agilityEndpointTolerance      = 0.15
+	prayerBoneExperience          = 10
+	prayerRestoreRecipeID         = "restore_prayer"
+	prayerSacrificeBonesID        = "sacrifice_bones"
+	prayerAdoptCommonID           = "adopt_common_litany"
+	prayerAdoptWarID              = "adopt_war_covenant"
+	runecraftingInterval          = 3
+	runecraftingExperience        = 12
+	baseGatheringSuccessChance    = 0.60
+	gatheringChancePerLevel       = 0.04
+	maximumGatheringSuccessChance = 0.95
 )
 
 type craftingStationID string
@@ -104,19 +107,23 @@ type GatheringSpotSnapshot struct {
 
 type gatheringSpotDefinition struct {
 	GatheringSpotSnapshot
-	ActionKind     timedActionKind
-	RewardItem     string
-	RewardQuantity int
-	RewardXP       int64
-	Interval       uint64
-	Costs          []ItemCost
-	ActiveResult   string
-	RewardResult   string
-	MissingResult  string
-	DepletedResult string
-	RequiredTool   string
-	RechargePulses uint64
-	NextRecharge   uint64
+	ActionKind            timedActionKind
+	RewardItem            string
+	RewardQuantity        int
+	RewardXP              int64
+	Interval              uint64
+	Costs                 []ItemCost
+	ActiveResult          string
+	RewardResult          string
+	MissingResult         string
+	DepletedResult        string
+	RequiredTool          string
+	BaseSuccessChance     float64
+	SuccessChancePerLevel float64
+	MaximumSuccessChance  float64
+	UnsuccessfulResult    string
+	RechargePulses        uint64
+	NextRecharge          uint64
 }
 
 type GatherCommand struct {
@@ -187,7 +194,9 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			ActionKind: timedActionGathering,
 			RewardItem: ItemCopperOre, RewardQuantity: 1, RewardXP: miningExperience,
 			Interval: miningInterval, ActiveResult: "mining", RewardResult: "mined_copper_ore",
-			MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe,
+			MissingResult: "missing_pickaxe", RequiredTool: ItemBronzePickaxe,
+			BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
+			MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "mining_unsuccessful",
 			RechargePulses: copperRechargePulses,
 		},
 		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 22, Z: 15}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
@@ -274,6 +283,8 @@ func fishingSpot(id, name string, position Position, recipeID string) gatheringS
 		},
 		ActionKind:   timedActionGathering,
 		ActiveResult: "fishing", RequiredTool: requiredTool, MissingResult: missingResult,
+		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
+		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "fishing_unsuccessful",
 	}
 }
 
@@ -286,7 +297,9 @@ func miningVein(id, name string, position Position, level int, reward string, xp
 		ActionKind: timedActionGathering,
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "mining", RewardResult: "mined_" + reward,
-		MissingResult: "missing_bronze_pickaxe", RequiredTool: ItemBronzePickaxe, RechargePulses: recharge,
+		MissingResult: "missing_pickaxe", RequiredTool: ItemBronzePickaxe, RechargePulses: recharge,
+		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
+		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "mining_unsuccessful",
 	}
 }
 
@@ -299,8 +312,10 @@ func woodcuttingTree(id, name string, position Position, level int, reward strin
 		ActionKind: timedActionGathering,
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "woodcutting", RewardResult: "chopped_" + reward,
-		MissingResult: "missing_bronze_axe", DepletedResult: "tree_depleted",
+		MissingResult: "missing_axe", DepletedResult: "tree_depleted",
 		RequiredTool: ItemBronzeAxe, RechargePulses: recharge,
+		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
+		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "woodcutting_unsuccessful",
 	}
 }
 
@@ -478,12 +493,17 @@ func (w *World) resolveGatheringActions() {
 		}
 		// Resolve tool requirements at the resource so the approach remains a
 		// valid server-driven route even when the player lacks the tool.
-		if spot.RequiredTool != "" && !player.inventory.contains(spot.RequiredTool) {
-			clearGathering(player, spot.MissingResult)
-			continue
+		if spot.RequiredTool != "" {
+			if _, found := gatheringToolBonus(player, spot.RequiredTool); !found {
+				if requirement, owned := unmetGatheringToolRequirement(player, spot.RequiredTool); owned {
+					clearGathering(player, fmt.Sprintf("requires_%s_level_%d", requirement.Skill, requirement.Level))
+				} else {
+					clearGathering(player, spot.MissingResult)
+				}
+				continue
+			}
 		}
 		if w.combat.pulse < player.nextGatherPulse {
-			player.gatheringResult = spot.ActiveResult
 			continue
 		}
 		switch spot.ActionKind {

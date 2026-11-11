@@ -149,7 +149,7 @@ func TestWorldRuneSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
 		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
 	}
 	mustAddPlayer(t, world, "player-one", playerPosition, 4)
-	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(20)
+	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(runeEquipmentLevel)
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}

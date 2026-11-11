@@ -280,7 +280,7 @@ func TestDecodeClientMessageRejectsInvalidMessages(t *testing.T) {
 		"missing style":       `{"type":"set_combat_style","sequence":1}`,
 		"missing prayer ID":   `{"type":"set_prayer","sequence":1,"active":true}`,
 		"missing debug skill": `{"type":"debug_set_skill","sequence":1,"level":10}`,
-		"invalid debug level": `{"type":"debug_set_skill","sequence":1,"skill_id":"attack","level":101}`,
+		"invalid debug level": `{"type":"debug_set_skill","sequence":1,"skill_id":"attack","level":100}`,
 		"negative debug XP":   `{"type":"debug_set_skill","sequence":1,"skill_id":"attack","set_experience":true,"experience":-1}`,
 		"multiple values":     `{"type":"move_to","sequence":1,"destination":{"x":1,"z":2}} {}`,
 	}

@@ -402,6 +402,7 @@ type CombatStatsSnapshot struct {
 	AccuracyLevel           int            `json:"accuracy_level"`
 	WeaponAccuracyBonus     int            `json:"weapon_accuracy_bonus"`
 	EquipmentAccuracyBonus  int            `json:"equipment_accuracy_bonus"`
+	EquipmentOffence        OffenceBonuses `json:"equipment_offence"`
 	StyleAccuracyBonus      int            `json:"style_accuracy_bonus"`
 	SpellAccuracyBonus      int            `json:"spell_accuracy_bonus"`
 	PrayerHitChanceBonus    float64        `json:"prayer_hit_chance_bonus"`
@@ -447,6 +448,15 @@ type DefenceBonuses struct {
 	Crush  int `json:"crush"`
 	Ranged int `json:"ranged"`
 	Magic  int `json:"magic"`
+}
+
+type OffenceBonuses struct {
+	MeleeAccuracy  int `json:"melee_accuracy"`
+	RangedAccuracy int `json:"ranged_accuracy"`
+	MagicAccuracy  int `json:"magic_accuracy"`
+	MeleeStrength  int `json:"melee_strength"`
+	RangedStrength int `json:"ranged_strength"`
+	MagicStrength  int `json:"magic_strength"`
 }
 
 type SkillSnapshot struct {
@@ -565,8 +575,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type == MessageDebugSetSkill && message.SkillID == "" {
 		return ClientMessage{}, fmt.Errorf("skill ID is required")
 	}
-	if message.Type == MessageDebugSetSkill && !message.SetExperience && (message.Level < 1 || message.Level > 100) {
-		return ClientMessage{}, fmt.Errorf("skill level must be between 1 and 100")
+	if message.Type == MessageDebugSetSkill && !message.SetExperience && (message.Level < 1 || message.Level > 99) {
+		return ClientMessage{}, fmt.Errorf("skill level must be between 1 and 99")
 	}
 	if message.Type == MessageDebugSetSkill && message.SetExperience && message.Experience < 0 {
 		return ClientMessage{}, fmt.Errorf("skill experience cannot be negative")

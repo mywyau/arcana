@@ -117,7 +117,7 @@ func TestRegenerationPrayerHealsFivePercentOnDrainCadence(t *testing.T) {
 }
 
 func TestEvasionPrayerAppliesBeforeIncomingAttack(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.04))
+	world := NewWorldWithRollSource(fixedRollSource(0.02))
 	dummy := world.combat.targets[dummyTargetID]
 	mustAddPlayer(t, world, "player-one", dummy.Position, 4)
 	dummy.TargetID = "player-one"
@@ -217,11 +217,12 @@ func TestAccuracyPrayerBoostsOnlyMeleeAccuracy(t *testing.T) {
 		t.Fatalf("Accuracy combat stats = %+v", stats)
 	}
 	target := &TargetSnapshot{Evasion: hillWardenEvasionScore, DodgeRate: defaultBaseDodgeBonus}
-	withPrayer := 1 - targetDodgeChance(player, target, sword)
+	withPrayer := targetHitChance(player, target, sword)
 	player.activePrayers = nil
-	withoutPrayer := 1 - targetDodgeChance(player, target, sword)
-	if math.Abs(withPrayer-withoutPrayer-accuracyPrayerMeleeHitChanceBonus) > 0.000_001 {
-		t.Fatalf("Accuracy prayer hit chance change = %.3f, want %.3f", withPrayer-withoutPrayer, accuracyPrayerMeleeHitChanceBonus)
+	withoutPrayer := targetHitChance(player, target, sword)
+	wantIncrease := accuracyPrayerMeleeHitChanceBonus * (1 - targetDodgeChance(player, target, sword))
+	if math.Abs(withPrayer-withoutPrayer-wantIncrease) > 0.000_001 {
+		t.Fatalf("Accuracy prayer hit chance change = %.3f, want %.3f", withPrayer-withoutPrayer, wantIncrease)
 	}
 	player.activePrayers = map[PrayerID]bool{PrayerAccuracy: true}
 	player.equippedWeapon = WeaponBow

@@ -251,7 +251,7 @@ func TestWorldAppliesQueuedPlayerLifecycleOnStep(t *testing.T) {
 }
 
 func TestWorldSuspendsDisconnectedPlayerWithoutClearingEnemyTarget(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	warden := world.combat.targets[hillWardenTargetID]
 	mustAddPlayer(t, world, "player-one", warden.Position, 4)
 	player := world.players["player-one"]

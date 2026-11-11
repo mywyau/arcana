@@ -32,15 +32,15 @@ func TestAttackLevelImprovesHitChanceFromModerateEarlyAccuracy(t *testing.T) {
 	weapon, _ := weaponDefinition(WeaponSword)
 	player := &playerState{skills: newDefaultSkills(), combatStyle: CombatStyleStab}
 	target := &TargetSnapshot{Evasion: dummyEvasionScore, DodgeRate: dummyDodgeRate}
-	levelOneHitChance := 1 - targetDodgeChance(player, target, weapon)
-	if levelOneHitChance < 0.60 || levelOneHitChance > 0.70 {
-		t.Fatalf("level-one hit chance = %.3f, want 0.60-0.70", levelOneHitChance)
+	levelOneHitChance := targetHitChance(player, target, weapon)
+	if levelOneHitChance < 0.58 || levelOneHitChance > 0.64 {
+		t.Fatalf("level-one hit chance = %.3f, want 0.58-0.64", levelOneHitChance)
 	}
 
 	player.skills[SkillAttack] = SkillExperienceForLevel(50)
-	levelFiftyHitChance := 1 - targetDodgeChance(player, target, weapon)
-	if levelFiftyHitChance < 0.80 || levelFiftyHitChance > 0.90 {
-		t.Fatalf("level-50 hit chance = %.3f, want 0.80-0.90", levelFiftyHitChance)
+	levelFiftyHitChance := targetHitChance(player, target, weapon)
+	if levelFiftyHitChance < 0.75 || levelFiftyHitChance > 0.81 {
+		t.Fatalf("level-50 hit chance = %.3f, want 0.75-0.81", levelFiftyHitChance)
 	}
 	if levelFiftyHitChance <= levelOneHitChance {
 		t.Fatalf("level-50 hit chance %.3f <= level-one hit chance %.3f", levelFiftyHitChance, levelOneHitChance)
@@ -55,14 +55,14 @@ func TestAgilityAndPrayerIncreasePlayerDodgeChance(t *testing.T) {
 		prayerDrainProgress: make(map[PrayerID]uint64),
 	}
 	levelOneDodge := playerDodgeChance(dummyAccuracyScore, player)
-	if levelOneDodge < 0.30 || levelOneDodge > 0.40 {
-		t.Fatalf("level-one player dodge chance = %.3f, want 0.30-0.40", levelOneDodge)
+	if levelOneDodge < 0.0 || levelOneDodge > 0.02 {
+		t.Fatalf("level-one player dodge chance = %.3f, want 0.00-0.02", levelOneDodge)
 	}
 
 	player.skills[SkillAgility] = SkillExperienceForLevel(50)
 	withoutPrayer := playerDodgeChance(dummyAccuracyScore, player)
-	if withoutPrayer < 0.40 || withoutPrayer > 0.50 {
-		t.Fatalf("level-50 Agility dodge chance = %.3f, want 0.40-0.50", withoutPrayer)
+	if withoutPrayer < 0.14 || withoutPrayer > 0.18 {
+		t.Fatalf("level-50 Agility dodge chance = %.3f, want 0.14-0.18", withoutPrayer)
 	}
 	if withoutPrayer <= levelOneDodge {
 		t.Fatalf("level-50 Agility dodge %.3f <= level-one dodge %.3f", withoutPrayer, levelOneDodge)
@@ -85,9 +85,9 @@ func TestEarlyEnemiesHaveModerateHitChance(t *testing.T) {
 		{name: "training dummy", accuracy: dummyAccuracyScore},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			hitChance := 1 - playerDodgeChance(test.accuracy, player)
-			if hitChance < 0.60 || hitChance > 0.70 {
-				t.Fatalf("early enemy hit chance = %.3f, want 0.60-0.70", hitChance)
+			hitChance := playerHitChance(test.accuracy, player)
+			if hitChance < 0.54 || hitChance > 0.62 {
+				t.Fatalf("early enemy hit chance = %.3f, want 0.54-0.62", hitChance)
 			}
 		})
 	}

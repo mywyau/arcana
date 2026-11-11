@@ -64,9 +64,9 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		LeashRange:     24,
 		DamageType:     DamageTypeStab,
 		AttackTypes: []DamageType{
-			DamageTypeStab, DamageTypeSlash, DamageTypeCrush, DamageTypeRanged, DamageTypeMagic,
+			DamageTypeStab, DamageTypeSlash, DamageTypeCrush,
 		},
-		Defence:  DefenceBonuses{Stab: 24, Slash: 28, Crush: 20, Ranged: 26, Magic: 22},
+		Defence:  DefenceBonuses{Stab: 55, Slash: 65, Crush: 48, Ranged: 60, Magic: 52},
 		Elements: ElementalResistances{Air: 10, Water: 10, Earth: 10, Fire: 10, Holy: -10, Dark: 20},
 	},
 	rangedTyrantTargetID: {
@@ -77,7 +77,7 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		DetectionRange: 18,
 		LeashRange:     24,
 		DamageType:     DamageTypeRanged,
-		Defence:        DefenceBonuses{Stab: 18, Slash: 20, Crush: 16, Ranged: 30, Magic: 18},
+		Defence:        DefenceBonuses{Stab: 45, Slash: 50, Crush: 40, Ranged: 70, Magic: 45},
 		Elements:       ElementalResistances{Air: 5, Water: 10, Earth: -10, Fire: 5, Holy: 0, Dark: 10},
 	},
 	mageTyrantTargetID: {
@@ -88,7 +88,7 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		DetectionRange: 18,
 		LeashRange:     24,
 		DamageType:     DamageTypeMagic,
-		Defence:        DefenceBonuses{Stab: 16, Slash: 18, Crush: 14, Ranged: 18, Magic: 32},
+		Defence:        DefenceBonuses{Stab: 40, Slash: 45, Crush: 35, Ranged: 45, Magic: 75},
 		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},
 	},
 }

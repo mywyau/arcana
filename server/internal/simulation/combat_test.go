@@ -12,7 +12,7 @@ type fixedRollSource float64
 const (
 	swordDamage     = swordMeleeStrength
 	daggerDamage    = daggerMeleeStrength
-	bowDamage       = bowRangedStrength
+	bowDamage       = bowRangedStrength - 1 // starter bronze ammunition
 	maceDamage      = maceMeleeStrength
 	battleAxeDamage = battleAxeMeleeStrength
 	staffDamage     = staffMagicStrength
@@ -46,11 +46,14 @@ func newCombatTestWorld() *World {
 	return NewWorldWithRollSource(fixedRollSource(0.5))
 }
 
-func mustGiveIronArrows(t *testing.T, world *World, id PlayerID, quantity int) {
+func mustGiveBronzeArrows(t *testing.T, world *World, id PlayerID, quantity int) {
 	t.Helper()
 	player, exists := world.players[id]
-	if !exists || !player.ammunitionPouch.add(ItemIronArrow, quantity) {
-		t.Fatalf("could not add %d iron arrows to player %q", quantity, id)
+	if !exists {
+		t.Fatalf("player %q does not exist", id)
+	}
+	if !player.ammunitionPouch.add(ItemBronzeArrow, quantity) {
+		t.Fatalf("could not add %d bronze arrows to player %q", quantity, id)
 	}
 }
 
@@ -225,8 +228,8 @@ func TestOverkillAwardsOnlyActualDamageAsXP(t *testing.T) {
 
 func TestConsecutiveSwordHitsCanRollDifferentDamage(t *testing.T) {
 	rolls := &sequenceRollSource{values: []float64{
-		0.5, 0.0, // First attack passes dodge and rolls minimum damage.
-		0.5, 1.0, // Second attack passes dodge and rolls maximum damage.
+		0.5, 0.0, // First attack lands and rolls minimum damage.
+		0.5, 1.0, // Second attack lands and rolls maximum damage.
 		0.5, // Dummy attack roll on the second attack pulse.
 	}}
 	world := NewWorldWithRollSource(rolls)
@@ -266,7 +269,7 @@ func TestCombatEventHistoryIsBounded(t *testing.T) {
 }
 
 func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
-	world := NewWorldWithRollSource(&sequenceRollSource{values: []float64{0.03}})
+	world := NewWorldWithRollSource(&sequenceRollSource{values: []float64{0.001}})
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
@@ -293,8 +296,29 @@ func TestDummyDodgeAvoidsDamageAndConsumesAttackCadence(t *testing.T) {
 	}
 }
 
+func TestMissIsDistinctFromTargetDodge(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+	snapshot := world.Snapshot()
+	if got := mustTarget(t, snapshot, dummyTargetID).Health; got != dummyMaximumHealth {
+		t.Fatalf("dummy health after miss = %d, want %d", got, dummyMaximumHealth)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if player.LastActionResult != "missed" || player.NextAttackPulse != 5 {
+		t.Fatalf("player state after miss = %+v", player)
+	}
+	if len(snapshot.CombatEvents) != 1 || snapshot.CombatEvents[0].Type != CombatEventMiss {
+		t.Fatalf("combat events after miss = %+v", snapshot.CombatEvents)
+	}
+}
+
 func TestPlayerDodgeAvoidsDummyDamageAndConsumesCadence(t *testing.T) {
-	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.5, 0.5, 0.005}}
+	rolls := &sequenceRollSource{values: []float64{0.5, 0.5, 0.5, 0.5, 0.001}}
 	world := NewWorldWithRollSource(rolls)
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
@@ -515,7 +539,7 @@ func TestUnequipRejectsItemThatIsNotEquipped(t *testing.T) {
 func TestBowAttacksFromRangeWithoutApproaching(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: 9.5}, 4)
-	mustGiveIronArrows(t, world, "player-one", 10)
+	mustGiveBronzeArrows(t, world, "player-one", 10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
 	}
@@ -539,7 +563,7 @@ func TestBowAttacksFromRangeWithoutApproaching(t *testing.T) {
 	}
 }
 
-func TestBowRequiresAndConsumesIronArrows(t *testing.T) {
+func TestBowRequiresAndConsumesBronzeArrows(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
 	if err := world.QueueEquip(EquipCommand{
@@ -562,20 +586,20 @@ func TestBowRequiresAndConsumesIronArrows(t *testing.T) {
 		t.Fatalf("dummy health without arrows = %d, want %d", got, dummyMaximumHealth)
 	}
 
-	mustGiveIronArrows(t, world, "player-one", 1)
+	mustGiveBronzeArrows(t, world, "player-one", 1)
 	world.Step(actionPulseInterval)
-	if got := (InventorySnapshot{Items: mustPlayer(t, world, "player-one").AmmunitionPouch.Items}).itemsQuantity(ItemIronArrow); got != 0 {
-		t.Fatalf("iron arrows after firing = %d, want 0", got)
+	if got := (InventorySnapshot{Items: mustPlayer(t, world, "player-one").AmmunitionPouch.Items}).itemsQuantity(ItemBronzeArrow); got != 0 {
+		t.Fatalf("bronze arrows after firing = %d, want 0", got)
 	}
 	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-bowDamage; got != want {
 		t.Fatalf("dummy health after firing = %d, want %d", got, want)
 	}
 }
 
-func TestDodgedBowShotStillConsumesIronArrow(t *testing.T) {
+func TestDodgedBowShotStillConsumesBronzeArrow(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.0))
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
-	mustGiveIronArrows(t, world, "player-one", 1)
+	mustGiveBronzeArrows(t, world, "player-one", 1)
 	if err := world.QueueEquip(EquipCommand{
 		PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow,
 	}); err != nil {
@@ -589,7 +613,7 @@ func TestDodgedBowShotStillConsumesIronArrow(t *testing.T) {
 
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	if player.LastActionResult != "dodged" || (InventorySnapshot{Items: player.AmmunitionPouch.Items}).itemsQuantity(ItemIronArrow) != 0 {
+	if player.LastActionResult != "dodged" || (InventorySnapshot{Items: player.AmmunitionPouch.Items}).itemsQuantity(ItemBronzeArrow) != 0 {
 		t.Fatalf("bow state after dodged shot = %+v", player)
 	}
 }
@@ -597,7 +621,7 @@ func TestDodgedBowShotStillConsumesIronArrow(t *testing.T) {
 func TestBowCanAttackUpperDummyFromLowerLevel(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	mustGiveIronArrows(t, world, "player-one", 10)
+	mustGiveBronzeArrows(t, world, "player-one", 10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
 	}
@@ -626,7 +650,7 @@ func TestBowCanAttackUpperDummyFromLowerLevel(t *testing.T) {
 func TestBowCanAttackOverlookDummyFromUpperLevel(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -2, Y: 3, Z: 0}, 4)
-	mustGiveIronArrows(t, world, "player-one", 10)
+	mustGiveBronzeArrows(t, world, "player-one", 10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
 	}
@@ -651,7 +675,7 @@ func TestBowCanAttackOverlookDummyFromUpperLevel(t *testing.T) {
 func TestBowCooldownSurvivesDisengageAndReengage(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{}, 4)
-	mustGiveIronArrows(t, world, "player-one", 10)
+	mustGiveBronzeArrows(t, world, "player-one", 10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
 	}
@@ -909,7 +933,7 @@ func TestBowLongRangeHitsBeyondAccurateRange(t *testing.T) {
 	world := newCombatTestWorld()
 	target := world.combat.targets[dummyTargetID]
 	mustAddPlayer(t, world, "player-one", Position{X: target.Position.X + 13, Z: target.Position.Z}, 4)
-	mustGiveIronArrows(t, world, "player-one", 10)
+	mustGiveBronzeArrows(t, world, "player-one", 10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip(bow) returned an unexpected error: %v", err)
 	}
@@ -931,7 +955,7 @@ func TestBowLongRangeHitsBeyondAccurateRange(t *testing.T) {
 func TestBowRapidSchedulesFasterNextAttack(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
-	mustGiveIronArrows(t, world, "player-one", 10)
+	mustGiveBronzeArrows(t, world, "player-one", 10)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBow}); err != nil {
 		t.Fatalf("QueueEquip(bow) returned an unexpected error: %v", err)
 	}

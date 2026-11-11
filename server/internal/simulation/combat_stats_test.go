@@ -39,14 +39,14 @@ func TestCombatMatchupUsesAuthoritativeAccuracyDamageAndRanges(t *testing.T) {
 		got.PlayerMaximumDamage != wantMaximum || got.PlayerAttackRange != weapon.Range {
 		t.Fatalf("player matchup = %+v", got)
 	}
-	if math.Abs(got.PlayerHitChance-(1-targetDodgeChance(player, target, weapon))) > 0.000001 {
+	if math.Abs(got.PlayerHitChance-targetHitChance(player, target, weapon)) > 0.000001 {
 		t.Fatalf("PlayerHitChance = %f", got.PlayerHitChance)
 	}
 	if got.TargetMinimumDamage != wantTargetDamage || got.TargetMaximumDamage != wantTargetDamage ||
 		got.TargetAttackRange != dummyAttackRange {
 		t.Fatalf("target matchup = %+v", got)
 	}
-	if math.Abs(got.TargetHitChance-(1-playerDodgeChance(target.Accuracy, player))) > 0.000001 {
+	if math.Abs(got.TargetHitChance-playerHitChance(target.Accuracy, player)) > 0.000001 {
 		t.Fatalf("TargetHitChance = %f", got.TargetHitChance)
 	}
 }

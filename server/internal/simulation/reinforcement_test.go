@@ -81,6 +81,25 @@ func TestArrowsCannotBeReinforced(t *testing.T) {
 	}
 }
 
+func TestNewMetalArmourSetsCanBeReinforced(t *testing.T) {
+	tests := []struct {
+		itemID string
+		bar    string
+		level  int
+	}{
+		{ItemSteelHelm, ItemSteelBar, 7},
+		{ItemSteelPlate, ItemSteelBar, 7},
+		{ItemAdamantiteHelm, ItemAdamantiteBar, 11},
+		{ItemAdamantitePlate, ItemAdamantiteBar, 11},
+	}
+	for _, test := range tests {
+		recipe, exists := reinforcementRecipe("reinforce_" + test.itemID)
+		if !exists || recipe.RequiredLevel != test.level || len(recipe.Costs) != 1 || recipe.Costs[0].ItemID != test.bar {
+			t.Errorf("reinforcement recipe for %q = %+v, %t", test.itemID, recipe, exists)
+		}
+	}
+}
+
 func TestPlusFiveEquipmentAppliesAllFiveStatPoints(t *testing.T) {
 	player := &playerState{
 		equippedWeapon: WeaponMithrilSword, combatStyle: CombatStyleStab,

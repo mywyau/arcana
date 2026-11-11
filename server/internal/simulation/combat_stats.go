@@ -10,6 +10,7 @@ type CombatStatsSnapshot struct {
 	AccuracyLevel           int
 	WeaponAccuracyBonus     int
 	EquipmentAccuracyBonus  int
+	EquipmentOffence        OffenceBonuses
 	StyleAccuracyBonus      int
 	SpellAccuracyBonus      int
 	PrayerHitChanceBonus    float64
@@ -76,7 +77,7 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	if !exists {
 		return CombatMatchupSnapshot{}
 	}
-	playerDodge := targetDodgeChance(player, target, weapon)
+	playerHit := targetHitChance(player, target, weapon)
 	ammunitionStrength := ammunitionStrengthForPlayer(player, weapon)
 	poweredDamage := weaponPoweredDamageWithAmmunition(player, weapon, ammunitionStrength)
 	variance := weapon.DamageVariance
@@ -87,7 +88,7 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	}
 	if spell, casting := spellDefinition(player.selectedSpell); casting {
 		spell = spellDefinitionForStyle(player, spell)
-		playerDodge = targetSpellDodgeChance(player, target, spell)
+		playerHit = targetSpellHitChance(player, target, spell)
 		poweredDamage = spellPoweredDamage(player, spell) * elementalDamageMultiplier(target, spell.Element)
 		variance = spell.DamageVariance
 		playerAttackRange = spell.Range
@@ -99,10 +100,10 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	targetDamage := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType)
 	return CombatMatchupSnapshot{
 		TargetID:            target.ID,
-		PlayerHitChance:     1 - playerDodge,
+		PlayerHitChance:     playerHit,
 		PlayerMinimumDamage: playerMinimum, PlayerMaximumDamage: playerMaximum,
 		PlayerAttackRange:   playerAttackRange,
-		TargetHitChance:     1 - playerDodgeChance(target.Accuracy, player),
+		TargetHitChance:     playerHitChance(target.Accuracy, player),
 		TargetMinimumDamage: targetDamage, TargetMaximumDamage: targetDamage,
 		TargetAttackRange: profile.AttackRange,
 	}
@@ -203,6 +204,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		AccuracyLevel:           effectiveCombatSkillLevel(player, accuracySkill),
 		WeaponAccuracyBonus:     weapon.AccuracyBonus,
 		EquipmentAccuracyBonus:  equipmentAccuracy,
+		EquipmentOffence:        equippedOffenceBonusesForPlayer(player),
 		StyleAccuracyBonus:      combatStyleAccuracyBonus(player.combatStyle),
 		PrayerHitChanceBonus:    prayerHitChanceBonus(player, weapon),
 		TotalAccuracy:           playerAccuracyScore(player, weapon),
