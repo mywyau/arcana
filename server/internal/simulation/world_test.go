@@ -206,6 +206,26 @@ func TestWorldSnapshotForPlayerOnlyConstructsViewerPrivateState(t *testing.T) {
 	}
 }
 
+func TestWorldPublicSnapshotContainsNoPrivatePlayerState(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-b", Position{X: 2}, 2)
+	mustAddPlayer(t, world, "player-a", Position{}, 2)
+
+	snapshot := world.PublicSnapshot()
+	if len(snapshot.Players) != 2 || snapshot.Players[0].ID != "player-a" || snapshot.Players[1].ID != "player-b" {
+		t.Fatalf("PublicSnapshot() players = %+v", snapshot.Players)
+	}
+	for _, player := range snapshot.Players {
+		if player.Inventory.Capacity != 0 || player.Bank.Capacity != 0 ||
+			player.AmmunitionPouch.Capacity != 0 || player.RingRack.Capacity != 0 ||
+			player.RunePouch.Capacity != 0 || len(player.Skills) != 0 ||
+			len(player.ActiveCombatBoosts) != 0 || player.CombatStats.AccuracyLevel != 0 ||
+			player.CombatMatchup.TargetID != "" {
+			t.Fatalf("public frame contains private state for %q: %+v", player.ID, player)
+		}
+	}
+}
+
 func TestWorldAppliesQueuedPlayerLifecycleOnStep(t *testing.T) {
 	world := NewWorld()
 	if err := world.QueueJoin("player-one", Position{X: 2}, 4); err != nil {

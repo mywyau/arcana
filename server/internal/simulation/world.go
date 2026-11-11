@@ -707,7 +707,16 @@ func (w *World) HasPlayerOrPending(id PlayerID) bool {
 func (w *World) Snapshot() Snapshot {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	return w.snapshotLocked(nil)
+	return w.snapshotLocked(nil, true)
+}
+
+// PublicSnapshot returns one detached world frame without any player's private
+// containers or derived combat details. Network transports may safely reuse
+// the frame as immutable input for multiple connections.
+func (w *World) PublicSnapshot() Snapshot {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.snapshotLocked(nil, false)
 }
 
 // SnapshotForPlayer returns public world state plus private state for only the
@@ -715,10 +724,10 @@ func (w *World) Snapshot() Snapshot {
 func (w *World) SnapshotForPlayer(playerID PlayerID) Snapshot {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	return w.snapshotLocked(&playerID)
+	return w.snapshotLocked(&playerID, false)
 }
 
-func (w *World) snapshotLocked(privatePlayerID *PlayerID) Snapshot {
+func (w *World) snapshotLocked(privatePlayerID *PlayerID, includeAllPrivate bool) Snapshot {
 	bankChests := []BankChestSnapshot{starterBankChest}
 	if w.testSupplyChestsEnabled {
 		bankChests = append(bankChests, testSupplyChests...)
@@ -748,7 +757,7 @@ func (w *World) snapshotLocked(privatePlayerID *PlayerID) Snapshot {
 	}
 	for _, player := range w.players {
 		playerSnapshot := snapshotPublicPlayer(player)
-		if privatePlayerID == nil || player.id == *privatePlayerID {
+		if includeAllPrivate || (privatePlayerID != nil && player.id == *privatePlayerID) {
 			populatePrivatePlayerSnapshot(&playerSnapshot, player)
 			playerSnapshot.CombatMatchup = w.combatMatchupForPlayer(player)
 		}

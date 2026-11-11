@@ -49,6 +49,9 @@ type Handler struct {
 	acceptOptions           websocket.AcceptOptions
 	activeMu                sync.Mutex
 	activeClients           map[simulation.PlayerID]*activeClient
+	publicFrameMu           sync.Mutex
+	publicFrame             *simulation.Snapshot
+	publicFrameBuiltAt      time.Time
 	pendingLogoutMu         sync.Mutex
 	pendingLogouts          map[simulation.PlayerID]*pendingLogout
 }
@@ -316,17 +319,21 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				return
 			}
 		case <-ticker.C:
-			startedAt := time.Now()
-			worldSnapshot := h.world.SnapshotForPlayer(playerID)
+			publicFrame, built, buildDuration := h.sharedPublicFrame(time.Now())
+			privatePlayer, hasPrivatePlayer := h.world.Player(playerID)
+			var privatePlayerPointer *simulation.PlayerSnapshot
+			if hasPrivatePlayer {
+				privatePlayerPointer = &privatePlayer
+			}
 			message := protocol.ServerMessage{
 				Type:     protocol.MessageSnapshot,
-				Snapshot: snapshotMessage(worldSnapshot, playerID),
+				Snapshot: snapshotMessageWithPrivate(*publicFrame, playerID, privatePlayerPointer),
 			}
-			if h.metrics != nil {
-				h.metrics.RecordSnapshot(time.Since(startedAt), servermetrics.EntityCounts{
-					Players: len(worldSnapshot.Players), Targets: len(worldSnapshot.Targets),
-					Drops: len(worldSnapshot.Drops), Fires: len(worldSnapshot.Fires),
-					GatheringSpots: len(worldSnapshot.GatheringSpots),
+			if h.metrics != nil && built {
+				h.metrics.RecordSnapshot(buildDuration, servermetrics.EntityCounts{
+					Players: len(publicFrame.Players), Targets: len(publicFrame.Targets),
+					Drops: len(publicFrame.Drops), Fires: len(publicFrame.Fires),
+					GatheringSpots: len(publicFrame.GatheringSpots),
 				})
 			}
 			if err := h.writeMessage(ctx, connection, message); err != nil {
@@ -336,6 +343,23 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 			h.saveCharacter(playerID)
 		}
 	}
+}
+
+// sharedPublicFrame builds at most one immutable public world frame per
+// network interval. Connection goroutines only read the returned snapshot;
+// their private player state is attached while constructing the wire message.
+func (h *Handler) sharedPublicFrame(now time.Time) (*simulation.Snapshot, bool, time.Duration) {
+	h.publicFrameMu.Lock()
+	defer h.publicFrameMu.Unlock()
+	if h.publicFrame != nil && now.Sub(h.publicFrameBuiltAt) < h.snapshotInterval {
+		return h.publicFrame, false, 0
+	}
+	startedAt := time.Now()
+	frame := h.world.PublicSnapshot()
+	buildDuration := time.Since(startedAt)
+	h.publicFrame = &frame
+	h.publicFrameBuiltAt = now
+	return h.publicFrame, true, buildDuration
 }
 
 func productionRecipeMessages(recipes []simulation.ProductionRecipeSnapshot) []protocol.ProductionRecipeSnapshot {
@@ -918,6 +942,21 @@ func errorMessage(code string, err error) protocol.ServerMessage {
 }
 
 func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.PlayerID) *protocol.WorldSnapshot {
+	var privatePlayer *simulation.PlayerSnapshot
+	for index := range snapshot.Players {
+		if snapshot.Players[index].ID == localPlayerID {
+			privatePlayer = &snapshot.Players[index]
+			break
+		}
+	}
+	return snapshotMessageWithPrivate(snapshot, localPlayerID, privatePlayer)
+}
+
+func snapshotMessageWithPrivate(
+	snapshot simulation.Snapshot,
+	localPlayerID simulation.PlayerID,
+	privatePlayer *simulation.PlayerSnapshot,
+) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
 		Tick:           snapshot.Tick,
 		ActionPulse:    snapshot.ActionPulse,
@@ -993,6 +1032,10 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 		})
 	}
 	for _, player := range snapshot.Players {
+		privateState := player
+		if privatePlayer != nil && privatePlayer.ID == player.ID {
+			privateState = *privatePlayer
+		}
 		playerMessage := protocol.PlayerSnapshot{
 			ID: string(player.ID),
 			Position: protocol.Position{
@@ -1072,49 +1115,49 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 		for slot, reinforcement := range player.EquippedArmourReinforcements {
 			playerMessage.EquippedArmourReinforcements[string(slot)] = reinforcement
 		}
-		if player.ID == localPlayerID {
-			populatePrivatePlayerMessage(&playerMessage, player)
-			playerMessage.LastDropSequence = player.LastDropSequence
-			playerMessage.LastInventoryMoveSequence = player.LastInventoryMoveSequence
-			playerMessage.LastGemCutSequence = player.LastGemCutSequence
-			playerMessage.LastFireSequence = player.LastFireSequence
-			playerMessage.LastDebugSkillSequence = player.LastDebugSkillSequence
+		if player.ID == localPlayerID && privatePlayer != nil && privatePlayer.ID == player.ID {
+			populatePrivatePlayerMessage(&playerMessage, privateState)
+			playerMessage.LastDropSequence = privateState.LastDropSequence
+			playerMessage.LastInventoryMoveSequence = privateState.LastInventoryMoveSequence
+			playerMessage.LastGemCutSequence = privateState.LastGemCutSequence
+			playerMessage.LastFireSequence = privateState.LastFireSequence
+			playerMessage.LastDebugSkillSequence = privateState.LastDebugSkillSequence
 			playerMessage.AmmunitionPouch = &protocol.AmmunitionPouchSnapshot{
-				Capacity: player.AmmunitionPouch.Capacity, UnlockedSlots: player.AmmunitionPouch.UnlockedSlots,
-				Items: make([]protocol.InventoryItem, 0, len(player.AmmunitionPouch.Items)),
+				Capacity: privateState.AmmunitionPouch.Capacity, UnlockedSlots: privateState.AmmunitionPouch.UnlockedSlots,
+				Items: make([]protocol.InventoryItem, 0, len(privateState.AmmunitionPouch.Items)),
 			}
-			playerMessage.LastAmmunitionSequence = player.LastAmmunitionSequence
-			for _, item := range player.AmmunitionPouch.Items {
+			playerMessage.LastAmmunitionSequence = privateState.LastAmmunitionSequence
+			for _, item := range privateState.AmmunitionPouch.Items {
 				playerMessage.AmmunitionPouch.Items = append(playerMessage.AmmunitionPouch.Items, protocol.InventoryItem{
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 				})
 			}
 			playerMessage.RingRack = &protocol.RingRackSnapshot{
-				Capacity: player.RingRack.Capacity,
-				Items:    make([]protocol.InventoryItem, 0, len(player.RingRack.Items)),
+				Capacity: privateState.RingRack.Capacity,
+				Items:    make([]protocol.InventoryItem, 0, len(privateState.RingRack.Items)),
 			}
-			playerMessage.LastRingSequence = player.LastRingSequence
-			for _, item := range player.RingRack.Items {
+			playerMessage.LastRingSequence = privateState.LastRingSequence
+			for _, item := range privateState.RingRack.Items {
 				playerMessage.RingRack.Items = append(playerMessage.RingRack.Items, protocol.InventoryItem{
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 					InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
 				})
 			}
 			playerMessage.RunePouch = &protocol.RunePouchSnapshot{
-				Capacity: player.RunePouch.Capacity, UnlockedSlots: player.RunePouch.UnlockedSlots,
-				Items: make([]protocol.InventoryItem, 0, len(player.RunePouch.Items)),
+				Capacity: privateState.RunePouch.Capacity, UnlockedSlots: privateState.RunePouch.UnlockedSlots,
+				Items: make([]protocol.InventoryItem, 0, len(privateState.RunePouch.Items)),
 			}
-			playerMessage.LastRuneSequence = player.LastRuneSequence
-			for _, item := range player.RunePouch.Items {
+			playerMessage.LastRuneSequence = privateState.LastRuneSequence
+			for _, item := range privateState.RunePouch.Items {
 				playerMessage.RunePouch.Items = append(playerMessage.RunePouch.Items, protocol.InventoryItem{
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 				})
 			}
 			playerMessage.Bank = &protocol.InventorySnapshot{
-				Capacity: player.Bank.Capacity, NextExpansionCost: player.Bank.NextExpansionCost,
-				Items: make([]protocol.InventoryItem, 0, len(player.Bank.Items)),
+				Capacity: privateState.Bank.Capacity, NextExpansionCost: privateState.Bank.NextExpansionCost,
+				Items: make([]protocol.InventoryItem, 0, len(privateState.Bank.Items)),
 			}
-			for _, item := range player.Bank.Items {
+			for _, item := range privateState.Bank.Items {
 				playerMessage.Bank.Items = append(playerMessage.Bank.Items, protocol.InventoryItem{
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 					InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,

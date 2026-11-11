@@ -632,6 +632,69 @@ func TestSnapshotMessageOnlyIncludesLocalPlayersBank(t *testing.T) {
 	}
 }
 
+func TestSharedPublicFrameIsReusedWithinSnapshotInterval(t *testing.T) {
+	world := simulation.NewWorld()
+	if err := world.AddPlayer("player-one", simulation.Position{X: 1, Z: 1}, 4); err != nil {
+		t.Fatalf("AddPlayer(player-one) error = %v", err)
+	}
+	handler, err := NewHandler(world, 100*time.Millisecond)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	builtAt := time.Unix(100, 0)
+	first, built, _ := handler.sharedPublicFrame(builtAt)
+	if !built || len(first.Players) != 1 {
+		t.Fatalf("first public frame = %+v, built %t", first, built)
+	}
+	if err := world.AddPlayer("player-two", simulation.Position{X: 2, Z: 2}, 4); err != nil {
+		t.Fatalf("AddPlayer(player-two) error = %v", err)
+	}
+
+	second, built, _ := handler.sharedPublicFrame(builtAt.Add(50 * time.Millisecond))
+	if built || second != first || len(second.Players) != 1 {
+		t.Fatalf("cached public frame = %+v, built %t, reused %t", second, built, second == first)
+	}
+
+	third, built, _ := handler.sharedPublicFrame(builtAt.Add(100 * time.Millisecond))
+	if !built || third == first || len(third.Players) != 2 {
+		t.Fatalf("refreshed public frame = %+v, built %t, reused %t", third, built, third == first)
+	}
+}
+
+func TestSnapshotMessageAttachesOnlyRequestedPrivatePlayerToPublicFrame(t *testing.T) {
+	world := simulation.NewWorld()
+	for index, playerID := range []simulation.PlayerID{"player-one", "player-two"} {
+		if err := world.AddPlayer(playerID, simulation.Position{X: float64(index + 1), Z: 1}, 4); err != nil {
+			t.Fatalf("AddPlayer(%s) error = %v", playerID, err)
+		}
+	}
+	publicFrame := world.PublicSnapshot()
+	privatePlayer, found := world.Player("player-one")
+	if !found {
+		t.Fatal("Player(player-one) was not found")
+	}
+	message := snapshotMessageWithPrivate(publicFrame, "player-one", &privatePlayer)
+
+	local, found := findPlayer(message, "player-one")
+	if !found || local.Inventory == nil || local.Bank == nil || local.CombatStats == nil ||
+		local.CombatMatchup == nil || local.AmmunitionPouch == nil || local.RingRack == nil ||
+		local.RunePouch == nil || len(local.Skills) == 0 {
+		t.Fatalf("local private state is incomplete: %+v, found %t", local, found)
+	}
+	remote, found := findPlayer(message, "player-two")
+	if !found || remote.Inventory != nil || remote.Bank != nil || remote.CombatStats != nil ||
+		remote.CombatMatchup != nil || remote.AmmunitionPouch != nil || remote.RingRack != nil ||
+		remote.RunePouch != nil || len(remote.Skills) != 0 || len(remote.ActiveCombatBoosts) != 0 {
+		t.Fatalf("remote private state was exposed: %+v, found %t", remote, found)
+	}
+	for _, player := range publicFrame.Players {
+		if player.Inventory.Capacity != 0 || player.Bank.Capacity != 0 || len(player.Skills) != 0 {
+			t.Fatalf("shared public frame was mutated: %+v", player)
+		}
+	}
+}
+
 func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 	privatePlayer := simulation.PlayerSnapshot{
 		Inventory: simulation.InventorySnapshot{
