@@ -171,6 +171,41 @@ func TestWorldSnapshotIsOrderedAndDetached(t *testing.T) {
 	assertPosition(t, fresh.Players[0].Path[0], Position{Z: 10})
 }
 
+func TestWorldSnapshotForPlayerOnlyConstructsViewerPrivateState(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-b", Position{X: 2}, 2)
+	mustAddPlayer(t, world, "player-a", Position{}, 2)
+
+	snapshot := world.SnapshotForPlayer("player-a")
+	if len(snapshot.Players) != 2 || snapshot.Players[0].ID != "player-a" || snapshot.Players[1].ID != "player-b" {
+		t.Fatalf("SnapshotForPlayer() players = %+v", snapshot.Players)
+	}
+	viewer := snapshot.Players[0]
+	if viewer.Inventory.Capacity == 0 || viewer.Bank.Capacity == 0 ||
+		viewer.AmmunitionPouch.Capacity == 0 || viewer.RingRack.Capacity == 0 ||
+		viewer.RunePouch.Capacity == 0 || len(viewer.Skills) == 0 ||
+		viewer.CombatStats.AccuracyLevel == 0 {
+		t.Fatalf("viewer private state is incomplete: %+v", viewer)
+	}
+	remote := snapshot.Players[1]
+	if remote.Inventory.Capacity != 0 || remote.Bank.Capacity != 0 ||
+		remote.AmmunitionPouch.Capacity != 0 || remote.RingRack.Capacity != 0 ||
+		remote.RunePouch.Capacity != 0 || len(remote.Skills) != 0 ||
+		len(remote.ActiveCombatBoosts) != 0 || remote.CombatStats.AccuracyLevel != 0 ||
+		remote.CombatMatchup.TargetID != "" {
+		t.Fatalf("remote private state was constructed: %+v", remote)
+	}
+	if remote.MaximumHealth == 0 || remote.CombatLevel == 0 || remote.EquippedArmour == nil {
+		t.Fatalf("remote public state is incomplete: %+v", remote)
+	}
+
+	full := world.Snapshot()
+	if full.Players[1].Inventory.Capacity == 0 || len(full.Players[1].Skills) == 0 ||
+		full.Players[1].CombatStats.AccuracyLevel == 0 {
+		t.Fatalf("full snapshot lost private state: %+v", full.Players[1])
+	}
+}
+
 func TestWorldAppliesQueuedPlayerLifecycleOnStep(t *testing.T) {
 	world := NewWorld()
 	if err := world.QueueJoin("player-one", Position{X: 2}, 4); err != nil {

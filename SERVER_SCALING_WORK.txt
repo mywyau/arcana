@@ -19,7 +19,7 @@ COMPLETED FOUNDATIONS
 [x] Make local movement reconciliation ignore obsolete movement routes.
 
 
-SLICE 1: CONSTRUCT PUBLIC AND PRIVATE PLAYER STATE SEPARATELY
+SLICE 1: CONSTRUCT PUBLIC AND PRIVATE PLAYER STATE SEPARATELY (COMPLETED)
 
 Goal:
 Stop constructing every player's inventory, bank, skills, storage containers,
@@ -235,6 +235,7 @@ visibility, and measured load testing are the higher-value changes.
 
 RECOMMENDED NEXT ACTION
 
-Capture several two-player performance log windows, then implement Slice 1:
-construct public and private player state separately. Compare its snapshot
-construction time, payload size, and heap use against the recorded baseline.
+Capture several two-player performance log windows and compare snapshot
+construction time, payload size, and heap use against the earlier baseline.
+Then implement Slice 2: build one immutable public frame per 100 ms network
+interval and reuse it for every connection.

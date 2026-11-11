@@ -317,7 +317,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 			}
 		case <-ticker.C:
 			startedAt := time.Now()
-			worldSnapshot := h.world.Snapshot()
+			worldSnapshot := h.world.SnapshotForPlayer(playerID)
 			message := protocol.ServerMessage{
 				Type:     protocol.MessageSnapshot,
 				Snapshot: snapshotMessage(worldSnapshot, playerID),
@@ -1040,87 +1040,27 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 			CombatLevel:                  player.CombatLevel,
 			ExperienceLocked:             player.ExperienceLocked,
 			LastExperienceLockSequence:   player.LastExperienceLockSequence,
-			CombatMatchup: &protocol.CombatMatchupSnapshot{
-				TargetID:            player.CombatMatchup.TargetID,
-				PlayerHitChance:     player.CombatMatchup.PlayerHitChance,
-				PlayerMinimumDamage: player.CombatMatchup.PlayerMinimumDamage,
-				PlayerMaximumDamage: player.CombatMatchup.PlayerMaximumDamage,
-				PlayerAttackRange:   player.CombatMatchup.PlayerAttackRange,
-				TargetHitChance:     player.CombatMatchup.TargetHitChance,
-				TargetMinimumDamage: player.CombatMatchup.TargetMinimumDamage,
-				TargetMaximumDamage: player.CombatMatchup.TargetMaximumDamage,
-				TargetAttackRange:   player.CombatMatchup.TargetAttackRange,
-			},
-			CombatStats: &protocol.CombatStatsSnapshot{
-				Weapon:                  string(player.CombatStats.Weapon),
-				Style:                   string(player.CombatStats.Style),
-				Spell:                   string(player.CombatStats.Spell),
-				AccuracySkill:           string(player.CombatStats.AccuracySkill),
-				AccuracyLevel:           player.CombatStats.AccuracyLevel,
-				WeaponAccuracyBonus:     player.CombatStats.WeaponAccuracyBonus,
-				EquipmentAccuracyBonus:  player.CombatStats.EquipmentAccuracyBonus,
-				StyleAccuracyBonus:      player.CombatStats.StyleAccuracyBonus,
-				SpellAccuracyBonus:      player.CombatStats.SpellAccuracyBonus,
-				PrayerHitChanceBonus:    player.CombatStats.PrayerHitChanceBonus,
-				TotalAccuracy:           player.CombatStats.TotalAccuracy,
-				DamageSkill:             string(player.CombatStats.DamageSkill),
-				DamageLevel:             player.CombatStats.DamageLevel,
-				StrengthBonus:           player.CombatStats.StrengthBonus,
-				EquipmentStrengthBonus:  player.CombatStats.EquipmentStrengthBonus,
-				AmmunitionStrengthBonus: player.CombatStats.AmmunitionStrengthBonus,
-				SpellPower:              player.CombatStats.SpellPower,
-				SkillDamageBonus:        player.CombatStats.SkillDamageBonus,
-				PrayerDamageBonus:       player.CombatStats.PrayerDamageBonus,
-				PrayerDamageReduction:   player.CombatStats.PrayerDamageReduction,
-				BaseAttackInterval:      player.CombatStats.BaseAttackInterval,
-				AttackInterval:          player.CombatStats.AttackInterval,
-				AttackIntervalModifier:  player.CombatStats.AttackIntervalModifier,
-				MinimumDamage:           player.CombatStats.MinimumDamage,
-				MaximumDamage:           player.CombatStats.MaximumDamage,
-				DefenceLevel:            player.CombatStats.DefenceLevel,
-				ArmourDamageReduction:   player.CombatStats.ArmourDamageReduction,
-				MaximumHealthBonus:      player.CombatStats.MaximumHealthBonus,
-				DefenceBonuses: protocol.DefenceBonuses{
-					Stab: player.CombatStats.DefenceBonuses.Stab, Slash: player.CombatStats.DefenceBonuses.Slash,
-					Crush: player.CombatStats.DefenceBonuses.Crush, Ranged: player.CombatStats.DefenceBonuses.Ranged,
-					Magic: player.CombatStats.DefenceBonuses.Magic,
-				},
-				AgilityLevel:          player.CombatStats.AgilityLevel,
-				EquipmentEvasionBonus: player.CombatStats.EquipmentEvasionBonus,
-				TotalEvasion:          player.CombatStats.TotalEvasion,
-			},
-			Inventory: &protocol.InventorySnapshot{
-				Capacity: player.Inventory.Capacity,
-				Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
-			},
-			LastBankSequence:     player.LastBankSequence,
-			LastMerchantSequence: player.LastMerchantSequence,
-			LastPickupSequence:   player.LastPickupSequence,
-			LastConsumeSequence:  player.LastConsumeSequence,
-			NextConsumePulse:     player.NextConsumePulse,
-			LastBrewSequence:     player.LastBrewSequence,
-			BrewRemaining:        player.BrewRemaining,
-			NextBrewPulse:        player.NextBrewPulse,
-			BrewingResult:        player.BrewingResult,
-			LastFletchSequence:   player.LastFletchSequence,
-			FletchRemaining:      player.FletchRemaining,
-			NextFletchPulse:      player.NextFletchPulse,
-			FletchingResult:      player.FletchingResult,
-			GatheringSpot:        player.GatheringSpot,
-			GatheringResult:      player.GatheringResult,
-			NextGatherPulse:      player.NextGatherPulse,
-			LastGatherSequence:   player.LastGatherSequence,
-			Skills:               make([]protocol.SkillSnapshot, 0, len(player.Skills)),
-			ActiveCombatBoosts:   make([]protocol.ActiveCombatBoost, 0, len(player.ActiveCombatBoosts)),
-			Path:                 make([]protocol.Position, 0, len(player.Path)),
+			LastBankSequence:             player.LastBankSequence,
+			LastMerchantSequence:         player.LastMerchantSequence,
+			LastPickupSequence:           player.LastPickupSequence,
+			LastConsumeSequence:          player.LastConsumeSequence,
+			NextConsumePulse:             player.NextConsumePulse,
+			LastBrewSequence:             player.LastBrewSequence,
+			BrewRemaining:                player.BrewRemaining,
+			NextBrewPulse:                player.NextBrewPulse,
+			BrewingResult:                player.BrewingResult,
+			LastFletchSequence:           player.LastFletchSequence,
+			FletchRemaining:              player.FletchRemaining,
+			NextFletchPulse:              player.NextFletchPulse,
+			FletchingResult:              player.FletchingResult,
+			GatheringSpot:                player.GatheringSpot,
+			GatheringResult:              player.GatheringResult,
+			NextGatherPulse:              player.NextGatherPulse,
+			LastGatherSequence:           player.LastGatherSequence,
+			Path:                         make([]protocol.Position, 0, len(player.Path)),
 		}
 		for _, prayerID := range player.ActivePrayers {
 			playerMessage.ActivePrayers = append(playerMessage.ActivePrayers, string(prayerID))
-		}
-		for _, boost := range player.ActiveCombatBoosts {
-			playerMessage.ActiveCombatBoosts = append(playerMessage.ActiveCombatBoosts, protocol.ActiveCombatBoost{
-				Skill: string(boost.Skill), Levels: boost.Levels, ExpiresAtPulse: boost.ExpiresAtPulse,
-			})
 		}
 		for slot, itemID := range player.EquippedArmour {
 			playerMessage.EquippedArmour[string(slot)] = itemID
@@ -1131,14 +1071,8 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 		for slot, reinforcement := range player.EquippedArmourReinforcements {
 			playerMessage.EquippedArmourReinforcements[string(slot)] = reinforcement
 		}
-		for _, item := range player.Inventory.Items {
-			playerMessage.Inventory.Items = append(playerMessage.Inventory.Items, protocol.InventoryItem{
-				Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
-				InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
-				SellPrice: simulation.MerchantSellPrice(item),
-			})
-		}
 		if player.ID == localPlayerID {
+			populatePrivatePlayerMessage(&playerMessage, player)
 			playerMessage.LastDropSequence = player.LastDropSequence
 			playerMessage.LastInventoryMoveSequence = player.LastInventoryMoveSequence
 			playerMessage.LastGemCutSequence = player.LastGemCutSequence
@@ -1186,15 +1120,6 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				})
 			}
 		}
-		for _, skill := range player.Skills {
-			playerMessage.Skills = append(playerMessage.Skills, protocol.SkillSnapshot{
-				ID:                     string(skill.ID),
-				Experience:             skill.Experience,
-				Level:                  skill.Level,
-				CurrentLevelExperience: skill.CurrentLevelExperience,
-				NextLevelExperience:    skill.NextLevelExperience,
-			})
-		}
 		for _, waypoint := range player.Path {
 			playerMessage.Path = append(playerMessage.Path, protocol.Position{
 				X: waypoint.X,
@@ -1209,20 +1134,88 @@ func snapshotMessage(snapshot simulation.Snapshot, localPlayerID simulation.Play
 				Z: player.Destination.Z,
 			}
 		}
-		if player.ID != localPlayerID {
-			playerMessage.CombatStats = nil
-			playerMessage.CombatMatchup = nil
-			playerMessage.Inventory = nil
-			playerMessage.Bank = nil
-			playerMessage.AmmunitionPouch = nil
-			playerMessage.RingRack = nil
-			playerMessage.RunePouch = nil
-			playerMessage.Skills = nil
-			playerMessage.ActiveCombatBoosts = nil
-		}
 		message.Players = append(message.Players, playerMessage)
 	}
 	return message
+}
+
+func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simulation.PlayerSnapshot) {
+	message.CombatMatchup = &protocol.CombatMatchupSnapshot{
+		TargetID:            player.CombatMatchup.TargetID,
+		PlayerHitChance:     player.CombatMatchup.PlayerHitChance,
+		PlayerMinimumDamage: player.CombatMatchup.PlayerMinimumDamage,
+		PlayerMaximumDamage: player.CombatMatchup.PlayerMaximumDamage,
+		PlayerAttackRange:   player.CombatMatchup.PlayerAttackRange,
+		TargetHitChance:     player.CombatMatchup.TargetHitChance,
+		TargetMinimumDamage: player.CombatMatchup.TargetMinimumDamage,
+		TargetMaximumDamage: player.CombatMatchup.TargetMaximumDamage,
+		TargetAttackRange:   player.CombatMatchup.TargetAttackRange,
+	}
+	message.CombatStats = &protocol.CombatStatsSnapshot{
+		Weapon:                  string(player.CombatStats.Weapon),
+		Style:                   string(player.CombatStats.Style),
+		Spell:                   string(player.CombatStats.Spell),
+		AccuracySkill:           string(player.CombatStats.AccuracySkill),
+		AccuracyLevel:           player.CombatStats.AccuracyLevel,
+		WeaponAccuracyBonus:     player.CombatStats.WeaponAccuracyBonus,
+		EquipmentAccuracyBonus:  player.CombatStats.EquipmentAccuracyBonus,
+		StyleAccuracyBonus:      player.CombatStats.StyleAccuracyBonus,
+		SpellAccuracyBonus:      player.CombatStats.SpellAccuracyBonus,
+		PrayerHitChanceBonus:    player.CombatStats.PrayerHitChanceBonus,
+		TotalAccuracy:           player.CombatStats.TotalAccuracy,
+		DamageSkill:             string(player.CombatStats.DamageSkill),
+		DamageLevel:             player.CombatStats.DamageLevel,
+		StrengthBonus:           player.CombatStats.StrengthBonus,
+		EquipmentStrengthBonus:  player.CombatStats.EquipmentStrengthBonus,
+		AmmunitionStrengthBonus: player.CombatStats.AmmunitionStrengthBonus,
+		SpellPower:              player.CombatStats.SpellPower,
+		SkillDamageBonus:        player.CombatStats.SkillDamageBonus,
+		PrayerDamageBonus:       player.CombatStats.PrayerDamageBonus,
+		PrayerDamageReduction:   player.CombatStats.PrayerDamageReduction,
+		BaseAttackInterval:      player.CombatStats.BaseAttackInterval,
+		AttackInterval:          player.CombatStats.AttackInterval,
+		AttackIntervalModifier:  player.CombatStats.AttackIntervalModifier,
+		MinimumDamage:           player.CombatStats.MinimumDamage,
+		MaximumDamage:           player.CombatStats.MaximumDamage,
+		DefenceLevel:            player.CombatStats.DefenceLevel,
+		ArmourDamageReduction:   player.CombatStats.ArmourDamageReduction,
+		MaximumHealthBonus:      player.CombatStats.MaximumHealthBonus,
+		DefenceBonuses: protocol.DefenceBonuses{
+			Stab: player.CombatStats.DefenceBonuses.Stab, Slash: player.CombatStats.DefenceBonuses.Slash,
+			Crush: player.CombatStats.DefenceBonuses.Crush, Ranged: player.CombatStats.DefenceBonuses.Ranged,
+			Magic: player.CombatStats.DefenceBonuses.Magic,
+		},
+		AgilityLevel:          player.CombatStats.AgilityLevel,
+		EquipmentEvasionBonus: player.CombatStats.EquipmentEvasionBonus,
+		TotalEvasion:          player.CombatStats.TotalEvasion,
+	}
+	message.Inventory = &protocol.InventorySnapshot{
+		Capacity: player.Inventory.Capacity,
+		Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
+	}
+	for _, item := range player.Inventory.Items {
+		message.Inventory.Items = append(message.Inventory.Items, protocol.InventoryItem{
+			Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
+			InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
+			SellPrice: simulation.MerchantSellPrice(item),
+		})
+	}
+	message.ActiveCombatBoosts = make([]protocol.ActiveCombatBoost, 0, len(player.ActiveCombatBoosts))
+	for _, boost := range player.ActiveCombatBoosts {
+		message.ActiveCombatBoosts = append(message.ActiveCombatBoosts, protocol.ActiveCombatBoost{
+			Skill: string(boost.Skill), Levels: boost.Levels, ExpiresAtPulse: boost.ExpiresAtPulse,
+		})
+	}
+	message.Skills = make([]protocol.SkillSnapshot, 0, len(player.Skills))
+	for _, skill := range player.Skills {
+		message.Skills = append(message.Skills, protocol.SkillSnapshot{
+			ID:                     string(skill.ID),
+			Experience:             skill.Experience,
+			Level:                  skill.Level,
+			CurrentLevelExperience: skill.CurrentLevelExperience,
+			NextLevelExperience:    skill.NextLevelExperience,
+		})
+	}
 }
 
 func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnapshot {

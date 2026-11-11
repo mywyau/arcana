@@ -707,7 +707,18 @@ func (w *World) HasPlayerOrPending(id PlayerID) bool {
 func (w *World) Snapshot() Snapshot {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	return w.snapshotLocked(nil)
+}
 
+// SnapshotForPlayer returns public world state plus private state for only the
+// receiving player. Persistence should continue to use Snapshot or Player.
+func (w *World) SnapshotForPlayer(playerID PlayerID) Snapshot {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.snapshotLocked(&playerID)
+}
+
+func (w *World) snapshotLocked(privatePlayerID *PlayerID) Snapshot {
 	bankChests := []BankChestSnapshot{starterBankChest}
 	if w.testSupplyChestsEnabled {
 		bankChests = append(bankChests, testSupplyChests...)
@@ -736,8 +747,11 @@ func (w *World) Snapshot() Snapshot {
 		snapshot.Drops = append(snapshot.Drops, w.drops[id])
 	}
 	for _, player := range w.players {
-		playerSnapshot := snapshotPlayer(player)
-		playerSnapshot.CombatMatchup = w.combatMatchupForPlayer(player)
+		playerSnapshot := snapshotPublicPlayer(player)
+		if privatePlayerID == nil || player.id == *privatePlayerID {
+			populatePrivatePlayerSnapshot(&playerSnapshot, player)
+			playerSnapshot.CombatMatchup = w.combatMatchupForPlayer(player)
+		}
 		snapshot.Players = append(snapshot.Players, playerSnapshot)
 	}
 	sort.Slice(snapshot.Players, func(i, j int) bool {
@@ -786,6 +800,12 @@ func movePlayer(player *playerState, seconds float64) {
 }
 
 func snapshotPlayer(player *playerState) PlayerSnapshot {
+	snapshot := snapshotPublicPlayer(player)
+	populatePrivatePlayerSnapshot(&snapshot, player)
+	return snapshot
+}
+
+func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 	snapshot := PlayerSnapshot{
 		ID:                           player.id,
 		Position:                     player.position,
@@ -824,18 +844,12 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		CombatStyle:                  player.combatStyle,
 		LastCombatStyleSequence:      player.lastCombatStyleSequence,
 		DodgeRate:                    playerDodgeChance(dummyAccuracyScore, player),
-		CombatStats:                  derivedCombatStats(player),
 		CombatLevel:                  playerCombatLevel(player),
 		ExperienceLocked:             player.experienceLocked,
 		LastExperienceLockSequence:   player.lastExperienceLockSequence,
-		Inventory:                    snapshotInventory(player.inventory),
-		AmmunitionPouch:              snapshotAmmunitionPouch(player.ammunitionPouch),
 		LastAmmunitionSequence:       player.lastAmmunitionSequence,
-		RingRack:                     snapshotRingRack(player.ringRack),
 		LastRingSequence:             player.lastRingSequence,
-		RunePouch:                    snapshotRunePouch(player.runePouch),
 		LastRuneSequence:             player.lastRuneSequence,
-		Bank:                         snapshotBank(player.bank),
 		LastBankSequence:             player.lastBankSequence,
 		LastMerchantSequence:         player.lastMerchantSequence,
 		LastPickupSequence:           player.lastPickupSequence,
@@ -858,14 +872,23 @@ func snapshotPlayer(player *playerState) PlayerSnapshot {
 		GatheringResult:              player.gatheringResult,
 		NextGatherPulse:              player.nextGatherPulse,
 		LastGatherSequence:           player.lastGatherSequence,
-		Skills:                       snapshotSkills(player.skills),
-		ActiveCombatBoosts:           activeCombatBoostSnapshots(player),
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)
 	}
 	snapshot.Path = clonePositions(player.path)
 	return snapshot
+}
+
+func populatePrivatePlayerSnapshot(snapshot *PlayerSnapshot, player *playerState) {
+	snapshot.CombatStats = derivedCombatStats(player)
+	snapshot.Inventory = snapshotInventory(player.inventory)
+	snapshot.AmmunitionPouch = snapshotAmmunitionPouch(player.ammunitionPouch)
+	snapshot.RingRack = snapshotRingRack(player.ringRack)
+	snapshot.RunePouch = snapshotRunePouch(player.runePouch)
+	snapshot.Bank = snapshotBank(player.bank)
+	snapshot.Skills = snapshotSkills(player.skills)
+	snapshot.ActiveCombatBoosts = activeCombatBoostSnapshots(player)
 }
 
 func validatePlayer(id PlayerID, position Position, speed float64) error {
