@@ -8,7 +8,8 @@ func TestLoadDefaultsToLocalDevelopment(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 	if config.Environment != EnvironmentDevelopment || config.ListenAddress != ":8080" ||
-		!config.DebugContentEnabled || !config.TestSupplyChestsEnabled || !config.GuestAuthenticationEnabled {
+		!config.DebugContentEnabled || !config.TestSupplyChestsEnabled || !config.GuestAuthenticationEnabled ||
+		config.VisibilityRadius != DefaultVisibilityRadius {
 		t.Fatalf("development config = %+v", config)
 	}
 }
@@ -21,13 +22,15 @@ func TestLoadProductionConfiguration(t *testing.T) {
 		"ARCANA_ALLOWED_ORIGINS":           "https://game.example.com, launcher.example.com",
 		"ARCANA_TRUST_PROXY_HEADERS":       "true",
 		"ARCANA_ENABLE_TEST_SUPPLY_CHESTS": "true",
+		"ARCANA_VISIBILITY_RADIUS":         "55.5",
 	}
 	config, err := Load(func(key string) string { return values[key] })
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 	if config.ListenAddress != ":10000" || config.DebugContentEnabled || !config.TestSupplyChestsEnabled ||
-		config.GuestAuthenticationEnabled || !config.TrustProxyHeaders || len(config.AllowedOrigins) != 2 {
+		config.GuestAuthenticationEnabled || !config.TrustProxyHeaders || len(config.AllowedOrigins) != 2 ||
+		config.VisibilityRadius != 55.5 {
 		t.Fatalf("production config = %+v", config)
 	}
 }
@@ -40,6 +43,8 @@ func TestLoadRejectsUnsafeProductionConfiguration(t *testing.T) {
 		{"ARCANA_ALLOW_GUEST_AUTH": "invalid"},
 		{"ARCANA_ENABLE_TEST_SUPPLY_CHESTS": "invalid"},
 		{"ARCANA_TRUST_PROXY_HEADERS": "invalid"},
+		{"ARCANA_VISIBILITY_RADIUS": "0"},
+		{"ARCANA_VISIBILITY_RADIUS": "NaN"},
 		{"PORT": "invalid"},
 	}
 	for _, values := range tests {

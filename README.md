@@ -135,6 +135,8 @@ The relevant environment variables are:
   cannot be enabled in production.
 - `ARCANA_ALLOWED_ORIGINS`: optional comma-separated WebSocket origin hosts for
   future browser clients. Native Godot clients do not send a browser origin.
+- `ARCANA_VISIBILITY_RADIUS`: distance in world units used to send nearby
+  players and dynamic entities to each client; defaults to `40`.
 
 Build and exercise the same container locally with:
 

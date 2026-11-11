@@ -643,21 +643,21 @@ func TestSharedPublicFrameIsReusedWithinSnapshotInterval(t *testing.T) {
 	}
 
 	builtAt := time.Unix(100, 0)
-	first, built, _ := handler.sharedPublicFrame(builtAt)
-	if !built || len(first.Players) != 1 {
+	first, firstInterest, built, _ := handler.sharedPublicFrame(builtAt)
+	if !built || firstInterest == nil || len(first.Players) != 1 {
 		t.Fatalf("first public frame = %+v, built %t", first, built)
 	}
 	if err := world.AddPlayer("player-two", simulation.Position{X: 2, Z: 2}, 4); err != nil {
 		t.Fatalf("AddPlayer(player-two) error = %v", err)
 	}
 
-	second, built, _ := handler.sharedPublicFrame(builtAt.Add(50 * time.Millisecond))
-	if built || second != first || len(second.Players) != 1 {
+	second, secondInterest, built, _ := handler.sharedPublicFrame(builtAt.Add(50 * time.Millisecond))
+	if built || second != first || secondInterest != firstInterest || len(second.Players) != 1 {
 		t.Fatalf("cached public frame = %+v, built %t, reused %t", second, built, second == first)
 	}
 
-	third, built, _ := handler.sharedPublicFrame(builtAt.Add(100 * time.Millisecond))
-	if !built || third == first || len(third.Players) != 2 {
+	third, thirdInterest, built, _ := handler.sharedPublicFrame(builtAt.Add(100 * time.Millisecond))
+	if !built || third == first || thirdInterest == firstInterest || len(third.Players) != 2 {
 		t.Fatalf("refreshed public frame = %+v, built %t, reused %t", third, built, third == first)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ const (
 	characterSaveInterval        = 30 * time.Second
 	disconnectedLogoutDelay      = 2 * time.Minute
 	connectionReplacementTimeout = 5 * time.Second
+	DefaultVisibilityRadius      = 40.0
 )
 
 var errAccountRequired = errors.New("an account is required to enter this world")
@@ -46,11 +48,13 @@ type Handler struct {
 	allowDebug              bool
 	allowGuests             bool
 	metrics                 *servermetrics.Collector
+	visibilityRadius        float64
 	acceptOptions           websocket.AcceptOptions
 	activeMu                sync.Mutex
 	activeClients           map[simulation.PlayerID]*activeClient
 	publicFrameMu           sync.Mutex
 	publicFrame             *simulation.Snapshot
+	publicInterest          *interestIndex
 	publicFrameBuiltAt      time.Time
 	pendingLogoutMu         sync.Mutex
 	pendingLogouts          map[simulation.PlayerID]*pendingLogout
@@ -71,6 +75,7 @@ type HandlerOptions struct {
 	AccountManager     *account.Manager
 	RequireAccounts    bool
 	PerformanceMetrics *servermetrics.Collector
+	VisibilityRadius   float64
 }
 
 type outboundResponse struct {
@@ -146,6 +151,13 @@ func NewHandlerWithRepositoriesAndOptions(
 	if characters == nil {
 		return nil, fmt.Errorf("character repository is required")
 	}
+	visibilityRadius := options.VisibilityRadius
+	if visibilityRadius == 0 {
+		visibilityRadius = DefaultVisibilityRadius
+	}
+	if math.IsNaN(visibilityRadius) || math.IsInf(visibilityRadius, 0) || visibilityRadius < 0 {
+		return nil, fmt.Errorf("visibility radius must be finite and positive")
+	}
 	accountManager := options.AccountManager
 	if accountManager == nil {
 		accountRepository := account.NewMemoryRepository()
@@ -163,6 +175,7 @@ func NewHandlerWithRepositoriesAndOptions(
 		allowDebug:              options.AllowDebugCommands,
 		allowGuests:             !options.RequireAccounts,
 		metrics:                 options.PerformanceMetrics,
+		visibilityRadius:        visibilityRadius,
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
 		},
@@ -319,15 +332,23 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				return
 			}
 		case <-ticker.C:
-			publicFrame, built, buildDuration := h.sharedPublicFrame(time.Now())
+			publicFrame, publicInterest, built, buildDuration := h.sharedPublicFrame(time.Now())
 			privatePlayer, hasPrivatePlayer := h.world.Player(playerID)
 			var privatePlayerPointer *simulation.PlayerSnapshot
 			if hasPrivatePlayer {
 				privatePlayerPointer = &privatePlayer
 			}
+			queryStartedAt := time.Now()
+			visibleFrame, candidateEntities, visibleEntities := filterSnapshotForPlayerWithIndex(
+				*publicFrame, publicInterest, playerID, privatePlayerPointer, h.visibilityRadius,
+			)
+			queryDuration := time.Since(queryStartedAt)
 			message := protocol.ServerMessage{
 				Type:     protocol.MessageSnapshot,
-				Snapshot: snapshotMessageWithPrivate(*publicFrame, playerID, privatePlayerPointer),
+				Snapshot: snapshotMessageWithPrivate(visibleFrame, playerID, privatePlayerPointer),
+			}
+			if h.metrics != nil {
+				h.metrics.RecordInterestQuery(queryDuration, candidateEntities, visibleEntities)
 			}
 			if h.metrics != nil && built {
 				h.metrics.RecordSnapshot(buildDuration, servermetrics.EntityCounts{
@@ -348,18 +369,20 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 // sharedPublicFrame builds at most one immutable public world frame per
 // network interval. Connection goroutines only read the returned snapshot;
 // their private player state is attached while constructing the wire message.
-func (h *Handler) sharedPublicFrame(now time.Time) (*simulation.Snapshot, bool, time.Duration) {
+func (h *Handler) sharedPublicFrame(now time.Time) (*simulation.Snapshot, *interestIndex, bool, time.Duration) {
 	h.publicFrameMu.Lock()
 	defer h.publicFrameMu.Unlock()
 	if h.publicFrame != nil && now.Sub(h.publicFrameBuiltAt) < h.snapshotInterval {
-		return h.publicFrame, false, 0
+		return h.publicFrame, h.publicInterest, false, 0
 	}
 	startedAt := time.Now()
 	frame := h.world.PublicSnapshot()
+	interest := buildInterestIndex(frame, interestCellSize)
 	buildDuration := time.Since(startedAt)
 	h.publicFrame = &frame
+	h.publicInterest = interest
 	h.publicFrameBuiltAt = now
-	return h.publicFrame, true, buildDuration
+	return h.publicFrame, h.publicInterest, true, buildDuration
 }
 
 func productionRecipeMessages(recipes []simulation.ProductionRecipeSnapshot) []protocol.ProductionRecipeSnapshot {

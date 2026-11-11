@@ -36,26 +36,32 @@ type Window struct {
 	StartedAt time.Time
 	EndedAt   time.Time
 
-	TickCount       int64
-	TickTotal       time.Duration
-	TickMax         time.Duration
-	SlowTickCount   int64
-	SnapshotCount   int64
-	SnapshotTotal   time.Duration
-	SnapshotMax     time.Duration
-	EncodingCount   int64
-	EncodingTotal   time.Duration
-	EncodingMax     time.Duration
-	WriteCount      int64
-	WriteTotal      time.Duration
-	WriteMax        time.Duration
-	WriteErrorCount int64
-	SaveCount       int64
-	SaveTotal       time.Duration
-	SaveMax         time.Duration
-	SaveErrorCount  int64
-	BytesTotal      int64
-	BytesMax        int64
+	TickCount          int64
+	TickTotal          time.Duration
+	TickMax            time.Duration
+	SlowTickCount      int64
+	SnapshotCount      int64
+	SnapshotTotal      time.Duration
+	SnapshotMax        time.Duration
+	EncodingCount      int64
+	EncodingTotal      time.Duration
+	EncodingMax        time.Duration
+	WriteCount         int64
+	WriteTotal         time.Duration
+	WriteMax           time.Duration
+	WriteErrorCount    int64
+	SaveCount          int64
+	SaveTotal          time.Duration
+	SaveMax            time.Duration
+	SaveErrorCount     int64
+	BytesTotal         int64
+	BytesMax           int64
+	VisibilityCount    int64
+	VisibilityTotal    EntityCounts
+	InterestQueryCount int64
+	InterestQueryTotal time.Duration
+	InterestQueryMax   time.Duration
+	CandidateTotal     EntityCounts
 
 	Connections int
 	Entities    EntityCounts
@@ -73,6 +79,34 @@ func (w Window) BytesAverage() int64 {
 	return w.BytesTotal / w.EncodingCount
 }
 
+func (w Window) VisibilityAverage() EntityCounts {
+	if w.VisibilityCount == 0 {
+		return EntityCounts{}
+	}
+	count := int(w.VisibilityCount)
+	return EntityCounts{
+		Players: w.VisibilityTotal.Players / count, Targets: w.VisibilityTotal.Targets / count,
+		Drops: w.VisibilityTotal.Drops / count, Fires: w.VisibilityTotal.Fires / count,
+		GatheringSpots: w.VisibilityTotal.GatheringSpots / count,
+	}
+}
+
+func (w Window) InterestQueryAverage() time.Duration {
+	return average(w.InterestQueryTotal, w.InterestQueryCount)
+}
+
+func (w Window) CandidateAverage() EntityCounts {
+	if w.InterestQueryCount == 0 {
+		return EntityCounts{}
+	}
+	count := int(w.InterestQueryCount)
+	return EntityCounts{
+		Players: w.CandidateTotal.Players / count, Targets: w.CandidateTotal.Targets / count,
+		Drops: w.CandidateTotal.Drops / count, Fires: w.CandidateTotal.Fires / count,
+		GatheringSpots: w.CandidateTotal.GatheringSpots / count,
+	}
+}
+
 func average(total time.Duration, count int64) time.Duration {
 	if count == 0 {
 		return 0
@@ -85,17 +119,21 @@ func average(total time.Duration, count int64) time.Duration {
 type Collector struct {
 	mu sync.Mutex
 
-	startedAt time.Time
-	ticks     durationSamples
-	slowTicks int64
-	snapshots durationSamples
-	encodings durationSamples
-	writes    durationSamples
-	writeErrs int64
-	saves     durationSamples
-	saveErrs  int64
-	bytes     int64
-	maxBytes  int64
+	startedAt       time.Time
+	ticks           durationSamples
+	slowTicks       int64
+	snapshots       durationSamples
+	encodings       durationSamples
+	writes          durationSamples
+	writeErrs       int64
+	saves           durationSamples
+	saveErrs        int64
+	bytes           int64
+	maxBytes        int64
+	visibilityCount int64
+	visibilityTotal EntityCounts
+	interestQueries durationSamples
+	candidateTotal  EntityCounts
 
 	connections int
 	entities    EntityCounts
@@ -129,6 +167,23 @@ func (c *Collector) RecordEncoding(elapsed time.Duration, size int) {
 	if int64(size) > c.maxBytes {
 		c.maxBytes = int64(size)
 	}
+}
+
+func (c *Collector) RecordInterestQuery(elapsed time.Duration, candidates, visible EntityCounts) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.interestQueries.add(elapsed)
+	c.candidateTotal.Players += candidates.Players
+	c.candidateTotal.Targets += candidates.Targets
+	c.candidateTotal.Drops += candidates.Drops
+	c.candidateTotal.Fires += candidates.Fires
+	c.candidateTotal.GatheringSpots += candidates.GatheringSpots
+	c.visibilityCount++
+	c.visibilityTotal.Players += visible.Players
+	c.visibilityTotal.Targets += visible.Targets
+	c.visibilityTotal.Drops += visible.Drops
+	c.visibilityTotal.Fires += visible.Fires
+	c.visibilityTotal.GatheringSpots += visible.GatheringSpots
 }
 
 func (c *Collector) RecordWrite(elapsed time.Duration, err error) {
@@ -165,28 +220,34 @@ func (c *Collector) SnapshotAndReset(now time.Time) Window {
 		StartedAt: c.startedAt,
 		EndedAt:   now,
 
-		TickCount:       c.ticks.Count,
-		TickTotal:       c.ticks.Total,
-		TickMax:         c.ticks.Max,
-		SlowTickCount:   c.slowTicks,
-		SnapshotCount:   c.snapshots.Count,
-		SnapshotTotal:   c.snapshots.Total,
-		SnapshotMax:     c.snapshots.Max,
-		EncodingCount:   c.encodings.Count,
-		EncodingTotal:   c.encodings.Total,
-		EncodingMax:     c.encodings.Max,
-		WriteCount:      c.writes.Count,
-		WriteTotal:      c.writes.Total,
-		WriteMax:        c.writes.Max,
-		WriteErrorCount: c.writeErrs,
-		SaveCount:       c.saves.Count,
-		SaveTotal:       c.saves.Total,
-		SaveMax:         c.saves.Max,
-		SaveErrorCount:  c.saveErrs,
-		BytesTotal:      c.bytes,
-		BytesMax:        c.maxBytes,
-		Connections:     c.connections,
-		Entities:        c.entities,
+		TickCount:          c.ticks.Count,
+		TickTotal:          c.ticks.Total,
+		TickMax:            c.ticks.Max,
+		SlowTickCount:      c.slowTicks,
+		SnapshotCount:      c.snapshots.Count,
+		SnapshotTotal:      c.snapshots.Total,
+		SnapshotMax:        c.snapshots.Max,
+		EncodingCount:      c.encodings.Count,
+		EncodingTotal:      c.encodings.Total,
+		EncodingMax:        c.encodings.Max,
+		WriteCount:         c.writes.Count,
+		WriteTotal:         c.writes.Total,
+		WriteMax:           c.writes.Max,
+		WriteErrorCount:    c.writeErrs,
+		SaveCount:          c.saves.Count,
+		SaveTotal:          c.saves.Total,
+		SaveMax:            c.saves.Max,
+		SaveErrorCount:     c.saveErrs,
+		BytesTotal:         c.bytes,
+		BytesMax:           c.maxBytes,
+		VisibilityCount:    c.visibilityCount,
+		VisibilityTotal:    c.visibilityTotal,
+		InterestQueryCount: c.interestQueries.Count,
+		InterestQueryTotal: c.interestQueries.Total,
+		InterestQueryMax:   c.interestQueries.Max,
+		CandidateTotal:     c.candidateTotal,
+		Connections:        c.connections,
+		Entities:           c.entities,
 	}
 	c.startedAt = now
 	c.ticks = durationSamples{}
@@ -199,6 +260,10 @@ func (c *Collector) SnapshotAndReset(now time.Time) Window {
 	c.saveErrs = 0
 	c.bytes = 0
 	c.maxBytes = 0
+	c.visibilityCount = 0
+	c.visibilityTotal = EntityCounts{}
+	c.interestQueries = durationSamples{}
+	c.candidateTotal = EntityCounts{}
 	return window
 }
 
@@ -206,11 +271,16 @@ func (c *Collector) SnapshotAndReset(now time.Time) Window {
 // logs. Memory figures are supplied by the caller to keep runtime concerns out
 // of the collector.
 func (w Window) Summary(heapBytes, gcCount uint64) string {
+	visible := w.VisibilityAverage()
+	candidates := w.CandidateAverage()
 	return fmt.Sprintf(
-		"performance window=%s connections=%d players=%d targets=%d drops=%d fires=%d gathering_spots=%d tick_avg=%s tick_max=%s slow_ticks=%d snapshot_avg=%s snapshot_max=%s encode_avg=%s payload_avg=%s payload_max=%s write_avg=%s write_max=%s write_errors=%d save_avg=%s save_max=%s save_errors=%d heap=%s gc=%d",
+		"performance window=%s connections=%d players=%d targets=%d drops=%d fires=%d gathering_spots=%d candidate_players_avg=%d candidate_targets_avg=%d candidate_drops_avg=%d candidate_fires_avg=%d candidate_spots_avg=%d visible_players_avg=%d visible_targets_avg=%d visible_drops_avg=%d visible_fires_avg=%d visible_spots_avg=%d interest_query_avg=%s interest_query_max=%s tick_avg=%s tick_max=%s slow_ticks=%d snapshot_avg=%s snapshot_max=%s encode_avg=%s payload_avg=%s payload_max=%s write_avg=%s write_max=%s write_errors=%d save_avg=%s save_max=%s save_errors=%d heap=%s gc=%d",
 		w.EndedAt.Sub(w.StartedAt).Round(time.Millisecond),
 		w.Connections, w.Entities.Players, w.Entities.Targets, w.Entities.Drops,
 		w.Entities.Fires, w.Entities.GatheringSpots,
+		candidates.Players, candidates.Targets, candidates.Drops, candidates.Fires, candidates.GatheringSpots,
+		visible.Players, visible.Targets, visible.Drops, visible.Fires, visible.GatheringSpots,
+		shortDuration(w.InterestQueryAverage()), shortDuration(w.InterestQueryMax),
 		shortDuration(w.TickAverage()), shortDuration(w.TickMax), w.SlowTickCount,
 		shortDuration(w.SnapshotAverage()), shortDuration(w.SnapshotMax),
 		shortDuration(w.EncodingAverage()), byteSize(w.BytesAverage()), byteSize(w.BytesMax),

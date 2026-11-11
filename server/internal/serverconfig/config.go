@@ -2,14 +2,16 @@ package serverconfig
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
 
 const (
-	EnvironmentDevelopment = "development"
-	EnvironmentStaging     = "staging"
-	EnvironmentProduction  = "production"
+	EnvironmentDevelopment  = "development"
+	EnvironmentStaging      = "staging"
+	EnvironmentProduction   = "production"
+	DefaultVisibilityRadius = 40.0
 )
 
 type Config struct {
@@ -21,6 +23,7 @@ type Config struct {
 	GuestAuthenticationEnabled bool
 	TrustProxyHeaders          bool
 	AllowedOrigins             []string
+	VisibilityRadius           float64
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -77,6 +80,13 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("ARCANA_TRUST_PROXY_HEADERS must be true or false")
 		}
 	}
+	visibilityRadius := DefaultVisibilityRadius
+	if rawRadius := strings.TrimSpace(getenv("ARCANA_VISIBILITY_RADIUS")); rawRadius != "" {
+		visibilityRadius, err = strconv.ParseFloat(rawRadius, 64)
+		if err != nil || math.IsNaN(visibilityRadius) || math.IsInf(visibilityRadius, 0) || visibilityRadius <= 0 {
+			return Config{}, fmt.Errorf("ARCANA_VISIBILITY_RADIUS must be a finite positive number")
+		}
+	}
 	return Config{
 		Environment:                environment,
 		ListenAddress:              ":" + port,
@@ -86,6 +96,7 @@ func Load(getenv func(string) string) (Config, error) {
 		GuestAuthenticationEnabled: guestAuthenticationEnabled,
 		TrustProxyHeaders:          trustProxyHeaders,
 		AllowedOrigins:             splitList(getenv("ARCANA_ALLOWED_ORIGINS")),
+		VisibilityRadius:           visibilityRadius,
 	}, nil
 }
 

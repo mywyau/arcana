@@ -231,6 +231,7 @@ func main() {
 			AccountManager:     accountManager,
 			RequireAccounts:    !config.GuestAuthenticationEnabled,
 			PerformanceMetrics: performanceMetrics,
+			VisibilityRadius:   config.VisibilityRadius,
 		},
 	)
 	if err != nil {
@@ -258,8 +259,9 @@ func main() {
 	}
 
 	log.Printf(
-		"simulation started in %s mode with a %s tick interval and %s snapshot interval (debug content: %t, test supply chests: %t)",
-		config.Environment, tickInterval, snapshotInterval, config.DebugContentEnabled, config.TestSupplyChestsEnabled,
+		"simulation started in %s mode with a %s tick interval, %s snapshot interval, and %.1f visibility radius (debug content: %t, test supply chests: %t)",
+		config.Environment, tickInterval, snapshotInterval, config.VisibilityRadius,
+		config.DebugContentEnabled, config.TestSupplyChestsEnabled,
 	)
 	go runner.Run(ctx)
 	go reportPerformance(ctx, performanceMetrics, metricsInterval)
