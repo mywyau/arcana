@@ -1,0 +1,240 @@
+ARCANA SERVER SCALING WORK
+Target: up to 2,000 connected players in one logical world
+
+The work should remain incremental. Measure each completed slice before moving
+to the next one, and avoid changing transport or splitting the server into
+microservices until profiling shows that it is necessary.
+
+
+COMPLETED FOUNDATIONS
+
+[x] Keep the authoritative simulation at 20 Hz.
+[x] Send network snapshots at 10 Hz.
+[x] Remove remote inventory, bank, skills, equipment containers, potion boosts,
+    and detailed combat calculations from transmitted snapshots.
+[x] Add server timing, payload, connection, entity, save, heap, and garbage-
+    collection metrics.
+[x] Synchronise command sequences when a client reconnects to a suspended
+    character.
+[x] Make local movement reconciliation ignore obsolete movement routes.
+
+
+SLICE 1: CONSTRUCT PUBLIC AND PRIVATE PLAYER STATE SEPARATELY
+
+Goal:
+Stop constructing every player's inventory, bank, skills, storage containers,
+boosts, and detailed combat calculations for every connection.
+
+Work:
+- Add an explicitly public player snapshot for visible world state.
+- Add private state only for the player receiving the snapshot.
+- Keep persistence snapshots complete and independent of network snapshots.
+- Remove transport-time private-state cleanup once privacy is guaranteed by
+  construction.
+- Add tests proving remote state cannot contain private character data.
+
+Acceptance:
+- Existing inventory, equipment, skills, storage, and combat interfaces work.
+- Remote snapshots cannot contain private fields by construction.
+- Persistence still saves complete character state.
+- Snapshot allocation and construction measurements improve as players increase.
+
+
+SLICE 2: BUILD ONE SHARED PUBLIC FRAME
+
+Goal:
+Avoid rebuilding the same public world snapshot separately for every client.
+
+Work:
+- Build one immutable public frame every 100 ms.
+- Reuse that frame for all connected players.
+- Attach only the receiving player's private extension.
+- Ensure connections cannot mutate shared frame data.
+
+Acceptance:
+- Public snapshot construction happens once per network interval.
+- Per-connection work is limited mainly to private state and encoding.
+- Race-detector tests pass.
+
+
+SLICE 3: REMOVE STATIC CONTENT FROM FREQUENT SNAPSHOTS
+
+Goal:
+Stop repeatedly sending data that rarely or never changes.
+
+Candidates:
+- Bank chest definitions and positions.
+- Merchant definitions and positions.
+- Gathering spot definitions.
+- Production station metadata.
+- Other fixed world interactables.
+
+Work:
+- Send static definitions during welcome or area entry.
+- Send only changing resource quantities, availability, and merchant stock in
+  regular updates.
+
+Acceptance:
+- Existing interactables still appear and function correctly.
+- Average snapshot payload size decreases.
+
+
+SLICE 4: DELIVER TRANSIENT EVENTS ONCE
+
+Goal:
+Stop carrying rolling histories of combat and action events in every snapshot.
+
+Work:
+- Give transient events monotonic IDs.
+- Track which events each connection has received.
+- Deliver hits, misses, sounds, XP feedback, gathering results, and similar
+  events once.
+- Bound event retention and preserve client-side deduplication.
+
+Acceptance:
+- Events are neither replayed nor silently lost during normal play.
+- Event memory remains bounded.
+- Snapshot size no longer grows with recent event history.
+
+
+SLICE 5: ADD BOUNDED OUTBOUND CONNECTION QUEUES
+
+Goal:
+Prevent slow clients from creating unbounded memory use or delaying the server.
+
+Work:
+- Give each connection a bounded outbound queue.
+- Replace obsolete queued snapshots with the newest snapshot.
+- Preserve important one-time events.
+- Measure queue depth, dropped snapshots, write latency, and slow-client
+  disconnects.
+- Disconnect clients that remain unable to consume updates.
+
+Acceptance:
+- A deliberately slow client cannot cause unbounded memory growth.
+- Healthy clients continue receiving updates normally.
+
+
+SLICE 6: ADD SPATIAL AREAS OF INTEREST
+
+Goal:
+Send players only the dynamic entities relevant to their current area.
+
+Work:
+- Divide the world into a simple spatial grid.
+- Index players, enemies, drops, fires, and other dynamic entities by cell.
+- Subscribe each connection to its current and neighbouring cells.
+- Send enter, update, and leave information as visibility changes.
+- Define special handling for large bosses and long-range attacks.
+
+Acceptance:
+- Snapshot size depends primarily on nearby activity, not total world size.
+- Movement across cell boundaries does not make entities flicker or disappear.
+- Interactions at visibility boundaries remain server-authoritative.
+
+
+SLICE 7: SEND DELTA UPDATES
+
+Goal:
+Transmit only state that changed since the previous update.
+
+Work:
+- Add revision numbers to dynamic entities.
+- Send creates, changes, and removals after the initial area snapshot.
+- Retain occasional full reconciliation snapshots.
+- Recover safely if the client misses or rejects a delta.
+
+Acceptance:
+- Client state remains correct after packet delays and reconnects.
+- Normal bandwidth falls significantly in mostly idle areas.
+
+
+SLICE 8: CONTROL CLIENT-SIDE ENTITY COST
+
+Goal:
+Keep Godot responsive in crowded locations.
+
+Work:
+- Reduce animation and UI update rates for distant entities.
+- Hide distant overhead labels and minor effects.
+- Pool frequently created projectiles, damage numbers, and dropped-item views.
+- Add distance and crowd-based visibility limits.
+- Avoid rebuilding unchanged meshes and interface elements.
+
+Acceptance:
+- Client frame time remains stable in representative crowded scenes.
+- Nearby combat and interaction feedback remains responsive.
+
+
+SLICE 9: BUILD A LOAD-TEST CLIENT
+
+Goal:
+Test capacity without requiring thousands of Godot clients.
+
+Work:
+- Create lightweight simulated clients that authenticate and connect by
+  WebSocket.
+- Support movement, idle play, combat, gathering, reconnects, and disconnects.
+- Test distributed players and concentrated hotspot scenarios.
+- Run staged tests at 100, 500, 1,000, and 2,000 connections.
+- Record tick time, payloads, bandwidth, memory, queue depth, database latency,
+  and disconnect rates.
+
+Acceptance:
+- Test scenarios are repeatable.
+- Multi-hour soak tests reveal no unbounded memory growth.
+- The supported player cap includes operational headroom.
+
+
+SLICE 10: HARDEN PERSISTENCE AND WORLD OPERATIONS
+
+Goal:
+Prevent database latency and process failures from corrupting or stalling the
+world.
+
+Work:
+- Ensure database work never blocks the simulation loop.
+- Queue and retry saves with bounded memory and backoff.
+- Prevent stale saves from overwriting newer character state.
+- Add graceful shutdown and final-save reporting.
+- Define recovery behaviour after a world-process crash.
+- Add structured operational alerts for slow ticks, failed saves, excessive
+  memory, and connection failures.
+
+Acceptance:
+- Temporary database failure does not freeze gameplay.
+- Save ordering is deterministic and tested.
+- Planned shutdown preserves active character state.
+
+
+HOTSPOT POLICY
+
+Two thousand distributed players are much easier than two thousand players in
+one location. Before a large beta, decide how crowded hotspots behave:
+
+- Maximum number of other players rendered by each client.
+- Priority based on distance, combat relevance, and party membership.
+- Reduced update rates for low-priority entities.
+- Whether player-to-player collision is disabled or simplified.
+- Whether exceptionally crowded bosses use encounter instances.
+
+
+WORK TO DEFER UNTIL PROFILING REQUIRES IT
+
+- Replacing WebSockets with another transport.
+- A compact binary protocol.
+- Parallel simulation of independent spatial cells.
+- Multiple server processes for one seamless world.
+- Dedicated network gateways.
+- Kubernetes or automatic world-process scheduling.
+
+Go, WebSockets, PostgreSQL, and the modular authoritative server can remain for
+now. Selective state construction, shared frames, bounded queues, spatial
+visibility, and measured load testing are the higher-value changes.
+
+
+RECOMMENDED NEXT ACTION
+
+Capture several two-player performance log windows, then implement Slice 1:
+construct public and private player state separately. Compare its snapshot
+construction time, payload size, and heap use against the recorded baseline.
