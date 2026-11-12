@@ -110,6 +110,10 @@ func main() {
 		{simulation.ItemBlankRune, 100},
 		{simulation.ItemNoviceRobeHood, 1}, {simulation.ItemNoviceRobeTop, 1},
 		{simulation.ItemNoviceRobeGloves, 1}, {simulation.ItemNoviceRobeBottoms, 1}, {simulation.ItemNoviceRobeBoots, 1},
+		{simulation.ItemMageRobeHood, 1}, {simulation.ItemMageRobeTop, 1}, {simulation.ItemMageRobeGloves, 1}, {simulation.ItemMageRobeBottoms, 1}, {simulation.ItemMageRobeBoots, 1},
+		{simulation.ItemMoonspunHood, 1}, {simulation.ItemMoonspunTop, 1}, {simulation.ItemMoonspunGloves, 1}, {simulation.ItemMoonspunBottoms, 1}, {simulation.ItemMoonspunBoots, 1},
+		{simulation.ItemEnchantedHood, 1}, {simulation.ItemEnchantedTop, 1}, {simulation.ItemEnchantedGloves, 1}, {simulation.ItemEnchantedBottoms, 1}, {simulation.ItemEnchantedBoots, 1},
+		{simulation.ItemStardewHood, 1}, {simulation.ItemStardewTop, 1}, {simulation.ItemStardewGloves, 1}, {simulation.ItemStardewBottoms, 1}, {simulation.ItemStardewBoots, 1},
 		{simulation.ItemAmuletEmbers, 1},
 		{simulation.ItemArcanistCape, 1},
 	}

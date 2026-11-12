@@ -1,6 +1,9 @@
 package simulation
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSwiftSetRequiresAllPiecesForAttackSpeedBonus(t *testing.T) {
 	player := &playerState{equippedArmour: map[ArmourSlot]string{
@@ -109,6 +112,46 @@ func TestRangedArmourProgressionRequiresRangeAndImprovesRangedOffence(t *testing
 		}
 		if got := effectiveWeaponAttackInterval(player, sword); got != sword.AttackInterval {
 			t.Errorf("level %d set sword interval = %d, want %d", tier.level, got, sword.AttackInterval)
+		}
+	}
+}
+
+func TestMagicArmourProgressionUsesNamedTiersAndImprovesMagicOffence(t *testing.T) {
+	tiers := []struct {
+		level        int
+		items        []string
+		wantAccuracy int
+		wantStrength int
+		wantName     string
+	}{
+		{level: 5, items: []string{ItemMageRobeHood, ItemMageRobeTop, ItemMageRobeGloves, ItemMageRobeBottoms, ItemMageRobeBoots}, wantAccuracy: 12, wantStrength: 7, wantName: "Mage's"},
+		{level: 10, items: []string{ItemMoonspunHood, ItemMoonspunTop, ItemMoonspunGloves, ItemMoonspunBottoms, ItemMoonspunBoots}, wantAccuracy: 15, wantStrength: 9, wantName: "Moonspun"},
+		{level: 15, items: []string{ItemEnchantedHood, ItemEnchantedTop, ItemEnchantedGloves, ItemEnchantedBottoms, ItemEnchantedBoots}, wantAccuracy: 18, wantStrength: 11, wantName: "Enchanted"},
+		{level: 20, items: []string{ItemStardewHood, ItemStardewTop, ItemStardewGloves, ItemStardewBottoms, ItemStardewBoots}, wantAccuracy: 22, wantStrength: 14, wantName: "Stardew"},
+	}
+	for _, itemID := range []string{ItemNoviceRobeHood, ItemNoviceRobeTop, ItemNoviceRobeGloves, ItemNoviceRobeBottoms, ItemNoviceRobeBoots} {
+		item, _ := itemDefinition(itemID)
+		if !strings.HasPrefix(item.Name, "Apprentice") {
+			t.Errorf("legacy novice item %q display name = %q, want Apprentice", itemID, item.Name)
+		}
+	}
+	for _, tier := range tiers {
+		equipped := make(map[ArmourSlot]string, len(tier.items))
+		for _, itemID := range tier.items {
+			item, exists := itemDefinition(itemID)
+			if !exists || !strings.HasPrefix(item.Name, tier.wantName) || len(item.EquipRequirements) != 1 ||
+				item.EquipRequirements[0] != (SkillRequirement{Skill: SkillMagic, Level: tier.level}) {
+				t.Fatalf("%s definition = %+v, want %s Magic %d", itemID, item, tier.wantName, tier.level)
+			}
+			equipped[item.Armour.Slot] = itemID
+		}
+		bonuses := equippedOffenceBonuses(equipped)
+		if bonuses.MagicAccuracy != tier.wantAccuracy || bonuses.MagicStrength != tier.wantStrength ||
+			bonuses.MeleeAccuracy != 0 || bonuses.RangedAccuracy != 0 {
+			t.Errorf("level %d magic bonuses = %+v", tier.level, bonuses)
+		}
+		if defence := equippedDefenceBonuses(equipped); defence.Magic <= 0 || defence.Ranged >= 0 {
+			t.Errorf("level %d magic defences = %+v, want magic protection and ranged weakness", tier.level, defence)
 		}
 	}
 }
