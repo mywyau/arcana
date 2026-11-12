@@ -18,6 +18,42 @@ func TestEnemyCombatProfilesCreateDistinctEncounters(t *testing.T) {
 	}
 }
 
+func TestElementalMonstersHaveDistinctSpellWeaknesses(t *testing.T) {
+	tests := []struct {
+		targetID        string
+		kind            string
+		weakElement     MagicElement
+		resistedElement MagicElement
+		position        Position
+	}{
+		{dustWraithTargetID, targetKindDust, MagicElementAir, MagicElementEarth, Position{X: -8, Z: 34}},
+		{cinderImpTargetID, targetKindCinder, MagicElementWater, MagicElementFire, Position{X: 36, Z: 4}},
+		{tideWispTargetID, targetKindTide, MagicElementEarth, MagicElementWater, Position{X: -36, Z: 4}},
+		{thornlingTargetID, targetKindThorn, MagicElementFire, MagicElementEarth, Position{X: 8, Z: 34}},
+	}
+	world := NewWorld()
+	for _, test := range tests {
+		t.Run(test.targetID, func(t *testing.T) {
+			target := world.combat.targets[test.targetID]
+			if target == nil || target.Kind != test.kind || target.Position != test.position {
+				t.Fatalf("elemental target = %+v", target)
+			}
+			if _, err := world.locate(target.Position); err != nil {
+				t.Fatalf("elemental target is outside navigable world: %v", err)
+			}
+			if got := elementalDamageMultiplier(target, test.weakElement); got != 1.30 {
+				t.Fatalf("weakness multiplier = %.2f, want 1.30", got)
+			}
+			if got := elementalDamageMultiplier(target, test.resistedElement); got >= 1 {
+				t.Fatalf("resistance multiplier = %.2f, want below 1", got)
+			}
+			if _, roaming := world.combat.roamingEnemies[test.targetID]; !roaming {
+				t.Fatal("elemental monster is not registered as roaming")
+			}
+		})
+	}
+}
+
 func TestRiftTyrantHasLongRangeAndMeleeAttackStyles(t *testing.T) {
 	profile := combatProfileForEnemy(riftTyrantTargetID)
 	wantStyles := []DamageType{

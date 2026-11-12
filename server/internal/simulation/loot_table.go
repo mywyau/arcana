@@ -34,6 +34,14 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemLeather, MinimumQuantity: 1, MaximumQuantity: 2, DropChance: 1},
 		}
+	case dustWraithTargetID:
+		return elementalRuneLoot(ItemAirRune)
+	case cinderImpTargetID:
+		return elementalRuneLoot(ItemFireRune)
+	case tideWispTargetID:
+		return elementalRuneLoot(ItemWaterRune)
+	case thornlingTargetID:
+		return elementalRuneLoot(ItemEarthRune)
 	case riftTyrantTargetID:
 		return []lootTableEntry{
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
@@ -56,6 +64,13 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 		return []lootTableEntry{{
 			ItemID: ItemCoins, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1,
 		}}
+	}
+}
+
+func elementalRuneLoot(runeItemID string) []lootTableEntry {
+	return []lootTableEntry{
+		{ItemID: ItemCoins, MinimumQuantity: 3, MaximumQuantity: 8, DropChance: 1},
+		{ItemID: runeItemID, MinimumQuantity: 2, MaximumQuantity: 5, DropChance: 1},
 	}
 }
 

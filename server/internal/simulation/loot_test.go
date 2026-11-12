@@ -496,6 +496,30 @@ func TestHillWardenCanAlsoDropTrainingPlate(t *testing.T) {
 	}
 }
 
+func TestElementalMonstersDropTheirMatchingRunes(t *testing.T) {
+	tests := []struct {
+		targetID string
+		runeID   string
+	}{
+		{dustWraithTargetID, ItemAirRune},
+		{cinderImpTargetID, ItemFireRune},
+		{tideWispTargetID, ItemWaterRune},
+		{thornlingTargetID, ItemEarthRune},
+	}
+	for _, test := range tests {
+		t.Run(test.targetID, func(t *testing.T) {
+			world := NewWorldWithRollSource(fixedRollSource(0.5))
+			target := world.combat.targets[test.targetID]
+			world.defeatDummy(test.targetID, target)
+			drops := world.Snapshot().Drops
+			if len(drops) != 2 || drops[0].ItemID != ItemCoins || drops[0].Quantity != 6 ||
+				drops[1].ItemID != test.runeID || drops[1].Quantity != 4 {
+				t.Fatalf("elemental drops = %+v", drops)
+			}
+		})
+	}
+}
+
 func TestTyrantRareRingDropRatesAndLoot(t *testing.T) {
 	tests := []struct {
 		targetID string

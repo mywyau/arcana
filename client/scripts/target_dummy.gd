@@ -8,6 +8,10 @@ const COW_COLOR := Color(0.42, 0.25, 0.14, 1.0)
 const BOSS_COLOR := Color(0.28, 0.08, 0.42, 1.0)
 const RANGED_BOSS_COLOR := Color(0.12, 0.42, 0.2, 1.0)
 const MAGE_BOSS_COLOR := Color(0.12, 0.28, 0.62, 1.0)
+const DUST_COLOR := Color(0.76, 0.76, 0.68, 1.0)
+const CINDER_COLOR := Color(0.86, 0.24, 0.08, 1.0)
+const TIDE_COLOR := Color(0.12, 0.48, 0.82, 1.0)
+const THORN_COLOR := Color(0.22, 0.5, 0.16, 1.0)
 
 @onready var visual: Node3D = $Visual
 @onready var attack_pivot: Node3D = $Visual/AttackPivot
@@ -48,7 +52,10 @@ func set_target_id(target_id: String) -> void:
 
 func set_target_kind(kind: String) -> void:
 	_target_kind = kind
-	_mobile = kind in ["creature", "bird", "cow", "boss", "ranged_boss", "mage_boss"]
+	_mobile = kind in [
+		"creature", "bird", "cow", "dust", "cinder", "tide", "thorn",
+		"boss", "ranged_boss", "mage_boss",
+	]
 	if kind == "bird":
 		_rest_color = BIRD_COLOR
 		_rest_attack_scale = Vector3(0.82, 0.48, 1.0)
@@ -64,6 +71,15 @@ func set_target_kind(kind: String) -> void:
 		_rest_attack_scale = Vector3(1.35, 0.8, 1.65)
 		collision_shape.position = Vector3(0.0, 0.8, 0.0)
 		collision_shape.scale = Vector3(1.15, 0.75, 1.35)
+	elif kind in ["dust", "cinder", "tide", "thorn"]:
+		match kind:
+			"dust": _rest_color = DUST_COLOR
+			"cinder": _rest_color = CINDER_COLOR
+			"tide": _rest_color = TIDE_COLOR
+			"thorn": _rest_color = THORN_COLOR
+		_rest_attack_scale = Vector3(0.95, 1.05, 0.95)
+		collision_shape.position = Vector3(0.0, 0.9, 0.0)
+		collision_shape.scale = Vector3(0.9, 0.9, 0.9)
 	elif kind in ["boss", "ranged_boss", "mage_boss"]:
 		if kind == "ranged_boss":
 			_rest_color = RANGED_BOSS_COLOR

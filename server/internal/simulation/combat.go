@@ -71,6 +71,10 @@ const (
 	wildFowlAttackDamage                 = 4
 	cowMaximumHealth                     = 45
 	cowAttackDamage                      = 6
+	dustWraithMaximumHealth              = 60
+	cinderImpMaximumHealth               = 75
+	tideWispMaximumHealth                = 90
+	thornlingMaximumHealth               = 110
 	dummyDodgeRate                       = defaultBaseDodgeBonus
 	dummyAttackDamage                    = 15
 	dummyAttackIntervalPulses            = 4
@@ -88,6 +92,10 @@ const (
 	hillWardenTargetID                   = "hill_warden"
 	wildFowlTargetID                     = "wild_fowl"
 	cowTargetID                          = "cow"
+	dustWraithTargetID                   = "dust_wraith"
+	cinderImpTargetID                    = "cinder_imp"
+	tideWispTargetID                     = "tide_wisp"
+	thornlingTargetID                    = "thornling"
 	riftTyrantTargetID                   = "rift_tyrant"
 	rangedTyrantTargetID                 = "ranged_tyrant"
 	mageTyrantTargetID                   = "mage_tyrant"
@@ -111,6 +119,10 @@ const (
 	targetKindCreature   = "creature"
 	targetKindBird       = "bird"
 	targetKindCow        = "cow"
+	targetKindDust       = "dust"
+	targetKindCinder     = "cinder"
+	targetKindTide       = "tide"
+	targetKindThorn      = "thorn"
 	targetKindBoss       = "boss"
 	targetKindRangedBoss = "ranged_boss"
 	targetKindMageBoss   = "mage_boss"
@@ -375,10 +387,33 @@ func (combat *combatState) dummyByID(id string) (*TargetSnapshot, bool) {
 	return target, exists
 }
 
+func newRoamingTarget(
+	id string,
+	name string,
+	kind string,
+	position Position,
+	maximumHealth int,
+	accuracy int,
+	evasion int,
+) *TargetSnapshot {
+	profile := combatProfileForEnemy(id)
+	return &TargetSnapshot{
+		ID: id, Name: name, Kind: kind, Position: position,
+		Health: maximumHealth, MaximumHealth: maximumHealth,
+		DodgeRate: defaultBaseDodgeBonus, Accuracy: accuracy, Evasion: evasion,
+		AttackType: profile.DamageType, Defence: profile.Defence, Elements: profile.Elements,
+		CombatLevel: profile.CombatLevel,
+	}
+}
+
 func newCombatState() *combatState {
 	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
 	wildFowlHome := Position{X: -20, Z: -5}
 	cowHome := Position{X: -16, Z: -10}
+	dustWraithHome := Position{X: -8, Z: 34}
+	cinderImpHome := Position{X: 36, Z: 4}
+	tideWispHome := Position{X: -36, Z: 4}
+	thornlingHome := Position{X: 8, Z: 34}
 	riftTyrantHome := Position{X: 38, Z: 34}
 	rangedTyrantHome := Position{X: -40, Z: -35}
 	mageTyrantHome := Position{X: 38, Z: -34}
@@ -422,6 +457,22 @@ func newCombatState() *combatState {
 		AttackType: cowProfile.DamageType, Defence: cowProfile.Defence, Elements: cowProfile.Elements,
 		CombatLevel: cowProfile.CombatLevel,
 	}
+	dustWraith := newRoamingTarget(
+		dustWraithTargetID, "Dust Wraith", targetKindDust, dustWraithHome,
+		dustWraithMaximumHealth, 10, 6,
+	)
+	cinderImp := newRoamingTarget(
+		cinderImpTargetID, "Cinder Imp", targetKindCinder, cinderImpHome,
+		cinderImpMaximumHealth, 12, 8,
+	)
+	tideWisp := newRoamingTarget(
+		tideWispTargetID, "Tide Wisp", targetKindTide, tideWispHome,
+		tideWispMaximumHealth, 14, 10,
+	)
+	thornling := newRoamingTarget(
+		thornlingTargetID, "Thornling", targetKindThorn, thornlingHome,
+		thornlingMaximumHealth, 16, 12,
+	)
 	riftTyrantProfile := combatProfileForEnemy(riftTyrantTargetID)
 	riftTyrant := &TargetSnapshot{
 		ID: riftTyrantTargetID, Name: "Rift Tyrant", Kind: targetKindBoss, Position: riftTyrantHome,
@@ -490,6 +541,10 @@ func newCombatState() *combatState {
 			hillWardenTargetID:   hillWarden,
 			wildFowlTargetID:     wildFowl,
 			cowTargetID:          cow,
+			dustWraithTargetID:   dustWraith,
+			cinderImpTargetID:    cinderImp,
+			tideWispTargetID:     tideWisp,
+			thornlingTargetID:    thornling,
 			riftTyrantTargetID:   riftTyrant,
 			rangedTyrantTargetID: rangedTyrant,
 			mageTyrantTargetID:   mageTyrant,
@@ -514,6 +569,26 @@ func newCombatState() *combatState {
 				target: cow,
 				home:   cowHome,
 				speed:  roamingEnemySpeed * 0.65,
+			},
+			dustWraithTargetID: {
+				target: dustWraith,
+				home:   dustWraithHome,
+				speed:  roamingEnemySpeed * 0.9,
+			},
+			cinderImpTargetID: {
+				target: cinderImp,
+				home:   cinderImpHome,
+				speed:  roamingEnemySpeed,
+			},
+			tideWispTargetID: {
+				target: tideWisp,
+				home:   tideWispHome,
+				speed:  roamingEnemySpeed * 0.85,
+			},
+			thornlingTargetID: {
+				target: thornling,
+				home:   thornlingHome,
+				speed:  roamingEnemySpeed * 0.7,
 			},
 			riftTyrantTargetID: {
 				target: riftTyrant,
