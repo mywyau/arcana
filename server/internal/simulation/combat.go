@@ -61,6 +61,9 @@ const (
 	accurateStyleDamageVarianceReduction = 0.10
 	accurateStyleAccuracyBonus           = 2
 	playerMaximumHealth                  = 100
+	vitalityHealthPerLevel               = 10
+	passiveHealthRegenerationFraction    = 0.01
+	passiveHealthRegenerationPulses      = 10
 	playerMaximumPrayer                  = 100
 	playerDodgeRate                      = defaultBaseDodgeBonus
 	dummyMaximumHealth                   = 100
@@ -737,6 +740,30 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.updateRoamingEnemies()
 		w.resolveDummyAttack()
 		w.drainActivePrayers()
+		w.regeneratePlayersOutOfCombat()
+	}
+}
+
+func (w *World) regeneratePlayersOutOfCombat() {
+	engagedPlayers := make(map[PlayerID]bool)
+	for _, target := range w.combat.dummyTargets() {
+		if target.dummy.TargetID != "" && !target.dummy.Defeated {
+			engagedPlayers[target.dummy.TargetID] = true
+		}
+	}
+	for id, player := range w.players {
+		if player.defeated || player.health >= player.maximumHealth ||
+			player.combatTarget != "" || engagedPlayers[id] {
+			player.healthRegenerationProgress = 0
+			continue
+		}
+		player.healthRegenerationProgress++
+		if player.healthRegenerationProgress < passiveHealthRegenerationPulses {
+			continue
+		}
+		player.healthRegenerationProgress = 0
+		healing := max(1, int(float64(player.maximumHealth)*passiveHealthRegenerationFraction+0.5))
+		player.health = min(player.maximumHealth, player.health+healing)
 	}
 }
 

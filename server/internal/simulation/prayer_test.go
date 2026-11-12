@@ -101,8 +101,8 @@ func TestRegenerationPrayerHealsFivePercentOnDrainCadence(t *testing.T) {
 		world.Step(actionPulseInterval)
 	}
 	player := mustPlayer(t, world, "player-one")
-	if player.Health != 85 {
-		t.Fatalf("health after regeneration = %d, want 85", player.Health)
+	if player.Health != 86 {
+		t.Fatalf("health after prayer and passive regeneration = %d, want 86", player.Health)
 	}
 	if player.Prayer != playerMaximumPrayer-1 {
 		t.Fatalf("prayer after regeneration = %d, want %d", player.Prayer, playerMaximumPrayer-1)

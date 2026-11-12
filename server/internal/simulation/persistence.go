@@ -202,7 +202,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	}
 	maximumHealth := maximumHealthForSkills(skills) + equippedHealthBonus(state.EquippedArmour) + ringRackHealthBonus(ringRack)
 	if state.Health > maximumHealth {
-		return fmt.Errorf("player health must not exceed equipped maximum of %d", maximumHealth)
+		// Balance changes can lower a persisted character's maximum health.
+		// Clamp trusted saved health so the character can still log in.
+		state.Health = maximumHealth
 	}
 	if state.EquippedSpellbook != "" {
 		item, exists := itemDefinition(state.EquippedSpellbook)

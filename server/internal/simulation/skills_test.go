@@ -86,18 +86,24 @@ func TestExperienceLockPreventsAllSkillExperience(t *testing.T) {
 	}
 }
 
-func TestVitalityLevelAddsOneHundredMaximumHealth(t *testing.T) {
+func TestVitalityLevelAddsTenMaximumHealth(t *testing.T) {
 	player := &playerState{
 		health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		skills: newDefaultSkills(),
 	}
 	grantSkillExperience(player, SkillVitality, SkillExperienceForLevel(2))
 
-	if got, want := player.maximumHealth, 200; got != want {
+	if got, want := player.maximumHealth, 110; got != want {
 		t.Fatalf("maximum health at Vitality level 2 = %d, want %d", got, want)
 	}
 	if got, want := player.health, playerMaximumHealth; got != want {
 		t.Fatalf("current health after Vitality level = %d, want unchanged %d", got, want)
+	}
+
+	player.skills[SkillVitality] = SkillExperienceForLevel(MaximumSkillLevel)
+	refreshPlayerMaximumHealth(player)
+	if got, want := player.maximumHealth, 1_080; got != want {
+		t.Fatalf("maximum health at Vitality level 99 = %d, want %d", got, want)
 	}
 }
 

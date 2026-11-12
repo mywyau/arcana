@@ -183,6 +183,7 @@ type playerState struct {
 	spawnPosition                Position
 	health                       int
 	maximumHealth                int
+	healthRegenerationProgress   uint64
 	prayer                       int
 	maximumPrayer                int
 	activePrayers                map[PrayerID]bool

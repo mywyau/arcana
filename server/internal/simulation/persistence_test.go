@@ -195,6 +195,29 @@ func TestQueueJoinDerivesMovementSpeedFromPersistedAgility(t *testing.T) {
 	}
 }
 
+func TestQueueJoinClampsHealthSavedUnderOlderVitalityCurve(t *testing.T) {
+	world := NewWorld()
+	state := DefaultPersistentPlayerState()
+	state.Health = 200
+	for index := range state.Skills {
+		if state.Skills[index].ID == SkillVitality {
+			state.Skills[index].Experience = SkillExperienceForLevel(2)
+		}
+	}
+
+	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
+		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+	}
+	world.Step(time.Millisecond)
+	player := mustPlayer(t, world, "player-one")
+	if got, want := player.MaximumHealth, 110; got != want {
+		t.Fatalf("restored maximum health = %d, want %d", got, want)
+	}
+	if got, want := player.Health, 110; got != want {
+		t.Fatalf("restored health = %d, want clamped %d", got, want)
+	}
+}
+
 func TestQueueJoinWithPersistentStateRestoresEquippedSpellbook(t *testing.T) {
 	world := NewWorld()
 	state := DefaultPersistentPlayerState()

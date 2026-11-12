@@ -371,7 +371,8 @@ func refreshPlayerMaximumHealth(player *playerState) {
 }
 
 func maximumHealthForSkills(skills skillState) int {
-	return playerMaximumHealth * SkillLevelForExperience(skills[SkillVitality])
+	vitalityLevel := SkillLevelForExperience(skills[SkillVitality])
+	return playerMaximumHealth + (vitalityLevel-1)*vitalityHealthPerLevel
 }
 
 func equippedAttackIntervalModifier(equipped map[ArmourSlot]string) int {
