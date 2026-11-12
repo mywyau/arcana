@@ -25,12 +25,14 @@ cd server
 go run ./cmd/server
 ```
 
-Run its tests with:
+Run the server unit and package tests from the repository root with:
 
 ```sh
-cd server
-go test ./...
+./run-server-tests.sh
 ```
+
+Extra `go test` flags can be passed through, for example
+`./run-server-tests.sh -count=1`.
 
 ### Local persistence
 
@@ -76,14 +78,13 @@ The normal Go suite skips the database integration test. Run that test against
 the local PostgreSQL container with:
 
 ```sh
-cd server
-set -a; source ../.env; set +a
-ARCANA_TEST_DATABASE_URL="${DATABASE_URL}" go test ./internal/persistence/postgres -run RoundTrip -v
+./run-database-tests.sh -v
 ```
 
 The test creates a random guest identity, verifies identity and character data
 through a second database connection, links an email account, and removes its
-records afterward.
+records afterward. The script uses `ARCANA_TEST_DATABASE_URL` when explicitly
+set, otherwise it loads `DATABASE_URL` from the local `.env` file.
 
 Run the dependency-free Godot client regression tests with:
 
@@ -93,6 +94,18 @@ Run the dependency-free Godot client regression tests with:
 
 The suite uses temporary identity files and does not modify normal client
 profiles.
+
+Run all dependency-free server and client tests together with:
+
+```sh
+./run-all-tests.sh
+```
+
+Include the PostgreSQL integration test when the local database is running:
+
+```sh
+./run-all-tests.sh --with-database
+```
 
 ### Client/server compatibility
 
