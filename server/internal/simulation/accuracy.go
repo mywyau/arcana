@@ -51,7 +51,7 @@ func combatStyleAccuracyBonus(style CombatStyleID) int {
 		return 2
 	case CombatStyleCrush:
 		return 1
-	case CombatStyleRapid, CombatStyleHeavyCrush:
+	case CombatStyleRapid, CombatStyleHeavyCrush, CombatStyleHeavyStab:
 		return -3
 	case CombatStyleDefensive:
 		return -2

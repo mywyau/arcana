@@ -925,14 +925,52 @@ func TestLongMeleeAndCrossbowDefinitions(t *testing.T) {
 	spear, _ := weaponDefinition(WeaponSpear)
 	halberd, _ := weaponDefinition(WeaponHalberd)
 	crossbow, _ := weaponDefinition(WeaponCrossbow)
-	if spear.Range != polearmRange || halberd.Range != polearmRange || spear.Range <= swordRange {
+	if spear.Range != spearRange || halberd.Range != halberdRange ||
+		halberd.Range <= spear.Range || spear.Range <= swordRange {
 		t.Fatalf("polearm ranges: spear %.2f, halberd %.2f, sword %.2f", spear.Range, halberd.Range, swordRange)
+	}
+	if spear.ApproachRange != spearApproachRange || halberd.ApproachRange != halberdApproachRange ||
+		spear.MeleeStrength >= halberd.MeleeStrength || spear.DamageVariance <= halberd.DamageVariance {
+		t.Fatalf("polearm profiles: spear=%+v halberd=%+v", spear, halberd)
 	}
 	if !halberd.TwoHanded || spear.TwoHanded {
 		t.Fatalf("polearm handedness: spear %t, halberd %t", spear.TwoHanded, halberd.TwoHanded)
 	}
 	if crossbow.TwoHanded || crossbow.Ammunition != (ItemCost{ItemID: ItemIronBolt, Quantity: 1}) {
 		t.Fatalf("crossbow definition = %+v", crossbow)
+	}
+}
+
+func TestPolearmHandednessControlsShield(t *testing.T) {
+	tests := []struct {
+		weapon      WeaponID
+		keepsShield bool
+	}{
+		{weapon: WeaponSpear, keepsShield: true},
+		{weapon: WeaponHalberd, keepsShield: false},
+	}
+	for _, test := range tests {
+		t.Run(string(test.weapon), func(t *testing.T) {
+			world := newCombatTestWorld()
+			mustAddPlayer(t, world, "player-one", Position{}, 4)
+			player := world.players["player-one"]
+			if !player.inventory.add(ItemBronzeShield, 1) || !player.inventory.add(string(test.weapon), 1) {
+				t.Fatal("could not add polearm loadout")
+			}
+			shieldInstance := resolveOwnedInstanceID(player.inventory, ItemBronzeShield, "")
+			if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponID(ItemBronzeShield), InstanceID: shieldInstance}); err != nil {
+				t.Fatalf("QueueEquip(shield): %v", err)
+			}
+			world.Step(actionPulseInterval)
+			weaponInstance := resolveOwnedInstanceID(player.inventory, string(test.weapon), "")
+			if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 2, ItemID: test.weapon, InstanceID: weaponInstance}); err != nil {
+				t.Fatalf("QueueEquip(%s): %v", test.weapon, err)
+			}
+			world.Step(actionPulseInterval)
+			if got := player.equippedArmour[ArmourSlotLeftHand] == ItemBronzeShield; got != test.keepsShield {
+				t.Fatalf("shield equipped with %s = %t, want %t", test.weapon, got, test.keepsShield)
+			}
+		})
 	}
 }
 
@@ -1106,6 +1144,8 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: bowDamageVariance},
 		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: maceDamageVariance},
 		{id: WeaponBattleAxe, minimum: 11, average: 15, maximum: 19, variance: battleAxeDamageVariance},
+		{id: WeaponSpear, minimum: 7, average: 11, maximum: 15, variance: spearDamageVariance},
+		{id: WeaponHalberd, minimum: 15, average: 18, maximum: 21, variance: halberdDamageVariance},
 		{id: WeaponStaff, minimum: 6, average: 7, maximum: 8, variance: staffDamageVariance},
 	}
 	for _, test := range tests {

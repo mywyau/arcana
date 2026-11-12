@@ -121,6 +121,11 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if state.CombatStyle == CombatStyleID("unfocused") {
 		state.CombatStyle = defaultCombatStyle(state.EquippedWeapon)
 	}
+	// Older saves used the slash style ID for the spear's Strength-training
+	// sweep. Spears now deal only stab damage, so preserve that training choice.
+	if state.EquippedWeapon == WeaponSpear && state.CombatStyle == CombatStyleSlash {
+		state.CombatStyle = CombatStyleHeavyStab
+	}
 	if !combatStyleValidForWeapon(state.CombatStyle, state.EquippedWeapon) {
 		return fmt.Errorf("combat style %q is invalid for %q", state.CombatStyle, state.EquippedWeapon)
 	}

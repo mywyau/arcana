@@ -217,7 +217,7 @@ const COMBAT_STYLES: Dictionary = {
 	],
 	"spear": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
-		{"id": "slash", "name": "Sweep", "training": "Strength"},
+		{"id": "heavy_stab", "name": "Forceful Stab", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive Stab", "training": "Defence"},
 	],
 	"halberd": [
@@ -5244,6 +5244,8 @@ func _update_combat_styles_hud() -> void:
 			"long_range":
 				accuracy_note = "Long range • standard cadence • wider damage range" if uses_projectile_styles else "Extended attack range"
 			"heavy_crush":
+				accuracy_note = "Slightly lowers accuracy"
+			"heavy_stab":
 				accuracy_note = "Slightly lowers accuracy"
 			"defensive":
 				accuracy_note = "Slightly lowers accuracy while training Defence"

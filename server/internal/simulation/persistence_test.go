@@ -137,6 +137,22 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	}
 }
 
+func TestQueueJoinMigratesLegacySpearSlashStyle(t *testing.T) {
+	world := NewWorld()
+	state := DefaultPersistentPlayerState()
+	state.EquippedWeapon = WeaponSpear
+	state.CombatStyle = CombatStyleSlash
+	state.Inventory.Items = []InventoryItem{{Slot: 0, ItemID: string(WeaponSpear), Quantity: 1}}
+
+	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
+		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+	}
+	world.Step(time.Millisecond)
+	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleHeavyStab {
+		t.Fatalf("restored spear style = %q, want %q", got, CombatStyleHeavyStab)
+	}
+}
+
 func TestQueueJoinWithPersistentStateRejectsInvalidEquipment(t *testing.T) {
 	world := NewWorld()
 	state := DefaultPersistentPlayerState()

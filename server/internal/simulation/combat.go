@@ -46,11 +46,15 @@ const (
 	staffMagicStrength                   = 7
 	staffDamageVariance                  = 0.10
 	staffAttackIntervalPulses            = 6
-	polearmRange                         = 2.8
-	polearmApproachRange                 = 2.35
+	spearRange                           = 3.4
+	spearApproachRange                   = 2.95
 	spearMeleeStrength                   = 11
+	spearDamageVariance                  = 0.32
 	spearAttackIntervalPulses            = 5
-	halberdMeleeStrength                 = 16
+	halberdRange                         = 4.2
+	halberdApproachRange                 = 3.75
+	halberdMeleeStrength                 = 18
+	halberdDamageVariance                = 0.15
 	halberdAttackIntervalPulses          = 6
 	crossbowRange                        = 11.0
 	crossbowApproachRange                = 10.25
@@ -165,6 +169,7 @@ const (
 	CombatStyleLongRange  CombatStyleID = "long_range"
 	CombatStyleCrush      CombatStyleID = "crush"
 	CombatStyleHeavyCrush CombatStyleID = "heavy_crush"
+	CombatStyleHeavyStab  CombatStyleID = "heavy_stab"
 	CombatStyleDefensive  CombatStyleID = "defensive"
 )
 

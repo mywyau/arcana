@@ -282,12 +282,12 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: string(WeaponSpear), Name: "Spear", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSpear, AccuracyBonus: 14, MeleeStrength: spearMeleeStrength, DamageVariance: 0.20, AttackInterval: spearAttackIntervalPulses, Range: polearmRange, ApproachRange: polearmApproachRange}, CombatStyleStab,
-			weaponStyle(CombatStyleStab, DamageTypeStab), weaponStyle(CombatStyleSlash, DamageTypeSlash), weaponStyle(CombatStyleDefensive, DamageTypeStab)),
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponSpear, AccuracyBonus: 14, MeleeStrength: spearMeleeStrength, DamageVariance: spearDamageVariance, AttackInterval: spearAttackIntervalPulses, Range: spearRange, ApproachRange: spearApproachRange}, CombatStyleStab,
+			weaponStyle(CombatStyleStab, DamageTypeStab), weaponStyle(CombatStyleHeavyStab, DamageTypeStab), weaponStyle(CombatStyleDefensive, DamageTypeStab)),
 	},
 	{
 		ID: string(WeaponHalberd), Name: "Halberd", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponHalberd, TwoHanded: true, AccuracyBonus: 10, MeleeStrength: halberdMeleeStrength, DamageVariance: 0.25, AttackInterval: halberdAttackIntervalPulses, Range: polearmRange, ApproachRange: polearmApproachRange}, CombatStyleSlash,
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponHalberd, TwoHanded: true, AccuracyBonus: 10, MeleeStrength: halberdMeleeStrength, DamageVariance: halberdDamageVariance, AttackInterval: halberdAttackIntervalPulses, Range: halberdRange, ApproachRange: halberdApproachRange}, CombatStyleSlash,
 			weaponStyle(CombatStyleSlash, DamageTypeSlash), weaponStyle(CombatStyleStab, DamageTypeStab), weaponStyle(CombatStyleDefensive, DamageTypeSlash)),
 	},
 	{
@@ -807,7 +807,7 @@ func knownDamageType(damageType DamageType) bool {
 func knownCombatStyle(style CombatStyleID) bool {
 	switch style {
 	case CombatStyleSlash, CombatStyleStab, CombatStyleRapid, CombatStyleAccurate,
-		CombatStyleLongRange, CombatStyleCrush, CombatStyleHeavyCrush,
+		CombatStyleLongRange, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleHeavyStab,
 		CombatStyleDefensive:
 		return true
 	default:
