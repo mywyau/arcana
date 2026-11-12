@@ -22,7 +22,11 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{string(WeaponMapleShortbow), ItemKindWeapon}, {string(WeaponYewShortbow), ItemKindWeapon},
 		{string(WeaponMace), ItemKindWeapon},
 		{string(WeaponBattleAxe), ItemKindWeapon},
+		{string(WeaponWand), ItemKindWeapon},
+		{string(WeaponMoonspunWand), ItemKindWeapon},
 		{string(WeaponStaff), ItemKindWeapon},
+		{string(WeaponEnchantedStaff), ItemKindWeapon},
+		{string(WeaponStardewStaff), ItemKindWeapon},
 		{string(WeaponSpear), ItemKindWeapon},
 		{string(WeaponHalberd), ItemKindWeapon},
 		{string(WeaponCrossbow), ItemKindWeapon},
@@ -344,7 +348,11 @@ func TestCatalogWeaponStylesDriveDefaultsAndValidation(t *testing.T) {
 		{WeaponBow, CombatStyleAccurate, CombatStyleRapid, CombatStyleSlash},
 		{WeaponMace, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleStab},
 		{WeaponBattleAxe, CombatStyleSlash, CombatStyleDefensive, CombatStyleRapid},
+		{WeaponWand, CombatStyleAccurate, CombatStyleRapid, CombatStyleCrush},
+		{WeaponMoonspunWand, CombatStyleAccurate, CombatStyleLongRange, CombatStyleCrush},
 		{WeaponStaff, CombatStyleAccurate, CombatStyleLongRange, CombatStyleCrush},
+		{WeaponEnchantedStaff, CombatStyleAccurate, CombatStyleRapid, CombatStyleCrush},
+		{WeaponStardewStaff, CombatStyleAccurate, CombatStyleLongRange, CombatStyleCrush},
 	}
 	for _, test := range tests {
 		if got := defaultCombatStyle(test.weapon); got != test.defaultStyle {

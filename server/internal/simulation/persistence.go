@@ -196,7 +196,11 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 			delete(state.EquippedArmourReinforcements, ArmourSlotLeftHand)
 		}
 	}
-	maximumHealth := playerMaximumHealth + equippedHealthBonus(state.EquippedArmour) + ringRackHealthBonus(ringRack)
+	skills, err := skillsFromPersistent(state.Skills)
+	if err != nil {
+		return fmt.Errorf("restore skills: %w", err)
+	}
+	maximumHealth := maximumHealthForSkills(skills) + equippedHealthBonus(state.EquippedArmour) + ringRackHealthBonus(ringRack)
 	if state.Health > maximumHealth {
 		return fmt.Errorf("player health must not exceed equipped maximum of %d", maximumHealth)
 	}
@@ -231,10 +235,6 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		if err := recordOwnedInstance(ownedInstances, instanceID, "equipped "+string(slot)); err != nil {
 			return fmt.Errorf("restore equipment: %w", err)
 		}
-	}
-	skills, err := skillsFromPersistent(state.Skills)
-	if err != nil {
-		return fmt.Errorf("restore skills: %w", err)
 	}
 	location, err := w.locate(state.Position)
 	if err != nil {

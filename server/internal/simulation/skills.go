@@ -22,6 +22,7 @@ const (
 	SkillFletching    SkillID = "fletching"
 	SkillPrayer       SkillID = "prayer"
 	SkillRunecrafting SkillID = "runecrafting"
+	SkillVitality     SkillID = "vitality"
 
 	MaximumSkillLevel        = 99
 	agilitySpeedPerLevel     = 0.0025
@@ -68,7 +69,7 @@ func newDefaultSkills() skillState {
 	return skillState{
 		SkillAttack: 0, SkillAgility: 0, SkillDefence: 0, SkillMagic: 0, SkillRange: 0, SkillStrength: 0,
 		SkillFishing: 0, SkillCooking: 0, SkillMining: 0, SkillSmithing: 0, SkillWoodcutting: 0, SkillHerblore: 0, SkillFletching: 0, SkillPrayer: 0,
-		SkillRunecrafting: 0,
+		SkillRunecrafting: 0, SkillVitality: 0,
 	}
 }
 
@@ -161,9 +162,12 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 	if player.skills == nil {
 		player.skills = newDefaultSkills()
 	}
+	previousLevel := SkillLevelForExperience(player.skills[skill])
 	player.skills[skill] += amount
 	if skill == SkillAgility {
 		player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(player.skills[SkillAgility]))
+	} else if skill == SkillVitality && SkillLevelForExperience(player.skills[SkillVitality]) != previousLevel {
+		refreshPlayerMaximumHealth(player)
 	}
 }
 
@@ -247,6 +251,8 @@ func (w *World) applyPendingDebugSkills() {
 			player.skills[command.Skill] = experience
 			if command.Skill == SkillAgility {
 				player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(experience))
+			} else if command.Skill == SkillVitality {
+				refreshPlayerMaximumHealth(player)
 			}
 			player.lastDebugSkillSequence = command.Sequence
 		}
@@ -263,15 +269,16 @@ func skillIDValid(skill SkillID) bool {
 	return skill == SkillAttack || skill == SkillAgility || skill == SkillStrength || skill == SkillDefence ||
 		skill == SkillRange || skill == SkillMagic || skill == SkillFishing || skill == SkillCooking || skill == SkillMining ||
 		skill == SkillSmithing || skill == SkillWoodcutting || skill == SkillHerblore || skill == SkillFletching || skill == SkillPrayer ||
-		skill == SkillRunecrafting
+		skill == SkillRunecrafting || skill == SkillVitality
 }
 
 func skillForCombatStyle(weapon WeaponID, style CombatStyleID) (SkillID, bool) {
+	if definition, exists := weaponDefinition(weapon); exists && definition.MagicStrength > 0 {
+		return SkillMagic, true
+	}
 	switch weapon {
 	case WeaponBow, WeaponOakShortbow, WeaponWillowShortbow, WeaponMapleShortbow, WeaponYewShortbow, WeaponCrossbow:
 		return SkillRange, true
-	case WeaponStaff:
-		return SkillMagic, true
 	case WeaponSword, WeaponBronzeSword, WeaponSteelSword, WeaponMithrilSword, WeaponRuneSword, WeaponDagger, WeaponSpear, WeaponHalberd:
 		switch style {
 		case CombatStyleStab:

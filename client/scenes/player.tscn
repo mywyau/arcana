@@ -100,8 +100,8 @@ script = ExtResource("1_player")
 [node name="Humanoid" parent="VisualRoot" instance=ExtResource("2_humanoid")]
 
 [node name="Cape" type="MeshInstance3D" parent="VisualRoot"]
-position = Vector3(0, 1.18, 0.3)
-rotation_degrees = Vector3(6, 0, 0)
+position = Vector3(0, 1.18, -0.32)
+rotation_degrees = Vector3(-6, 0, 0)
 visible = false
 mesh = SubResource("CapeMesh")
 

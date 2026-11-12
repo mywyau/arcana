@@ -366,8 +366,12 @@ func refreshPlayerMaximumHealth(player *playerState) {
 	if player == nil {
 		return
 	}
-	player.maximumHealth = playerMaximumHealth + equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack)
+	player.maximumHealth = maximumHealthForSkills(player.skills) + equippedHealthBonus(player.equippedArmour) + ringRackHealthBonus(player.ringRack)
 	player.health = min(player.health, player.maximumHealth)
+}
+
+func maximumHealthForSkills(skills skillState) int {
+	return playerMaximumHealth * SkillLevelForExperience(skills[SkillVitality])
 }
 
 func equippedAttackIntervalModifier(equipped map[ArmourSlot]string) int {

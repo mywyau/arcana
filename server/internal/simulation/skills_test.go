@@ -56,7 +56,9 @@ func TestWeaponsTrainExpectedSkills(t *testing.T) {
 		{WeaponMace, CombatStyleHeavyCrush, SkillStrength, true},
 		{WeaponBattleAxe, CombatStyleSlash, SkillAttack, true},
 		{WeaponBow, CombatStyleRapid, SkillRange, true},
+		{WeaponWand, CombatStyleRapid, SkillMagic, true},
 		{WeaponStaff, CombatStyleAccurate, SkillMagic, true},
+		{WeaponEnchantedStaff, CombatStyleLongRange, SkillMagic, true},
 		{WeaponUnarmed, CombatStyleCrush, SkillAttack, true},
 		{WeaponUnarmed, CombatStyleHeavyCrush, SkillStrength, true},
 		{WeaponUnarmed, CombatStyleDefensive, SkillDefence, true},
@@ -81,6 +83,21 @@ func TestExperienceLockPreventsAllSkillExperience(t *testing.T) {
 	grantSkillExperience(player, SkillCooking, 25)
 	if player.skills[SkillCooking] != 25 {
 		t.Fatalf("unlocked Cooking XP = %d, want 25", player.skills[SkillCooking])
+	}
+}
+
+func TestVitalityLevelAddsOneHundredMaximumHealth(t *testing.T) {
+	player := &playerState{
+		health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
+		skills: newDefaultSkills(),
+	}
+	grantSkillExperience(player, SkillVitality, SkillExperienceForLevel(2))
+
+	if got, want := player.maximumHealth, 200; got != want {
+		t.Fatalf("maximum health at Vitality level 2 = %d, want %d", got, want)
+	}
+	if got, want := player.health, playerMaximumHealth; got != want {
+		t.Fatalf("current health after Vitality level = %d, want unchanged %d", got, want)
 	}
 }
 

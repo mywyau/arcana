@@ -66,6 +66,8 @@ const ITEM_DISPLAY_NAMES: Dictionary = {
 	"ranged_tyrants_ring": "Ranged Tyrant's Ring",
 	"mage_tyrants_ring": "Mage Tyrant's Ring",
 	"vanguard_cape": "Vanguard Cape", "wayfarer_cape": "Wayfarer Cape", "arcanist_cape": "Arcanist Cape",
+	"wand": "Apprentice Wand", "moonspun_wand": "Moonspun Wand",
+	"staff": "Mage's Staff", "enchanted_staff": "Enchanted Staff", "stardew_staff": "Stardew Staff",
 }
 const CRAFTING_RECIPES: Dictionary = {
 	"fishing": [
@@ -121,6 +123,7 @@ const ACTIVE_SKILL_IDS: Dictionary = {
 	"Fletching": "fletching",
 	"Prayer": "prayer",
 	"Runecrafting": "runecrafting",
+	"Vitality": "vitality",
 }
 const ACTIVE_SKILL_NAMES: Dictionary = {
 	"attack": "Attack",
@@ -138,6 +141,7 @@ const ACTIVE_SKILL_NAMES: Dictionary = {
 	"fletching": "Fletching",
 	"prayer": "Prayer",
 	"runecrafting": "Runecrafting",
+	"vitality": "Vitality",
 }
 const HUD_TAB_HOTKEYS: Dictionary = {
 	"Styles": 1,
@@ -236,6 +240,26 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "accurate", "name": "Accurate", "training": "Magic"},
 		{"id": "long_range", "name": "Long Range", "training": "Magic"},
 	],
+	"wand": [
+		{"id": "rapid", "name": "Rapid", "training": "Magic"},
+		{"id": "accurate", "name": "Accurate", "training": "Magic"},
+		{"id": "long_range", "name": "Long Range", "training": "Magic"},
+	],
+	"moonspun_wand": [
+		{"id": "rapid", "name": "Rapid", "training": "Magic"},
+		{"id": "accurate", "name": "Accurate", "training": "Magic"},
+		{"id": "long_range", "name": "Long Range", "training": "Magic"},
+	],
+	"enchanted_staff": [
+		{"id": "rapid", "name": "Rapid", "training": "Magic"},
+		{"id": "accurate", "name": "Accurate", "training": "Magic"},
+		{"id": "long_range", "name": "Long Range", "training": "Magic"},
+	],
+	"stardew_staff": [
+		{"id": "rapid", "name": "Rapid", "training": "Magic"},
+		{"id": "accurate", "name": "Accurate", "training": "Magic"},
+		{"id": "long_range", "name": "Long Range", "training": "Magic"},
+	],
 }
 const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
@@ -323,6 +347,8 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"battle_axe": "Attack level 10",
 	"bow": "Range level 1", "oak_shortbow": "Range level 5", "willow_shortbow": "Range level 10",
 	"maple_shortbow": "Range level 15", "yew_shortbow": "Range level 20",
+	"wand": "Magic level 1", "staff": "Magic level 5", "moonspun_wand": "Magic level 10",
+	"enchanted_staff": "Magic level 15", "stardew_staff": "Magic level 20",
 	"bronze_helm": "Defence level 1", "bronze_platebody": "Defence level 1",
 	"bronze_shield": "Defence level 1", "bronze_legs": "Defence level 1", "bronze_gloves": "Defence level 1", "bronze_boots": "Defence level 1",
 	"iron_helm": "Defence level 5",
@@ -694,6 +720,7 @@ var _skill_progress: Dictionary = {
 	"fletching": {"experience": 0, "level": 1, "current": 0, "next": 41},
 	"prayer": {"experience": 0, "level": 1, "current": 0, "next": 41},
 	"runecrafting": {"experience": 0, "level": 1, "current": 0, "next": 41},
+	"vitality": {"experience": 0, "level": 1, "current": 0, "next": 41},
 }
 var _skill_tiles: Dictionary = {}
 var _skill_details_window: Window
@@ -3787,6 +3814,10 @@ func _is_shortbow_weapon(weapon_id: String) -> bool:
 	return weapon_id == "bow" or weapon_id.ends_with("_shortbow")
 
 
+func _is_magic_focus_weapon(weapon_id: String) -> bool:
+	return weapon_id == "wand" or weapon_id == "staff" or weapon_id.ends_with("_wand") or weapon_id.ends_with("_staff")
+
+
 func _combat_damage_color(source_id: String, weapon_id: String, spell_id: String) -> Color:
 	if not spell_id.is_empty():
 		match spell_id:
@@ -5202,7 +5233,7 @@ func _update_combat_styles_hud() -> void:
 		]
 		style_button.tooltip_text = "Successful hits train %s" % training
 		var accuracy_note: String = ""
-		var uses_projectile_styles: bool = _is_shortbow_weapon(_equipped_weapon) or _equipped_weapon == "crossbow" or _equipped_weapon == "staff"
+		var uses_projectile_styles: bool = _is_shortbow_weapon(_equipped_weapon) or _equipped_weapon == "crossbow" or _is_magic_focus_weapon(_equipped_weapon)
 		match style_id:
 			"accurate":
 				accuracy_note = "Highest accuracy • tighter damage range" if uses_projectile_styles else "Improves accuracy"
@@ -6449,7 +6480,7 @@ func _update_combat_hud() -> void:
 		weapon_interval = int(_combat_stats.get("attack_interval", 3))
 	elif _is_shortbow_weapon(_equipped_weapon):
 		weapon_interval = int(_combat_stats.get("attack_interval", 4 if _combat_style == "rapid" else 5))
-	elif _equipped_weapon == "mace" or _equipped_weapon == "staff":
+	elif _equipped_weapon == "mace" or _is_magic_focus_weapon(_equipped_weapon):
 		weapon_interval = int(_combat_stats.get("attack_interval", 5))
 	elif _equipped_weapon == "battle_axe":
 		weapon_interval = int(_combat_stats.get("attack_interval", 6))

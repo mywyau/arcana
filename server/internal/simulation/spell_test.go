@@ -29,17 +29,34 @@ func TestStaffStylesModifyAutocastSpell(t *testing.T) {
 	player.combatStyle = CombatStyleLongRange
 	longRange := spellDefinitionForStyle(player, base)
 
-	if rapid.AttackInterval != base.AttackInterval-1 ||
-		math.Abs(rapid.DamageVariance-(base.DamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 {
+	if rapid.AttackInterval != base.AttackInterval+1-1 ||
+		math.Abs(rapid.DamageVariance-(base.DamageVariance-0.10+wideStyleDamageVarianceBonus)) > 0.000_001 {
 		t.Fatalf("rapid spell = %+v, base %+v", rapid, base)
 	}
 	if accurate.AccuracyBonus != base.AccuracyBonus+accurateStyleAccuracyBonus ||
-		math.Abs(accurate.DamageVariance-(base.DamageVariance-accurateStyleDamageVarianceReduction)) > 0.000_001 {
+		accurate.AttackInterval != base.AttackInterval+1 ||
+		math.Abs(accurate.DamageVariance-(base.DamageVariance-0.10-accurateStyleDamageVarianceReduction)) > 0.000_001 {
 		t.Fatalf("accurate spell = %+v, base %+v", accurate, base)
 	}
-	if longRange.Range != base.Range+longRangeStyleRangeBonus ||
-		math.Abs(longRange.DamageVariance-(base.DamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 {
+	if longRange.Range != base.Range+3+longRangeStyleRangeBonus ||
+		math.Abs(longRange.DamageVariance-(base.DamageVariance-0.10+wideStyleDamageVarianceBonus)) > 0.000_001 {
 		t.Fatalf("long-range spell = %+v, base %+v", longRange, base)
+	}
+}
+
+func TestWandsAndStavesApplyDistinctCastingProfiles(t *testing.T) {
+	base, _ := spellDefinition(SpellWindBolt)
+	wand := spellDefinitionForStyle(&playerState{equippedWeapon: WeaponWand}, base)
+	staff := spellDefinitionForStyle(&playerState{equippedWeapon: WeaponStaff}, base)
+
+	if wand.AttackInterval != 4 || wand.Range != 7 || math.Abs(wand.DamageVariance-0.40) > 0.000_001 {
+		t.Fatalf("wand spell profile = %+v", wand)
+	}
+	if staff.AttackInterval != 6 || staff.Range != 13 || math.Abs(staff.DamageVariance-0.10) > 0.000_001 {
+		t.Fatalf("staff spell profile = %+v", staff)
+	}
+	if wand.AttackInterval >= staff.AttackInterval || wand.Range >= staff.Range || wand.DamageVariance <= staff.DamageVariance {
+		t.Fatalf("wand and staff profiles are not distinct: wand=%+v staff=%+v", wand, staff)
 	}
 }
 

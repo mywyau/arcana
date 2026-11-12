@@ -220,6 +220,9 @@ func TestOverkillAwardsOnlyActualDamageAsXP(t *testing.T) {
 	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 3 {
 		t.Fatalf("Attack after overkill = %+v, want 3 XP", attack)
 	}
+	if vitality := mustSkill(t, player, SkillVitality); vitality.Experience != 3 {
+		t.Fatalf("Vitality after overkill = %+v, want 3 XP", vitality)
+	}
 	events := world.Snapshot().CombatEvents
 	if len(events) != 1 || events[0].Amount != 3 {
 		t.Fatalf("overkill combat events = %+v, want actual damage 3", events)
@@ -860,7 +863,7 @@ func TestStaffStylesUseProjectileStyleTradeoffs(t *testing.T) {
 	if rapid.Range != staffRange || accurate.Range != staffRange || longRange.Range != staffRange+longRangeStyleRangeBonus {
 		t.Fatalf("staff ranges: rapid=%.2f accurate=%.2f long=%.2f", rapid.Range, accurate.Range, longRange.Range)
 	}
-	if accurate.AccuracyBonus != 11+accurateStyleAccuracyBonus ||
+	if accurate.AccuracyBonus != 12+accurateStyleAccuracyBonus ||
 		math.Abs(rapid.DamageVariance-(staffDamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 ||
 		math.Abs(accurate.DamageVariance-(staffDamageVariance-accurateStyleDamageVarianceReduction)) > 0.000_001 ||
 		math.Abs(longRange.DamageVariance-(staffDamageVariance+wideStyleDamageVarianceBonus)) > 0.000_001 {
@@ -984,6 +987,8 @@ func TestBowRapidSchedulesFasterNextAttack(t *testing.T) {
 func TestStaffHitTrainsMagic(t *testing.T) {
 	world := newCombatTestWorld()
 	mustAddPlayer(t, world, "player-one", Position{X: -4, Z: -1}, 4)
+	startingMagicExperience := SkillExperienceForLevel(5)
+	world.players["player-one"].skills[SkillMagic] = startingMagicExperience
 	world.players["player-one"].inventory.add(string(WeaponStaff), 1)
 	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponStaff}); err != nil {
 		t.Fatalf("QueueEquip(staff) returned an unexpected error: %v", err)
@@ -994,8 +999,9 @@ func TestStaffHitTrainsMagic(t *testing.T) {
 	}
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	if magic := mustSkill(t, player, SkillMagic); magic.Experience != staffDamage {
-		t.Fatalf("Magic after staff hit = %+v, want %d XP", magic, staffDamage)
+	damageDealt := dummyMaximumHealth - mustTarget(t, world.Snapshot(), dummyTargetID).Health
+	if magic := mustSkill(t, player, SkillMagic); magic.Experience != startingMagicExperience+int64(damageDealt) {
+		t.Fatalf("Magic after staff hit = %+v, want %d XP", magic, startingMagicExperience+int64(damageDealt))
 	}
 	if attack := mustSkill(t, player, SkillAttack); attack.Experience != 0 {
 		t.Fatalf("Attack after staff hit = %+v, want zero XP", attack)
@@ -1056,7 +1062,11 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		{id: WeaponMithrilSword, strength: 18, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponRuneSword, strength: runeSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponBattleAxe, strength: battleAxeMeleeStrength, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
+		{id: WeaponWand, strength: 2, interval: wandAttackIntervalPulses, range_: wandRange},
+		{id: WeaponMoonspunWand, strength: 6, interval: wandAttackIntervalPulses, range_: wandRange},
 		{id: WeaponStaff, strength: staffMagicStrength, interval: staffAttackIntervalPulses, range_: staffRange},
+		{id: WeaponEnchantedStaff, strength: 12, interval: staffAttackIntervalPulses, range_: staffRange},
+		{id: WeaponStardewStaff, strength: 15, interval: staffAttackIntervalPulses, range_: staffRange},
 	}
 	for _, test := range tests {
 		weapon, exists := weaponDefinition(test.id)
@@ -1067,6 +1077,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 	}
 	if !combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponMace) ||
 		!combatStyleValidForWeapon(CombatStyleHeavyCrush, WeaponBattleAxe) ||
+		!combatStyleValidForWeapon(CombatStyleRapid, WeaponWand) ||
 		!combatStyleValidForWeapon(CombatStyleLongRange, WeaponStaff) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSteelSword) ||
@@ -1091,7 +1102,7 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: bowDamageVariance},
 		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: maceDamageVariance},
 		{id: WeaponBattleAxe, minimum: 11, average: 15, maximum: 19, variance: battleAxeDamageVariance},
-		{id: WeaponStaff, minimum: 4, average: 6, maximum: 8, variance: staffDamageVariance},
+		{id: WeaponStaff, minimum: 6, average: 7, maximum: 8, variance: staffDamageVariance},
 	}
 	for _, test := range tests {
 		t.Run(string(test.id), func(t *testing.T) {
@@ -1125,7 +1136,7 @@ func TestWeaponStrengthUsesRelevantPowerSkill(t *testing.T) {
 	}{
 		{name: "melee uses Strength", weapon: WeaponSword, skill: SkillStrength, want: 34.5},
 		{name: "ranged uses Range", weapon: WeaponBow, skill: SkillRange, want: 28.5},
-		{name: "magic uses Magic", weapon: WeaponStaff, skill: SkillMagic, want: 30.5},
+		{name: "magic uses Magic", weapon: WeaponStaff, skill: SkillMagic, want: 31.5},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

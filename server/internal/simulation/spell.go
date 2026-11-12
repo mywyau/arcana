@@ -31,6 +31,9 @@ func spellDefinitionForStyle(player *playerState, spell SpellDefinition) SpellDe
 	if !exists || weapon.MagicStrength <= 0 {
 		return spell
 	}
+	spell.AttackInterval = uint64(max(2, int(spell.AttackInterval)+weapon.CastIntervalModifier))
+	spell.Range = max(0.1, spell.Range+weapon.CastRangeModifier)
+	spell.DamageVariance = max(0.0, min(1.0, spell.DamageVariance+weapon.CastVarianceModifier))
 	switch player.combatStyle {
 	case CombatStyleRapid:
 		spell.AttackInterval = max(2, spell.AttackInterval-1)

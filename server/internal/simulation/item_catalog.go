@@ -251,8 +251,33 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		Weapon:            weaponWithStyles(WeaponDefinition{ID: WeaponBattleAxe, AccuracyBonus: 6, MeleeStrength: battleAxeMeleeStrength, DamageVariance: battleAxeDamageVariance, AttackInterval: battleAxeAttackIntervalPulses, Range: battleAxeRange, ApproachRange: battleAxeApproachRange}, CombatStyleSlash, weaponStyle(CombatStyleSlash, DamageTypeSlash), weaponStyle(CombatStyleHeavyCrush, DamageTypeCrush), weaponStyle(CombatStyleDefensive, DamageTypeSlash)),
 	},
 	{
-		ID: string(WeaponStaff), Name: "Staff", Kind: ItemKindWeapon,
-		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponStaff, AccuracyBonus: 11, MagicStrength: staffMagicStrength, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange}, CombatStyleAccurate,
+		ID: string(WeaponWand), Name: "Apprentice Wand", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 1}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponWand, AccuracyBonus: 8, MagicStrength: 2, DamageVariance: wandDamageVariance, AttackInterval: wandAttackIntervalPulses, Range: wandRange, ApproachRange: wandApproachRange, CastIntervalModifier: -1, CastRangeModifier: -3, CastVarianceModifier: 0.20}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeMagic), weaponStyle(CombatStyleAccurate, DamageTypeMagic), weaponStyle(CombatStyleLongRange, DamageTypeMagic)),
+	},
+	{
+		ID: string(WeaponMoonspunWand), Name: "Moonspun Wand", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 10}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponMoonspunWand, AccuracyBonus: 15, MagicStrength: 6, DamageVariance: wandDamageVariance, AttackInterval: wandAttackIntervalPulses, Range: wandRange, ApproachRange: wandApproachRange, CastIntervalModifier: -1, CastRangeModifier: -3, CastVarianceModifier: 0.20}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeMagic), weaponStyle(CombatStyleAccurate, DamageTypeMagic), weaponStyle(CombatStyleLongRange, DamageTypeMagic)),
+	},
+	{
+		ID: string(WeaponStaff), Name: "Mage's Staff", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 5}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponStaff, TwoHanded: true, AccuracyBonus: 12, MagicStrength: staffMagicStrength, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange, CastIntervalModifier: 1, CastRangeModifier: 3, CastVarianceModifier: -0.10}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeMagic), weaponStyle(CombatStyleAccurate, DamageTypeMagic), weaponStyle(CombatStyleLongRange, DamageTypeMagic)),
+	},
+	{
+		ID: string(WeaponEnchantedStaff), Name: "Enchanted Staff", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 15}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponEnchantedStaff, TwoHanded: true, AccuracyBonus: 19, MagicStrength: 12, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange, CastIntervalModifier: 1, CastRangeModifier: 3, CastVarianceModifier: -0.10}, CombatStyleAccurate,
+			weaponStyle(CombatStyleRapid, DamageTypeMagic), weaponStyle(CombatStyleAccurate, DamageTypeMagic), weaponStyle(CombatStyleLongRange, DamageTypeMagic)),
+	},
+	{
+		ID: string(WeaponStardewStaff), Name: "Stardew Staff", Kind: ItemKindWeapon,
+		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 20}},
+		Weapon: weaponWithStyles(WeaponDefinition{ID: WeaponStardewStaff, TwoHanded: true, AccuracyBonus: 22, MagicStrength: 15, DamageVariance: staffDamageVariance, AttackInterval: staffAttackIntervalPulses, Range: staffRange, ApproachRange: staffApproachRange, CastIntervalModifier: 1, CastRangeModifier: 3, CastVarianceModifier: -0.10}, CombatStyleAccurate,
 			weaponStyle(CombatStyleRapid, DamageTypeMagic), weaponStyle(CombatStyleAccurate, DamageTypeMagic), weaponStyle(CombatStyleLongRange, DamageTypeMagic)),
 	},
 	{

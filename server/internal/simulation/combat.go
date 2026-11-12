@@ -37,11 +37,15 @@ const (
 	battleAxeMeleeStrength               = 15
 	battleAxeDamageVariance              = 4.0 / 15.0
 	battleAxeAttackIntervalPulses        = 6
-	staffRange                           = 10.0
-	staffApproachRange                   = 9.25
-	staffMagicStrength                   = 6
-	staffDamageVariance                  = 1.0 / 3.0
-	staffAttackIntervalPulses            = 5
+	wandRange                            = 7.0
+	wandApproachRange                    = 6.25
+	wandDamageVariance                   = 0.40
+	wandAttackIntervalPulses             = 4
+	staffRange                           = 13.0
+	staffApproachRange                   = 12.25
+	staffMagicStrength                   = 7
+	staffDamageVariance                  = 0.10
+	staffAttackIntervalPulses            = 6
 	polearmRange                         = 2.8
 	polearmApproachRange                 = 2.35
 	spearMeleeStrength                   = 11
@@ -126,7 +130,11 @@ const (
 	WeaponYewShortbow    WeaponID = "yew_shortbow"
 	WeaponMace           WeaponID = "mace"
 	WeaponBattleAxe      WeaponID = "battle_axe"
+	WeaponWand           WeaponID = "wand"
+	WeaponMoonspunWand   WeaponID = "moonspun_wand"
 	WeaponStaff          WeaponID = "staff"
+	WeaponEnchantedStaff WeaponID = "enchanted_staff"
+	WeaponStardewStaff   WeaponID = "stardew_staff"
 	WeaponSpear          WeaponID = "spear"
 	WeaponHalberd        WeaponID = "halberd"
 	WeaponCrossbow       WeaponID = "crossbow"
@@ -167,21 +175,24 @@ func combatStyleValidForWeapon(style CombatStyleID, weapon WeaponID) bool {
 }
 
 type WeaponDefinition struct {
-	ID               WeaponID
-	DefaultStyle     CombatStyleID
-	CombatStyles     []CombatStyleID
-	StyleDamageTypes map[CombatStyleID]DamageType
-	TwoHanded        bool
-	AccuracyBonus    int
-	MeleeStrength    int
-	RangedStrength   int
-	MagicStrength    int
-	DamageVariance   float64
-	AttackInterval   uint64
-	Range            float64
-	ApproachRange    float64
-	Ammunition       ItemCost
-	AmmunitionFamily string
+	ID                   WeaponID
+	DefaultStyle         CombatStyleID
+	CombatStyles         []CombatStyleID
+	StyleDamageTypes     map[CombatStyleID]DamageType
+	TwoHanded            bool
+	AccuracyBonus        int
+	MeleeStrength        int
+	RangedStrength       int
+	MagicStrength        int
+	DamageVariance       float64
+	AttackInterval       uint64
+	Range                float64
+	ApproachRange        float64
+	Ammunition           ItemCost
+	AmmunitionFamily     string
+	CastIntervalModifier int
+	CastRangeModifier    float64
+	CastVarianceModifier float64
 }
 
 func weaponDefinition(id WeaponID) (WeaponDefinition, bool) {
@@ -1125,6 +1136,7 @@ func (w *World) resolveAutoAttacks() {
 		rolledDamage := rollDamageWithVariance(poweredDamage, damageVariance, w.rollSource.Float64())
 		damageDealt := min(rolledDamage, target.Health)
 		target.Health -= damageDealt
+		grantSkillExperience(player, SkillVitality, int64(damageDealt))
 		if castingSpell {
 			grantSkillExperience(player, SkillMagic, int64(damageDealt))
 		} else if skill, trains := skillForCombatStyle(player.equippedWeapon, player.combatStyle); trains {

@@ -257,7 +257,7 @@ func play_weapon_attack(target_position: Vector3) -> float:
 		return 0.0
 	if _equipped_weapon == "bow" or _equipped_weapon.ends_with("_shortbow") or _equipped_weapon == "crossbow":
 		return _play_bow_attack(target_position)
-	if _equipped_weapon == "staff":
+	if _is_magic_focus_weapon(_equipped_weapon):
 		return _play_staff_attack(target_position)
 	if _equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"):
 		_play_melee_attack(mace_pivot, -50.0, 65.0, 0.2, 0.28)
@@ -453,6 +453,7 @@ func set_weapon(weapon_id: String) -> void:
 	hilt.scale = Vector3(0.75, 0.85, 0.85) if dagger_equipped else Vector3.ONE
 	sword_pivot.rotation_degrees = Vector3(-10.0, 0.0, 135.0)
 	battle_axe_pivot.scale = Vector3(1.0, 1.65, 1.0) if weapon_id == "halberd" else Vector3.ONE
+	staff_pivot.scale = Vector3(0.56, 0.56, 0.56) if weapon_id == "wand" or weapon_id.ends_with("_wand") else Vector3.ONE
 
 
 func equipped_weapon() -> String:
@@ -505,7 +506,7 @@ func _update_weapon_visibility() -> void:
 	crossbow_pivot.visible = not _defeated and _equipped_weapon == "crossbow"
 	mace_pivot.visible = not _defeated and (_equipped_weapon == "mace" or _equipped_weapon.ends_with("_mace"))
 	battle_axe_pivot.visible = not _defeated and (_equipped_weapon in ["battle_axe", "halberd"] or _equipped_weapon.ends_with("_battle_axe"))
-	staff_pivot.visible = not _defeated and _equipped_weapon == "staff"
+	staff_pivot.visible = not _defeated and _is_magic_focus_weapon(_equipped_weapon)
 
 
 func _update_weapon_material() -> void:
@@ -513,6 +514,10 @@ func _update_weapon_material() -> void:
 	blade.material_override = material
 	mace_head.material_override = material
 	battle_axe_blade.material_override = material
+
+
+func _is_magic_focus_weapon(weapon_id: String) -> bool:
+	return weapon_id == "wand" or weapon_id == "staff" or weapon_id.ends_with("_wand") or weapon_id.ends_with("_staff")
 
 
 func _is_tiered_item(item_id: String, item_suffix: String) -> bool:

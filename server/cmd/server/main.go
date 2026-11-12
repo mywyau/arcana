@@ -101,7 +101,9 @@ func main() {
 		{simulation.ItemWayfarerCape, 1},
 	}
 	magicSupplies := []testSupply{
-		{string(simulation.WeaponStaff), 1}, {simulation.ItemStandardSpellbook, 1},
+		{string(simulation.WeaponWand), 1}, {string(simulation.WeaponMoonspunWand), 1},
+		{string(simulation.WeaponStaff), 1}, {string(simulation.WeaponEnchantedStaff), 1}, {string(simulation.WeaponStardewStaff), 1},
+		{simulation.ItemStandardSpellbook, 1},
 		{simulation.ItemSkinBible, 1}, {simulation.ItemHolyBook, 1},
 		{simulation.ItemClericsTome, 1},
 		{simulation.ItemAirRune, 50}, {simulation.ItemWaterRune, 50}, {simulation.ItemEarthRune, 50},
