@@ -2,6 +2,7 @@ package websockettransport
 
 import (
 	"math"
+	"sort"
 
 	"github.com/mywyau/arcana/server/internal/servermetrics"
 	"github.com/mywyau/arcana/server/internal/simulation"
@@ -25,6 +26,19 @@ func filterSnapshotForPlayerOptions(
 	privateViewer *simulation.PlayerSnapshot,
 	radius float64,
 	includeEnvironment bool,
+) (simulation.Snapshot, servermetrics.EntityCounts) {
+	return filterSnapshotForPlayerOptionsWithBudget(
+		snapshot, viewerID, privateViewer, radius, includeEnvironment, 0,
+	)
+}
+
+func filterSnapshotForPlayerOptionsWithBudget(
+	snapshot simulation.Snapshot,
+	viewerID simulation.PlayerID,
+	privateViewer *simulation.PlayerSnapshot,
+	radius float64,
+	includeEnvironment bool,
+	maxVisiblePlayers int,
 ) (simulation.Snapshot, servermetrics.EntityCounts) {
 	viewer, found := snapshotPlayerByID(snapshot.Players, viewerID)
 	if privateViewer != nil && privateViewer.ID == viewerID {
@@ -59,7 +73,6 @@ func filterSnapshotForPlayerOptions(
 	filtered.CombatEvents = make([]simulation.CombatEvent, 0, len(snapshot.CombatEvents))
 
 	radiusSquared := radius * radius
-	visibleIDs := map[string]struct{}{string(viewerID): {}}
 	combatTarget := viewer.CombatTarget
 	viewerIncluded := false
 	for _, player := range snapshot.Players {
@@ -74,13 +87,16 @@ func filterSnapshotForPlayerOptions(
 			viewerIncluded = true
 		}
 		filtered.Players = append(filtered.Players, player)
-		visibleIDs[string(player.ID)] = struct{}{}
 	}
 	// A newly joined player may not be present in a public frame cached just
 	// before its simulation join. Include it immediately for its own connection.
 	if !viewerIncluded && privateViewer != nil {
 		filtered.Players = append(filtered.Players, *privateViewer)
-		visibleIDs[string(viewerID)] = struct{}{}
+	}
+	filtered.Players = limitVisiblePlayers(filtered.Players, viewer, maxVisiblePlayers)
+	visibleIDs := make(map[string]struct{}, len(filtered.Players)+len(filtered.Targets))
+	for _, player := range filtered.Players {
+		visibleIDs[string(player.ID)] = struct{}{}
 	}
 
 	for _, target := range snapshot.Targets {
@@ -120,6 +136,72 @@ func filterSnapshotForPlayerOptions(
 	}
 
 	return filtered, snapshotEntityCounts(filtered)
+}
+
+// limitVisiblePlayers bounds incidental crowd updates while retaining players
+// whose omission could make combat incorrect or confusing. The configured
+// maximum is soft: combat participants are never discarded if they alone
+// exceed the budget.
+func limitVisiblePlayers(
+	players []simulation.PlayerSnapshot,
+	viewer simulation.PlayerSnapshot,
+	maximum int,
+) []simulation.PlayerSnapshot {
+	if maximum <= 0 || len(players) <= maximum {
+		return players
+	}
+
+	protected := map[simulation.PlayerID]struct{}{viewer.ID: {}}
+	for _, player := range players {
+		if string(player.ID) == viewer.CombatTarget {
+			protected[player.ID] = struct{}{}
+		}
+		if player.CombatTarget == string(viewer.ID) {
+			protected[player.ID] = struct{}{}
+		}
+	}
+
+	type candidate struct {
+		id              simulation.PlayerID
+		distanceSquared float64
+	}
+	incidental := make([]candidate, 0, len(players))
+	for _, player := range players {
+		if _, keep := protected[player.ID]; keep {
+			continue
+		}
+		deltaX := viewer.Position.X - player.Position.X
+		deltaY := viewer.Position.Y - player.Position.Y
+		deltaZ := viewer.Position.Z - player.Position.Z
+		incidental = append(incidental, candidate{
+			id: player.ID, distanceSquared: deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ,
+		})
+	}
+	sort.Slice(incidental, func(first, second int) bool {
+		if incidental[first].distanceSquared == incidental[second].distanceSquared {
+			return incidental[first].id < incidental[second].id
+		}
+		return incidental[first].distanceSquared < incidental[second].distanceSquared
+	})
+
+	remaining := maximum - len(protected)
+	if remaining < 0 {
+		remaining = 0
+	}
+	if remaining > len(incidental) {
+		remaining = len(incidental)
+	}
+	for _, entry := range incidental[:remaining] {
+		protected[entry.id] = struct{}{}
+	}
+
+	limited := make([]simulation.PlayerSnapshot, 0, len(protected))
+	for _, player := range players {
+		if _, keep := protected[player.ID]; keep {
+			limited = append(limited, player)
+		}
+	}
+	return limited
 }
 
 func snapshotPlayerByID(players []simulation.PlayerSnapshot, id simulation.PlayerID) (simulation.PlayerSnapshot, bool) {

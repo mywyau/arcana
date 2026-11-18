@@ -260,6 +260,7 @@ func main() {
 			RequireAccounts:    !config.GuestAuthenticationEnabled,
 			PerformanceMetrics: performanceMetrics,
 			VisibilityRadius:   config.VisibilityRadius,
+			MaxVisiblePlayers:  config.MaxVisiblePlayers,
 		},
 	)
 	if err != nil {
@@ -287,8 +288,8 @@ func main() {
 	}
 
 	log.Printf(
-		"simulation started in %s mode with a %s tick interval, %s snapshot interval, and %.1f visibility radius (debug content: %t, test supply chests: %t)",
-		config.Environment, tickInterval, snapshotInterval, config.VisibilityRadius,
+		"simulation started in %s mode with a %s tick interval, %s snapshot interval, %.1f visibility radius, and %d visible-player budget (debug content: %t, test supply chests: %t)",
+		config.Environment, tickInterval, snapshotInterval, config.VisibilityRadius, config.MaxVisiblePlayers,
 		config.DebugContentEnabled, config.TestSupplyChestsEnabled,
 	)
 	go runner.Run(ctx)

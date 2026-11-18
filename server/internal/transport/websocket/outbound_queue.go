@@ -55,10 +55,35 @@ func (q *outboundQueue) replaceSnapshot(message protocol.ServerMessage, createdA
 		return false
 	}
 	replaced := q.snapshot != nil
+	if q.snapshot != nil {
+		preserveEnvironmentPayload(q.snapshot.message.Snapshot, message.Snapshot)
+	}
 	queued := queuedOutbound{message: message, createdAt: createdAt, replaceable: true}
 	q.snapshot = &queued
 	q.signal()
 	return replaced
+}
+
+// preserveEnvironmentPayload prevents a lower-frequency environment frame or
+// one-time landmark definition from being lost when a newer realtime frame
+// replaces it before the writer dequeues it.
+func preserveEnvironmentPayload(previous, next *protocol.WorldSnapshot) {
+	if previous == nil || next == nil {
+		return
+	}
+	if previous.EnvironmentIncluded && !next.EnvironmentIncluded {
+		next.EnvironmentIncluded = true
+		next.Drops = previous.Drops
+		next.Fires = previous.Fires
+		next.GatheringSpotStates = previous.GatheringSpotStates
+		next.MerchantStocks = previous.MerchantStocks
+	}
+	if previous.EnvironmentDefinitionsIncluded && !next.EnvironmentDefinitionsIncluded {
+		next.EnvironmentDefinitionsIncluded = true
+		next.GatheringSpots = previous.GatheringSpots
+		next.BankChests = previous.BankChests
+		next.Merchants = previous.Merchants
+	}
 }
 
 func (q *outboundQueue) next(ctx context.Context) (queuedOutbound, bool) {

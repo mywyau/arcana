@@ -150,6 +150,9 @@ The relevant environment variables are:
   future browser clients. Native Godot clients do not send a browser origin.
 - `ARCANA_VISIBILITY_RADIUS`: distance in world units used to send nearby
   players and dynamic entities to each client; defaults to `40`.
+- `ARCANA_MAX_VISIBLE_PLAYERS`: soft per-client player budget within that
+  radius; defaults to `100`. The local player and player-versus-player combat
+  participants remain visible even if they exceed the budget.
 
 Build and exercise the same container locally with:
 

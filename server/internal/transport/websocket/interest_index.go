@@ -180,14 +180,28 @@ func filterSnapshotForPlayerWithIndexOptions(
 	radius float64,
 	includeEnvironment bool,
 ) (simulation.Snapshot, servermetrics.EntityCounts, servermetrics.EntityCounts) {
+	return filterSnapshotForPlayerWithIndexOptionsAndBudget(
+		snapshot, index, viewerID, privateViewer, radius, includeEnvironment, 0,
+	)
+}
+
+func filterSnapshotForPlayerWithIndexOptionsAndBudget(
+	snapshot simulation.Snapshot,
+	index *interestIndex,
+	viewerID simulation.PlayerID,
+	privateViewer *simulation.PlayerSnapshot,
+	radius float64,
+	includeEnvironment bool,
+	maxVisiblePlayers int,
+) (simulation.Snapshot, servermetrics.EntityCounts, servermetrics.EntityCounts) {
 	viewer, found := snapshotPlayerByID(snapshot.Players, viewerID)
 	if privateViewer != nil && privateViewer.ID == viewerID {
 		viewer = *privateViewer
 		found = true
 	}
 	if index == nil || !found {
-		filtered, visible := filterSnapshotForPlayerOptions(
-			snapshot, viewerID, privateViewer, radius, includeEnvironment,
+		filtered, visible := filterSnapshotForPlayerOptionsWithBudget(
+			snapshot, viewerID, privateViewer, radius, includeEnvironment, maxVisiblePlayers,
 		)
 		candidates := snapshot
 		if !includeEnvironment {
@@ -198,8 +212,8 @@ func filterSnapshotForPlayerWithIndexOptions(
 		return filtered, snapshotEntityCounts(candidates), visible
 	}
 	candidateSnapshot, candidates := index.candidateSnapshot(snapshot, viewer, radius, includeEnvironment)
-	filtered, visible := filterSnapshotForPlayerOptions(
-		candidateSnapshot, viewerID, privateViewer, radius, includeEnvironment,
+	filtered, visible := filterSnapshotForPlayerOptionsWithBudget(
+		candidateSnapshot, viewerID, privateViewer, radius, includeEnvironment, maxVisiblePlayers,
 	)
 	return filtered, candidates, visible
 }

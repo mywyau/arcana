@@ -88,6 +88,36 @@ func TestFilterSnapshotForPlayerKeepsCombatParticipantsOutsideRadius(t *testing.
 	}
 }
 
+func TestFilterSnapshotForPlayerLimitsCrowdsWithoutDroppingCombatParticipants(t *testing.T) {
+	viewer := simulation.PlayerSnapshot{
+		ID: "viewer", Position: simulation.Position{}, CombatTarget: "duelist",
+	}
+	snapshot := simulation.Snapshot{Players: []simulation.PlayerSnapshot{
+		viewer,
+		{ID: "far", Position: simulation.Position{X: 9}},
+		{ID: "duelist", Position: simulation.Position{X: 100}},
+		{ID: "near", Position: simulation.Position{X: 1}},
+		{ID: "attacker", Position: simulation.Position{X: 100}, CombatTarget: "viewer"},
+		{ID: "middle", Position: simulation.Position{X: 5}},
+	}}
+
+	filtered, _, counts := filterSnapshotForPlayerWithIndexOptionsAndBudget(
+		snapshot, buildInterestIndex(snapshot, interestCellSize), viewer.ID, &viewer, 10, true, 4,
+	)
+	want := []simulation.PlayerID{"viewer", "duelist", "near", "attacker"}
+	if len(filtered.Players) != len(want) {
+		t.Fatalf("visible players = %+v, want IDs %v", filtered.Players, want)
+	}
+	for index, player := range filtered.Players {
+		if player.ID != want[index] {
+			t.Fatalf("visible player %d = %q, want %q; players=%+v", index, player.ID, want[index], filtered.Players)
+		}
+	}
+	if counts.Players != 4 {
+		t.Fatalf("visible player count = %d, want 4", counts.Players)
+	}
+}
+
 func TestFilterSnapshotForPlayerAddsViewerMissingFromCachedFrame(t *testing.T) {
 	viewer := simulation.PlayerSnapshot{ID: "viewer", Position: simulation.Position{X: 20}}
 	filtered, _ := filterSnapshotForPlayer(simulation.Snapshot{

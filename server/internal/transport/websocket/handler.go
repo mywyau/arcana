@@ -32,6 +32,7 @@ const (
 	disconnectedLogoutDelay      = 2 * time.Minute
 	connectionReplacementTimeout = 5 * time.Second
 	DefaultVisibilityRadius      = 40.0
+	DefaultMaxVisiblePlayers     = 100
 	localChatRadius              = 30.0
 )
 
@@ -52,6 +53,7 @@ type Handler struct {
 	allowGuests             bool
 	metrics                 *servermetrics.Collector
 	visibilityRadius        float64
+	maxVisiblePlayers       int
 	acceptOptions           websocket.AcceptOptions
 	activeMu                sync.Mutex
 	activeClients           map[simulation.PlayerID]*activeClient
@@ -81,6 +83,7 @@ type HandlerOptions struct {
 	RequireAccounts    bool
 	PerformanceMetrics *servermetrics.Collector
 	VisibilityRadius   float64
+	MaxVisiblePlayers  int
 }
 
 type outboundResponse struct {
@@ -170,6 +173,13 @@ func NewHandlerWithRepositoriesAndOptions(
 	if math.IsNaN(visibilityRadius) || math.IsInf(visibilityRadius, 0) || visibilityRadius < 0 {
 		return nil, fmt.Errorf("visibility radius must be finite and positive")
 	}
+	maxVisiblePlayers := options.MaxVisiblePlayers
+	if maxVisiblePlayers == 0 {
+		maxVisiblePlayers = DefaultMaxVisiblePlayers
+	}
+	if maxVisiblePlayers < 0 {
+		return nil, fmt.Errorf("maximum visible players must be positive")
+	}
 	accountManager := options.AccountManager
 	if accountManager == nil {
 		accountRepository := account.NewMemoryRepository()
@@ -189,6 +199,7 @@ func NewHandlerWithRepositoriesAndOptions(
 		allowGuests:             !options.RequireAccounts,
 		metrics:                 options.PerformanceMetrics,
 		visibilityRadius:        visibilityRadius,
+		maxVisiblePlayers:       maxVisiblePlayers,
 		acceptOptions: websocket.AcceptOptions{
 			OriginPatterns: append([]string(nil), options.AllowedOrigins...),
 		},
@@ -337,6 +348,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	saveTicker := time.NewTicker(h.characterSaveInterval)
 	defer saveTicker.Stop()
 	environmentSchedule := newEnvironmentSchedule(environmentSnapshotInterval)
+	environmentDefinitions := environmentDefinitionState{}
 	replaced := client.replaced
 
 	for {
@@ -388,14 +400,19 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				privatePlayerPointer = &privatePlayer
 			}
 			queryStartedAt := time.Now()
-			visibleFrame, candidateEntities, visibleEntities := filterSnapshotForPlayerWithIndexOptions(
-				*publicFrame, publicInterest, playerID, privatePlayerPointer, h.visibilityRadius, includeEnvironment,
+			visibleFrame, candidateEntities, visibleEntities := filterSnapshotForPlayerWithIndexOptionsAndBudget(
+				*publicFrame, publicInterest, playerID, privatePlayerPointer, h.visibilityRadius,
+				includeEnvironment, h.maxVisiblePlayers,
 			)
 			queryDuration := time.Since(queryStartedAt)
+			includeEnvironmentDefinitions := environmentDefinitions.shouldInclude(
+				visibleFrame, includeEnvironment,
+			)
 			message := protocol.ServerMessage{
 				Type: protocol.MessageSnapshot,
-				Snapshot: snapshotMessageWithPrivateOptions(
+				Snapshot: snapshotMessageWithPrivateEnvironmentOptions(
 					visibleFrame, playerID, privatePlayerPointer, includeEnvironment,
+					includeEnvironmentDefinitions,
 				),
 			}
 			if h.metrics != nil {
@@ -1184,17 +1201,34 @@ func snapshotMessageWithPrivateOptions(
 	privatePlayer *simulation.PlayerSnapshot,
 	includeEnvironment bool,
 ) *protocol.WorldSnapshot {
+	return snapshotMessageWithPrivateEnvironmentOptions(
+		snapshot, localPlayerID, privatePlayer, includeEnvironment, includeEnvironment,
+	)
+}
+
+func snapshotMessageWithPrivateEnvironmentOptions(
+	snapshot simulation.Snapshot,
+	localPlayerID simulation.PlayerID,
+	privatePlayer *simulation.PlayerSnapshot,
+	includeEnvironment bool,
+	includeEnvironmentDefinitions bool,
+) *protocol.WorldSnapshot {
 	message := &protocol.WorldSnapshot{
-		Tick:                snapshot.Tick,
-		ActionPulse:         snapshot.ActionPulse,
-		EnvironmentIncluded: includeEnvironment,
-		Targets:             make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
-		CombatEvents:        make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
-		Players:             make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
+		Tick:                           snapshot.Tick,
+		ActionPulse:                    snapshot.ActionPulse,
+		EnvironmentIncluded:            includeEnvironment,
+		EnvironmentDefinitionsIncluded: includeEnvironmentDefinitions,
+		Targets:                        make([]protocol.TargetSnapshot, 0, len(snapshot.Targets)),
+		CombatEvents:                   make([]protocol.CombatEvent, 0, len(snapshot.CombatEvents)),
+		Players:                        make([]protocol.PlayerSnapshot, 0, len(snapshot.Players)),
 	}
 	if includeEnvironment {
 		message.Drops = make([]protocol.DropSnapshot, 0, len(snapshot.Drops))
 		message.Fires = make([]protocol.FireSnapshot, 0, len(snapshot.Fires))
+		message.GatheringSpotStates = make([]protocol.GatheringSpotStateSnapshot, 0, len(snapshot.GatheringSpots))
+		message.MerchantStocks = make([]protocol.MerchantStockStateSnapshot, 0, len(snapshot.Merchants))
+	}
+	if includeEnvironmentDefinitions {
 		message.GatheringSpots = make([]protocol.GatheringSpotSnapshot, 0, len(snapshot.GatheringSpots))
 		message.BankChests = make([]protocol.BankChestSnapshot, 0, len(snapshot.BankChests))
 		message.Merchants = make([]protocol.MerchantSnapshot, 0, len(snapshot.Merchants))
@@ -1232,7 +1266,7 @@ func snapshotMessageWithPrivateOptions(
 			SpellID:  string(event.SpellID),
 		})
 	}
-	if includeEnvironment {
+	if includeEnvironmentDefinitions {
 		for _, spot := range snapshot.GatheringSpots {
 			message.GatheringSpots = append(message.GatheringSpots, protocol.GatheringSpotSnapshot{
 				ID: spot.ID, Name: spot.Name, Skill: string(spot.Skill),
@@ -1250,6 +1284,20 @@ func snapshotMessageWithPrivateOptions(
 			})
 		}
 		for _, merchant := range snapshot.Merchants {
+			message.Merchants = append(message.Merchants, protocol.MerchantSnapshot{
+				ID: merchant.ID, Name: merchant.Name,
+				Position: protocol.Position{X: merchant.Position.X, Y: merchant.Position.Y, Z: merchant.Position.Z},
+				Range:    merchant.Range,
+			})
+		}
+	}
+	if includeEnvironment {
+		for _, spot := range snapshot.GatheringSpots {
+			message.GatheringSpotStates = append(message.GatheringSpotStates, protocol.GatheringSpotStateSnapshot{
+				ID: spot.ID, CurrentAmount: spot.CurrentAmount, MaximumAmount: spot.MaximumAmount,
+			})
+		}
+		for _, merchant := range snapshot.Merchants {
 			stock := make([]protocol.MerchantStockSnapshot, 0, len(merchant.Stock))
 			for _, item := range merchant.Stock {
 				stock = append(stock, protocol.MerchantStockSnapshot{
@@ -1258,10 +1306,8 @@ func snapshotMessageWithPrivateOptions(
 					BuyPrice: item.BuyPrice,
 				})
 			}
-			message.Merchants = append(message.Merchants, protocol.MerchantSnapshot{
-				ID: merchant.ID, Name: merchant.Name,
-				Position: protocol.Position{X: merchant.Position.X, Y: merchant.Position.Y, Z: merchant.Position.Z},
-				Range:    merchant.Range, Stock: stock,
+			message.MerchantStocks = append(message.MerchantStocks, protocol.MerchantStockStateSnapshot{
+				ID: merchant.ID, Stock: stock,
 			})
 		}
 	}

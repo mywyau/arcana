@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 12
+	CurrentVersion            = 14
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -198,22 +198,25 @@ type ItemCost struct {
 }
 
 type WorldSnapshot struct {
-	Tick                uint64                  `json:"tick"`
-	ActionPulse         uint64                  `json:"action_pulse"`
-	EnvironmentIncluded bool                    `json:"environment_included,omitempty"`
-	FullReconciliation  bool                    `json:"full_reconciliation,omitempty"`
-	Targets             []TargetSnapshot        `json:"targets,omitempty"`
-	TargetUpdates       []TargetUpdate          `json:"target_updates,omitempty"`
-	RemovedTargetIDs    []string                `json:"removed_target_ids,omitempty"`
-	Drops               []DropSnapshot          `json:"drops,omitempty"`
-	Fires               []FireSnapshot          `json:"fires,omitempty"`
-	CombatEvents        []CombatEvent           `json:"combat_events"`
-	GatheringSpots      []GatheringSpotSnapshot `json:"gathering_spots,omitempty"`
-	BankChests          []BankChestSnapshot     `json:"bank_chests,omitempty"`
-	Merchants           []MerchantSnapshot      `json:"merchants,omitempty"`
-	Players             []PlayerSnapshot        `json:"players"`
-	PlayerUpdates       []PlayerUpdate          `json:"player_updates,omitempty"`
-	RemovedPlayerIDs    []string                `json:"removed_player_ids,omitempty"`
+	Tick                           uint64                       `json:"tick"`
+	ActionPulse                    uint64                       `json:"action_pulse"`
+	EnvironmentIncluded            bool                         `json:"environment_included,omitempty"`
+	EnvironmentDefinitionsIncluded bool                         `json:"environment_definitions_included,omitempty"`
+	FullReconciliation             bool                         `json:"full_reconciliation,omitempty"`
+	Targets                        []TargetSnapshot             `json:"targets,omitempty"`
+	TargetUpdates                  []TargetUpdate               `json:"target_updates,omitempty"`
+	RemovedTargetIDs               []string                     `json:"removed_target_ids,omitempty"`
+	Drops                          []DropSnapshot               `json:"drops,omitempty"`
+	Fires                          []FireSnapshot               `json:"fires,omitempty"`
+	CombatEvents                   []CombatEvent                `json:"combat_events"`
+	GatheringSpots                 []GatheringSpotSnapshot      `json:"gathering_spots,omitempty"`
+	GatheringSpotStates            []GatheringSpotStateSnapshot `json:"gathering_spot_states,omitempty"`
+	BankChests                     []BankChestSnapshot          `json:"bank_chests,omitempty"`
+	Merchants                      []MerchantSnapshot           `json:"merchants,omitempty"`
+	MerchantStocks                 []MerchantStockStateSnapshot `json:"merchant_stocks,omitempty"`
+	Players                        []PlayerSnapshot             `json:"players"`
+	PlayerUpdates                  []PlayerUpdate               `json:"player_updates,omitempty"`
+	RemovedPlayerIDs               []string                     `json:"removed_player_ids,omitempty"`
 }
 
 type CombatEvent struct {
@@ -294,6 +297,12 @@ type GatheringSpotSnapshot struct {
 	RecipeID      string   `json:"recipe_id,omitempty"`
 }
 
+type GatheringSpotStateSnapshot struct {
+	ID            string `json:"id"`
+	CurrentAmount int    `json:"current_amount"`
+	MaximumAmount int    `json:"maximum_amount"`
+}
+
 type BankChestSnapshot struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
@@ -302,11 +311,15 @@ type BankChestSnapshot struct {
 }
 
 type MerchantSnapshot struct {
-	ID       string                  `json:"id"`
-	Name     string                  `json:"name"`
-	Position Position                `json:"position"`
-	Range    float64                 `json:"range"`
-	Stock    []MerchantStockSnapshot `json:"stock"`
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Position Position `json:"position"`
+	Range    float64  `json:"range"`
+}
+
+type MerchantStockStateSnapshot struct {
+	ID    string                  `json:"id"`
+	Stock []MerchantStockSnapshot `json:"stock"`
 }
 
 type MerchantStockSnapshot struct {

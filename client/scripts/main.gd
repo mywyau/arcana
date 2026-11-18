@@ -3506,9 +3506,12 @@ func _sync_snapshot_world(snapshot: Dictionary) -> void:
 	if bool(snapshot.get("environment_included", false)):
 		_sync_drops(snapshot.get("drops", []))
 		_sync_fires(snapshot.get("fires", []))
-		_sync_gathering_spots(snapshot.get("gathering_spots", []))
-		_sync_bank_chests(snapshot.get("bank_chests", []))
-		_sync_merchants(snapshot.get("merchants", []))
+		if bool(snapshot.get("environment_definitions_included", false)):
+			_sync_gathering_spots(snapshot.get("gathering_spots", []))
+			_sync_bank_chests(snapshot.get("bank_chests", []))
+			_sync_merchants(snapshot.get("merchants", []))
+		_sync_gathering_spot_states(snapshot.get("gathering_spot_states", []))
+		_sync_merchant_stocks(snapshot.get("merchant_stocks", []))
 
 
 func _materialize_target_payloads(snapshot: Dictionary, full_reconciliation: bool) -> Array:
@@ -3936,6 +3939,28 @@ func _sync_gathering_spots(spot_payloads: Variant) -> void:
 		_gathering_states.erase(spot_id)
 
 
+func _sync_gathering_spot_states(state_payloads: Variant) -> void:
+	if typeof(state_payloads) != TYPE_ARRAY:
+		return
+	for payload: Variant in state_payloads as Array:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var state_data := payload as Dictionary
+		var spot_id: String = str(state_data.get("id", ""))
+		if spot_id.is_empty():
+			continue
+		var view := _gathering_views.get(spot_id) as GatheringSpot
+		if view == null:
+			continue
+		var current_amount: int = int(state_data.get("current_amount", 0))
+		var maximum_amount: int = int(state_data.get("maximum_amount", 0))
+		view.set_amount(current_amount, maximum_amount)
+		var existing_state := _gathering_states.get(spot_id, {}) as Dictionary
+		existing_state["current_amount"] = current_amount
+		existing_state["maximum_amount"] = maximum_amount
+		_gathering_states[spot_id] = existing_state
+
+
 func _sync_bank_chests(chest_payloads: Variant) -> void:
 	if typeof(chest_payloads) != TYPE_ARRAY:
 		return
@@ -4001,12 +4026,10 @@ func _sync_merchants(payloads: Variant) -> void:
 			float(coordinates.get("y", 0.0)),
 			float(coordinates.get("z", 0.0)),
 		)
-		var previous_state: Dictionary = _merchant_states.get(merchant_id, {}) as Dictionary
-		var previous_stock: Variant = previous_state.get("stock", [])
-		var next_stock: Variant = data.get("stock", [])
-		_merchant_states[merchant_id] = data.duplicate(true)
-		if merchant_id == _active_merchant_id and merchant_window.visible and previous_stock != next_stock:
-			merchant_window.render_stock(next_stock as Array if typeof(next_stock) == TYPE_ARRAY else [])
+		var previous_state := _merchant_states.get(merchant_id, {}) as Dictionary
+		var next_state: Dictionary = data.duplicate(true)
+		next_state["stock"] = previous_state.get("stock", [])
+		_merchant_states[merchant_id] = next_state
 		active_ids[merchant_id] = true
 	for merchant_id: String in _merchant_views.keys():
 		if active_ids.has(merchant_id):
@@ -4018,6 +4041,25 @@ func _sync_merchants(payloads: Variant) -> void:
 		_merchant_states.erase(merchant_id)
 		if merchant_id == _active_merchant_id or merchant_id == _pending_merchant_id:
 			_close_merchant()
+
+
+func _sync_merchant_stocks(payloads: Variant) -> void:
+	if typeof(payloads) != TYPE_ARRAY:
+		return
+	for payload: Variant in payloads as Array:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var data := payload as Dictionary
+		var merchant_id: String = str(data.get("id", ""))
+		if merchant_id.is_empty() or not _merchant_states.has(merchant_id):
+			continue
+		var stock: Variant = data.get("stock", [])
+		var state := _merchant_states.get(merchant_id, {}) as Dictionary
+		var previous_stock: Variant = state.get("stock", [])
+		state["stock"] = stock.duplicate(true) if typeof(stock) == TYPE_ARRAY else []
+		_merchant_states[merchant_id] = state
+		if merchant_id == _active_merchant_id and merchant_window.visible and previous_stock != stock:
+			merchant_window.render_stock(stock as Array if typeof(stock) == TYPE_ARRAY else [])
 
 
 func _play_gathering_sound(result: String) -> void:

@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	EnvironmentDevelopment  = "development"
-	EnvironmentStaging      = "staging"
-	EnvironmentProduction   = "production"
-	DefaultVisibilityRadius = 40.0
+	EnvironmentDevelopment   = "development"
+	EnvironmentStaging       = "staging"
+	EnvironmentProduction    = "production"
+	DefaultVisibilityRadius  = 40.0
+	DefaultMaxVisiblePlayers = 100
 )
 
 type Config struct {
@@ -24,6 +25,7 @@ type Config struct {
 	TrustProxyHeaders          bool
 	AllowedOrigins             []string
 	VisibilityRadius           float64
+	MaxVisiblePlayers          int
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -87,6 +89,13 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("ARCANA_VISIBILITY_RADIUS must be a finite positive number")
 		}
 	}
+	maxVisiblePlayers := DefaultMaxVisiblePlayers
+	if rawMaximum := strings.TrimSpace(getenv("ARCANA_MAX_VISIBLE_PLAYERS")); rawMaximum != "" {
+		maxVisiblePlayers, err = strconv.Atoi(rawMaximum)
+		if err != nil || maxVisiblePlayers < 1 {
+			return Config{}, fmt.Errorf("ARCANA_MAX_VISIBLE_PLAYERS must be a positive number")
+		}
+	}
 	return Config{
 		Environment:                environment,
 		ListenAddress:              ":" + port,
@@ -97,6 +106,7 @@ func Load(getenv func(string) string) (Config, error) {
 		TrustProxyHeaders:          trustProxyHeaders,
 		AllowedOrigins:             splitList(getenv("ARCANA_ALLOWED_ORIGINS")),
 		VisibilityRadius:           visibilityRadius,
+		MaxVisiblePlayers:          maxVisiblePlayers,
 	}, nil
 }
 

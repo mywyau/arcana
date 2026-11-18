@@ -9,7 +9,7 @@ func TestLoadDefaultsToLocalDevelopment(t *testing.T) {
 	}
 	if config.Environment != EnvironmentDevelopment || config.ListenAddress != ":8080" ||
 		!config.DebugContentEnabled || !config.TestSupplyChestsEnabled || !config.GuestAuthenticationEnabled ||
-		config.VisibilityRadius != DefaultVisibilityRadius {
+		config.VisibilityRadius != DefaultVisibilityRadius || config.MaxVisiblePlayers != DefaultMaxVisiblePlayers {
 		t.Fatalf("development config = %+v", config)
 	}
 }
@@ -23,6 +23,7 @@ func TestLoadProductionConfiguration(t *testing.T) {
 		"ARCANA_TRUST_PROXY_HEADERS":       "true",
 		"ARCANA_ENABLE_TEST_SUPPLY_CHESTS": "true",
 		"ARCANA_VISIBILITY_RADIUS":         "55.5",
+		"ARCANA_MAX_VISIBLE_PLAYERS":       "125",
 	}
 	config, err := Load(func(key string) string { return values[key] })
 	if err != nil {
@@ -30,7 +31,7 @@ func TestLoadProductionConfiguration(t *testing.T) {
 	}
 	if config.ListenAddress != ":10000" || config.DebugContentEnabled || !config.TestSupplyChestsEnabled ||
 		config.GuestAuthenticationEnabled || !config.TrustProxyHeaders || len(config.AllowedOrigins) != 2 ||
-		config.VisibilityRadius != 55.5 {
+		config.VisibilityRadius != 55.5 || config.MaxVisiblePlayers != 125 {
 		t.Fatalf("production config = %+v", config)
 	}
 }
@@ -45,6 +46,8 @@ func TestLoadRejectsUnsafeProductionConfiguration(t *testing.T) {
 		{"ARCANA_TRUST_PROXY_HEADERS": "invalid"},
 		{"ARCANA_VISIBILITY_RADIUS": "0"},
 		{"ARCANA_VISIBILITY_RADIUS": "NaN"},
+		{"ARCANA_MAX_VISIBLE_PLAYERS": "0"},
+		{"ARCANA_MAX_VISIBLE_PLAYERS": "invalid"},
 		{"PORT": "invalid"},
 	}
 	for _, values := range tests {

@@ -25,6 +25,39 @@ func TestOutboundQueueReplacesPendingSnapshot(t *testing.T) {
 	}
 }
 
+func TestOutboundQueuePreservesEnvironmentDefinitionsAcrossReplacement(t *testing.T) {
+	queue := newOutboundQueue()
+	definitions := &protocol.WorldSnapshot{
+		EnvironmentIncluded:            true,
+		EnvironmentDefinitionsIncluded: true,
+		Drops:                          []protocol.DropSnapshot{{ID: "drop"}},
+		GatheringSpots:                 []protocol.GatheringSpotSnapshot{{ID: "tree"}},
+		GatheringSpotStates:            []protocol.GatheringSpotStateSnapshot{{ID: "tree", CurrentAmount: 3}},
+		BankChests:                     []protocol.BankChestSnapshot{{ID: "bank"}},
+		Merchants:                      []protocol.MerchantSnapshot{{ID: "shopkeeper"}},
+		MerchantStocks:                 []protocol.MerchantStockStateSnapshot{{ID: "shopkeeper"}},
+	}
+	latest := &protocol.WorldSnapshot{Tick: 2}
+	queue.replaceSnapshot(
+		protocol.ServerMessage{Type: protocol.MessageSnapshot, Snapshot: definitions}, time.Unix(1, 0),
+	)
+	queue.replaceSnapshot(
+		protocol.ServerMessage{Type: protocol.MessageSnapshot, Snapshot: latest}, time.Unix(2, 0),
+	)
+
+	queued, ok := queue.next(context.Background())
+	if !ok || queued.message.Snapshot == nil {
+		t.Fatal("merged snapshot was not available")
+	}
+	got := queued.message.Snapshot
+	if !got.EnvironmentIncluded || !got.EnvironmentDefinitionsIncluded || got.Tick != 2 ||
+		len(got.Drops) != 1 || len(got.GatheringSpots) != 1 ||
+		len(got.GatheringSpotStates) != 1 || len(got.BankChests) != 1 ||
+		len(got.Merchants) != 1 || len(got.MerchantStocks) != 1 {
+		t.Fatalf("merged snapshot = %+v", got)
+	}
+}
+
 func TestOutboundQueuePreservesReliableResponsesAheadOfSnapshots(t *testing.T) {
 	queue := newOutboundQueue()
 	queue.replaceSnapshot(protocol.ServerMessage{Type: protocol.MessageSnapshot}, time.Now())

@@ -1,6 +1,7 @@
 package websockettransport
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
@@ -679,7 +680,7 @@ func TestRealtimeSnapshotOmitsEnvironmentCollections(t *testing.T) {
 		t.Fatalf("realtime snapshot lost realtime state: %+v", message)
 	}
 	if message.Drops != nil || message.Fires != nil || message.GatheringSpots != nil ||
-		message.BankChests != nil || message.Merchants != nil {
+		message.BankChests != nil || message.Merchants != nil || message.MerchantStocks != nil {
 		t.Fatalf("realtime snapshot contains environment state: %+v", message)
 	}
 	encoded, err := json.Marshal(message)
@@ -690,7 +691,10 @@ func TestRealtimeSnapshotOmitsEnvironmentCollections(t *testing.T) {
 	if err := json.Unmarshal(encoded, &payload); err != nil {
 		t.Fatalf("Unmarshal(realtime snapshot) error = %v", err)
 	}
-	for _, field := range []string{"environment_included", "drops", "fires", "gathering_spots", "bank_chests", "merchants"} {
+	for _, field := range []string{
+		"environment_included", "environment_definitions_included", "drops", "fires",
+		"gathering_spots", "gathering_spot_states", "bank_chests", "merchants", "merchant_stocks",
+	} {
 		if _, included := payload[field]; included {
 			t.Errorf("realtime snapshot JSON includes %q: %s", field, encoded)
 		}
@@ -706,9 +710,45 @@ func TestEnvironmentSnapshotIncludesEnvironmentCollections(t *testing.T) {
 		Merchants:      []simulation.MerchantSnapshot{{ID: "merchant"}},
 	}
 	message := snapshotMessageWithPrivateOptions(snapshot, "player-one", nil, true)
-	if !message.EnvironmentIncluded || len(message.Drops) != 1 || len(message.Fires) != 1 ||
-		len(message.GatheringSpots) != 1 || len(message.BankChests) != 1 || len(message.Merchants) != 1 {
+	if !message.EnvironmentIncluded || !message.EnvironmentDefinitionsIncluded ||
+		len(message.Drops) != 1 || len(message.Fires) != 1 || len(message.GatheringSpots) != 1 ||
+		len(message.GatheringSpotStates) != 1 || len(message.BankChests) != 1 ||
+		len(message.Merchants) != 1 || len(message.MerchantStocks) != 1 {
 		t.Fatalf("environment snapshot = %+v", message)
+	}
+}
+
+func TestEnvironmentStateSnapshotOmitsUnchangedDefinitions(t *testing.T) {
+	snapshot := simulation.Snapshot{
+		Drops:          []simulation.DropSnapshot{{ID: "drop"}},
+		GatheringSpots: []simulation.GatheringSpotSnapshot{{ID: "spot", CurrentAmount: 3, MaximumAmount: 10}},
+		BankChests:     []simulation.BankChestSnapshot{{ID: "bank"}},
+		Merchants:      []simulation.MerchantSnapshot{{ID: "merchant"}},
+	}
+	message := snapshotMessageWithPrivateEnvironmentOptions(snapshot, "player-one", nil, true, false)
+	if !message.EnvironmentIncluded || message.EnvironmentDefinitionsIncluded ||
+		message.GatheringSpots != nil || message.BankChests != nil || message.Merchants != nil ||
+		len(message.GatheringSpotStates) != 1 || len(message.MerchantStocks) != 1 {
+		t.Fatalf("environment state snapshot = %+v", message)
+	}
+	if message.GatheringSpotStates[0].ID != "spot" ||
+		message.GatheringSpotStates[0].CurrentAmount != 3 ||
+		message.GatheringSpotStates[0].MaximumAmount != 10 {
+		t.Fatalf("gathering state = %+v", message.GatheringSpotStates[0])
+	}
+	encoded, err := json.Marshal(message)
+	if err != nil {
+		t.Fatalf("Marshal(environment state snapshot) error = %v", err)
+	}
+	for _, omitted := range [][]byte{
+		[]byte(`"environment_definitions_included"`),
+		[]byte(`"gathering_spots"`),
+		[]byte(`"bank_chests"`),
+		[]byte(`"merchants"`),
+	} {
+		if bytes.Contains(encoded, omitted) {
+			t.Fatalf("environment state JSON includes static field %s: %s", omitted, encoded)
+		}
 	}
 }
 
