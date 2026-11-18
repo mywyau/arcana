@@ -70,7 +70,10 @@ func targetSpellDodgeChance(player *playerState, target *TargetSnapshot, spell S
 }
 
 func targetSpellAccuracyChance(player *playerState, spell SpellDefinition) float64 {
-	return calculatedAccuracyChance(spellAccuracyScore(player, spell))
+	return min(
+		maximumAccuracyChance,
+		calculatedAccuracyChance(spellAccuracyScore(player, spell))+prayerSpellHitChanceBonus(player),
+	)
 }
 
 func targetSpellHitChance(player *playerState, target *TargetSnapshot, spell SpellDefinition) float64 {

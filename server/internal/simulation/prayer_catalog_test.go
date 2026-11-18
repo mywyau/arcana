@@ -5,11 +5,13 @@ import "testing"
 func TestPrayerCatalogIsCompleteAndDeterministic(t *testing.T) {
 	first := PrayerCatalog()
 	second := PrayerCatalog()
-	if len(first) != len(prayerDefinitions) || len(first) != len(prayerCatalogOrder) || len(first) != 7 {
+	if len(first) != len(prayerDefinitions) || len(first) != len(prayerCatalogOrder) || len(first) != 15 {
 		t.Fatalf("PrayerCatalog() returned %d prayers, want %d", len(first), len(prayerDefinitions))
 	}
 	for index, prayer := range first {
-		if prayer.ID == "" || prayer.Name == "" || prayer.RequiredLevel <= 0 || prayer.DrainAmount <= 0 || prayer.DrainIntervalPulses == 0 || prayer.DrainIntervalSeconds <= 0 {
+		periodic := prayer.DrainAmount > 0 && prayer.DrainIntervalPulses > 0 && prayer.DrainIntervalSeconds > 0
+		emergency := prayer.EmergencyPrayerCost > 0 && prayer.EmergencyHealthThreshold > 0 && prayer.EmergencyHealFraction > 0
+		if prayer.ID == "" || prayer.Name == "" || prayer.RequiredLevel <= 0 || (!periodic && !emergency) {
 			t.Fatalf("prayer %d is incomplete: %+v", index, prayer)
 		}
 		if prayer.ID != string(prayerCatalogOrder[index]) || prayer.ID != second[index].ID {

@@ -620,6 +620,32 @@ func play_heal(amount: int) -> void:
 		hit_splat.call("show_healing", amount)
 
 
+func play_wrath_burst() -> void:
+	var burst := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	mesh.radial_segments = 16
+	mesh.rings = 8
+	burst.mesh = mesh
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(1.0, 0.78, 0.16, 0.62)
+	material.emission_enabled = true
+	material.emission = Color(1.0, 0.56, 0.08)
+	material.emission_energy_multiplier = 2.2
+	burst.material_override = material
+	burst.position = Vector3(0.0, 0.8, 0.0)
+	burst.scale = Vector3.ONE * 0.2
+	add_child(burst)
+	var tween := burst.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(burst, "scale", Vector3.ONE * 8.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(burst, "transparency", 1.0, 0.45)
+	tween.chain().tween_callback(burst.queue_free)
+
+
 func play_status_feedback(label_text: String, feedback_color: Color) -> void:
 	hit_splat.call("show_status", label_text, feedback_color)
 

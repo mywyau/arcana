@@ -4108,6 +4108,14 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 			continue
 		_last_combat_event_id = event_id
 		var event_type: String = str(event.get("type", ""))
+		if event_type == "wrath":
+			var wrath_source_id: String = str(event.get("source_id", ""))
+			var wrath_source := _player_views.get(wrath_source_id) as PlayerView
+			if wrath_source != null:
+				wrath_source.play_wrath_burst()
+			if wrath_source_id == _local_player_id:
+				sound_effects.play_feedback(&"prayer_on")
+			continue
 		if event_type != "damage" and event_type != "missed" and event_type != "dodged":
 			continue
 		var source_id: String = str(event.get("source_id", ""))
@@ -5739,6 +5747,7 @@ func _update_prayer_hud() -> void:
 		var prayer: Dictionary = prayer_data
 		var prayer_id: String = str(prayer.get("id", ""))
 		var required_level: int = int(prayer.get("required_level", 1))
+		var required_prayer_points: int = maxi(1, int(prayer.get("emergency_prayer_cost", 0)))
 		var prayer_button := Button.new()
 		prayer_button.custom_minimum_size = Vector2(104, 88)
 		prayer_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -5746,7 +5755,7 @@ func _update_prayer_hud() -> void:
 		_remove_button_background(prayer_button)
 		prayer_button.toggle_mode = not prayer_id.is_empty()
 		prayer_button.disabled = prayer_id.is_empty() or prayer_level < required_level or _player_defeated or (
-			_player_prayer <= 0 and not _active_prayers.has(prayer_id)
+			_player_prayer < required_prayer_points and not _active_prayers.has(prayer_id)
 		)
 		prayer_button.icon = IconCatalog.centered_icon(prayer.get("icon") as Texture2D)
 		prayer_button.expand_icon = true
@@ -5774,10 +5783,15 @@ func _prayer_description(prayer: Dictionary) -> String:
 	var lines: PackedStringArray = []
 	var effects: Array[Dictionary] = [
 		{"key": "melee_hit_chance_bonus", "label": "+%d%% melee hit chance", "percentage": true},
+		{"key": "ranged_hit_chance_bonus", "label": "+%d%% ranged hit chance", "percentage": true},
+		{"key": "magic_hit_chance_bonus", "label": "+%d%% magic hit chance", "percentage": true},
 		{"key": "melee_damage_bonus", "label": "+%d%% melee damage", "percentage": true},
 		{"key": "ranged_damage_bonus", "label": "+%d%% ranged damage", "percentage": true},
 		{"key": "magic_damage_bonus", "label": "+%d%% magic damage", "percentage": true},
 		{"key": "damage_reduction", "label": "%d%% incoming damage reduction", "percentage": true},
+		{"key": "melee_protection", "label": "%d%% melee damage reduction", "percentage": true},
+		{"key": "ranged_protection", "label": "%d%% ranged damage reduction", "percentage": true},
+		{"key": "magic_protection", "label": "%d%% magic damage reduction", "percentage": true},
 		{"key": "dodge_bonus", "label": "+%d%% dodge chance", "percentage": true},
 		{"key": "health_regeneration", "label": "Restores %d%% maximum health", "percentage": true},
 	]
@@ -5787,6 +5801,24 @@ func _prayer_description(prayer: Dictionary) -> String:
 			continue
 		var displayed_value: int = roundi(value * 100.0) if bool(effect.get("percentage", false)) else roundi(value)
 		lines.append(str(effect.get("label", "%d")) % displayed_value)
+	var exclusive_group: String = str(prayer.get("exclusive_group", ""))
+	if exclusive_group == "offensive_boost":
+		lines.append("Only one combat boost can be active")
+	elif exclusive_group == "protection":
+		lines.append("Only one protection prayer can be active")
+	var emergency_cost: int = int(prayer.get("emergency_prayer_cost", 0))
+	if emergency_cost > 0:
+		var threshold: int = roundi(float(prayer.get("emergency_health_threshold", 0.0)) * 100.0)
+		var healing: int = roundi(float(prayer.get("emergency_heal_fraction", 0.0)) * 100.0)
+		lines.append("Below %d%% health: restores %d%% maximum health" % [threshold, healing])
+		lines.append("Consumes %d prayer points and deactivates" % emergency_cost)
+	var death_burst_damage: int = roundi(float(prayer.get("death_burst_damage_fraction", 0.0)) * 100.0)
+	var death_burst_radius: float = float(prayer.get("death_burst_radius", 0.0))
+	if death_burst_damage > 0 and death_burst_radius > 0.0:
+		lines.append("On defeat: deals %d%% maximum health in a %.1f-unit area" % [
+			death_burst_damage,
+			death_burst_radius,
+		])
 	var drain_amount: int = int(prayer.get("drain_amount", 0))
 	var drain_seconds: float = float(prayer.get("drain_interval_seconds", 0.0))
 	if drain_amount > 0 and drain_seconds > 0.0:

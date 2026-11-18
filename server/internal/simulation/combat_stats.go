@@ -163,6 +163,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			WeaponAccuracyBonus:    focusAccuracy,
 			EquipmentAccuracyBonus: equipmentBonuses.MagicAccuracy,
 			SpellAccuracyBonus:     spell.AccuracyBonus,
+			PrayerHitChanceBonus:   prayerBonuses.MagicHitChance,
 			PrayerDamageReduction:  prayerBonuses.DamageReduction,
 			BaseAttackInterval:     spell.AttackInterval,
 			AttackInterval:         spell.AttackInterval,

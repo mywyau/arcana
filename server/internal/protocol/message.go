@@ -132,20 +132,30 @@ type SkillGuideEntrySnapshot struct {
 }
 
 type PrayerCatalogSnapshot struct {
-	ID                   string  `json:"id"`
-	Name                 string  `json:"name"`
-	RequiredLevel        int     `json:"required_level"`
-	MeleeDamageBonus     float64 `json:"melee_damage_bonus"`
-	RangedDamageBonus    float64 `json:"ranged_damage_bonus"`
-	MagicDamageBonus     float64 `json:"magic_damage_bonus"`
-	HealthRegeneration   float64 `json:"health_regeneration"`
-	MeleeHitChanceBonus  float64 `json:"melee_hit_chance_bonus"`
-	DamageReduction      float64 `json:"damage_reduction"`
-	DodgeBonus           float64 `json:"dodge_bonus"`
-	DrainAmount          int     `json:"drain_amount"`
-	DrainIntervalPulses  uint64  `json:"drain_interval_pulses"`
-	DrainIntervalSeconds float64 `json:"drain_interval_seconds"`
-	ExclusiveGroup       string  `json:"exclusive_group,omitempty"`
+	ID                       string  `json:"id"`
+	Name                     string  `json:"name"`
+	RequiredLevel            int     `json:"required_level"`
+	MeleeDamageBonus         float64 `json:"melee_damage_bonus"`
+	RangedDamageBonus        float64 `json:"ranged_damage_bonus"`
+	MagicDamageBonus         float64 `json:"magic_damage_bonus"`
+	HealthRegeneration       float64 `json:"health_regeneration"`
+	MeleeHitChanceBonus      float64 `json:"melee_hit_chance_bonus"`
+	RangedHitChanceBonus     float64 `json:"ranged_hit_chance_bonus"`
+	MagicHitChanceBonus      float64 `json:"magic_hit_chance_bonus"`
+	DamageReduction          float64 `json:"damage_reduction"`
+	MeleeProtection          float64 `json:"melee_protection"`
+	RangedProtection         float64 `json:"ranged_protection"`
+	MagicProtection          float64 `json:"magic_protection"`
+	EmergencyHealthThreshold float64 `json:"emergency_health_threshold"`
+	EmergencyHealFraction    float64 `json:"emergency_heal_fraction"`
+	EmergencyPrayerCost      int     `json:"emergency_prayer_cost"`
+	DeathBurstDamageFraction float64 `json:"death_burst_damage_fraction"`
+	DeathBurstRadius         float64 `json:"death_burst_radius"`
+	DodgeBonus               float64 `json:"dodge_bonus"`
+	DrainAmount              int     `json:"drain_amount"`
+	DrainIntervalPulses      uint64  `json:"drain_interval_pulses"`
+	DrainIntervalSeconds     float64 `json:"drain_interval_seconds"`
+	ExclusiveGroup           string  `json:"exclusive_group,omitempty"`
 }
 
 type PrayerSetCatalogSnapshot struct {

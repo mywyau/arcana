@@ -290,6 +290,7 @@ const (
 	CombatEventDamage CombatEventType = "damage"
 	CombatEventMiss   CombatEventType = "missed"
 	CombatEventDodged CombatEventType = "dodged"
+	CombatEventWrath  CombatEventType = "wrath"
 )
 
 // CombatEvent describes an authoritative outcome for client presentation.
@@ -1515,6 +1516,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 
 	damageDealt := reduceIncomingDamage(player, profile.AttackDamage, damageType)
 	player.health = max(0, player.health-damageDealt)
+	triggerEmergencyPrayer(player)
 	w.combat.recordEvent(CombatEvent{
 		Pulse:    w.combat.pulse,
 		Type:     CombatEventDamage,
@@ -1529,6 +1531,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 
 func (w *World) defeatPlayer(player *playerState) {
 	player.defeated = true
+	w.triggerWrath(player)
 	player.respawnAtPulse = w.combat.pulse + respawnDelayPulses
 	player.lastActionPulse = w.combat.pulse
 	player.lastActionResult = "defeated"
