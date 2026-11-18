@@ -55,6 +55,52 @@ func TestCookedMinnowsStackToTenPerSlot(t *testing.T) {
 	}
 }
 
+func TestInventoryRevisionChangesOnlyAfterSuccessfulMutations(t *testing.T) {
+	inventory := newEmptyInventory()
+	initial := inventory.revision
+	if !inventory.add(ItemCookedMinnow, 1) || inventory.revision <= initial {
+		t.Fatalf("revision after add = %d, want greater than %d", inventory.revision, initial)
+	}
+	afterAdd := inventory.revision
+	if !inventory.remove(ItemCookedMinnow, 1) || inventory.revision <= afterAdd {
+		t.Fatalf("revision after remove = %d, want greater than %d", inventory.revision, afterAdd)
+	}
+	afterRemove := inventory.revision
+	if inventory.remove(ItemCookedMinnow, 2) || inventory.revision != afterRemove {
+		t.Fatalf("failed removal changed revision from %d to %d", afterRemove, inventory.revision)
+	}
+	if !inventory.add(ItemCookedMinnow, 1) {
+		t.Fatal("could not restore item for slot-move check")
+	}
+	beforeMove := inventory.revision
+	if !inventory.swapSlots(0, 1) || inventory.revision <= beforeMove {
+		t.Fatalf("revision after slot move = %d, want greater than %d", inventory.revision, beforeMove)
+	}
+}
+
+func TestEquipmentAndInventoryHaveIndependentRevisions(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	if !player.inventory.add(string(WeaponBronzeSword), 1) {
+		t.Fatal("could not add bronze sword")
+	}
+	inventoryRevision := player.inventory.revision
+	equipmentRevision := player.equipmentRevision
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponBronzeSword}); err != nil {
+		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
+	}
+	world.Step(actionPulseInterval)
+	if player.equipmentRevision <= equipmentRevision {
+		t.Fatalf("equipment revision = %d, want greater than %d", player.equipmentRevision, equipmentRevision)
+	}
+	if player.inventory.revision <= inventoryRevision {
+		t.Fatalf("inventory revision = %d, want greater than %d", player.inventory.revision, inventoryRevision)
+	}
+}
+
 func TestPrayerPotionDosesStackToFivePerSlot(t *testing.T) {
 	inventory := inventoryState{capacity: 2}
 	if !inventory.add(ItemPrayerPotion, 6) {

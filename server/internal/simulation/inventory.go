@@ -36,6 +36,7 @@ type InventorySnapshot struct {
 type inventoryState struct {
 	capacity int
 	items    []InventoryItem
+	revision uint64
 }
 
 type MoveInventoryItemCommand struct {
@@ -46,7 +47,7 @@ type MoveInventoryItemCommand struct {
 }
 
 func newEmptyInventory() inventoryState {
-	return inventoryState{capacity: BaseInventoryCapacity}
+	return inventoryState{capacity: BaseInventoryCapacity, revision: 1}
 }
 
 func (inventory inventoryState) contains(itemID string) bool {
@@ -102,6 +103,7 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 		}
 		if stackLimit == 0 {
 			inventory.items[index].Quantity += quantity
+			inventory.revision++
 			return true
 		}
 		space := stackLimit - inventory.items[index].Quantity
@@ -109,6 +111,7 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 		inventory.items[index].Quantity += added
 		quantity -= added
 		if quantity == 0 {
+			inventory.revision++
 			return true
 		}
 	}
@@ -128,6 +131,7 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 		quantity -= stackQuantity
 		if quantity == 0 {
 			sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+			inventory.revision++
 			return true
 		}
 	}
@@ -149,6 +153,7 @@ func (inventory *inventoryState) addInventoryItem(item InventoryItem) bool {
 		item.Slot = slot
 		inventory.items = append(inventory.items, item)
 		sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+		inventory.revision++
 		return true
 	}
 	return false
@@ -178,6 +183,7 @@ func (inventory *inventoryState) removeInstance(instanceID string) (InventoryIte
 			continue
 		}
 		inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
+		inventory.revision++
 		return item, true
 	}
 	return InventoryItem{}, false
@@ -217,6 +223,7 @@ func (inventory *inventoryState) remove(itemID string, quantity int) bool {
 		}
 		index++
 	}
+	inventory.revision++
 	return true
 }
 
@@ -233,6 +240,7 @@ func (inventory *inventoryState) removeFromSlot(slot int, itemID string, quantit
 		if inventory.items[index].Quantity == 0 {
 			inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
 		}
+		inventory.revision++
 		return true
 	}
 	return false
@@ -260,6 +268,7 @@ func (inventory *inventoryState) swapSlots(fromSlot, toSlot int) bool {
 		inventory.items[toIndex].Slot = fromSlot
 	}
 	sort.Slice(inventory.items, func(i, j int) bool { return inventory.items[i].Slot < inventory.items[j].Slot })
+	inventory.revision++
 	return true
 }
 
@@ -380,7 +389,7 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 		occupiedSlots[item.Slot] = struct{}{}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
-	return inventoryState{capacity: snapshot.Capacity, items: items}, nil
+	return inventoryState{capacity: snapshot.Capacity, items: items, revision: 1}, nil
 }
 
 func expandLegacyEquipmentStacks(items []InventoryItem, capacity int) ([]InventoryItem, error) {

@@ -118,6 +118,7 @@ func applyReinforcement(player *playerState, recipe reinforcementRecipeDefinitio
 	for index := range player.inventory.items {
 		if player.inventory.items[index].InstanceID == instanceID {
 			player.inventory.items[index].Reinforcement++
+			player.inventory.revision++
 			grantSkillExperience(player, SkillSmithing, recipe.RewardXP)
 			return nil
 		}

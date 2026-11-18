@@ -263,6 +263,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		prayer: state.Prayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), activePrayerSet: state.ActivePrayerSet, prayerDrainProgress: make(map[PrayerID]uint64),
 		equippedWeapon: state.EquippedWeapon, equippedWeaponInstanceID: state.EquippedWeaponInstanceID,
+		equipmentRevision:           1,
 		equippedWeaponReinforcement: state.EquippedWeaponReinforcement, equippedSpellbook: state.EquippedSpellbook,
 		dodgeRate: playerDodgeRate, inventory: inventory, ammunitionPouch: ammunitionPouch,
 		ringRack: ringRack, runePouch: runePouch, bank: bank,

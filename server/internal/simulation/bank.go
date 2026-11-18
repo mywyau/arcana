@@ -432,6 +432,7 @@ func removeInventorySlot(inventory *inventoryState, slot int) (InventoryItem, bo
 			continue
 		}
 		inventory.items = append(inventory.items[:index], inventory.items[index+1:]...)
+		inventory.revision++
 		return item, true
 	}
 	return InventoryItem{}, false

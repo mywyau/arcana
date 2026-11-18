@@ -328,7 +328,9 @@ players and combat targets use per-connection field updates, explicit removal
 IDs and a full reconciliation every 10 seconds. This means ordinary movement
 can send a changed position without repeatedly sending unchanged equipment and
 combat metadata. Sequence numbers must increase for the duration of the
-connection. Protocol version 5 introduced public entity deltas, so older
+connection. Protocol version 5 introduced public entity deltas. Protocol
+version 6 adds independent inventory and equipment revisions, allowing
+ordinary snapshots to omit those private sections until they change. Older
 clients must be rebuilt before connecting.
 
 The server logs an aggregate `performance` line every 30 seconds with tick,

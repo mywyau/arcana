@@ -89,10 +89,58 @@ func TestSnapshotDeltaTrackerSendsRemovalsAndPeriodicFullReconciliation(t *testi
 	}
 }
 
+func TestSnapshotDeltaTrackerOmitsUnchangedPrivateInventoryAndEquipment(t *testing.T) {
+	tracker := newSnapshotDeltaTracker()
+	now := time.Unix(400, 0)
+
+	initial := deltaTestSnapshot()
+	stats := tracker.apply(initial, "local", now)
+	tracker.applyPrivateState(initial, "local", stats.Full)
+	local := initial.Players[0]
+	if local.Inventory == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
+		t.Fatalf("initial private state was incomplete: %#v", local)
+	}
+
+	unchanged := deltaTestSnapshot()
+	stats = tracker.apply(unchanged, "local", now.Add(time.Second))
+	tracker.applyPrivateState(unchanged, "local", stats.Full)
+	local = unchanged.Players[0]
+	if local.Inventory != nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
+		t.Fatalf("unchanged private state was sent: %#v", local)
+	}
+	if local.EquippedWeapon != "sword" || local.EquippedArmour["head"] != "iron_helm" {
+		t.Fatalf("public equipment was stripped with private equipment: %#v", local)
+	}
+
+	inventoryChanged := deltaTestSnapshot()
+	inventoryChanged.Players[0].InventoryRevision++
+	stats = tracker.apply(inventoryChanged, "local", now.Add(2*time.Second))
+	tracker.applyPrivateState(inventoryChanged, "local", stats.Full)
+	local = inventoryChanged.Players[0]
+	if local.Inventory == nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
+		t.Fatalf("independent inventory revision was not respected: %#v", local)
+	}
+
+	full := deltaTestSnapshot()
+	stats = tracker.apply(full, "local", now.Add(fullReconciliationInterval))
+	tracker.applyPrivateState(full, "local", stats.Full)
+	local = full.Players[0]
+	if local.Inventory == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
+		t.Fatalf("full reconciliation omitted private state: %#v", local)
+	}
+}
+
 func deltaTestSnapshot() *protocol.WorldSnapshot {
 	return &protocol.WorldSnapshot{
 		Players: []protocol.PlayerSnapshot{
-			{ID: "local", Position: protocol.Position{X: 1}, Inventory: &protocol.InventorySnapshot{Capacity: 8}},
+			{
+				ID: "local", Position: protocol.Position{X: 1},
+				EquippedWeapon: "sword", EquippedWeaponInstanceID: "sword-instance",
+				EquippedArmour:          map[string]string{"head": "iron_helm"},
+				EquippedArmourInstances: map[string]string{"head": "helm-instance"},
+				Inventory:               &protocol.InventorySnapshot{Capacity: 8},
+				InventoryRevision:       1, EquipmentRevision: 1,
+			},
 			{
 				ID: "remote", Position: protocol.Position{X: 2}, Speed: 6, CombatTarget: "target",
 				Health: 20, MaximumHealth: 20, EquippedWeapon: "sword",

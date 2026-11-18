@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 5
+	CurrentVersion            = 6
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -324,6 +324,7 @@ type PlayerSnapshot struct {
 	ActiveSpellbook              string                   `json:"active_spellbook,omitempty"`
 	LastEquipmentSequence        uint64                   `json:"last_equipment_sequence,omitempty"`
 	LastEquipmentPulse           uint64                   `json:"last_equipment_pulse,omitempty"`
+	EquipmentRevision            uint64                   `json:"equipment_revision,omitempty"`
 	CombatStyle                  string                   `json:"combat_style,omitempty"`
 	LastCombatStyleSequence      uint64                   `json:"last_combat_style_sequence,omitempty"`
 	ActivePrayers                []string                 `json:"active_prayers,omitempty"`
@@ -338,6 +339,7 @@ type PlayerSnapshot struct {
 	ExperienceLocked             bool                     `json:"experience_locked,omitempty"`
 	LastExperienceLockSequence   uint64                   `json:"last_experience_lock_sequence,omitempty"`
 	Inventory                    *InventorySnapshot       `json:"inventory,omitempty"`
+	InventoryRevision            uint64                   `json:"inventory_revision,omitempty"`
 	Bank                         *InventorySnapshot       `json:"bank,omitempty"`
 	AmmunitionPouch              *AmmunitionPouchSnapshot `json:"ammunition_pouch,omitempty"`
 	LastAmmunitionSequence       uint64                   `json:"last_ammunition_sequence,omitempty"`

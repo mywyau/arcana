@@ -18,12 +18,53 @@ type snapshotDeltaStats struct {
 	TargetRemovals int
 }
 
-// snapshotDeltaTracker owns the public baseline for one connection. It never
-// stores the receiving player's private state.
+// snapshotDeltaTracker owns the public baseline for one connection. For
+// private state it stores revision numbers only, never container contents.
 type snapshotDeltaTracker struct {
-	players  map[string]protocol.PlayerSnapshot
-	targets  map[string]protocol.TargetSnapshot
-	lastFull time.Time
+	players                 map[string]protocol.PlayerSnapshot
+	targets                 map[string]protocol.TargetSnapshot
+	lastFull                time.Time
+	privateStateInitialized bool
+	lastInventoryRevision   uint64
+	lastEquipmentRevision   uint64
+}
+
+// applyPrivateState removes unchanged private containers from the local
+// player's otherwise complete snapshot. Public equipment remains present so
+// the local and nearby player models can still be rendered from every frame.
+func (t *snapshotDeltaTracker) applyPrivateState(
+	message *protocol.WorldSnapshot,
+	localPlayerID string,
+	full bool,
+) {
+	for index := range message.Players {
+		player := &message.Players[index]
+		if player.ID != localPlayerID {
+			continue
+		}
+
+		inventoryChanged := full || !t.privateStateInitialized ||
+			player.InventoryRevision != t.lastInventoryRevision
+		if !inventoryChanged {
+			player.Inventory = nil
+		}
+
+		equipmentChanged := full || !t.privateStateInitialized ||
+			player.EquipmentRevision != t.lastEquipmentRevision
+		if !equipmentChanged {
+			player.EquippedWeaponInstanceID = ""
+			player.EquippedWeaponReinforcement = 0
+			player.EquippedArmourInstances = nil
+			player.EquippedArmourReinforcements = nil
+			player.EquippedSpellbook = ""
+			player.ActiveSpellbook = ""
+		}
+
+		t.lastInventoryRevision = player.InventoryRevision
+		t.lastEquipmentRevision = player.EquipmentRevision
+		t.privateStateInitialized = true
+		return
+	}
 }
 
 func newSnapshotDeltaTracker() *snapshotDeltaTracker {

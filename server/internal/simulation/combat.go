@@ -861,7 +861,9 @@ func (w *World) applyEquipmentCommands() {
 				delete(w.combat.pendingEquipment, id)
 				continue
 			}
-			applyEquipmentChange(player, item, command)
+			if applyEquipmentChange(player, item, command) {
+				player.equipmentRevision++
+			}
 			player.lastEquipmentSequence = command.Sequence
 			player.lastEquipmentPulse = w.combat.pulse
 		}

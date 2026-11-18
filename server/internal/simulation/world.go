@@ -107,6 +107,7 @@ type PlayerSnapshot struct {
 	ActiveSpellbook              SpellbookID
 	LastEquipmentSequence        uint64
 	LastEquipmentPulse           uint64
+	EquipmentRevision            uint64
 	CombatStyle                  CombatStyleID
 	LastCombatStyleSequence      uint64
 	DodgeRate                    float64
@@ -116,6 +117,7 @@ type PlayerSnapshot struct {
 	ExperienceLocked             bool
 	LastExperienceLockSequence   uint64
 	Inventory                    InventorySnapshot
+	InventoryRevision            uint64
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	LastAmmunitionSequence       uint64
 	RingRack                     RingRackSnapshot
@@ -203,6 +205,7 @@ type playerState struct {
 	equippedSpellbook            string
 	lastEquipmentSequence        uint64
 	lastEquipmentPulse           uint64
+	equipmentRevision            uint64
 	combatStyle                  CombatStyleID
 	lastCombatStyleSequence      uint64
 	experienceLocked             bool
@@ -419,8 +422,9 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
-		equippedWeapon: WeaponUnarmed,
-		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
+		equippedWeapon:    WeaponUnarmed,
+		equipmentRevision: 1,
+		dodgeRate:         playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
 		ringRack: newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
@@ -456,8 +460,9 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		navigationLocation: location, health: playerMaximumHealth, maximumHealth: playerMaximumHealth,
 		prayer: playerMaximumPrayer, maximumPrayer: playerMaximumPrayer,
 		activePrayers: make(map[PrayerID]bool), activePrayerSet: PrayerSetCommon, prayerDrainProgress: make(map[PrayerID]uint64),
-		equippedWeapon: WeaponUnarmed,
-		dodgeRate:      playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
+		equippedWeapon:    WeaponUnarmed,
+		equipmentRevision: 1,
+		dodgeRate:         playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
 		ringRack: newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
@@ -851,6 +856,7 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		ActiveSpellbook:              activeSpellbook(player),
 		LastEquipmentSequence:        player.lastEquipmentSequence,
 		LastEquipmentPulse:           player.lastEquipmentPulse,
+		EquipmentRevision:            player.equipmentRevision,
 		CombatStyle:                  player.combatStyle,
 		LastCombatStyleSequence:      player.lastCombatStyleSequence,
 		DodgeRate:                    playerDodgeChance(dummyAccuracyScore, player),
@@ -893,6 +899,7 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 func populatePrivatePlayerSnapshot(snapshot *PlayerSnapshot, player *playerState) {
 	snapshot.CombatStats = derivedCombatStats(player)
 	snapshot.Inventory = snapshotInventory(player.inventory)
+	snapshot.InventoryRevision = player.inventory.revision
 	snapshot.AmmunitionPouch = snapshotAmmunitionPouch(player.ammunitionPouch)
 	snapshot.RingRack = snapshotRingRack(player.ringRack)
 	snapshot.RunePouch = snapshotRunePouch(player.runePouch)

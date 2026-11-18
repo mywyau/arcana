@@ -359,6 +359,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 				),
 			}
 			deltaStats := deltaTracker.apply(message.Snapshot, string(playerID), now)
+			deltaTracker.applyPrivateState(message.Snapshot, string(playerID), deltaStats.Full)
 			if h.metrics != nil {
 				h.metrics.RecordInterestQuery(
 					queryDuration, candidateEntities, visibleEntities, includeEnvironment,
@@ -1233,6 +1234,7 @@ func populateLocalPlayerMessage(message *protocol.PlayerSnapshot, player simulat
 	message.ActiveSpellbook = string(player.ActiveSpellbook)
 	message.LastEquipmentSequence = player.LastEquipmentSequence
 	message.LastEquipmentPulse = player.LastEquipmentPulse
+	message.EquipmentRevision = player.EquipmentRevision
 	message.CombatStyle = string(player.CombatStyle)
 	message.LastCombatStyleSequence = player.LastCombatStyleSequence
 	message.ActivePrayers = make([]string, 0, len(player.ActivePrayers))
@@ -1336,6 +1338,7 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 		Capacity: player.Inventory.Capacity,
 		Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 	}
+	message.InventoryRevision = player.InventoryRevision
 	for _, item := range player.Inventory.Items {
 		message.Inventory.Items = append(message.Inventory.Items, protocol.InventoryItem{
 			Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,

@@ -539,6 +539,7 @@ func cloneInventory(inventory inventoryState) inventoryState {
 	return inventoryState{
 		capacity: inventory.capacity,
 		items:    append([]InventoryItem(nil), inventory.items...),
+		revision: inventory.revision,
 	}
 }
 

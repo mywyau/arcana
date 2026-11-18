@@ -687,6 +687,7 @@ var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "unarmed"
 var _equipped_weapon_instance_id: String = ""
 var _equipped_weapon_reinforcement: int = 0
+var _equipment_revision: int = -1
 var _last_equipment_sequence: int = 0
 var _queued_item: String = ""
 var _queued_instance_id: String = ""
@@ -704,6 +705,7 @@ var _queued_combat_style: String = ""
 var _inventory_capacity: int = 20
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
+var _inventory_revision: int = -1
 var _skill_progress: Dictionary = {
 	"attack": {"experience": 0, "level": 1, "current": 0, "next": 41},
 	"strength": {"experience": 0, "level": 1, "current": 0, "next": 41},
@@ -3045,9 +3047,16 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				elif _gathering_result == "crafted_air_runes":
 					status_label.text = "Runecrafting batch complete"
 					_append_game_message(status_label.text)
+			var equipment_revision: int = int(player_data.get("equipment_revision", _equipment_revision))
+			var equipment_details_included: bool = (
+				full_reconciliation or equipment_revision != _equipment_revision
+			)
 			var equipped_weapon: String = str(player_data.get("equipped_weapon", "unarmed"))
-			var equipped_weapon_instance_id: String = str(player_data.get("equipped_weapon_instance_id", ""))
-			var equipped_weapon_reinforcement: int = int(player_data.get("equipped_weapon_reinforcement", 0))
+			var equipped_weapon_instance_id: String = _equipped_weapon_instance_id
+			var equipped_weapon_reinforcement: int = _equipped_weapon_reinforcement
+			if equipment_details_included:
+				equipped_weapon_instance_id = str(player_data.get("equipped_weapon_instance_id", ""))
+				equipped_weapon_reinforcement = int(player_data.get("equipped_weapon_reinforcement", 0))
 			if equipped_weapon != _equipped_weapon or equipped_weapon_instance_id != _equipped_weapon_instance_id or equipped_weapon_reinforcement != _equipped_weapon_reinforcement:
 				_equipped_weapon = equipped_weapon
 				_equipped_weapon_instance_id = equipped_weapon_instance_id
@@ -3056,8 +3065,11 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				inventory_selection_changed = true
 				combat_style_changed = true
 			var equipped_armour_data: Variant = player_data.get("equipped_armour", {})
-			var equipped_armour_instances_data: Variant = player_data.get("equipped_armour_instances", {})
-			var equipped_armour_reinforcements_data: Variant = player_data.get("equipped_armour_reinforcements", {})
+			var equipped_armour_instances_data: Variant = _equipped_armour_instances
+			var equipped_armour_reinforcements_data: Variant = _equipped_armour_reinforcements
+			if equipment_details_included:
+				equipped_armour_instances_data = player_data.get("equipped_armour_instances", {})
+				equipped_armour_reinforcements_data = player_data.get("equipped_armour_reinforcements", {})
 			if typeof(equipped_armour_data) == TYPE_DICTIONARY and (
 				equipped_armour_data != _equipped_armour or equipped_armour_instances_data != _equipped_armour_instances or equipped_armour_reinforcements_data != _equipped_armour_reinforcements
 			):
@@ -3072,14 +3084,16 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				)
 				_update_equipment_hud()
 				inventory_selection_changed = true
-			var equipped_spellbook: String = str(player_data.get("equipped_spellbook", ""))
-			var active_spellbook: String = str(player_data.get("active_spellbook", ""))
-			if equipped_spellbook != _equipped_spellbook or active_spellbook != _active_spellbook:
-				_equipped_spellbook = equipped_spellbook
-				_active_spellbook = active_spellbook
-				_update_equipment_hud()
-				_update_magic_hud()
-				inventory_selection_changed = true
+			if equipment_details_included:
+				var equipped_spellbook: String = str(player_data.get("equipped_spellbook", ""))
+				var active_spellbook: String = str(player_data.get("active_spellbook", ""))
+				if equipped_spellbook != _equipped_spellbook or active_spellbook != _active_spellbook:
+					_equipped_spellbook = equipped_spellbook
+					_active_spellbook = active_spellbook
+					_update_equipment_hud()
+					_update_magic_hud()
+					inventory_selection_changed = true
+			_equipment_revision = equipment_revision
 			_last_equipment_sequence = int(player_data.get("last_equipment_sequence", 0))
 			_next_equipment_sequence = maxi(
 				_next_equipment_sequence,
@@ -3262,9 +3276,10 @@ func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -
 	var skills_data: Variant = player_data.get("skills", [])
 	if typeof(skills_data) == TYPE_ARRAY:
 		_apply_skills_snapshot(skills_data as Array)
-	var inventory_data: Variant = player_data.get("inventory", {})
-	if typeof(inventory_data) == TYPE_DICTIONARY:
+	var inventory_data: Variant = player_data.get("inventory", null)
+	if player_data.has("inventory") and typeof(inventory_data) == TYPE_DICTIONARY:
 		_apply_inventory_snapshot(inventory_data as Dictionary)
+		_inventory_revision = int(player_data.get("inventory_revision", _inventory_revision))
 	var ammunition_data: Variant = player_data.get("ammunition_pouch", {})
 	if typeof(ammunition_data) == TYPE_DICTIONARY:
 		_apply_ammunition_pouch_snapshot(ammunition_data as Dictionary)

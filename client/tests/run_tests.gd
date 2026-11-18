@@ -232,6 +232,47 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 	_check(int(target["health"]) == 0, "target delta preserves meaningful zero values")
 	_check(str(target["name"]) == "Target", "target delta retains unchanged identity")
 
+	main.call("_on_snapshot_received", {
+		"tick": 1,
+		"full_reconciliation": true,
+		"players": [{
+			"id": "local",
+			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"equipped_weapon": "iron_sword",
+			"equipped_weapon_instance_id": "sword-instance",
+			"equipped_armour": {"head": "iron_helm"},
+			"equipped_armour_instances": {"head": "helm-instance"},
+			"equipment_revision": 1,
+			"inventory_revision": 1,
+			"inventory": {"capacity": 20, "items": [{
+				"slot": 0, "item_id": "cooked_minnow", "quantity": 1,
+			}]},
+		}],
+	})
+	main.call("_on_snapshot_received", {
+		"tick": 2,
+		"players": [{
+			"id": "local",
+			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"equipped_weapon": "iron_sword",
+			"equipped_armour": {"head": "iron_helm"},
+			"equipment_revision": 1,
+			"inventory_revision": 1,
+		}],
+	})
+	_check(
+		str(main.get("_equipped_weapon_instance_id")) == "sword-instance",
+		"unchanged private equipment metadata survives an omitted payload",
+	)
+	_check(
+		str((main.get("_equipped_armour_instances") as Dictionary).get("head", "")) == "helm-instance",
+		"unchanged private armour metadata survives an omitted payload",
+	)
+	_check(
+		(main.get("_inventory_items") as Array).size() == 1,
+		"unchanged inventory survives an omitted payload",
+	)
+
 
 func _test_duplicate_login_submission_is_blocked() -> void:
 	var gate: AuthGate = AUTH_GATE_SCENE.instantiate()
