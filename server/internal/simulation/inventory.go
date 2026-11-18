@@ -106,6 +106,9 @@ func (inventory *inventoryState) add(itemID string, quantity int) bool {
 			inventory.revision++
 			return true
 		}
+		if inventory.items[index].Quantity >= stackLimit {
+			continue
+		}
 		space := stackLimit - inventory.items[index].Quantity
 		added := min(space, quantity)
 		inventory.items[index].Quantity += added
@@ -339,7 +342,7 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 	if snapshot.Capacity <= 0 || snapshot.Capacity > MaxInventoryCapacity {
 		return inventoryState{}, fmt.Errorf("inventory capacity must be between 1 and %d", MaxInventoryCapacity)
 	}
-	expandedItems, err := expandLegacyEquipmentStacks(snapshot.Items, snapshot.Capacity)
+	expandedItems, err := expandLegacyInventoryStacks(snapshot.Items, snapshot.Capacity)
 	if err != nil {
 		return inventoryState{}, err
 	}
@@ -380,9 +383,9 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 		} else if item.InstanceID != "" || item.Reinforcement != 0 {
 			return inventoryState{}, fmt.Errorf("stacked item %q cannot have equipment metadata", item.ItemID)
 		}
-		if definition.StackLimit > 0 && item.Quantity > definition.StackLimit {
-			return inventoryState{}, fmt.Errorf("inventory slot %d exceeds the stack limit for %q", item.Slot, item.ItemID)
-		}
+		// Legacy resource stacks can remain above a newly lowered limit only
+		// when no free slot existed to split them during restoration. New
+		// additions still obey the current catalogue limit.
 		if _, exists := occupiedSlots[item.Slot]; exists {
 			return inventoryState{}, fmt.Errorf("inventory slot %d is duplicated", item.Slot)
 		}
@@ -392,19 +395,23 @@ func inventoryFromSnapshot(snapshot InventorySnapshot) (inventoryState, error) {
 	return inventoryState{capacity: snapshot.Capacity, items: items, revision: 1}, nil
 }
 
-func expandLegacyEquipmentStacks(items []InventoryItem, capacity int) ([]InventoryItem, error) {
+func expandLegacyInventoryStacks(items []InventoryItem, capacity int) ([]InventoryItem, error) {
 	expanded := append([]InventoryItem(nil), items...)
 	occupied := make(map[int]struct{}, len(expanded))
 	for _, item := range expanded {
 		occupied[item.Slot] = struct{}{}
 	}
 	for index := 0; index < len(expanded); index++ {
-		if !itemIsInstanced(expanded[index].ItemID) || expanded[index].Quantity <= 1 {
+		stackLimit := itemStackLimit(expanded[index].ItemID)
+		if itemIsInstanced(expanded[index].ItemID) {
+			stackLimit = 1
+		}
+		if stackLimit <= 0 || expanded[index].Quantity <= stackLimit {
 			continue
 		}
-		extra := expanded[index].Quantity - 1
-		expanded[index].Quantity = 1
-		for count := 0; count < extra; count++ {
+		extra := expanded[index].Quantity - stackLimit
+		expanded[index].Quantity = stackLimit
+		for extra > 0 {
 			freeSlot := -1
 			for slot := 0; slot < capacity; slot++ {
 				if _, used := occupied[slot]; !used {
@@ -413,10 +420,16 @@ func expandLegacyEquipmentStacks(items []InventoryItem, capacity int) ([]Invento
 				}
 			}
 			if freeSlot < 0 {
-				return nil, fmt.Errorf("legacy equipment stack %q exceeds inventory capacity", expanded[index].ItemID)
+				if itemIsInstanced(expanded[index].ItemID) {
+					return nil, fmt.Errorf("legacy equipment stack %q exceeds inventory capacity", expanded[index].ItemID)
+				}
+				expanded[index].Quantity += extra
+				break
 			}
 			occupied[freeSlot] = struct{}{}
-			expanded = append(expanded, InventoryItem{Slot: freeSlot, ItemID: expanded[index].ItemID, Quantity: 1})
+			quantity := min(stackLimit, extra)
+			expanded = append(expanded, InventoryItem{Slot: freeSlot, ItemID: expanded[index].ItemID, Quantity: quantity})
+			extra -= quantity
 		}
 	}
 	return expanded, nil

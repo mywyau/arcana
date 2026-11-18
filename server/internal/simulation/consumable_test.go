@@ -5,14 +5,14 @@ import (
 	"time"
 )
 
-func TestCookedMinnowHealsAndConsumesOneWithoutDelayingAttack(t *testing.T) {
+func TestCookedMinnowHealsConsumesOneAndDelaysAttack(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	player := world.players["player-one"]
 	player.health = 90
-	player.nextAttackPulse = 9
+	player.nextAttackPulse = 0
 	if !player.inventory.add(ItemCookedMinnow, 3) {
 		t.Fatal("could not add cooked minnows")
 	}
@@ -27,7 +27,7 @@ func TestCookedMinnowHealsAndConsumesOneWithoutDelayingAttack(t *testing.T) {
 	if snapshot.Health != 98 || snapshot.Inventory.itemsQuantity(ItemCookedMinnow) != 2 {
 		t.Fatalf("player after eating = %+v", snapshot)
 	}
-	if snapshot.LastConsumeSequence != 1 || snapshot.NextConsumePulse != 2 || snapshot.NextAttackPulse != 9 {
+	if snapshot.LastConsumeSequence != 1 || snapshot.NextConsumePulse != 2 || snapshot.NextAttackPulse != 2 {
 		t.Fatalf("consume cadence after eating = %+v", snapshot)
 	}
 }
@@ -68,6 +68,7 @@ func TestPrayerPotionRestoresPrayerAndConsumesOneDose(t *testing.T) {
 	}
 	player := world.players["player-one"]
 	player.prayer = 60
+	player.nextAttackPulse = 0
 	if !player.inventory.add(ItemPrayerPotion, 5) {
 		t.Fatal("could not add prayer potion doses")
 	}
@@ -81,6 +82,9 @@ func TestPrayerPotionRestoresPrayerAndConsumesOneDose(t *testing.T) {
 	snapshot := mustPlayer(t, world, "player-one")
 	if snapshot.Prayer != 85 || snapshot.Inventory.itemsQuantity(ItemPrayerPotion) != 4 {
 		t.Fatalf("player after drinking a prayer potion = %+v", snapshot)
+	}
+	if snapshot.NextAttackPulse != 0 {
+		t.Fatalf("prayer potion delayed attack until pulse %d", snapshot.NextAttackPulse)
 	}
 }
 

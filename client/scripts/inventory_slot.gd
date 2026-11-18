@@ -10,6 +10,8 @@ var unlocked: bool = false
 var _quantity_label: Label
 var _reinforcement_label: Label
 var _drop_highlight: Panel
+var _cooldown_overlay: Panel
+var _cooldown_label: Label
 
 
 func _ready() -> void:
@@ -56,6 +58,39 @@ func set_reinforcement(level: int) -> void:
 		_reinforcement_label.add_theme_constant_override("outline_size", 4)
 		add_child(_reinforcement_label)
 	_reinforcement_label.text = "+%d" % level
+
+
+func set_consumable_cooldown(remaining_seconds: float) -> void:
+	if remaining_seconds <= 0.0:
+		if _cooldown_overlay != null:
+			_cooldown_overlay.visible = false
+		return
+	if _cooldown_overlay == null:
+		_cooldown_overlay = Panel.new()
+		_cooldown_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_cooldown_overlay.z_index = 5
+		var shade := StyleBoxFlat.new()
+		shade.bg_color = Color(0.015, 0.02, 0.03, 0.68)
+		shade.corner_radius_top_left = 5
+		shade.corner_radius_top_right = 5
+		shade.corner_radius_bottom_left = 5
+		shade.corner_radius_bottom_right = 5
+		_cooldown_overlay.add_theme_stylebox_override("panel", shade)
+		add_child(_cooldown_overlay)
+		_cooldown_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+		_cooldown_label = Label.new()
+		_cooldown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_cooldown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_cooldown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_cooldown_label.add_theme_font_size_override("font_size", 20)
+		_cooldown_label.add_theme_color_override("font_color", Color(1.0, 0.94, 0.72))
+		_cooldown_label.add_theme_color_override("font_outline_color", Color(0.02, 0.025, 0.03, 1.0))
+		_cooldown_label.add_theme_constant_override("outline_size", 5)
+		_cooldown_overlay.add_child(_cooldown_label)
+		_cooldown_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cooldown_label.text = "%.1fs" % remaining_seconds
+	_cooldown_overlay.visible = true
 
 
 func _gui_input(event: InputEvent) -> void:

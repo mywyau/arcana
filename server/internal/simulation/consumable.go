@@ -98,6 +98,9 @@ func (w *World) applyPendingConsumables() {
 		}
 		player.lastConsumeSequence = command.Sequence
 		player.nextConsumePulse = w.combat.pulse + item.Consumable.CooldownPulses
+		if item.Consumable.DelaysAttacks {
+			player.nextAttackPulse = max(player.nextAttackPulse, player.nextConsumePulse)
+		}
 	}
 }
 

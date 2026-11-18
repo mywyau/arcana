@@ -29,7 +29,7 @@ func TestFishRecipesProvideLevelledProgression(t *testing.T) {
 			len(cooking.Costs) != 1 || cooking.Costs[0].ItemID != test.raw {
 			t.Errorf("cooking recipe %q = %+v, %t", test.cooked, cooking, cookingExists)
 		}
-		if !foodExists || food.Consumable.Healing != test.heal || food.StackLimit != 10 {
+		if !foodExists || food.Consumable.Healing != test.heal || food.StackLimit != 5 || !food.Consumable.DelaysAttacks {
 			t.Errorf("food definition %q = %+v, %t", test.cooked, food, foodExists)
 		}
 	}

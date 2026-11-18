@@ -35,22 +35,22 @@ func TestInventorySnapshotSupportsFiftySlotsAndRejectsMore(t *testing.T) {
 	}
 }
 
-func TestCookedMinnowsStackToTenPerSlot(t *testing.T) {
+func TestCookedMinnowsStackToFivePerSlot(t *testing.T) {
 	inventory := inventoryState{capacity: 3}
-	if !inventory.add(ItemCookedMinnow, 15) {
+	if !inventory.add(ItemCookedMinnow, 8) {
 		t.Fatal("add() rejected minnow stacks with enough slots")
 	}
 	want := []InventoryItem{
-		{Slot: 0, ItemID: ItemCookedMinnow, Quantity: 10},
-		{Slot: 1, ItemID: ItemCookedMinnow, Quantity: 5},
+		{Slot: 0, ItemID: ItemCookedMinnow, Quantity: 5},
+		{Slot: 1, ItemID: ItemCookedMinnow, Quantity: 3},
 	}
 	if !reflect.DeepEqual(inventory.items, want) {
 		t.Fatalf("minnow stacks = %+v, want %+v", inventory.items, want)
 	}
-	if !inventory.add(ItemCookedMinnow, 5) || inventory.items[1].Quantity != 10 {
+	if !inventory.add(ItemCookedMinnow, 2) || inventory.items[1].Quantity != 5 {
 		t.Fatalf("filled minnow stacks = %+v", inventory.items)
 	}
-	if !inventory.remove(ItemCookedMinnow, 12) || inventory.quantity(ItemCookedMinnow) != 8 {
+	if !inventory.remove(ItemCookedMinnow, 7) || inventory.quantity(ItemCookedMinnow) != 3 {
 		t.Fatalf("minnow stacks after removal = %+v", inventory.items)
 	}
 }
@@ -125,20 +125,36 @@ func TestCookedMinnowAdditionIsAtomicWhenSlotsAreFull(t *testing.T) {
 	}
 }
 
-func TestInventorySnapshotAllowsValidCookedMinnowStacks(t *testing.T) {
+func TestInventorySnapshotSplitsLegacyCookedMinnowStacks(t *testing.T) {
 	snapshot := InventorySnapshot{
-		Capacity: 2,
+		Capacity: 3,
 		Items: []InventoryItem{
 			{Slot: 0, ItemID: ItemCookedMinnow, Quantity: 10},
-			{Slot: 1, ItemID: ItemCookedMinnow, Quantity: 4},
+			{Slot: 2, ItemID: ItemCookedMinnow, Quantity: 4},
 		},
 	}
-	if _, err := inventoryFromSnapshot(snapshot); err != nil {
-		t.Fatalf("inventoryFromSnapshot() rejected valid minnow stacks: %v", err)
+	inventory, err := inventoryFromSnapshot(snapshot)
+	if err != nil {
+		t.Fatalf("inventoryFromSnapshot() rejected legacy minnow stacks: %v", err)
 	}
-	snapshot.Items[1].Quantity = 11
-	if _, err := inventoryFromSnapshot(snapshot); err == nil {
-		t.Fatal("inventoryFromSnapshot() accepted a minnow stack above 10")
+	if inventory.quantity(ItemCookedMinnow) != 14 || len(inventory.items) != 3 {
+		t.Fatalf("split legacy minnow inventory = %+v", inventory.items)
+	}
+	for _, item := range inventory.items {
+		if item.Quantity > 5 {
+			t.Fatalf("legacy minnow stack was not reduced to five: %+v", item)
+		}
+	}
+
+	legacyFullInventory, err := inventoryFromSnapshot(InventorySnapshot{
+		Capacity: 1,
+		Items:    []InventoryItem{{Slot: 0, ItemID: ItemCookedMinnow, Quantity: 6}},
+	})
+	if err != nil || legacyFullInventory.quantity(ItemCookedMinnow) != 6 {
+		t.Fatalf("full legacy inventory could not be restored safely: inventory %+v, error %v", legacyFullInventory, err)
+	}
+	if legacyFullInventory.add(ItemCookedMinnow, 1) {
+		t.Fatal("inventory added food to a grandfathered stack above the current limit")
 	}
 }
 

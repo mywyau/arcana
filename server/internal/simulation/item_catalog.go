@@ -136,6 +136,7 @@ type ConsumableDefinition struct {
 	Healing           int
 	PrayerRestoration int
 	CooldownPulses    uint64
+	DelaysAttacks     bool
 	SkillBoosts       []SkillBoostDefinition
 	BoostDuration     uint64
 }
@@ -624,18 +625,18 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemAdamantiteBar, Name: "Adamantite Bar", Kind: ItemKindResource},
 	{
 		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
-		StackLimit: 10,
-		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2},
+		StackLimit: 5,
+		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2, DelaysAttacks: true},
 	},
 	{ID: ItemRawMinnow, Name: "Raw Minnow", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemRawTrout, Name: "Raw Trout", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedTrout, Name: "Cooked Trout", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 12, CooldownPulses: 2}},
+	{ID: ItemCookedTrout, Name: "Cooked Trout", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 12, CooldownPulses: 2, DelaysAttacks: true}},
 	{ID: ItemRawSalmon, Name: "Raw Salmon", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedSalmon, Name: "Cooked Salmon", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 16, CooldownPulses: 2}},
+	{ID: ItemCookedSalmon, Name: "Cooked Salmon", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 16, CooldownPulses: 2, DelaysAttacks: true}},
 	{ID: ItemRawTuna, Name: "Raw Tuna", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedTuna, Name: "Cooked Tuna", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 20, CooldownPulses: 2}},
+	{ID: ItemCookedTuna, Name: "Cooked Tuna", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 20, CooldownPulses: 2, DelaysAttacks: true}},
 	{ID: ItemRawLobster, Name: "Raw Lobster", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedLobster, Name: "Cooked Lobster", Kind: ItemKindConsumable, StackLimit: 10, Consumable: ConsumableDefinition{Healing: 25, CooldownPulses: 2}},
+	{ID: ItemCookedLobster, Name: "Cooked Lobster", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 25, CooldownPulses: 2, DelaysAttacks: true}},
 })
 
 type weaponStyleDefinition struct {

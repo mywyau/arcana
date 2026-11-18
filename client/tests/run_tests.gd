@@ -35,6 +35,7 @@ func _run() -> void:
 	await _test_local_movement_reconciliation_ignores_stale_routes()
 	await _test_equipped_boots_follow_leg_pivots()
 	await _test_equipped_cape_sits_behind_player()
+	await _test_consumable_slot_shows_authoritative_cooldown()
 	_test_fletching_options_follow_clicked_item_and_inventory()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
@@ -234,6 +235,7 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 
 	main.call("_on_snapshot_received", {
 		"tick": 1,
+		"action_pulse": 0,
 		"full_reconciliation": true,
 		"players": [{
 			"id": "local",
@@ -244,9 +246,11 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"equipped_armour_instances": {"head": "helm-instance"},
 			"equipment_revision": 1,
 			"inventory_revision": 1,
-			"inventory": {"capacity": 20, "items": [{
-				"slot": 0, "item_id": "cooked_minnow", "quantity": 1,
-			}]},
+			"inventory": {"capacity": 20, "items": [
+				{"slot": 0, "item_id": "cooked_minnow", "quantity": 1},
+				{"slot": 1, "item_id": "prayer_potion", "quantity": 1},
+			]},
+			"next_consume_pulse": 2,
 			"bank_revision": 1,
 			"bank": {"capacity": 100, "next_expansion_cost": 1000, "items": [{
 				"slot": 0, "item_id": "air_rune", "quantity": 5,
@@ -255,6 +259,7 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 	})
 	main.call("_on_snapshot_received", {
 		"tick": 2,
+		"action_pulse": 1,
 		"players": [{
 			"id": "local",
 			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -263,6 +268,7 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"equipment_revision": 1,
 			"inventory_revision": 1,
 			"bank_revision": 1,
+			"next_consume_pulse": 2,
 		}],
 	})
 	_check(
@@ -274,12 +280,22 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 		"unchanged private armour metadata survives an omitted payload",
 	)
 	_check(
-		(main.get("_inventory_items") as Array).size() == 1,
+		(main.get("_inventory_items") as Array).size() == 2,
 		"unchanged inventory survives an omitted payload",
 	)
 	_check(
 		(main.get("_bank_items") as Array).size() == 1,
 		"unchanged bank survives an omitted payload",
+	)
+	var inventory_window: InventoryWindow = main.get("_inventory_window") as InventoryWindow
+	var presentations: Dictionary = inventory_window._presentations
+	_check(
+		is_equal_approx(float((presentations[0] as Dictionary).get("cooldown_seconds", 0.0)), 0.6),
+		"food displays the authoritative consumable cooldown",
+	)
+	_check(
+		is_equal_approx(float((presentations[1] as Dictionary).get("cooldown_seconds", 0.0)), 0.6),
+		"potions display the authoritative consumable cooldown",
 	)
 
 
@@ -413,6 +429,19 @@ func _test_equipped_cape_sits_behind_player() -> void:
 	_check(player.cape.visible, "equipped cape is visible")
 	_check(player.cape.position.z < 0.0, "equipped cape is attached behind the player")
 	player.queue_free()
+	await process_frame
+
+
+func _test_consumable_slot_shows_authoritative_cooldown() -> void:
+	var slot := InventorySlot.new()
+	root.add_child(slot)
+	await process_frame
+	slot.set_consumable_cooldown(1.2)
+	_check(slot._cooldown_overlay.visible, "consumable slot displays its cooldown overlay")
+	_check(slot._cooldown_label.text == "1.2s", "consumable slot displays cooldown seconds")
+	slot.set_consumable_cooldown(0.0)
+	_check(not slot._cooldown_overlay.visible, "consumable cooldown overlay clears when ready")
+	slot.queue_free()
 	await process_frame
 
 

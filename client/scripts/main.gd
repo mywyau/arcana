@@ -29,6 +29,7 @@ const INVENTORY_TOTAL_SLOTS: int = 50
 const INVENTORY_PAGE_SIZE: int = INVENTORY_TOTAL_SLOTS
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const GAME_MESSAGE_LIMIT: int = 100
+const ACTION_PULSE_SECONDS: float = 0.6
 const GATHERING_PROGRESS_RESULTS: Dictionary = {
 	"": true,
 	"approaching": true,
@@ -382,11 +383,11 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"diamond_amulet": "Defence level 5",
 }
 const CONSUMABLE_ITEMS: Dictionary = {
-	"cooked_minnow": {"healing": 8, "stack_limit": 10},
-	"cooked_trout": {"healing": 12, "stack_limit": 10},
-	"cooked_salmon": {"healing": 16, "stack_limit": 10},
-	"cooked_tuna": {"healing": 20, "stack_limit": 10},
-	"cooked_lobster": {"healing": 25, "stack_limit": 10},
+	"cooked_minnow": {"healing": 8, "stack_limit": 5},
+	"cooked_trout": {"healing": 12, "stack_limit": 5},
+	"cooked_salmon": {"healing": 16, "stack_limit": 5},
+	"cooked_tuna": {"healing": 20, "stack_limit": 5},
+	"cooked_lobster": {"healing": 25, "stack_limit": 5},
 	"prayer_potion": {"prayer_restore": 25, "stack_limit": 5},
 	"minor_healing_potion": {"healing": 15, "stack_limit": 5},
 	"murky_brew": {"healing": 5, "stack_limit": 5},
@@ -2728,6 +2729,7 @@ func _on_welcome_received(player_id: String) -> void:
 
 func _on_snapshot_received(snapshot: Dictionary) -> void:
 	var snapshot_tick: int = int(snapshot.get("tick", 0))
+	var previous_consume_cooldown: int = maxi(0, _next_consume_pulse - _action_pulse)
 	_action_pulse = int(snapshot.get("action_pulse", 0))
 	_sync_snapshot_world(snapshot)
 	var full_reconciliation: bool = bool(snapshot.get("full_reconciliation", false))
@@ -2859,6 +2861,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			inventory_selection_changed = (
 				_apply_local_production_progress_snapshot(player_data) or inventory_selection_changed
 			)
+			if maxi(0, _next_consume_pulse - _action_pulse) != previous_consume_cooldown:
+				inventory_selection_changed = true
 			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
 			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
 			var previous_gathering_spot: String = _gathering_spot
@@ -6117,6 +6121,10 @@ func _update_inventory_hud() -> void:
 			"tooltip": tooltip,
 			"disabled": _player_defeated and is_equipable,
 			"highlight": "pending" if is_queued or is_consume_queued else "equipped" if is_equipped else "",
+			"cooldown_seconds": (
+				float(maxi(0, _next_consume_pulse - _action_pulse)) * ACTION_PULSE_SECONDS
+				if is_consumable else 0.0
+			),
 		}
 	_inventory_window.render(presentations, _inventory_capacity)
 

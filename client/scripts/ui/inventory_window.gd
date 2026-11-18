@@ -106,6 +106,7 @@ func _configure_item_slot(slot_button: Variant, slot: int, presentation: Diction
 	slot_button.expand_icon = true
 	slot_button.set_stack_quantity(int(presentation.get("quantity", 1)))
 	slot_button.set_reinforcement(int(presentation.get("reinforcement", 0)))
+	slot_button.set_consumable_cooldown(float(presentation.get("cooldown_seconds", 0.0)))
 	slot_button.toggle_mode = bool(presentation.get("toggle_mode", false))
 	slot_button.set_pressed_no_signal(bool(presentation.get("pressed", false)))
 	slot_button.tooltip_text = str(presentation.get("tooltip", ""))
