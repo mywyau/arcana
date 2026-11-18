@@ -437,6 +437,7 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var status_label: Label = $UI/Margin/Status
 @onready var diagnostics_label: Label = $UI/DiagnosticsMargin/Diagnostics
 @onready var xp_tracker_hud: XPTracker = $UI/XPTrackerHUD
+@onready var minimap_hud: Control = $UI/MinimapHUD
 @onready var hud_edit_hint: Label = $UI/HudEditHint
 @onready var chat_hud: PanelContainer = $UI/ChatHUD
 @onready var game_message_log: RichTextLabel = $UI/ChatHUD/Margin/VBox/Messages
@@ -824,6 +825,7 @@ var _game_messages: Array[Dictionary] = []
 var _last_network_error_code: String = ""
 var _last_network_error_message: String = ""
 var _xp_tracker_initialized: bool = false
+var _minimap_refresh_elapsed: float = 0.0
 var _hud_layout_path: String = ClientProfile.config_path("hud_layout.cfg")
 var _client_settings_path: String = ClientProfile.config_path("client_settings.cfg")
 
@@ -1178,6 +1180,57 @@ func _request_debug_skill_experience(skill_id: String, experience: int) -> void:
 	if network.send_debug_set_skill(_next_debug_skill_sequence, skill_id, 1, experience, true):
 		_next_debug_skill_sequence += 1
 		status_label.text = "Set %s to %d XP" % [skill_id.capitalize(), experience]
+
+
+func _process(delta: float) -> void:
+	_minimap_refresh_elapsed += delta
+	if _minimap_refresh_elapsed < 0.1:
+		return
+	_minimap_refresh_elapsed = 0.0
+	_refresh_minimap()
+
+
+func _refresh_minimap() -> void:
+	if auth_gate.visible or _local_player_id.is_empty():
+		minimap_hud.visible = false
+		return
+	var local_view := _player_views.get(_local_player_id) as PlayerView
+	if local_view == null or not is_instance_valid(local_view):
+		minimap_hud.visible = false
+		return
+
+	var markers: Array[Dictionary] = []
+	_append_minimap_markers(_player_views, "player", markers, _local_player_id)
+	_append_minimap_markers(_target_views, "target", markers)
+	_append_minimap_markers(_drop_views, "drop", markers)
+	_append_minimap_markers(_fire_views, "fire", markers)
+	_append_minimap_markers(_gathering_views, "resource", markers)
+	_append_minimap_markers(_bank_chest_views, "bank", markers)
+	_append_minimap_markers(_merchant_views, "merchant", markers)
+
+	var forward: Vector3 = -local_view.global_transform.basis.z
+	minimap_hud.call(
+		"set_world_state",
+		local_view.global_position,
+		Vector2(forward.x, forward.z),
+		markers,
+	)
+	minimap_hud.visible = true
+
+
+func _append_minimap_markers(
+	views: Dictionary,
+	kind: String,
+	markers: Array[Dictionary],
+	excluded_id: String = "",
+) -> void:
+	for id_value: Variant in views.keys():
+		if str(id_value) == excluded_id:
+			continue
+		var view := views.get(id_value) as Node3D
+		if view == null or not is_instance_valid(view) or not view.visible:
+			continue
+		markers.append({"position": view.global_position, "kind": kind})
 
 
 func _physics_process(_delta: float) -> void:

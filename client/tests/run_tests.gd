@@ -37,6 +37,7 @@ func _run() -> void:
 	await _test_equipped_cape_sits_behind_player()
 	await _test_consumable_slot_shows_authoritative_cooldown()
 	_test_fletching_options_follow_clicked_item_and_inventory()
+	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
 	# process exits. This keeps headless runs deterministic on slower machines.
@@ -616,6 +617,39 @@ func _test_beta_build_uses_hosted_server() -> void:
 	_check(local_url.begins_with("ws://localhost:"), "development builds default to localhost")
 	_check(beta_url.begins_with("wss://"), "beta builds default to a secure WebSocket endpoint")
 	_check(not beta_url.contains("localhost"), "beta builds do not default to localhost")
+
+
+func _test_minimap_layout_and_projection() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	var minimap: Control = main.get_node("UI/MinimapHUD") as Control
+	var xp_tracker := main.get_node("UI/XPTrackerHUD") as Control
+	_check(minimap != null, "main scene includes the minimap")
+	_check(
+		is_equal_approx(
+			minimap.offset_right - minimap.offset_left,
+			minimap.offset_bottom - minimap.offset_top,
+		),
+		"minimap has a square circular-drawing area",
+	)
+	_check(xp_tracker.offset_right <= minimap.offset_left - 8.0, "XP counter defaults to the left of the minimap")
+	minimap.get_parent().remove_child(minimap)
+	minimap.owner = null
+	root.add_child(minimap)
+	minimap.size = Vector2(196.0, 196.0)
+	minimap.visible = true
+	var markers: Array[Dictionary] = [
+		{"position": Vector3(20.0, 2.0, 20.0), "kind": "target"},
+		{"position": Vector3(10.0, 5.0, 10.0), "kind": "resource"},
+	]
+	minimap.call("set_world_state", Vector3(10.0, 2.0, 20.0), Vector2.UP, markers)
+	var east_offset: Vector2 = minimap.call("map_offset_for", Vector3(46.0, 2.0, 20.0)) as Vector2
+	var north_offset: Vector2 = minimap.call("map_offset_for", Vector3(10.0, 2.0, -16.0)) as Vector2
+	_check(east_offset.x > 0.0 and is_zero_approx(east_offset.y), "minimap projects world east to screen right")
+	_check(north_offset.y < 0.0 and is_zero_approx(north_offset.x), "minimap keeps world north at the top")
+	await process_frame
+	minimap.queue_free()
+	main.free()
+	await process_frame
 
 
 func _main_auth_harness() -> Dictionary:

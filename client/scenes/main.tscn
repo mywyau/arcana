@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://scenes/account_window.tscn" id="12_account_window"]
 [ext_resource type="Script" path="res://scripts/account_api_client.gd" id="13_account_api"]
 [ext_resource type="PackedScene" path="res://scenes/auth_gate.tscn" id="14_auth_gate"]
+[ext_resource type="Script" path="res://scripts/minimap_hud.gd" id="15_minimap"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -635,6 +636,19 @@ text = "tick 0  |  sent 0  |  acknowledged 0  |  correction 0.000  |  unknown:"
 label_settings = SubResource("StatusLabelSettings")
 
 [node name="XPTrackerHUD" parent="UI" instance=ExtResource("8_xp_tracker")]
+
+[node name="MinimapHUD" type="Control" parent="UI"]
+visible = false
+mouse_filter = 2
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -214.0
+offset_top = 18.0
+offset_right = -18.0
+offset_bottom = 214.0
+grow_horizontal = 0
+script = ExtResource("15_minimap")
 
 [node name="HudEditHint" type="Label" parent="UI"]
 visible = false
