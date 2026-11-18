@@ -86,7 +86,8 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	if styleDamageType, hasDamageType := weaponDamageTypeForStyle(weapon, player.combatStyle); hasDamageType {
 		damageType = styleDamageType
 	}
-	if spell, casting := spellDefinition(player.selectedSpell); casting {
+	if spell, casting := spellDefinition(player.selectedSpell); casting &&
+		!statusCurrentlyBlocks(player, statusActionCast) {
 		spell = spellDefinitionForStyle(player, spell)
 		playerHit = targetSpellHitChance(player, target, spell)
 		poweredDamage = spellPoweredDamage(player, spell) * elementalDamageMultiplier(target, spell.Element)
@@ -139,7 +140,8 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 	if !exists {
 		return CombatStatsSnapshot{}
 	}
-	if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell {
+	if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell &&
+		!statusCurrentlyBlocks(player, statusActionCast) {
 		spell = spellDefinitionForStyle(player, spell)
 		prayerBonuses := activePrayerBonuses(player)
 		focusAccuracy := 0

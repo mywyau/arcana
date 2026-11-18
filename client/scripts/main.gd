@@ -699,6 +699,8 @@ var _queued_spell: String = ""
 var _spell_selection_pending: bool = false
 var _player_defeated: bool = false
 var _local_player_stunned: bool = false
+var _local_player_rooted: bool = false
+var _local_player_silenced: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "unarmed"
@@ -1369,8 +1371,8 @@ func _physics_process(_delta: float) -> void:
 
 	var clicked_body := result.get("collider") as CollisionObject3D
 	var destination: Vector3 = result["position"]
-	if _local_player_stunned:
-		_show_stunned_feedback()
+	if _local_player_stunned or _local_player_rooted:
+		_show_status_blocked_feedback("stunned" if _local_player_stunned else "rooted")
 		return
 	if bank_hud.visible or not _pending_bank_chest_id.is_empty() or not _active_bank_chest_id.is_empty():
 		_close_bank()
@@ -1394,7 +1396,7 @@ func _request_engage_target(target_id: String, _target_position: Vector3) -> boo
 	if target_id.is_empty() or _player_defeated:
 		return false
 	if _local_player_stunned:
-		_show_stunned_feedback()
+		_show_status_blocked_feedback("stunned")
 		return false
 	if network.send_engage_target(_next_action_sequence, target_id):
 		_pending_crafting_station_id = ""
@@ -1410,8 +1412,8 @@ func _request_engage_target(target_id: String, _target_position: Vector3) -> boo
 func _request_pickup_drop(drop_id: String, _drop_position: Vector3) -> bool:
 	if drop_id.is_empty() or _player_defeated:
 		return false
-	if _local_player_stunned:
-		_show_stunned_feedback()
+	if _local_player_stunned or _local_player_rooted:
+		_show_status_blocked_feedback("stunned" if _local_player_stunned else "rooted")
 		return false
 	if network.send_pickup_item(_next_pickup_sequence, drop_id):
 		_pending_crafting_station_id = ""
@@ -1429,7 +1431,7 @@ func _request_gather(spot_id: String, _spot_position: Vector3, recipe_id: String
 	if spot_id.is_empty() or _player_defeated:
 		return false
 	if _local_player_stunned:
-		_show_stunned_feedback()
+		_show_status_blocked_feedback("stunned")
 		return false
 	if network.send_gather(_next_gather_sequence, spot_id, recipe_id, instance_id, quantity):
 		_pending_crafting_station_id = ""
@@ -2635,6 +2637,9 @@ func _request_spell(spell_id: String) -> void:
 		_update_magic_hud()
 		return
 	var desired_spell: String = "" if spell_id == _selected_spell else spell_id
+	if _local_player_silenced and not desired_spell.is_empty():
+		_show_status_blocked_feedback("silenced")
+		return
 	if network.send_spell(_next_spell_sequence, desired_spell):
 		_queued_spell = desired_spell
 		_spell_selection_pending = true
@@ -3028,6 +3033,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		view.set_active_statuses(active_statuses, _action_pulse)
 		if id == _local_player_id:
 			_local_player_stunned = _has_active_status(active_statuses, "stun", _action_pulse)
+			_local_player_rooted = _has_active_status(active_statuses, "root", _action_pulse)
+			_local_player_silenced = _has_active_status(active_statuses, "silence", _action_pulse)
 			var inventory_selection_changed: bool = false
 			var combat_style_changed: bool = false
 			var prayer_changed: bool = false
@@ -3452,9 +3459,10 @@ func _has_active_status(statuses: Array, effect_id: String, current_pulse: int) 
 	return false
 
 
-func _show_stunned_feedback() -> void:
-	status_label.text = "You are stunned."
-	_append_game_message("You are stunned.", true)
+func _show_status_blocked_feedback(status_name: String) -> void:
+	var message := "You are %s." % status_name
+	status_label.text = message
+	_append_game_message(message, true)
 	sound_effects.play_feedback(&"action_rejected")
 
 

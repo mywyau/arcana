@@ -407,6 +407,11 @@ func (w *World) QueueGather(command GatherCommand) error {
 		approachDistance = agilityEndpointTolerance
 	}
 	path := []Position{interactionPosition}
+	if distance(player.position, interactionPosition) > approachDistance {
+		if err := statusActionError(player, statusActionMove, w.combat.pulse); err != nil {
+			return err
+		}
+	}
 	if distance(player.position, interactionPosition) > approachDistance && w.pathfinder != nil {
 		var err error
 		if traversal {

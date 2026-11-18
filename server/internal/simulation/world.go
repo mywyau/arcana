@@ -830,7 +830,7 @@ func movePlayer(player *playerState, seconds float64) {
 		return
 	}
 
-	remainingMovement := player.speed * seconds
+	remainingMovement := effectivePlayerMovementSpeed(player) * seconds
 	for remainingMovement > 0 && len(player.path) > 0 {
 		waypoint := player.path[0]
 		dx := waypoint.X - player.position.X
@@ -866,7 +866,7 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 	snapshot := PlayerSnapshot{
 		ID:                           player.id,
 		Position:                     player.position,
-		Speed:                        player.speed,
+		Speed:                        effectivePlayerMovementSpeed(player),
 		LastCommandSequence:          player.lastCommandSequence,
 		LastCommandTick:              player.lastCommandTick,
 		NavigationLocation:           player.navigationLocation,

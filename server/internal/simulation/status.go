@@ -4,27 +4,37 @@ import "sort"
 
 const maximumActiveStatuses = 32
 
+// slowMovementSpeedMultiplier is catalogue balance rather than runtime state,
+// so future content can tune the shared Slow effect in one place.
+const slowMovementSpeedMultiplier = 0.7
+
 type StatusEffectID string
 type StatusCategory string
 type statusAction string
 
 const (
-	StatusStun StatusEffectID = "stun"
+	StatusStun    StatusEffectID = "stun"
+	StatusRoot    StatusEffectID = "root"
+	StatusSlow    StatusEffectID = "slow"
+	StatusSilence StatusEffectID = "silence"
 
-	StatusCategoryControl StatusCategory = "control"
+	StatusCategoryControl          StatusCategory = "control"
+	StatusCategoryMovementModifier StatusCategory = "movement_modifier"
 
 	statusActionMove       statusAction = "move"
 	statusActionAttack     statusAction = "attack"
+	statusActionCast       statusAction = "cast"
 	statusActionGather     statusAction = "gather"
 	statusActionProduction statusAction = "production"
 )
 
 type statusDefinition struct {
-	ID       StatusEffectID
-	Name     string
-	Category StatusCategory
-	Public   bool
-	Blocks   map[statusAction]bool
+	ID                      StatusEffectID
+	Name                    string
+	Category                StatusCategory
+	Public                  bool
+	Blocks                  map[statusAction]bool
+	MovementSpeedMultiplier float64
 }
 
 type activeStatus struct {
@@ -48,6 +58,18 @@ var statusDefinitions = map[StatusEffectID]statusDefinition{
 			statusActionMove: true, statusActionAttack: true,
 			statusActionGather: true, statusActionProduction: true,
 		},
+	},
+	StatusRoot: {
+		ID: StatusRoot, Name: "Rooted", Category: StatusCategoryControl, Public: true,
+		Blocks: map[statusAction]bool{statusActionMove: true},
+	},
+	StatusSlow: {
+		ID: StatusSlow, Name: "Slowed", Category: StatusCategoryMovementModifier, Public: true,
+		MovementSpeedMultiplier: slowMovementSpeedMultiplier,
+	},
+	StatusSilence: {
+		ID: StatusSilence, Name: "Silenced", Category: StatusCategoryControl, Public: true,
+		Blocks: map[statusAction]bool{statusActionCast: true},
 	},
 }
 
@@ -76,6 +98,36 @@ func statusBlockingAction(player *playerState, action statusAction, pulse uint64
 		}
 	}
 	return statusDefinition{}, false
+}
+
+// statusCurrentlyBlocks is for derived snapshots built immediately after the
+// pulse-expiration pass. Authoritative commands should use statusActionError
+// with the current pulse instead.
+func statusCurrentlyBlocks(player *playerState, action statusAction) bool {
+	if player == nil {
+		return false
+	}
+	for id := range player.activeStatuses {
+		if definition, known := statusDefinitions[id]; known && definition.Blocks[action] {
+			return true
+		}
+	}
+	return false
+}
+
+func effectivePlayerMovementSpeed(player *playerState) float64 {
+	if player == nil {
+		return 0
+	}
+	multiplier := 1.0
+	for id := range player.activeStatuses {
+		definition, known := statusDefinitions[id]
+		if !known || definition.MovementSpeedMultiplier <= 0 {
+			continue
+		}
+		multiplier *= definition.MovementSpeedMultiplier
+	}
+	return player.speed * max(0.1, multiplier)
 }
 
 func statusActionError(player *playerState, action statusAction, pulse uint64) error {
@@ -131,30 +183,37 @@ func (w *World) applyStatus(player *playerState, effectID StatusEffectID, source
 		AppliedAtPulse: w.combat.pulse, ExpiresAtPulse: expiresAt,
 	}
 	player.statusesRevision++
-	if definition.Blocks[statusActionMove] || definition.Blocks[statusActionGather] || definition.Blocks[statusActionProduction] {
-		w.cancelActionsBlockedByStatus(player)
+	if len(definition.Blocks) > 0 {
+		w.cancelActionsBlockedByStatus(player, definition)
 	}
 	return true
 }
 
-func (w *World) cancelActionsBlockedByStatus(player *playerState) {
-	stopPlayer(player)
-	player.autoApproaching = false
-	player.autoPickingUp = false
-	delete(w.pendingMoves, player.id)
-	delete(w.pendingPickups, player.id)
-	delete(w.pendingGathering, player.id)
-	delete(w.combat.pendingTargets, player.id)
-	clearGathering(player, "stunned")
+func (w *World) cancelActionsBlockedByStatus(player *playerState, definition statusDefinition) {
+	if definition.Blocks[statusActionMove] {
+		stopPlayer(player)
+		player.autoApproaching = false
+		player.autoPickingUp = false
+		delete(w.pendingMoves, player.id)
+		delete(w.pendingPickups, player.id)
+		delete(w.pendingGathering, player.id)
+	}
+	if definition.Blocks[statusActionAttack] {
+		delete(w.combat.pendingTargets, player.id)
+	}
+	if definition.Blocks[statusActionGather] {
+		delete(w.pendingGathering, player.id)
+		clearGathering(player, lowerFirst(definition.Name))
+	}
 
-	if player.brewRemaining > 0 {
+	if definition.Blocks[statusActionProduction] && player.brewRemaining > 0 {
 		delete(w.pendingBrews, player.id)
 		player.brewRemaining = 0
 		player.nextBrewPulse = 0
 		player.brewingResult = "brewing_stopped"
 		player.brewingRevision++
 	}
-	if player.fletchRemaining > 0 {
+	if definition.Blocks[statusActionProduction] && player.fletchRemaining > 0 {
 		delete(w.pendingFletches, player.id)
 		player.fletchRemaining = 0
 		player.nextFletchPulse = 0

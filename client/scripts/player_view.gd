@@ -9,6 +9,18 @@ const ADAMANTITE_COLOUR := Color("276b4b")
 const RUNE_COLOUR := Color("3ca66b")
 const TRAINING_COLOUR := Color("7b8790")
 const ACTION_PULSE_SECONDS := 0.6
+const STATUS_LABELS := {
+	"stun": "STUNNED",
+	"root": "ROOTED",
+	"slow": "SLOWED",
+	"silence": "SILENCED",
+}
+const STATUS_COLOURS := {
+	"stun": Color("8fc7ff"),
+	"root": Color("8fe0b0"),
+	"slow": Color("b7a1ff"),
+	"silence": Color("e4a4ff"),
+}
 
 @export var interpolation_speed: float = 14.0
 @export var movement_speed: float = 6.0
@@ -66,8 +78,8 @@ var _walk_time: float = 0.0
 var _equipment_materials: Dictionary = {}
 var _last_movement_direction: Vector3 = Vector3.FORWARD
 var _status_label: Label3D
-var _stun_time_remaining: float = 0.0
-var _stun_expires_at_pulse: int = 0
+var _status_expiries: Dictionary = {}
+var _status_times_remaining: Dictionary = {}
 
 
 func _ready() -> void:
@@ -271,39 +283,54 @@ func stop_prediction() -> void:
 
 
 func set_active_statuses(statuses: Array, current_pulse: int) -> void:
-	var stun_expires_at: int = 0
+	var next_expiries: Dictionary = {}
+	var next_times_remaining: Dictionary = {}
 	for value: Variant in statuses:
 		if typeof(value) != TYPE_DICTIONARY:
 			continue
 		var status := value as Dictionary
-		if str(status.get("effect_id", "")) == "stun":
-			stun_expires_at = maxi(stun_expires_at, int(status.get("expires_at_pulse", 0)))
-	var newly_applied: bool = stun_expires_at > 0 and stun_expires_at != _stun_expires_at_pulse
-	_stun_expires_at_pulse = stun_expires_at
-	if stun_expires_at >= current_pulse and stun_expires_at > 0:
-		_stun_time_remaining = float(stun_expires_at - current_pulse) * ACTION_PULSE_SECONDS
+		var effect_id: String = str(status.get("effect_id", ""))
+		if not STATUS_LABELS.has(effect_id):
+			continue
+		var expires_at: int = int(status.get("expires_at_pulse", 0))
+		if expires_at < current_pulse or expires_at <= 0:
+			continue
+		next_expiries[effect_id] = maxi(int(next_expiries.get(effect_id, 0)), expires_at)
+	for effect_value: Variant in next_expiries.keys():
+		var effect_id := str(effect_value)
+		var expires_at := int(next_expiries[effect_id])
+		next_times_remaining[effect_id] = float(expires_at - current_pulse) * ACTION_PULSE_SECONDS
+		if int(_status_expiries.get(effect_id, 0)) != expires_at:
+			play_status_feedback(
+				str(STATUS_LABELS[effect_id]),
+				STATUS_COLOURS.get(effect_id, Color.WHITE) as Color,
+			)
+	if next_expiries.has("stun") or next_expiries.has("root"):
 		stop_prediction()
-		if newly_applied:
-			play_status_feedback("STUNNED", Color("8fc7ff"))
-	else:
-		_stun_time_remaining = 0.0
-		_stun_expires_at_pulse = 0
+	_status_expiries = next_expiries
+	_status_times_remaining = next_times_remaining
 	_update_status_label()
 
 
 func _update_status_visual(delta: float) -> void:
-	if _stun_time_remaining <= 0.0:
-		return
-	_stun_time_remaining = maxf(0.0, _stun_time_remaining - delta)
+	for effect_value: Variant in _status_times_remaining.keys():
+		var effect_id := str(effect_value)
+		_status_times_remaining[effect_id] = maxf(
+			0.0, float(_status_times_remaining[effect_id]) - delta,
+		)
 	_update_status_label()
 
 
 func _update_status_label() -> void:
 	if _status_label == null:
 		return
-	_status_label.visible = _stun_time_remaining > 0.0
-	if _status_label.visible:
-		_status_label.text = "STUNNED  %.1fs" % _stun_time_remaining
+	var lines: Array[String] = []
+	for effect_id: String in ["stun", "root", "slow", "silence"]:
+		var remaining: float = float(_status_times_remaining.get(effect_id, 0.0))
+		if remaining > 0.0:
+			lines.append("%s  %.1fs" % [str(STATUS_LABELS[effect_id]), remaining])
+	_status_label.text = "\n".join(lines)
+	_status_label.visible = not lines.is_empty()
 
 
 func play_weapon_attack(target_position: Vector3) -> float:

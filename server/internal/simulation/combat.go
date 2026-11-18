@@ -1175,7 +1175,8 @@ func (w *World) applyTargetCommands() {
 				weapon, _ := equippedWeaponDefinitionForStyle(player)
 				attackRange := weapon.Range
 				approachRange := weapon.ApproachRange
-				if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell {
+				if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell &&
+					!statusCurrentlyBlocks(player, statusActionCast) {
 					spell = spellDefinitionForStyle(player, spell)
 					attackRange = spell.Range
 					approachRange = max(0.1, spell.Range-0.75)
@@ -1219,6 +1220,10 @@ func (w *World) resolveAutoAttacks() {
 		}
 		weapon, _ := equippedWeaponDefinitionForStyle(player)
 		spell, castingSpell := spellDefinition(player.selectedSpell)
+		if castingSpell {
+			_, castingBlocked := statusBlockingAction(player, statusActionCast, w.combat.pulse)
+			castingSpell = !castingBlocked
+		}
 		if castingSpell {
 			spell = spellDefinitionForStyle(player, spell)
 		}
@@ -1268,6 +1273,10 @@ func (w *World) resolveAutoAttacks() {
 			accuracyChance = targetSpellAccuracyChance(player, spell)
 			dodgeChance = targetSpellDodgeChance(player, target, spell)
 		}
+		castSpellID := SpellID("")
+		if castingSpell {
+			castSpellID = player.selectedSpell
+		}
 		outcomeRoll := w.rollSource.Float64()
 		if outcomeRoll >= accuracyChance {
 			player.lastActionResult = "missed"
@@ -1276,7 +1285,7 @@ func (w *World) resolveAutoAttacks() {
 				Type:     CombatEventMiss,
 				SourceID: string(player.id),
 				TargetID: player.combatTarget,
-				SpellID:  player.selectedSpell,
+				SpellID:  castSpellID,
 			})
 			continue
 		}
@@ -1287,7 +1296,7 @@ func (w *World) resolveAutoAttacks() {
 				Type:     CombatEventDodged,
 				SourceID: string(player.id),
 				TargetID: player.combatTarget,
-				SpellID:  player.selectedSpell,
+				SpellID:  castSpellID,
 			})
 			continue
 		}
@@ -1327,7 +1336,7 @@ func (w *World) resolveAutoAttacks() {
 			SourceID: string(player.id),
 			TargetID: player.combatTarget,
 			Amount:   damageDealt,
-			SpellID:  player.selectedSpell,
+			SpellID:  castSpellID,
 		})
 		if !target.NonRetaliating && target.TargetID == "" {
 			profile := combatProfileForEnemy(player.combatTarget)
@@ -1684,6 +1693,9 @@ func (combat *combatState) recordEvent(event CombatEvent) {
 }
 
 func (w *World) approachDummy(player *playerState, target Position, approachRange float64) error {
+	if err := statusActionError(player, statusActionMove, w.combat.pulse); err != nil {
+		return err
+	}
 	var destination Position
 	var path []Position
 	if w.pathfinder != nil {

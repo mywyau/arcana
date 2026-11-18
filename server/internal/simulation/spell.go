@@ -201,6 +201,11 @@ func (w *World) QueueSpell(command SpellCommand) error {
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
+	if command.SpellID != "" {
+		if err := statusActionError(player, statusActionCast, w.combat.pulse); err != nil {
+			return err
+		}
+	}
 	magicLevel := SkillLevelForExperience(player.skills[SkillMagic])
 	if command.SpellID != "" && definition.BookID != activeSpellbook(player) {
 		return fmt.Errorf("spell %q is not in the equipped spellbook", command.SpellID)
@@ -230,6 +235,9 @@ func (w *World) applySpellCommands() {
 			if command.SpellID == "" {
 				player.selectedSpell = ""
 				player.lastSpellSequence = command.Sequence
+			} else if _, blocked := statusBlockingAction(player, statusActionCast, w.combat.pulse); blocked {
+				player.lastSpellSequence = command.Sequence
+				player.lastActionResult = "silenced"
 			} else if definition, found := spellDefinition(command.SpellID); found &&
 				definition.CastMode == SpellCastAutocast &&
 				definition.EffectType == SpellEffectDirectDamage &&

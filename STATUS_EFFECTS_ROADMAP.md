@@ -1,6 +1,7 @@
 # Status Effects and Crowd Control Roadmap
 
-Status: Slice 1 implemented on 2026-11-18; later slices remain planned.
+Status: Slice 1 and the Slice 2 root/slow/silence vocabulary were implemented
+on 2026-11-18; periodic and support effects remain planned.
 
 ## Purpose
 
@@ -119,10 +120,14 @@ check cannot exploit that opening while teammates who dodged it can.
 
 ## Slice 2: control effect vocabulary
 
+Framework support is implemented. These effects are available to encounter
+code but have not yet been assigned to an enemy, spell or item.
+
 Add effects only when content needs them:
 
 - **Root:** blocks movement but allows attacks and casting.
-- **Slow:** multiplies movement speed with a defined minimum.
+- **Slow:** multiplies movement speed by 0.7 (a 30% reduction) with a defined
+  minimum. The catalogue value can be tuned centrally.
 - **Silence:** blocks spells but leaves weapon attacks available.
 - **Disarm:** blocks weapon attacks but leaves movement and spells available.
 
