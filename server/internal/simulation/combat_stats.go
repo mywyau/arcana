@@ -98,14 +98,21 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	playerMinimum, playerMaximum := damageRange(poweredDamage, variance)
 	profile := combatProfileForEnemy(target.ID)
 	targetDamage := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType)
+	targetHit := playerHitChance(target.Accuracy, player)
+	targetRange := profile.AttackRange
+	if target.NonRetaliating {
+		targetHit = 0
+		targetDamage = 0
+		targetRange = 0
+	}
 	return CombatMatchupSnapshot{
 		TargetID:            target.ID,
 		PlayerHitChance:     playerHit,
 		PlayerMinimumDamage: playerMinimum, PlayerMaximumDamage: playerMaximum,
 		PlayerAttackRange:   playerAttackRange,
-		TargetHitChance:     playerHitChance(target.Accuracy, player),
+		TargetHitChance:     targetHit,
 		TargetMinimumDamage: targetDamage, TargetMaximumDamage: targetDamage,
-		TargetAttackRange: profile.AttackRange,
+		TargetAttackRange: targetRange,
 	}
 }
 

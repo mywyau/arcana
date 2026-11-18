@@ -51,6 +51,23 @@ func TestCombatMatchupUsesAuthoritativeAccuracyDamageAndRanges(t *testing.T) {
 	}
 }
 
+func TestPlayerSnapshotIncludesCurrentCombatMatchup(t *testing.T) {
+	world := NewWorld()
+	mustAddPlayer(t, world, "player-one", Position{}, 6)
+	world.mu.Lock()
+	world.players["player-one"].combatTarget = dummyTargetID
+	world.mu.Unlock()
+
+	player, exists := world.Player("player-one")
+	if !exists {
+		t.Fatal("Player() did not return the joined player")
+	}
+	if player.CombatMatchup.TargetID != dummyTargetID || player.CombatMatchup.PlayerHitChance <= 0 ||
+		player.CombatMatchup.PlayerMaximumDamage <= 0 {
+		t.Fatalf("Player() combat matchup = %+v", player.CombatMatchup)
+	}
+}
+
 func TestDerivedCombatStatsUseAuthoritativeCombatRules(t *testing.T) {
 	player := &playerState{
 		equippedWeapon: WeaponSword,

@@ -102,8 +102,18 @@ type ServerMessage struct {
 	Spells            []SpellCatalogSnapshot     `json:"spells,omitempty"`
 	Prayers           []PrayerCatalogSnapshot    `json:"prayers,omitempty"`
 	PrayerSets        []PrayerSetCatalogSnapshot `json:"prayer_sets,omitempty"`
+	SkillGuide        []SkillGuideEntrySnapshot  `json:"skill_guide,omitempty"`
 	Snapshot          *WorldSnapshot             `json:"snapshot,omitempty"`
 	Error             *ErrorMessage              `json:"error,omitempty"`
+}
+
+type SkillGuideEntrySnapshot struct {
+	ID            string `json:"id"`
+	Skill         string `json:"skill"`
+	Category      string `json:"category"`
+	Action        string `json:"action"`
+	Name          string `json:"name"`
+	RequiredLevel int    `json:"required_level"`
 }
 
 type PrayerCatalogSnapshot struct {

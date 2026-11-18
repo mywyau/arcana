@@ -83,6 +83,12 @@ func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 	if set := welcome.PrayerSets[0]; set.ID == "" || set.Name == "" || len(set.PrayerIDs) == 0 {
 		t.Fatalf("welcome prayer set is incomplete: %+v", set)
 	}
+	if len(welcome.SkillGuide) != len(simulation.SkillGuideCatalog()) {
+		t.Fatalf("welcome skill guide count = %d, want %d", len(welcome.SkillGuide), len(simulation.SkillGuideCatalog()))
+	}
+	if entry := welcome.SkillGuide[0]; entry.ID == "" || entry.Skill == "" || entry.Name == "" || entry.RequiredLevel < 1 {
+		t.Fatalf("welcome skill guide entry is incomplete: %+v", entry)
+	}
 
 	command := protocol.ClientMessage{
 		Type:        protocol.MessageMoveTo,

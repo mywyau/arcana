@@ -1,7 +1,8 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scripts/player_view.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/player_humanoid.tscn" id="2_humanoid"]
+[ext_resource type="PackedScene" path="res://scenes/hit_splat.tscn" id="3_hit_splat"]
 
 [sub_resource type="StandardMaterial3D" id="SwordBladeMaterial"]
 albedo_color = Color(0.72, 0.76, 0.8, 1)
@@ -196,12 +197,4 @@ mesh = SubResource("StaffShaftMesh")
 position = Vector3(0, 1.46, 0)
 mesh = SubResource("StaffOrbMesh")
 
-[node name="DamageLabel" type="Label3D" parent="."]
-position = Vector3(0, 2.1, 0)
-visible = false
-modulate = Color(1, 0.25, 0.18, 1)
-text = "-15"
-font_size = 48
-outline_size = 10
-billboard = 1
-no_depth_test = true
+[node name="HitSplat" parent="." instance=ExtResource("3_hit_splat")]

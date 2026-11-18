@@ -75,28 +75,28 @@ outline_size = 5
 outline_color = Color(0.04, 0.06, 0.08, 0.85)
 
 [sub_resource type="StyleBoxFlat" id="HUDPanelStyle"]
-bg_color = Color(0.035, 0.055, 0.075, 0.92)
+bg_color = Color(0.065, 0.075, 0.15, 0.96)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.24, 0.31, 0.37, 0.95)
+border_color = Color(0.35, 0.27, 0.58, 0.95)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="UtilityStripStyle"]
-bg_color = Color(0.055, 0.075, 0.095, 0.96)
+bg_color = Color(0.085, 0.09, 0.18, 0.98)
 border_width_top = 2
-border_color = Color(0.24, 0.31, 0.37, 0.95)
+border_color = Color(0.4, 0.3, 0.66, 0.95)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="HUDBarBackground"]
-bg_color = Color(0.08, 0.1, 0.12, 0.95)
+bg_color = Color(0.105, 0.115, 0.22, 0.97)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4

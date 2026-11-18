@@ -740,7 +740,7 @@ var _skill_details_title: Label
 var _skill_details_level: Label
 var _skill_details_progress: ProgressBar
 var _skill_details_xp: Label
-var _skill_details_description: Label
+var _skill_details_description: RichTextLabel
 var _skill_details_action: Button
 var _skill_context_menu: PopupMenu
 var _skill_context_name: String = ""
@@ -751,6 +751,7 @@ var _next_logout_sequence: int = 1
 var _account_email: String = ""
 var _open_skill_name: String = ""
 var _open_skill_id: String = ""
+var _skill_guide_entries: Array[Dictionary] = []
 var _combat_stats: Dictionary = {}
 var _combat_matchup: Dictionary = {}
 var _player_combat_level: int = 1
@@ -927,6 +928,7 @@ func _ready() -> void:
 	network.production_recipes_received.connect(_on_production_recipes_received)
 	network.spell_catalog_received.connect(_on_spell_catalog_received)
 	network.prayer_catalog_received.connect(_on_prayer_catalog_received)
+	network.skill_guide_received.connect(_on_skill_guide_received)
 	network.snapshot_received.connect(_on_snapshot_received)
 	network.server_error.connect(_on_server_error)
 	network.account_session_received.connect(_on_account_session_received)
@@ -1208,11 +1210,10 @@ func _refresh_minimap() -> void:
 	_append_minimap_markers(_bank_chest_views, "bank", markers)
 	_append_minimap_markers(_merchant_views, "merchant", markers)
 
-	var forward: Vector3 = -local_view.global_transform.basis.z
 	minimap_hud.call(
 		"set_world_state",
 		local_view.global_position,
-		Vector2(forward.x, forward.z),
+		local_view.minimap_facing(),
 		markers,
 	)
 	minimap_hud.visible = true
@@ -2774,6 +2775,19 @@ func _on_prayer_catalog_received(prayers: Array, prayer_sets: Array) -> void:
 	_update_prayer_hud()
 
 
+func _on_skill_guide_received(entries: Array) -> void:
+	_skill_guide_entries.clear()
+	for payload: Variant in entries:
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var entry := (payload as Dictionary).duplicate(true)
+		if str(entry.get("skill", "")).is_empty() or int(entry.get("required_level", 0)) < 1:
+			continue
+		_skill_guide_entries.append(entry)
+	if _skill_details_window != null and _skill_details_window.visible:
+		_refresh_skill_details_interface()
+
+
 func _on_welcome_received(player_id: String) -> void:
 	_local_player_id = player_id
 	_remote_player_states.clear()
@@ -2918,8 +2932,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if typeof(combat_stats_data) == TYPE_DICTIONARY and combat_stats_data != _combat_stats:
 				_combat_stats = (combat_stats_data as Dictionary).duplicate(true)
 				_update_detailed_combat_stats()
-			var combat_matchup_data: Variant = player_data.get("combat_matchup", {})
-			if typeof(combat_matchup_data) == TYPE_DICTIONARY:
+			var combat_matchup_data: Variant = player_data.get("combat_matchup", null)
+			if player_data.has("combat_matchup") and typeof(combat_matchup_data) == TYPE_DICTIONARY:
 				_combat_matchup = (combat_matchup_data as Dictionary).duplicate(true)
 			_apply_local_storage_snapshot(player_data, position)
 			inventory_selection_changed = (
@@ -3838,12 +3852,24 @@ func _sync_merchants(payloads: Variant) -> void:
 
 
 func _play_gathering_sound(result: String) -> void:
-	if result.begins_with("mined_"):
+	if _gathering_result_is_rejection(result):
+		sound_effects.play_feedback(&"action_rejected")
+	elif result.begins_with("mined_"):
 		sound_effects.play_action(&"mining")
 	elif result.begins_with("chopped_"):
 		sound_effects.play_action(&"woodcutting")
 	elif result.begins_with("cooked_"):
 		sound_effects.play_action(&"cooking")
+
+
+func _gathering_result_is_rejection(result: String) -> bool:
+	return (
+		result.begins_with("missing_")
+		or result.begins_with("requires_")
+		or result in [
+			"inventory_full", "tree_depleted", "vein_depleted", "reinforcement_failed",
+		]
+	)
 
 
 func _process_combat_events(snapshot: Dictionary) -> void:
@@ -3883,7 +3909,7 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 		var local_combat: bool = source_id == _local_player_id or target_id == _local_player_id
 		var weapon_id: String = source.equipped_weapon() if source != null else "unarmed"
 		var feedback_color: Color = _combat_damage_color(source_id, weapon_id, spell_id)
-		var avoidance_text: String = "MISS" if event_type == "missed" else "DODGE"
+		var avoidance_text: String = "MISS"
 		if local_combat and source != null:
 			if spell_id.is_empty():
 				sound_effects.play_weapon_attack(weapon_id)
@@ -3930,7 +3956,7 @@ func _process_combat_events(snapshot: Dictionary) -> void:
 			else:
 				target.play_dodge(avoidance_text)
 				if local_combat:
-					var avoidance_sound: StringName = &"miss" if avoidance_text == "MISS" else &"dodge"
+					var avoidance_sound: StringName = &"miss" if event_type == "missed" else &"dodge"
 					sound_effects.play_feedback(avoidance_sound)
 
 
@@ -3992,7 +4018,7 @@ func _play_dummy_impact_after_delay(
 	else:
 		dummy_view.play_dodge(avoidance_text)
 		if play_sound:
-			var avoidance_sound: StringName = &"miss" if avoidance_text == "MISS" else &"dodge"
+			var avoidance_sound: StringName = &"miss" if event_type == "missed" else &"dodge"
 			sound_effects.play_feedback(avoidance_sound)
 
 
@@ -4000,6 +4026,8 @@ func _on_server_error(code: String, message: String) -> void:
 	_last_network_error_code = code
 	_last_network_error_message = message
 	status_label.text = _friendly_server_error(code, message)
+	if code.ends_with("_rejected"):
+		sound_effects.play_feedback(&"action_rejected")
 	if code == "combat_style_rejected":
 		_queued_combat_style = ""
 		_update_combat_styles_hud()
@@ -4164,6 +4192,7 @@ func _configure_player_menu() -> void:
 		tab_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tab_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		tab_button.add_theme_constant_override("icon_max_width", 42)
+		_style_menu_tab_button(tab_button)
 		tab_button.tooltip_text = (
 			"%s  •  %d" % [tab_name, int(HUD_TAB_HOTKEYS[tab_name])]
 			if HUD_TAB_HOTKEYS.has(tab_name)
@@ -4171,6 +4200,27 @@ func _configure_player_menu() -> void:
 		)
 	(combat_tab_button.get_parent() as HBoxContainer).visible = false
 	_show_styles_tab()
+
+
+func _style_menu_tab_button(tab_button: Button) -> void:
+	var empty_style := StyleBoxEmpty.new()
+	for state: String in ["normal", "focus", "disabled"]:
+		tab_button.add_theme_stylebox_override(state, empty_style)
+
+	var hover_style := StyleBoxFlat.new()
+	hover_style.bg_color = Color(0.38, 0.28, 0.68, 0.12)
+	hover_style.border_width_bottom = 2
+	hover_style.border_color = Color(0.56, 0.43, 0.88, 0.75)
+	hover_style.corner_radius_top_left = 6
+	hover_style.corner_radius_top_right = 6
+	tab_button.add_theme_stylebox_override("hover", hover_style)
+
+	var selected_style := StyleBoxFlat.new()
+	selected_style.bg_color = Color.TRANSPARENT
+	selected_style.border_width_bottom = 4
+	selected_style.border_color = Color(0.68, 0.48, 1.0, 1.0)
+	tab_button.add_theme_stylebox_override("pressed", selected_style)
+	tab_button.add_theme_stylebox_override("hover_pressed", selected_style)
 
 
 func _show_hud_tab_hotkey(hotkey: int) -> void:
@@ -4866,17 +4916,30 @@ func _populate_placeholder_skills() -> void:
 				"level_label": level_label,
 			}
 		else:
-			skill_tile.tooltip_text = "Current XP: 0\nNext level XP: unavailable"
+			skill_tile.tooltip_text = "Current XP: 0\nNext level XP: unavailable\nXP to next level: unavailable"
 		skills_grid.add_child(skill_tile)
+		_remove_skill_tile_hover_effect(skill_tile)
 	_update_active_skills_hud()
+
+
+func _remove_skill_tile_hover_effect(skill_tile: Button) -> void:
+	_remove_button_background(skill_tile)
+
+
+func _remove_button_background(button: Button) -> void:
+	var empty_style := StyleBoxEmpty.new()
+	for state: String in [
+		"normal", "hover", "pressed", "hover_pressed", "focus", "disabled",
+	]:
+		button.add_theme_stylebox_override(state, empty_style)
 
 
 func _setup_skill_details_interface() -> void:
 	_skill_details_window = Window.new()
 	_skill_details_window.title = "Skill Details"
 	_skill_details_window.borderless = true
-	_skill_details_window.min_size = Vector2i(430, 360)
-	_skill_details_window.size = Vector2i(430, 360)
+	_skill_details_window.min_size = Vector2i(520, 500)
+	_skill_details_window.size = Vector2i(520, 500)
 	_skill_details_window.visible = false
 	_skill_details_window.close_requested.connect(_skill_details_window.hide)
 	_skill_details_window.window_input.connect(_on_skill_details_window_input)
@@ -4927,14 +4990,17 @@ func _setup_skill_details_interface() -> void:
 	_skill_details_progress = ProgressBar.new()
 	_skill_details_progress.custom_minimum_size = Vector2(0, 24)
 	_skill_details_progress.show_percentage = false
+	_style_skill_progress_bar(_skill_details_progress)
 	content.add_child(_skill_details_progress)
 	_skill_details_xp = Label.new()
 	_skill_details_xp.add_theme_color_override("font_color", Color(0.72, 0.78, 0.86))
 	content.add_child(_skill_details_xp)
 	content.add_child(HSeparator.new())
-	_skill_details_description = Label.new()
+	_skill_details_description = RichTextLabel.new()
 	_skill_details_description.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_skill_details_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_skill_details_description.bbcode_enabled = true
+	_skill_details_description.fit_content = false
+	_skill_details_description.scroll_active = true
 	content.add_child(_skill_details_description)
 	_skill_details_action = Button.new()
 	_skill_details_action.custom_minimum_size = Vector2(0, 46)
@@ -4945,6 +5011,17 @@ func _setup_skill_details_interface() -> void:
 	_skill_context_menu.add_item("Open", 0)
 	_skill_context_menu.id_pressed.connect(_on_skill_context_action)
 	add_child(_skill_context_menu)
+
+
+func _style_skill_progress_bar(progress_bar: ProgressBar) -> void:
+	var background_style := StyleBoxFlat.new()
+	background_style.bg_color = Color(0.08, 0.1, 0.12, 0.95)
+	background_style.set_corner_radius_all(5)
+	progress_bar.add_theme_stylebox_override("background", background_style)
+	var fill_style := StyleBoxFlat.new()
+	fill_style.bg_color = Color(0.2, 0.72, 0.34, 1.0)
+	fill_style.set_corner_radius_all(5)
+	progress_bar.add_theme_stylebox_override("fill", fill_style)
 
 
 func _open_skill_details(skill_name: String, skill_id: String) -> void:
@@ -4969,15 +5046,86 @@ func _refresh_skill_details_interface() -> void:
 		_skill_details_progress.max_value = 1
 		_skill_details_progress.value = 0
 		_skill_details_xp.text = "XP progression unavailable"
-		_skill_details_description.text = "This skill is planned but is not trainable yet. Training methods and unlocks can be added here when its first gameplay slice is implemented."
+		_skill_details_description.text = "This skill is planned but is not trainable yet."
 	else:
 		var level_xp_span: int = maxi(1, next_level_xp - current_level_xp)
 		_skill_details_progress.max_value = level_xp_span
 		_skill_details_progress.value = clampi(experience - current_level_xp, 0, level_xp_span)
 		_skill_details_xp.text = "XP %d / %s" % [experience, str(next_level_xp) if next_level_xp > 0 else "maximum"]
-		_skill_details_description.text = "Training methods, level unlocks, and future skill guidance will appear in this panel."
+		_skill_details_description.text = _skill_guide_text(_open_skill_id, level)
 	_skill_details_action.visible = _open_skill_id in ["herblore", "fletching"]
 	_skill_details_action.text = "Open Brewing" if _open_skill_id == "herblore" else "Open Fletching"
+
+
+func _skill_guide_text(skill_id: String, current_level: int) -> String:
+	var categories: Dictionary = {}
+	for entry: Dictionary in _skill_guide_entries:
+		if str(entry.get("skill", "")) == skill_id:
+			_add_skill_guide_entry(categories, entry)
+
+	var production_skills: Dictionary = {
+		"cooking": "cooking", "smelting": "smithing", "forging": "smithing", "fletching": "fletching",
+	}
+	for station_value: Variant in _production_recipes.keys():
+		var station: String = str(station_value)
+		if str(production_skills.get(station, "")) != skill_id:
+			continue
+		for recipe_value: Variant in _production_recipes.get(station, []):
+			var recipe := recipe_value as Dictionary
+			_add_skill_guide_entry(categories, {
+				"category": "production", "action": "Create", "name": str(recipe.get("name", "Recipe")),
+				"required_level": int(recipe.get("required_level", 1)),
+			})
+
+	if skill_id == "magic":
+		for spell: Dictionary in _spells:
+			_add_skill_guide_entry(categories, {
+				"category": "spells", "action": "Cast", "name": str(spell.get("name", "Spell")),
+				"required_level": int(spell.get("required_magic_level", 1)),
+			})
+	elif skill_id == "prayer":
+		for prayer: Dictionary in _prayers:
+			_add_skill_guide_entry(categories, {
+				"category": "prayers", "action": "Use", "name": str(prayer.get("name", "Prayer")),
+				"required_level": int(prayer.get("required_level", 1)),
+			})
+	elif skill_id == "herblore":
+		for brew_name_value: Variant in KNOWN_BREWS.values():
+			_add_skill_guide_entry(categories, {
+				"category": "production", "action": "Brew", "name": str(brew_name_value), "required_level": 1,
+			})
+
+	if categories.is_empty():
+		return "No level unlocks are defined for this skill yet."
+	var output := PackedStringArray()
+	for category: String in ["gathering", "equipment", "production", "spells", "prayers"]:
+		var entries: Array = categories.get(category, []) as Array
+		if entries.is_empty():
+			continue
+		entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+			var left_level: int = int(left.get("required_level", 1))
+			var right_level: int = int(right.get("required_level", 1))
+			return left_level < right_level or (
+				left_level == right_level and str(left.get("name", "")) < str(right.get("name", ""))
+			)
+		)
+		output.append("[font_size=18][b]%s[/b][/font_size]" % category.capitalize())
+		for entry_value: Variant in entries:
+			var entry := entry_value as Dictionary
+			var required_level: int = int(entry.get("required_level", 1))
+			var colour: String = "#91d889" if required_level <= current_level else "#8b929c"
+			output.append("[color=%s][b]Lv %d[/b][/color]  %s %s" % [
+				colour, required_level, str(entry.get("action", "Use")), str(entry.get("name", "Unlock")),
+			])
+		output.append("")
+	return "\n".join(output)
+
+
+func _add_skill_guide_entry(categories: Dictionary, entry: Dictionary) -> void:
+	var category: String = str(entry.get("category", "other"))
+	var entries: Array = categories.get(category, []) as Array
+	entries.append(entry)
+	categories[category] = entries
 
 
 func _on_skill_tile_input(event: InputEvent, skill_name: String, skill_id: String) -> void:
@@ -5092,14 +5240,23 @@ func _update_progression_skill_tile(skill_id: String) -> void:
 	var level: int = int(progress.get("level", 1))
 	var next_level_experience: int = int(progress.get("next", 100))
 	level_label.text = "%d/%d" % [level, level]
+	tile.tooltip_text = _skill_tooltip_text(experience, next_level_experience)
 	if next_level_experience <= 0:
-		tile.tooltip_text = "Current XP: %d\nNext level XP: maximum" % experience
 		if _skill_details_window != null and _skill_details_window.visible and _open_skill_id == skill_id:
 			_refresh_skill_details_interface()
 		return
-	tile.tooltip_text = "Current XP: %d\nNext level XP: %d" % [experience, next_level_experience]
 	if _skill_details_window != null and _skill_details_window.visible and _open_skill_id == skill_id:
 		_refresh_skill_details_interface()
+
+
+func _skill_tooltip_text(experience: int, next_level_experience: int) -> String:
+	if next_level_experience <= 0:
+		return "Current XP: %d\nNext level XP: maximum\nXP to next level: 0" % experience
+	return "Current XP: %d\nNext level XP: %d\nXP to next level: %d" % [
+		experience,
+		next_level_experience,
+		maxi(0, next_level_experience - experience),
+	]
 
 
 func _populate_placeholder_spells() -> void:
@@ -5183,7 +5340,7 @@ func _update_magic_hud() -> void:
 func _style_selected_spell_button(spell_button: Button, pending: bool) -> void:
 	var border_color := Color(0.35, 0.78, 1.0) if pending else Color(0.95, 0.72, 0.2)
 	var selected_style := StyleBoxFlat.new()
-	selected_style.bg_color = Color(0.07, 0.16, 0.23, 0.98) if pending else Color(0.16, 0.13, 0.06, 0.98)
+	selected_style.bg_color = Color.TRANSPARENT
 	selected_style.border_width_left = 4
 	selected_style.border_width_top = 4
 	selected_style.border_width_right = 4
@@ -5228,6 +5385,7 @@ func _update_prayer_hud() -> void:
 		prayer_button.custom_minimum_size = Vector2(104, 88)
 		prayer_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		prayer_button.focus_mode = Control.FOCUS_NONE
+		_remove_button_background(prayer_button)
 		prayer_button.toggle_mode = not prayer_id.is_empty()
 		prayer_button.disabled = prayer_id.is_empty() or prayer_level < required_level or _player_defeated or (
 			_player_prayer <= 0 and not _active_prayers.has(prayer_id)
@@ -5289,7 +5447,7 @@ func _prayer_description(prayer: Dictionary) -> String:
 func _style_active_prayer_button(prayer_button: Button, pending: bool) -> void:
 	var active_color := Color(0.98, 0.78, 0.2) if not pending else Color(0.35, 0.78, 1.0)
 	var active_style := StyleBoxFlat.new()
-	active_style.bg_color = Color(0.16, 0.21, 0.08, 0.98) if not pending else Color(0.07, 0.16, 0.23, 0.98)
+	active_style.bg_color = Color.TRANSPARENT
 	active_style.border_width_left = 4
 	active_style.border_width_top = 4
 	active_style.border_width_right = 4
@@ -5318,14 +5476,14 @@ func _update_combat_styles_hud() -> void:
 		var style_id: String = str(style.get("id", ""))
 		var training: String = str(style.get("training", ""))
 		var style_button := Button.new()
-		style_button.custom_minimum_size = Vector2(268, 160)
+		style_button.custom_minimum_size = Vector2(244, 140)
 		style_button.focus_mode = Control.FOCUS_NONE
 		style_button.toggle_mode = true
 		style_button.disabled = _player_defeated
 		style_button.add_theme_font_size_override("font_size", 22)
 		style_button.add_theme_color_override("font_color", Color(0.82, 0.86, 0.9))
 		style_button.add_theme_color_override("font_hover_color", Color(0.96, 0.98, 1.0))
-		style_button.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0))
+		style_button.add_theme_color_override("font_pressed_color", Color(1.0, 0.94, 0.94))
 		var normal_style := StyleBoxFlat.new()
 		normal_style.bg_color = Color(0.055, 0.07, 0.085, 0.96)
 		normal_style.border_width_left = 2
@@ -5338,15 +5496,15 @@ func _update_combat_styles_hud() -> void:
 		normal_style.corner_radius_bottom_left = 8
 		normal_style.corner_radius_bottom_right = 8
 		var hover_style := normal_style.duplicate() as StyleBoxFlat
-		hover_style.bg_color = Color(0.09, 0.13, 0.17, 0.98)
-		hover_style.border_color = Color(0.42, 0.55, 0.66, 1.0)
+		hover_style.bg_color = Color(0.16, 0.08, 0.09, 0.98)
+		hover_style.border_color = Color(0.68, 0.3, 0.32, 1.0)
 		var selected_style_box := normal_style.duplicate() as StyleBoxFlat
-		selected_style_box.bg_color = Color(0.08, 0.3, 0.46, 0.98)
+		selected_style_box.bg_color = Color(0.42, 0.075, 0.09, 0.98)
 		selected_style_box.border_width_left = 3
 		selected_style_box.border_width_top = 3
 		selected_style_box.border_width_right = 3
 		selected_style_box.border_width_bottom = 3
-		selected_style_box.border_color = Color(0.28, 0.78, 1.0, 1.0)
+		selected_style_box.border_color = Color(0.95, 0.24, 0.28, 1.0)
 		style_button.add_theme_stylebox_override("normal", normal_style)
 		style_button.add_theme_stylebox_override("hover", hover_style)
 		style_button.add_theme_stylebox_override("pressed", selected_style_box)

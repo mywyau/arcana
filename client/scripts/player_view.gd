@@ -44,7 +44,7 @@ const TRAINING_COLOUR := Color("7b8790")
 @onready var battle_axe_pivot: Node3D = $VisualRoot/WeaponAnchor/BattleAxePivot
 @onready var battle_axe_blade: MeshInstance3D = $VisualRoot/WeaponAnchor/BattleAxePivot/Blade
 @onready var staff_pivot: Node3D = $VisualRoot/WeaponAnchor/StaffPivot
-@onready var damage_label: Label3D = $DamageLabel
+@onready var hit_splat: Node3D = $HitSplat
 
 var _is_local: bool = false
 var _has_position: bool = false
@@ -63,6 +63,7 @@ var _equipped_weapon: String = "sword"
 var _equipped_armour: Dictionary = {}
 var _walk_time: float = 0.0
 var _equipment_materials: Dictionary = {}
+var _last_movement_direction: Vector3 = Vector3.FORWARD
 
 
 func _process(delta: float) -> void:
@@ -111,6 +112,7 @@ func _update_movement_pose(
 		predicted_motion.y = 0.0
 		if not preserve_facing_during_correction or predicted_motion.length_squared() > 0.000001:
 			var facing_motion: Vector3 = predicted_motion if preserve_facing_during_correction else motion
+			_last_movement_direction = facing_motion.normalized()
 			visual_root.look_at(visual_root.global_position + facing_motion, Vector3.UP, true)
 		_walk_time += delta * 10.0
 		var swing: float = sin(_walk_time) * 26.0
@@ -128,6 +130,10 @@ func _update_movement_pose(
 	right_arm.rotation_degrees.x = lerpf(right_arm.rotation_degrees.x, 0.0, settle)
 	weapon_anchor.rotation_degrees.x = right_arm.rotation_degrees.x
 	visual_root.position.y = lerpf(visual_root.position.y, 0.0, settle)
+
+
+func minimap_facing() -> Vector2:
+	return Vector2(_last_movement_direction.x, _last_movement_direction.z).normalized()
 
 
 func predict_move(destination: Vector3) -> void:
@@ -589,10 +595,7 @@ func play_hit(damage: int, feedback_color: Color = Color(1.0, 0.25, 0.18, 1.0)) 
 	if _hit_tween != null:
 		_hit_tween.kill()
 	visual_root.scale = Vector3.ONE
-	damage_label.text = "-%d" % damage
-	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = feedback_color
-	damage_label.visible = true
+	hit_splat.call("show_damage", damage, feedback_color)
 	if _body_material != null:
 		_body_material.albedo_color = Color(1.0, 0.9, 0.82, 1.0)
 
@@ -600,48 +603,25 @@ func play_hit(damage: int, feedback_color: Color = Color(1.0, 0.25, 0.18, 1.0)) 
 	_hit_tween.set_parallel(true)
 	_hit_tween.tween_property(visual_root, "scale", Vector3(1.08, 0.88, 1.08), 0.08)
 	_hit_tween.tween_property(visual_root, "scale", Vector3.ONE, 0.14).set_delay(0.08)
-	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
-	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
 	if _body_material != null:
 		_hit_tween.tween_property(_body_material, "albedo_color", _rest_color, 0.18)
-	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
-func play_dodge(label_text: String = "DODGE") -> void:
-	if _hit_tween != null:
-		_hit_tween.kill()
-	damage_label.text = label_text
-	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = Color(0.4, 0.85, 1.0, 1.0)
-	damage_label.visible = true
-	_hit_tween = create_tween()
-	_hit_tween.set_parallel(true)
-	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
-	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
-	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+func play_dodge(label_text: String = "MISS") -> void:
+	hit_splat.call("show_status", label_text, Color(0.18, 0.48, 0.68, 1.0))
 
 
 func play_block() -> void:
-	play_status_feedback("BLOCK", Color(0.72, 0.78, 0.84, 1.0))
+	hit_splat.call("show_status", "BLOCK", Color(0.45, 0.5, 0.56, 1.0))
 
 
 func play_heal(amount: int) -> void:
 	if amount > 0:
-		play_status_feedback("+%d" % amount, Color(0.28, 1.0, 0.48, 1.0))
+		hit_splat.call("show_healing", amount)
 
 
 func play_status_feedback(label_text: String, feedback_color: Color) -> void:
-	if _hit_tween != null:
-		_hit_tween.kill()
-	damage_label.text = label_text
-	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = feedback_color
-	damage_label.visible = true
-	_hit_tween = create_tween()
-	_hit_tween.set_parallel(true)
-	_hit_tween.tween_property(damage_label, "position:y", 2.9, 0.7)
-	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.7).set_delay(0.22)
-	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+	hit_splat.call("show_status", label_text, feedback_color)
 
 
 func set_defeated(defeated: bool) -> void:

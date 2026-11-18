@@ -14,6 +14,12 @@ func _ready() -> void:
 	tooltip_theme.set_stylebox("panel", "TooltipPanel", StyleBoxEmpty.new())
 	theme = tooltip_theme
 
+	var empty_style := StyleBoxEmpty.new()
+	for state: String in [
+		"normal", "hover", "pressed", "hover_pressed", "focus", "disabled",
+	]:
+		add_theme_stylebox_override(state, empty_style)
+
 
 func configure_spell_tooltip(
 	spell_name: String,

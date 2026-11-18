@@ -719,7 +719,12 @@ func (w *World) Player(id PlayerID) (PlayerSnapshot, bool) {
 		return PlayerSnapshot{}, false
 	}
 
-	return snapshotPlayer(player), true
+	snapshot := snapshotPlayer(player)
+	// Connection snapshots combine a shared public frame with this private
+	// player snapshot. Keep opponent-specific derived values here so that path
+	// does not lose the matchup calculated by SnapshotForPlayer.
+	snapshot.CombatMatchup = w.combatMatchupForPlayer(player)
+	return snapshot, true
 }
 
 // HasPlayerOrPending reports whether a character still occupies or is waiting

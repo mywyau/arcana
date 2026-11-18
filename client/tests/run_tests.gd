@@ -3,6 +3,7 @@ extends SceneTree
 const AUTH_GATE_SCENE := preload("res://scenes/auth_gate.tscn")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
+const XP_TRACKER_SCENE := preload("res://scenes/xp_tracker.tscn")
 
 var _failures: int = 0
 var _checks: int = 0
@@ -35,8 +36,13 @@ func _run() -> void:
 	await _test_local_movement_reconciliation_ignores_stale_routes()
 	await _test_equipped_boots_follow_leg_pivots()
 	await _test_equipped_cape_sits_behind_player()
+	await _test_hit_splats_and_minimap_movement_facing()
+	await _test_action_rejection_feedback()
+	await _test_xp_tracker_supports_overlapping_drops()
 	await _test_consumable_slot_shows_authoritative_cooldown()
 	_test_fletching_options_follow_clicked_item_and_inventory()
+	_test_skill_guides_show_authoritative_unlock_levels()
+	_test_skill_slot_tooltip_and_hover_style()
 	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
@@ -241,6 +247,13 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 		"players": [{
 			"id": "local",
 			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"combat_target": "dummy",
+			"combat_matchup": {
+				"target_id": "dummy", "player_hit_chance": 0.72,
+				"player_minimum_damage": 8, "player_maximum_damage": 12,
+				"target_hit_chance": 0.45, "target_minimum_damage": 2,
+				"target_maximum_damage": 4, "player_attack_range": 2.0,
+			},
 			"equipped_weapon": "iron_sword",
 			"equipped_weapon_instance_id": "sword-instance",
 			"equipped_armour": {"head": "iron_helm"},
@@ -294,13 +307,21 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 				"slot": 0, "item_id": "air_rune", "quantity": 5,
 			}]},
 		}],
+		"target_updates": [{
+			"id": "dummy", "name": "Target Dummy", "kind": "dummy",
+			"position": {"x": 2.0, "y": 0.0, "z": 0.0},
+			"health": 100, "maximum_health": 100, "combat_level": 1,
+		}],
 	})
+	_check((main.get("player_details_accuracy") as Label).text == "72%", "combat matchup displays player hit chance")
+	_check((main.get("player_details_damage") as Label).text == "8–12", "combat matchup displays player damage range")
 	main.call("_on_snapshot_received", {
 		"tick": 2,
 		"action_pulse": 1,
 		"players": [{
 			"id": "local",
 			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"combat_target": "dummy",
 			"equipped_weapon": "iron_sword",
 			"equipped_armour": {"head": "iron_helm"},
 			"equipment_revision": 1,
@@ -356,6 +377,8 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 	_check(int(main.get("_brew_remaining")) == 2, "unchanged brewing progress survives an omitted payload")
 	_check(int(main.get("_fletch_remaining")) == 3, "unchanged fletching progress survives an omitted payload")
 	_check(str(main.get("_gathering_spot")) == "starter_fishing_spot", "unchanged gathering progress survives an omitted payload")
+	_check((main.get("player_details_accuracy") as Label).text == "72%", "omitted matchup payload preserves displayed hit chance")
+	_check((main.get("player_details_damage") as Label).text == "8–12", "omitted matchup payload preserves displayed damage range")
 	main.call("_on_snapshot_received", {
 		"tick": 3,
 		"action_pulse": 1,
@@ -540,6 +563,67 @@ func _test_equipped_cape_sits_behind_player() -> void:
 	await process_frame
 
 
+func _test_hit_splats_and_minimap_movement_facing() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerView
+	root.add_child(player)
+	await process_frame
+	var hit_splat := player.get_node("HitSplat") as Node3D
+	var value_label := hit_splat.get_node("Value") as Label3D
+	player.play_hit(17, Color(0.9, 0.2, 0.15, 1.0))
+	_check(hit_splat.visible, "damage displays a hit splat on the struck character")
+	_check(value_label.text == "17", "damage hit splat displays the dealt amount without a minus prefix")
+	_check(not hit_splat.has_node("Background"), "hit splat uses coloured text without a background")
+	_check(value_label.font_size == 60, "damage hit splat uses large text")
+	_check(value_label.modulate.r > 0.8, "damage amount inherits its combat feedback colour")
+	_check(hit_splat.position.y < 1.6, "hit splat is positioned over the character rather than above it")
+	player.play_dodge("MISS")
+	_check(value_label.text == "MISS", "successful avoidance is presented as a miss")
+	_check(value_label.font_size == 42, "miss feedback remains prominent without a background")
+	player.global_position = Vector3.RIGHT
+	player.call("_update_movement_pose", 0.1, Vector3.ZERO, Vector3.RIGHT, true)
+	_check(player.minimap_facing().x > 0.9, "minimap arrow follows the player's movement direction")
+	player.queue_free()
+	await process_frame
+
+
+func _test_action_rejection_feedback() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	_check(bool(main.call("_gathering_result_is_rejection", "missing_axe")), "missing tools trigger rejected-action feedback")
+	_check(bool(main.call("_gathering_result_is_rejection", "requires_woodcutting_level_5")), "level requirements trigger rejected-action feedback")
+	_check(not bool(main.call("_gathering_result_is_rejection", "chopped_oak_logs")), "successful gathering does not trigger rejected-action feedback")
+	main.free()
+
+	var effects := SoundEffects.new()
+	root.add_child(effects)
+	await process_frame
+	effects.play_feedback(&"action_rejected")
+	var first_feedback_msec: int = int(effects.get("_last_rejection_sound_msec"))
+	effects.play_feedback(&"action_rejected")
+	_check(first_feedback_msec >= 0, "rejected-action sound is available")
+	_check(int(effects.get("_last_rejection_sound_msec")) == first_feedback_msec, "rejected-action sound is throttled against duplicate messages")
+	for child: Node in effects.get_children():
+		if child is AudioStreamPlayer:
+			(child as AudioStreamPlayer).stop()
+			(child as AudioStreamPlayer).stream = null
+	effects.free()
+	await process_frame
+
+
+func _test_xp_tracker_supports_overlapping_drops() -> void:
+	var tracker := XP_TRACKER_SCENE.instantiate() as XPTracker
+	root.add_child(tracker)
+	await process_frame
+	tracker.show_gain("Attack", null, 12, 120)
+	tracker.show_gain("Strength", null, 9, 84)
+	var drops := tracker.get_node("DropLayer").get_children()
+	_check(drops.size() == 2, "XP tracker keeps overlapping XP drops visible")
+	_check(tracker.total_label.text == "Total Strength XP  84", "XP tracker updates the persistent skill total")
+	_check((drops[0].get_node("Gain") as Label).text == "+12 XP", "XP drop keeps its own gained amount")
+	_check(drops[1].position.y > drops[0].position.y, "rapid XP drops begin in separate visual lanes")
+	tracker.queue_free()
+	await process_frame
+
+
 func _test_consumable_slot_shows_authoritative_cooldown() -> void:
 	var slot := InventorySlot.new()
 	root.add_child(slot)
@@ -650,6 +734,41 @@ func _test_minimap_layout_and_projection() -> void:
 	minimap.queue_free()
 	main.free()
 	await process_frame
+
+
+func _test_skill_guides_show_authoritative_unlock_levels() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	main.call("_on_skill_guide_received", [
+		{"id": "oak", "skill": "woodcutting", "category": "gathering", "action": "Cut", "name": "Oak Tree", "required_level": 5},
+		{"id": "staff", "skill": "magic", "category": "equipment", "action": "Wield", "name": "Mage Staff", "required_level": 10},
+	])
+	var test_spells: Array[Dictionary] = [{"name": "Fire Bolt", "required_magic_level": 7}]
+	main.set("_spells", test_spells)
+	var woodcutting_guide: String = str(main.call("_skill_guide_text", "woodcutting", 3))
+	var magic_guide: String = str(main.call("_skill_guide_text", "magic", 8))
+	_check(woodcutting_guide.contains("Lv 5") and woodcutting_guide.contains("Cut Oak Tree"), "skill guide shows gathering unlock levels")
+	_check(magic_guide.contains("Lv 7") and magic_guide.contains("Cast Fire Bolt"), "skill guide shows spell unlock levels")
+	_check(magic_guide.contains("Lv 10") and magic_guide.contains("Wield Mage Staff"), "skill guide shows equipment requirements")
+	main.free()
+
+
+func _test_skill_slot_tooltip_and_hover_style() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	var tooltip: String = str(main.call("_skill_tooltip_text", 125, 200))
+	_check(tooltip.contains("XP to next level: 75"), "skill tooltip shows remaining XP to the next level")
+	var skill_tile := Button.new()
+	main.call("_remove_skill_tile_hover_effect", skill_tile)
+	_check(
+		skill_tile.get_theme_stylebox("hover") == skill_tile.get_theme_stylebox("normal"),
+		"skill slot hover uses the normal background without a light-up effect",
+	)
+	var progress_bar := ProgressBar.new()
+	main.call("_style_skill_progress_bar", progress_bar)
+	var fill_style := progress_bar.get_theme_stylebox("fill") as StyleBoxFlat
+	_check(fill_style.bg_color.g > fill_style.bg_color.r, "skill guide XP progress uses a green fill")
+	progress_bar.free()
+	skill_tile.free()
+	main.free()
 
 
 func _main_auth_harness() -> Dictionary:

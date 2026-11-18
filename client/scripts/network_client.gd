@@ -6,6 +6,7 @@ signal welcome_received(player_id: String)
 signal production_recipes_received(recipes: Array)
 signal spell_catalog_received(books: Array, spells: Array)
 signal prayer_catalog_received(prayers: Array, prayer_sets: Array)
+signal skill_guide_received(entries: Array)
 signal snapshot_received(snapshot: Dictionary)
 signal server_error(code: String, message: String)
 signal account_session_received(email: String)
@@ -836,6 +837,9 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			var prayer_sets: Variant = message.get("prayer_sets", [])
 			if typeof(prayers) == TYPE_ARRAY and typeof(prayer_sets) == TYPE_ARRAY:
 				prayer_catalog_received.emit(prayers as Array, prayer_sets as Array)
+			var skill_guide: Variant = message.get("skill_guide", [])
+			if typeof(skill_guide) == TYPE_ARRAY:
+				skill_guide_received.emit(skill_guide as Array)
 			welcome_received.emit(str(message.get("player_id", "")))
 		"snapshot":
 			var snapshot: Variant = message.get("snapshot")

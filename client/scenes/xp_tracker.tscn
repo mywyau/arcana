@@ -35,6 +35,7 @@ theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 17
 
 [node name="GainRow" type="HBoxContainer" parent="Margin/VBox"]
+visible = false
 layout_mode = 2
 alignment = 2
 theme_override_constants/separation = 4
@@ -53,3 +54,12 @@ custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
+
+[node name="DropLayer" type="Control" parent="."]
+layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

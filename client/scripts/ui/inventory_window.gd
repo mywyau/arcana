@@ -83,16 +83,12 @@ func _create_slot(slot: int, presentation: Dictionary) -> Button:
 	_style_slot(slot_button)
 	if slot >= _capacity:
 		slot_button.configure(slot, false, false)
-		slot_button.icon = _empty_slot_icon
-		slot_button.expand_icon = true
+		slot_button.icon = null
 		slot_button.disabled = true
-		slot_button.modulate = Color(0.28, 0.31, 0.34)
 		slot_button.tooltip_text = "Locked inventory slot"
 	elif presentation.is_empty():
 		slot_button.configure(slot, false, true)
-		slot_button.icon = _empty_slot_icon
-		slot_button.expand_icon = true
-		slot_button.modulate = Color(0.9, 0.93, 0.96)
+		slot_button.icon = null
 	else:
 		_configure_item_slot(slot_button, slot, presentation)
 	slot_button.swap_requested.connect(_on_swap_requested)
@@ -118,24 +114,16 @@ func _configure_item_slot(slot_button: Variant, slot: int, presentation: Diction
 
 
 func _style_slot(slot_button: Button) -> void:
-	var slot_style := StyleBoxFlat.new()
-	slot_style.bg_color = Color(0.055, 0.065, 0.075, 0.94)
-	slot_style.border_width_left = 1
-	slot_style.border_width_top = 1
-	slot_style.border_width_right = 1
-	slot_style.border_width_bottom = 1
-	slot_style.border_color = Color(0.2, 0.23, 0.26, 0.95)
-	slot_style.corner_radius_top_left = 5
-	slot_style.corner_radius_top_right = 5
-	slot_style.corner_radius_bottom_left = 5
-	slot_style.corner_radius_bottom_right = 5
-	slot_button.add_theme_stylebox_override("normal", slot_style)
-	slot_button.add_theme_stylebox_override("hover", slot_style.duplicate())
+	var empty_style := StyleBoxEmpty.new()
+	for state: String in [
+		"normal", "hover", "pressed", "hover_pressed", "focus", "disabled",
+	]:
+		slot_button.add_theme_stylebox_override(state, empty_style)
 
 
 func _apply_highlight(slot_button: Button, highlight: String) -> void:
 	var selection_style := StyleBoxFlat.new()
-	selection_style.bg_color = Color(0.06, 0.09, 0.12, 0.96)
+	selection_style.bg_color = Color.TRANSPARENT
 	selection_style.border_width_left = 4
 	selection_style.border_width_top = 4
 	selection_style.border_width_right = 4

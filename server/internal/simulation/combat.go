@@ -91,6 +91,10 @@ const (
 	roamingRepathPulses                  = 1
 	respawnDelayPulses                   = 5
 	dummyTargetID                        = "dummy"
+	lowTrainingDummyTargetID             = "training_dummy_low"
+	midTrainingDummyTargetID             = "training_dummy_mid"
+	highTrainingDummyTargetID            = "training_dummy_high"
+	maxTrainingDummyTargetID             = "training_dummy_max"
 	upperDummyTargetID                   = "upper_dummy"
 	overlookDummyTargetID                = "overlook_dummy"
 	hillWardenTargetID                   = "hill_warden"
@@ -344,6 +348,8 @@ type TargetSnapshot struct {
 	CombatLevel     int
 	Defence         DefenceBonuses
 	Elements        ElementalResistances
+	InfiniteHealth  bool
+	NonRetaliating  bool
 	attackSequence  uint64
 }
 
@@ -517,6 +523,18 @@ func newCombatState() *combatState {
 				AttackType:    DamageTypeCrush,
 				CombatLevel:   defaultEnemyCombatProfile.CombatLevel,
 			},
+			lowTrainingDummyTargetID: newEndlessTrainingDummy(
+				lowTrainingDummyTargetID, "Low-level Training Dummy", Position{X: 5, Z: -5}, 10, 8, 5,
+			),
+			midTrainingDummyTargetID: newEndlessTrainingDummy(
+				midTrainingDummyTargetID, "Mid-level Training Dummy", Position{X: 8, Z: -5}, 40, 30, 35,
+			),
+			highTrainingDummyTargetID: newEndlessTrainingDummy(
+				highTrainingDummyTargetID, "High-level Training Dummy", Position{X: 11, Z: -5}, 70, 60, 75,
+			),
+			maxTrainingDummyTargetID: newEndlessTrainingDummy(
+				maxTrainingDummyTargetID, "Near-max Training Dummy", Position{X: 14, Z: -5}, 95, 100, 120,
+			),
 			upperDummyTargetID: {
 				ID:            upperDummyTargetID,
 				Name:          "Upper Dummy",
@@ -611,6 +629,27 @@ func newCombatState() *combatState {
 				speed:  mageTyrantMovementSpeed,
 			},
 		},
+	}
+}
+
+func newEndlessTrainingDummy(
+	id string,
+	name string,
+	position Position,
+	combatLevel int,
+	evasion int,
+	defence int,
+) *TargetSnapshot {
+	return &TargetSnapshot{
+		ID: id, Name: name, Kind: targetKindDummy, Position: position,
+		Health: dummyMaximumHealth, MaximumHealth: dummyMaximumHealth,
+		DodgeRate: dummyDodgeRate, Accuracy: 0, Evasion: evasion,
+		AttackType: DamageTypeCrush, CombatLevel: combatLevel,
+		Defence: DefenceBonuses{
+			Stab: defence, Slash: defence, Crush: defence, Ranged: defence, Magic: defence,
+		},
+		InfiniteHealth: true,
+		NonRetaliating: true,
 	}
 }
 
@@ -1243,8 +1282,11 @@ func (w *World) resolveAutoAttacks() {
 		// Defence mitigation happens before variance so the weapon's damage feel
 		// remains the final stage before overkill clamping.
 		rolledDamage := rollDamageWithVariance(poweredDamage, damageVariance, w.rollSource.Float64())
-		damageDealt := min(rolledDamage, target.Health)
-		target.Health -= damageDealt
+		damageDealt := rolledDamage
+		if !target.InfiniteHealth {
+			damageDealt = min(damageDealt, target.Health)
+			target.Health -= damageDealt
+		}
 		grantSkillExperience(player, SkillVitality, int64(damageDealt))
 		if castingSpell {
 			grantSkillExperience(player, SkillMagic, int64(damageDealt))
@@ -1260,7 +1302,7 @@ func (w *World) resolveAutoAttacks() {
 			Amount:   damageDealt,
 			SpellID:  player.selectedSpell,
 		})
-		if target.TargetID == "" {
+		if !target.NonRetaliating && target.TargetID == "" {
 			profile := combatProfileForEnemy(player.combatTarget)
 			target.TargetID = player.id
 			target.NextAttackPulse = w.combat.pulse + profile.AttackInterval
@@ -1423,7 +1465,7 @@ func (w *World) setRoamingReturnPath(enemy *roamingEnemyState) {
 }
 
 func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
-	if dummy.Defeated || dummy.TargetID == "" {
+	if dummy.Defeated || dummy.NonRetaliating || dummy.TargetID == "" {
 		return
 	}
 	player, exists := w.players[dummy.TargetID]

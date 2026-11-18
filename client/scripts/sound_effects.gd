@@ -2,6 +2,7 @@ class_name SoundEffects
 extends Node
 
 const VOICE_COUNT: int = 8
+const ACTION_REJECTED_VOLUME_DB: float = -2.5
 
 const SWORD_SWINGS: Array[AudioStream] = [
 	preload("res://assets/sound_effects/sword_slash_01.ogg"),
@@ -47,6 +48,8 @@ var _magic_cast: AudioStreamWAV
 var _magic_impact: AudioStreamWAV
 var _avoidance_sound: AudioStreamWAV
 var _activation_sound: AudioStreamWAV
+var _rejection_sound: AudioStreamWAV
+var _last_rejection_sound_msec: int = -1000
 
 
 func _ready() -> void:
@@ -67,6 +70,7 @@ func _ready() -> void:
 	_magic_impact = _make_placeholder_sound(0.28, 310.0, 760.0, 0.48, 0.12)
 	_avoidance_sound = _make_placeholder_sound(0.1, 680.0, 920.0, 0.55, 0.04)
 	_activation_sound = _make_placeholder_sound(0.22, 440.0, 880.0, 0.36, 0.02)
+	_rejection_sound = _make_rejection_sound()
 
 
 func play_weapon_attack(weapon_id: String) -> void:
@@ -103,6 +107,15 @@ func play_feedback(feedback: StringName) -> void:
 		&"miss", &"dodge": _play_stream(_avoidance_sound, -4.0, randf_range(0.96, 1.08))
 		&"block": _play_variant(ARMOURED_IMPACTS, -2.0, 0.9, 1.0)
 		&"prayer_on", &"boost": _play_stream(_activation_sound, -3.0, randf_range(0.96, 1.08))
+		&"action_rejected": _play_action_rejected()
+
+
+func _play_action_rejected() -> void:
+	var now_msec: int = Time.get_ticks_msec()
+	if now_msec - _last_rejection_sound_msec < 350:
+		return
+	_last_rejection_sound_msec = now_msec
+	_play_stream(_rejection_sound, ACTION_REJECTED_VOLUME_DB, randf_range(0.99, 1.01))
 
 
 func _is_ranged_weapon(weapon_id: String) -> bool:
@@ -179,6 +192,37 @@ func _make_placeholder_sound(
 		)
 		var noise: float = sin(float(index * 73 + 19) * 12.9898) * noise_mix
 		var sample: int = clampi(roundi((tone + noise) * envelope * 19000.0), -32768, 32767)
+		samples.encode_s16(index * 2, sample)
+	var result := AudioStreamWAV.new()
+	result.format = AudioStreamWAV.FORMAT_16_BITS
+	result.mix_rate = SAMPLE_RATE
+	result.stereo = false
+	result.data = samples
+	return result
+
+
+func _make_rejection_sound() -> AudioStreamWAV:
+	# Two compact descending pulses make failed interactions recognisable without
+	# sounding like a combat impact or a successful skilling action.
+	const SAMPLE_RATE: int = 22050
+	const DURATION: float = 0.24
+	const PULSE_DURATION: float = 0.085
+	var sample_count: int = roundi(DURATION * SAMPLE_RATE)
+	var samples := PackedByteArray()
+	samples.resize(sample_count * 2)
+	for index: int in range(sample_count):
+		var time: float = float(index) / float(SAMPLE_RATE)
+		var sample_value: float = 0.0
+		for pulse_start: float in [0.0, 0.125]:
+			var local_time: float = time - pulse_start
+			if local_time < 0.0 or local_time >= PULSE_DURATION:
+				continue
+			var progress: float = local_time / PULSE_DURATION
+			var frequency: float = lerpf(480.0, 250.0, progress)
+			var envelope: float = sin(PI * progress) * (1.0 - progress * 0.25)
+			var phase: float = TAU * frequency * local_time
+			sample_value += (sin(phase) * 0.78 + sin(phase * 2.0) * 0.22) * envelope
+		var sample: int = clampi(roundi(sample_value * 18500.0), -32768, 32767)
 		samples.encode_s16(index * 2, sample)
 	var result := AudioStreamWAV.new()
 	result.format = AudioStreamWAV.FORMAT_16_BITS

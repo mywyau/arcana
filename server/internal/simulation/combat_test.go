@@ -60,13 +60,14 @@ func mustGiveBronzeArrows(t *testing.T, world *World, id PlayerID, quantity int)
 func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	world := newCombatTestWorld()
 	snapshot := world.Snapshot()
-	if got, want := len(snapshot.Targets), 13; got != want {
+	if got, want := len(snapshot.Targets), 17; got != want {
 		t.Fatalf("len(Targets) = %d, want %d", got, want)
 	}
 	wantIDs := []string{
 		cinderImpTargetID, cowTargetID, dummyTargetID, dustWraithTargetID, hillWardenTargetID,
 		mageTyrantTargetID, overlookDummyTargetID, rangedTyrantTargetID, riftTyrantTargetID,
-		thornlingTargetID, tideWispTargetID, upperDummyTargetID, wildFowlTargetID,
+		thornlingTargetID, tideWispTargetID, highTrainingDummyTargetID, lowTrainingDummyTargetID,
+		maxTrainingDummyTargetID, midTrainingDummyTargetID, upperDummyTargetID, wildFowlTargetID,
 	}
 	for index, want := range wantIDs {
 		if got := snapshot.Targets[index].ID; got != want {
@@ -77,6 +78,59 @@ func TestTargetSnapshotsAreOrderedAndDetached(t *testing.T) {
 	snapshot.Targets[0].Health = 0
 	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth; got != want {
 		t.Fatalf("authoritative target health after snapshot mutation = %d, want %d", got, want)
+	}
+}
+
+func TestTrainingDummiesAreProgressiveEndlessAndNonRetaliating(t *testing.T) {
+	world := newCombatTestWorld()
+	tiers := []struct {
+		id           string
+		combatLevel  int
+		evasion      int
+		defenceBonus int
+	}{
+		{lowTrainingDummyTargetID, 10, 8, 5},
+		{midTrainingDummyTargetID, 40, 30, 35},
+		{highTrainingDummyTargetID, 70, 60, 75},
+		{maxTrainingDummyTargetID, 95, 100, 120},
+	}
+	for _, tier := range tiers {
+		target := world.combat.targets[tier.id]
+		if target == nil || !target.InfiniteHealth || !target.NonRetaliating ||
+			target.CombatLevel != tier.combatLevel || target.Evasion != tier.evasion ||
+			target.Defence.Stab != tier.defenceBonus || target.Defence.Magic != tier.defenceBonus {
+			t.Fatalf("training dummy %q = %+v", tier.id, target)
+		}
+	}
+
+	target := world.combat.targets[lowTrainingDummyTargetID]
+	mustAddPlayer(t, world, "player-one", Position{X: target.Position.X, Z: target.Position.Z + 1}, 4)
+	if err := world.QueueTarget(TargetCommand{
+		PlayerID: "player-one", Sequence: 1, TargetID: lowTrainingDummyTargetID,
+	}); err != nil {
+		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
+	}
+
+	world.Step(actionPulseInterval)
+
+	target = world.combat.targets[lowTrainingDummyTargetID]
+	if target.Health != target.MaximumHealth || target.Defeated {
+		t.Fatalf("endless training dummy state after hit = %+v", target)
+	}
+	if target.TargetID != "" || target.NextAttackPulse != 0 {
+		t.Fatalf("training dummy retaliated after hit: %+v", target)
+	}
+	player := mustPlayer(t, world, "player-one")
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != swordDamage {
+		t.Fatalf("Attack after training hit = %+v, want %d XP", attack, swordDamage)
+	}
+	if vitality := mustSkill(t, player, SkillVitality); vitality.Experience != swordDamage {
+		t.Fatalf("Vitality after training hit = %+v, want %d XP", vitality, swordDamage)
+	}
+	events := world.Snapshot().CombatEvents
+	if len(events) != 1 || events[0].Type != CombatEventDamage ||
+		events[0].TargetID != lowTrainingDummyTargetID || events[0].Amount != swordDamage {
+		t.Fatalf("training dummy combat events = %+v", events)
 	}
 }
 

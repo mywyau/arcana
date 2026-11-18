@@ -313,6 +313,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		Spells:            spellCatalogMessages(simulation.SpellCatalog()),
 		Prayers:           prayerCatalogMessages(simulation.PrayerCatalog()),
 		PrayerSets:        prayerSetCatalogMessages(simulation.PrayerSetCatalog()),
+		SkillGuide:        skillGuideMessages(simulation.SkillGuideCatalog()),
 	}); err != nil {
 		return
 	}
@@ -409,6 +410,17 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 			h.saveCharacter(playerID)
 		}
 	}
+}
+
+func skillGuideMessages(entries []simulation.SkillGuideEntrySnapshot) []protocol.SkillGuideEntrySnapshot {
+	messages := make([]protocol.SkillGuideEntrySnapshot, 0, len(entries))
+	for _, entry := range entries {
+		messages = append(messages, protocol.SkillGuideEntrySnapshot{
+			ID: entry.ID, Skill: string(entry.Skill), Category: entry.Category,
+			Action: entry.Action, Name: entry.Name, RequiredLevel: entry.RequiredLevel,
+		})
+	}
+	return messages
 }
 
 func (h *Handler) writeOutbound(

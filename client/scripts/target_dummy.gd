@@ -16,7 +16,7 @@ const THORN_COLOR := Color(0.22, 0.5, 0.16, 1.0)
 @onready var visual: Node3D = $Visual
 @onready var attack_pivot: Node3D = $Visual/AttackPivot
 @onready var mesh: MeshInstance3D = $Visual/AttackPivot/Mesh
-@onready var damage_label: Label3D = $DamageLabel
+@onready var hit_splat: Node3D = $HitSplat
 @onready var target_body: StaticBody3D = $TargetBody
 @onready var collision_shape: CollisionShape3D = $TargetBody/CollisionShape3D
 
@@ -117,10 +117,7 @@ func play_hit(
 
 	visual.position = Vector3.ZERO
 	visual.scale = Vector3.ONE
-	damage_label.text = "-%d" % damage
-	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = feedback_color
-	damage_label.visible = true
+	hit_splat.call("show_damage", damage, feedback_color)
 	if _material != null:
 		_material.albedo_color = Color(1.0, 0.9, 0.82, 1.0)
 
@@ -136,30 +133,16 @@ func play_hit(
 	_hit_tween.tween_property(visual, "position", Vector3.ZERO, 0.14).set_delay(0.08)
 	_hit_tween.tween_property(visual, "scale", Vector3(1.08, 0.9, 1.08), 0.08)
 	_hit_tween.tween_property(visual, "scale", Vector3.ONE, 0.14).set_delay(0.08)
-	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
-	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
 	if _material != null:
 		_hit_tween.tween_property(_material, "albedo_color", _rest_color, 0.18)
-	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
 
 
-func play_dodge(label_text: String = "DODGE") -> void:
-	if _hit_tween != null:
-		_hit_tween.kill()
-	damage_label.text = label_text
-	damage_label.position = Vector3(0.0, 2.1, 0.0)
-	damage_label.modulate = Color(0.4, 0.85, 1.0, 1.0)
-	damage_label.visible = true
-	_hit_tween = create_tween()
-	_hit_tween.set_parallel(true)
-	_hit_tween.tween_property(damage_label, "position:y", 2.8, 0.55)
-	_hit_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55).set_delay(0.15)
-	_hit_tween.chain().tween_callback(func() -> void: damage_label.visible = false)
+func play_dodge(label_text: String = "MISS") -> void:
+	hit_splat.call("show_status", label_text, Color(0.18, 0.48, 0.68, 1.0))
 
 
 func play_block() -> void:
-	play_dodge("BLOCK")
-	damage_label.modulate = Color(0.72, 0.78, 0.84, 1.0)
+	hit_splat.call("show_status", "BLOCK", Color(0.45, 0.5, 0.56, 1.0))
 
 
 func play_attack(target_position: Vector3) -> void:
