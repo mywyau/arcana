@@ -85,6 +85,8 @@ type Window struct {
 	FullPayloadBytes        int64
 	DeltaPayloadCount       int64
 	DeltaPayloadBytes       int64
+	SnapshotReplacements    int64
+	SlowClientDisconnects   int64
 
 	Connections int
 	Entities    EntityCounts
@@ -218,6 +220,8 @@ type Collector struct {
 	fullPayloadBytes        int64
 	deltaPayloadCount       int64
 	deltaPayloadBytes       int64
+	snapshotReplacements    int64
+	slowClientDisconnects   int64
 
 	connections int
 	entities    EntityCounts
@@ -313,6 +317,18 @@ func (c *Collector) RecordSnapshotPayload(size int, full bool) {
 	c.deltaPayloadBytes += int64(size)
 }
 
+func (c *Collector) RecordSnapshotReplacement() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.snapshotReplacements++
+}
+
+func (c *Collector) RecordSlowClientDisconnect() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.slowClientDisconnects++
+}
+
 func (c *Collector) RecordWrite(elapsed time.Duration, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -388,6 +404,8 @@ func (c *Collector) SnapshotAndReset(now time.Time) Window {
 		FullPayloadBytes:        c.fullPayloadBytes,
 		DeltaPayloadCount:       c.deltaPayloadCount,
 		DeltaPayloadBytes:       c.deltaPayloadBytes,
+		SnapshotReplacements:    c.snapshotReplacements,
+		SlowClientDisconnects:   c.slowClientDisconnects,
 		Connections:             c.connections,
 		Entities:                c.entities,
 	}
@@ -421,6 +439,8 @@ func (c *Collector) SnapshotAndReset(now time.Time) Window {
 	c.fullPayloadBytes = 0
 	c.deltaPayloadCount = 0
 	c.deltaPayloadBytes = 0
+	c.snapshotReplacements = 0
+	c.slowClientDisconnects = 0
 	return window
 }
 
@@ -431,13 +451,14 @@ func (w Window) Summary(heapBytes, gcCount uint64) string {
 	visible := w.VisibilityAverage()
 	candidates := w.CandidateAverage()
 	return fmt.Sprintf(
-		"performance window=%s connections=%d players=%d targets=%d drops=%d fires=%d gathering_spots=%d environment_snapshots=%d full_reconciliations=%d player_updates_avg=%.2f target_updates_avg=%.2f player_removals=%d target_removals=%d candidate_players_avg=%d candidate_targets_avg=%d candidate_drops_avg=%d candidate_fires_avg=%d candidate_spots_avg=%d visible_players_avg=%d visible_targets_avg=%d visible_drops_avg=%d visible_fires_avg=%d visible_spots_avg=%d interest_query_avg=%s interest_query_max=%s tick_avg=%s tick_max=%s slow_ticks=%d snapshot_avg=%s snapshot_max=%s encode_avg=%s payload_avg=%s payload_max=%s realtime_payload_avg=%s environment_payload_avg=%s full_payload_avg=%s delta_payload_avg=%s write_avg=%s write_max=%s write_errors=%d save_avg=%s save_max=%s save_errors=%d heap=%s gc=%d",
+		"performance window=%s connections=%d players=%d targets=%d drops=%d fires=%d gathering_spots=%d environment_snapshots=%d full_reconciliations=%d player_updates_avg=%.2f target_updates_avg=%.2f player_removals=%d target_removals=%d snapshot_replacements=%d slow_client_disconnects=%d candidate_players_avg=%d candidate_targets_avg=%d candidate_drops_avg=%d candidate_fires_avg=%d candidate_spots_avg=%d visible_players_avg=%d visible_targets_avg=%d visible_drops_avg=%d visible_fires_avg=%d visible_spots_avg=%d interest_query_avg=%s interest_query_max=%s tick_avg=%s tick_max=%s slow_ticks=%d snapshot_avg=%s snapshot_max=%s encode_avg=%s payload_avg=%s payload_max=%s realtime_payload_avg=%s environment_payload_avg=%s full_payload_avg=%s delta_payload_avg=%s write_avg=%s write_max=%s write_errors=%d save_avg=%s save_max=%s save_errors=%d heap=%s gc=%d",
 		w.EndedAt.Sub(w.StartedAt).Round(time.Millisecond),
 		w.Connections, w.Entities.Players, w.Entities.Targets, w.Entities.Drops,
 		w.Entities.Fires, w.Entities.GatheringSpots,
 		w.EnvironmentQueries,
 		w.FullReconciliationCount, w.PlayerUpdatesAverage(), w.TargetUpdatesAverage(),
 		w.PlayerRemovalCount, w.TargetRemovalCount,
+		w.SnapshotReplacements, w.SlowClientDisconnects,
 		candidates.Players, candidates.Targets, candidates.Drops, candidates.Fires, candidates.GatheringSpots,
 		visible.Players, visible.Targets, visible.Drops, visible.Fires, visible.GatheringSpots,
 		shortDuration(w.InterestQueryAverage()), shortDuration(w.InterestQueryMax),

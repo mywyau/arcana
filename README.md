@@ -327,7 +327,11 @@ Snapshots contain full private state only for the receiving player. Remote
 players and combat targets use per-connection field updates, explicit removal
 IDs and a full reconciliation every 10 seconds. This means ordinary movement
 can send a changed position without repeatedly sending unchanged equipment and
-combat metadata. Sequence numbers must increase for the duration of the
+combat metadata. Each connection retains at most one pending replaceable
+snapshot in addition to the frame currently being written. Newer snapshots
+supersede stale pending frames, while reliable account and error responses stay
+ordered. A two-second write deadline disconnects clients which stop draining
+their connection. Sequence numbers must increase for the duration of the
 connection. Protocol version 5 introduced public entity deltas. Protocol
 version 6 added independent inventory and equipment revisions. Protocol
 version 7 adds an independent bank revision, allowing ordinary snapshots to
@@ -345,8 +349,10 @@ heap and garbage-collection measurements. `environment_snapshots`,
 cadences when evaluating bandwidth. `full_reconciliations`,
 `player_updates_avg`, `target_updates_avg` and the removal counters describe
 the public delta stream, while `full_payload_avg` and `delta_payload_avg`
-measure its wire-size effect. These summaries contain no account or character
-identifiers and provide the baseline for the staged work in
+measure its wire-size effect. `snapshot_replacements` counts stale pending
+frames superseded before writing, while `slow_client_disconnects` counts
+connections removed after their reliable queue or write deadline stalls. These
+summaries contain no account or character identifiers and provide the baseline for the staged work in
 [`SERVER_SCALING_PLAN.md`](SERVER_SCALING_PLAN.md).
 
 ### Local multiplayer load testing

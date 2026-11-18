@@ -83,6 +83,13 @@ type outboundResponse struct {
 	closeAfter bool
 }
 
+type outboundWriterResult struct {
+	err         error
+	closeAfter  bool
+	closeStatus websocket.StatusCode
+	closeReason string
+}
+
 func NewHandler(world *simulation.World, snapshotInterval time.Duration) (*Handler, error) {
 	return NewHandlerWithOptions(
 		world, snapshotInterval, HandlerOptions{AllowDebugCommands: true},
@@ -312,30 +319,55 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	go h.readCommands(
 		ctx, cancel, connection, playerID, authentication.SessionToken, responses, environmentRefreshes,
 	)
+	outbound := newOutboundQueue()
+	defer outbound.close()
+	writerDone := make(chan outboundWriterResult, 1)
+	go h.writeOutbound(ctx, connection, outbound, string(playerID), writerDone)
 
 	ticker := time.NewTicker(h.snapshotInterval)
 	defer ticker.Stop()
 	saveTicker := time.NewTicker(h.characterSaveInterval)
 	defer saveTicker.Stop()
 	environmentSchedule := newEnvironmentSchedule(environmentSnapshotInterval)
-	deltaTracker := newSnapshotDeltaTracker()
+	replaced := client.replaced
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-client.replaced:
-			h.closeReplacedClient(ctx, connection)
-			return
+		case <-replaced:
+			replaced = nil
+			if !outbound.enqueueReliable(queuedOutbound{
+				message: errorMessage(
+					"session_replaced",
+					errors.New("this character was logged in from another client"),
+				),
+				closeAfter: true, closeStatus: websocket.StatusPolicyViolation, closeReason: "session replaced",
+			}) {
+				return
+			}
 		case response := <-responses:
-			if err := h.writeMessage(ctx, connection, response.message); err != nil {
+			if !outbound.enqueueReliable(queuedOutbound{
+				message: response.message, closeAfter: response.closeAfter,
+				closeStatus: websocket.StatusNormalClosure, closeReason: "logged out",
+			}) {
+				if h.metrics != nil {
+					h.metrics.RecordSlowClientDisconnect()
+				}
+				log.Printf("disconnect slow client %s: reliable outbound queue is full", playerID)
 				return
 			}
-			if response.closeAfter {
-				immediateDeparture = true
-				_ = connection.Close(websocket.StatusNormalClosure, "logged out")
-				return
+		case result := <-writerDone:
+			if result.closeAfter {
+				immediateDeparture = result.closeStatus == websocket.StatusNormalClosure
+				_ = connection.Close(result.closeStatus, result.closeReason)
+			} else if errors.Is(result.err, context.DeadlineExceeded) {
+				if h.metrics != nil {
+					h.metrics.RecordSlowClientDisconnect()
+				}
+				log.Printf("disconnect slow client %s: WebSocket write exceeded %s", playerID, writeTimeout)
 			}
+			return
 		case <-environmentRefreshes:
 			environmentSchedule.request()
 		case <-ticker.C:
@@ -358,18 +390,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 					visibleFrame, playerID, privatePlayerPointer, includeEnvironment,
 				),
 			}
-			deltaStats := deltaTracker.apply(message.Snapshot, string(playerID), now)
-			deltaTracker.applyPrivateState(message.Snapshot, string(playerID), deltaStats.Full)
 			if h.metrics != nil {
 				h.metrics.RecordInterestQuery(
 					queryDuration, candidateEntities, visibleEntities, includeEnvironment,
-				)
-				h.metrics.RecordSnapshotDelta(
-					deltaStats.Full,
-					deltaStats.PlayerUpdates,
-					deltaStats.TargetUpdates,
-					deltaStats.PlayerRemovals,
-					deltaStats.TargetRemovals,
 				)
 			}
 			if h.metrics != nil && built {
@@ -379,11 +402,52 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 					GatheringSpots: len(publicFrame.GatheringSpots),
 				})
 			}
-			if err := h.writeMessage(ctx, connection, message); err != nil {
-				return
+			if outbound.replaceSnapshot(message, now) && h.metrics != nil {
+				h.metrics.RecordSnapshotReplacement()
 			}
 		case <-saveTicker.C:
 			h.saveCharacter(playerID)
+		}
+	}
+}
+
+func (h *Handler) writeOutbound(
+	ctx context.Context,
+	connection *websocket.Conn,
+	queue *outboundQueue,
+	localPlayerID string,
+	done chan<- outboundWriterResult,
+) {
+	deltaTracker := newSnapshotDeltaTracker()
+	for {
+		queued, ok := queue.next(ctx)
+		if !ok {
+			return
+		}
+		if queued.replaceable && queued.message.Snapshot != nil {
+			deltaStats := deltaTracker.apply(queued.message.Snapshot, localPlayerID, queued.createdAt)
+			deltaTracker.applyPrivateState(queued.message.Snapshot, localPlayerID, deltaStats.Full)
+			if h.metrics != nil {
+				h.metrics.RecordSnapshotDelta(
+					deltaStats.Full,
+					deltaStats.PlayerUpdates,
+					deltaStats.TargetUpdates,
+					deltaStats.PlayerRemovals,
+					deltaStats.TargetRemovals,
+				)
+			}
+		}
+		if err := h.writeMessage(ctx, connection, queued.message); err != nil {
+			done <- outboundWriterResult{err: err}
+			return
+		}
+		if queued.closeAfter {
+			done <- outboundWriterResult{
+				closeAfter:  true,
+				closeStatus: queued.closeStatus,
+				closeReason: queued.closeReason,
+			}
+			return
 		}
 	}
 }

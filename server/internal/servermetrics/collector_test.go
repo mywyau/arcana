@@ -25,6 +25,8 @@ func TestCollectorAggregatesAndResetsCounters(t *testing.T) {
 	collector.RecordSnapshotDelta(false, 2, 0, 1, 2)
 	collector.RecordSnapshotPayload(4096, true)
 	collector.RecordSnapshotPayload(1024, false)
+	collector.RecordSnapshotReplacement()
+	collector.RecordSlowClientDisconnect()
 	collector.RecordInterestQuery(
 		3*time.Millisecond,
 		EntityCounts{Players: 2, Targets: 3},
@@ -72,13 +74,17 @@ func TestCollectorAggregatesAndResetsCounters(t *testing.T) {
 	if window.FullPayloadAverage() != 4096 || window.DeltaPayloadAverage() != 1024 {
 		t.Fatalf("delta payload metrics = full %d delta %d", window.FullPayloadAverage(), window.DeltaPayloadAverage())
 	}
+	if window.SnapshotReplacements != 1 || window.SlowClientDisconnects != 1 {
+		t.Fatalf("queue metrics = replacements %d slow disconnects %d", window.SnapshotReplacements, window.SlowClientDisconnects)
+	}
 	if window.Connections != 2 || window.Entities.Players != 2 {
 		t.Fatalf("gauges = connections %d entities %+v", window.Connections, window.Entities)
 	}
 
 	next := collector.SnapshotAndReset(start.Add(time.Minute))
 	if next.TickCount != 0 || next.SnapshotCount != 0 || next.BytesTotal != 0 ||
-		next.VisibilityCount != 0 || next.InterestQueryCount != 0 || next.DeltaSnapshotCount != 0 {
+		next.VisibilityCount != 0 || next.InterestQueryCount != 0 || next.DeltaSnapshotCount != 0 ||
+		next.SnapshotReplacements != 0 || next.SlowClientDisconnects != 0 {
 		t.Fatalf("counter values survived reset: %+v", next)
 	}
 	if next.Connections != 2 || next.Entities.Players != 2 {
@@ -124,6 +130,8 @@ func TestWindowSummaryIsCompactAndIncludesOperationalSignals(t *testing.T) {
 		DeltaPayloadBytes:       1024,
 		SlowTickCount:           1,
 		WriteErrorCount:         1,
+		SnapshotReplacements:    2,
+		SlowClientDisconnects:   1,
 	}
 	summary := window.Summary(4*1024*1024, 3)
 	for _, wanted := range []string{
@@ -131,6 +139,7 @@ func TestWindowSummaryIsCompactAndIncludesOperationalSignals(t *testing.T) {
 		"candidate_players_avg=4", "candidate_targets_avg=3",
 		"full_reconciliations=1", "player_updates_avg=4.00", "target_updates_avg=2.00",
 		"player_removals=1", "target_removals=2",
+		"snapshot_replacements=2", "slow_client_disconnects=1",
 		"visible_players_avg=3", "visible_targets_avg=2", "interest_query_avg=2ms", "slow_ticks=1",
 		"payload_avg=2.0KiB", "realtime_payload_avg=0B", "environment_payload_avg=0B",
 		"full_payload_avg=4.0KiB", "delta_payload_avg=1.0KiB",
