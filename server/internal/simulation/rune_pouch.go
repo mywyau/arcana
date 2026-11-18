@@ -33,7 +33,9 @@ func isRune(itemID string) bool {
 	}
 }
 
-func newRunePouch() inventoryState { return inventoryState{capacity: BaseRunePouchUnlockedSlots} }
+func newRunePouch() inventoryState {
+	return inventoryState{capacity: BaseRunePouchUnlockedSlots, revision: 1}
+}
 
 func snapshotRunePouch(pouch inventoryState) RunePouchSnapshot {
 	return RunePouchSnapshot{
@@ -53,7 +55,7 @@ func runePouchFromSnapshot(snapshot RunePouchSnapshot) (inventoryState, error) {
 			RunePouchCapacity, BaseRunePouchUnlockedSlots, RunePouchCapacity,
 		)
 	}
-	pouch := inventoryState{capacity: snapshot.UnlockedSlots, items: append([]InventoryItem(nil), snapshot.Items...)}
+	pouch := inventoryState{capacity: snapshot.UnlockedSlots, items: append([]InventoryItem(nil), snapshot.Items...), revision: 1}
 	seenItems := make(map[string]bool, len(pouch.items))
 	seenSlots := make(map[int]bool, len(pouch.items))
 	for _, item := range pouch.items {

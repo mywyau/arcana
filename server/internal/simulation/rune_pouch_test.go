@@ -48,11 +48,15 @@ func TestSpellCostsUseRunePouchBeforeInventory(t *testing.T) {
 	player := &playerState{inventory: newEmptyInventory(), runePouch: newRunePouch()}
 	player.runePouch.add(ItemFireRune, 1)
 	player.inventory.add(ItemFireRune, 2)
+	beforePayment := player.runePouch.revision
 	if !paySpellCosts(player, []ItemCost{{ItemID: ItemFireRune, Quantity: 2}}) {
 		t.Fatal("paySpellCosts() rejected available runes")
 	}
 	if player.runePouch.quantity(ItemFireRune) != 0 || player.inventory.quantity(ItemFireRune) != 1 {
 		t.Fatalf("remaining runes = pouch %d, inventory %d", player.runePouch.quantity(ItemFireRune), player.inventory.quantity(ItemFireRune))
+	}
+	if player.runePouch.revision <= beforePayment {
+		t.Fatalf("rune pouch payment revision = %d, want greater than %d", player.runePouch.revision, beforePayment)
 	}
 
 	before := player.inventory.quantity(ItemFireRune)

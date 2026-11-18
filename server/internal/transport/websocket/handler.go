@@ -1126,6 +1126,7 @@ func snapshotMessageWithPrivateOptions(
 				Capacity: privateState.AmmunitionPouch.Capacity, UnlockedSlots: privateState.AmmunitionPouch.UnlockedSlots,
 				Items: make([]protocol.InventoryItem, 0, len(privateState.AmmunitionPouch.Items)),
 			}
+			playerMessage.AmmunitionPouchRevision = privateState.AmmunitionPouchRevision
 			playerMessage.LastAmmunitionSequence = privateState.LastAmmunitionSequence
 			for _, item := range privateState.AmmunitionPouch.Items {
 				playerMessage.AmmunitionPouch.Items = append(playerMessage.AmmunitionPouch.Items, protocol.InventoryItem{
@@ -1136,6 +1137,7 @@ func snapshotMessageWithPrivateOptions(
 				Capacity: privateState.RingRack.Capacity,
 				Items:    make([]protocol.InventoryItem, 0, len(privateState.RingRack.Items)),
 			}
+			playerMessage.RingRackRevision = privateState.RingRackRevision
 			playerMessage.LastRingSequence = privateState.LastRingSequence
 			for _, item := range privateState.RingRack.Items {
 				playerMessage.RingRack.Items = append(playerMessage.RingRack.Items, protocol.InventoryItem{
@@ -1147,6 +1149,7 @@ func snapshotMessageWithPrivateOptions(
 				Capacity: privateState.RunePouch.Capacity, UnlockedSlots: privateState.RunePouch.UnlockedSlots,
 				Items: make([]protocol.InventoryItem, 0, len(privateState.RunePouch.Items)),
 			}
+			playerMessage.RunePouchRevision = privateState.RunePouchRevision
 			playerMessage.LastRuneSequence = privateState.LastRuneSequence
 			for _, item := range privateState.RunePouch.Items {
 				playerMessage.RunePouch.Items = append(playerMessage.RunePouch.Items, protocol.InventoryItem{

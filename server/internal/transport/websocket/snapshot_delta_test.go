@@ -97,7 +97,8 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 	stats := tracker.apply(initial, "local", now)
 	tracker.applyPrivateState(initial, "local", stats.Full)
 	local := initial.Players[0]
-	if local.Inventory == nil || local.Bank == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
+	if local.Inventory == nil || local.Bank == nil || local.AmmunitionPouch == nil || local.RingRack == nil ||
+		local.RunePouch == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
 		t.Fatalf("initial private state was incomplete: %#v", local)
 	}
 
@@ -105,7 +106,8 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 	stats = tracker.apply(unchanged, "local", now.Add(time.Second))
 	tracker.applyPrivateState(unchanged, "local", stats.Full)
 	local = unchanged.Players[0]
-	if local.Inventory != nil || local.Bank != nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
+	if local.Inventory != nil || local.Bank != nil || local.AmmunitionPouch != nil || local.RingRack != nil ||
+		local.RunePouch != nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
 		t.Fatalf("unchanged private state was sent: %#v", local)
 	}
 	if local.EquippedWeapon != "sword" || local.EquippedArmour["head"] != "iron_helm" {
@@ -117,7 +119,8 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 	stats = tracker.apply(inventoryChanged, "local", now.Add(2*time.Second))
 	tracker.applyPrivateState(inventoryChanged, "local", stats.Full)
 	local = inventoryChanged.Players[0]
-	if local.Inventory == nil || local.Bank != nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
+	if local.Inventory == nil || local.Bank != nil || local.AmmunitionPouch != nil || local.RingRack != nil ||
+		local.RunePouch != nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
 		t.Fatalf("independent inventory revision was not respected: %#v", local)
 	}
 
@@ -127,15 +130,53 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 	stats = tracker.apply(bankChanged, "local", now.Add(3*time.Second))
 	tracker.applyPrivateState(bankChanged, "local", stats.Full)
 	local = bankChanged.Players[0]
-	if local.Bank == nil || local.Inventory != nil || local.EquippedWeaponInstanceID != "" {
+	if local.Bank == nil || local.Inventory != nil || local.AmmunitionPouch != nil || local.RingRack != nil ||
+		local.RunePouch != nil || local.EquippedWeaponInstanceID != "" {
 		t.Fatalf("independent bank revision was not respected: %#v", local)
+	}
+
+	ammunitionChanged := deltaTestSnapshot()
+	ammunitionChanged.Players[0].InventoryRevision++
+	ammunitionChanged.Players[0].BankRevision++
+	ammunitionChanged.Players[0].AmmunitionPouchRevision++
+	stats = tracker.apply(ammunitionChanged, "local", now.Add(4*time.Second))
+	tracker.applyPrivateState(ammunitionChanged, "local", stats.Full)
+	local = ammunitionChanged.Players[0]
+	if local.AmmunitionPouch == nil || local.Inventory != nil || local.Bank != nil || local.RingRack != nil || local.RunePouch != nil {
+		t.Fatalf("independent ammunition pouch revision was not respected: %#v", local)
+	}
+
+	ringChanged := deltaTestSnapshot()
+	ringChanged.Players[0].InventoryRevision++
+	ringChanged.Players[0].BankRevision++
+	ringChanged.Players[0].AmmunitionPouchRevision++
+	ringChanged.Players[0].RingRackRevision++
+	stats = tracker.apply(ringChanged, "local", now.Add(5*time.Second))
+	tracker.applyPrivateState(ringChanged, "local", stats.Full)
+	local = ringChanged.Players[0]
+	if local.RingRack == nil || local.Inventory != nil || local.Bank != nil || local.AmmunitionPouch != nil || local.RunePouch != nil {
+		t.Fatalf("independent ring rack revision was not respected: %#v", local)
+	}
+
+	runeChanged := deltaTestSnapshot()
+	runeChanged.Players[0].InventoryRevision++
+	runeChanged.Players[0].BankRevision++
+	runeChanged.Players[0].AmmunitionPouchRevision++
+	runeChanged.Players[0].RingRackRevision++
+	runeChanged.Players[0].RunePouchRevision++
+	stats = tracker.apply(runeChanged, "local", now.Add(6*time.Second))
+	tracker.applyPrivateState(runeChanged, "local", stats.Full)
+	local = runeChanged.Players[0]
+	if local.RunePouch == nil || local.Inventory != nil || local.Bank != nil || local.AmmunitionPouch != nil || local.RingRack != nil {
+		t.Fatalf("independent rune pouch revision was not respected: %#v", local)
 	}
 
 	full := deltaTestSnapshot()
 	stats = tracker.apply(full, "local", now.Add(fullReconciliationInterval))
 	tracker.applyPrivateState(full, "local", stats.Full)
 	local = full.Players[0]
-	if local.Inventory == nil || local.Bank == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
+	if local.Inventory == nil || local.Bank == nil || local.AmmunitionPouch == nil || local.RingRack == nil ||
+		local.RunePouch == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
 		t.Fatalf("full reconciliation omitted private state: %#v", local)
 	}
 }
@@ -151,6 +192,12 @@ func deltaTestSnapshot() *protocol.WorldSnapshot {
 				Inventory:               &protocol.InventorySnapshot{Capacity: 8},
 				InventoryRevision:       1, EquipmentRevision: 1,
 				Bank: &protocol.InventorySnapshot{Capacity: 100}, BankRevision: 1,
+				AmmunitionPouch:         &protocol.AmmunitionPouchSnapshot{Capacity: 10, UnlockedSlots: 2},
+				AmmunitionPouchRevision: 1,
+				RingRack:                &protocol.RingRackSnapshot{Capacity: 5},
+				RingRackRevision:        1,
+				RunePouch:               &protocol.RunePouchSnapshot{Capacity: 9, UnlockedSlots: 2},
+				RunePouchRevision:       1,
 			},
 			{
 				ID: "remote", Position: protocol.Position{X: 2}, Speed: 6, CombatTarget: "target",

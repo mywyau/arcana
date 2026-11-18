@@ -21,7 +21,9 @@ type RingTransferCommand struct {
 	RackSlot   int
 }
 
-func newRingRack() inventoryState { return inventoryState{capacity: RingRackCapacity} }
+func newRingRack() inventoryState {
+	return inventoryState{capacity: RingRackCapacity, revision: 1}
+}
 
 func snapshotRingRack(rack inventoryState) RingRackSnapshot {
 	return RingRackSnapshot{Capacity: RingRackCapacity, Items: append([]InventoryItem(nil), rack.items...)}
@@ -34,7 +36,7 @@ func ringRackFromSnapshot(snapshot RingRackSnapshot) (inventoryState, error) {
 	if snapshot.Capacity != RingRackCapacity {
 		return inventoryState{}, fmt.Errorf("ring rack capacity must be %d", RingRackCapacity)
 	}
-	rack := inventoryState{capacity: RingRackCapacity, items: append([]InventoryItem(nil), snapshot.Items...)}
+	rack := inventoryState{capacity: RingRackCapacity, items: append([]InventoryItem(nil), snapshot.Items...), revision: 1}
 	seenSlots := make(map[int]bool, len(rack.items))
 	seenInstances := make(map[string]bool, len(rack.items))
 	for _, item := range rack.items {

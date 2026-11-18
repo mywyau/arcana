@@ -636,6 +636,7 @@ var _ammunition_pouch_items: Array = []
 var _ammunition_pouch_capacity: int = 10
 var _ammunition_pouch_unlocked: int = 2
 var _ammunition_pouch_signature: String = ""
+var _ammunition_pouch_revision: int = -1
 var _next_ammunition_sequence: int = 1
 var _ammunition_pouch_window: Window
 var _ammunition_pouch_grid: GridContainer
@@ -643,6 +644,7 @@ var _ammunition_pouch_summary: Label
 var _ring_rack_items: Array = []
 var _ring_rack_capacity: int = 5
 var _ring_rack_signature: String = ""
+var _ring_rack_revision: int = -1
 var _next_ring_sequence: int = 1
 var _ring_rack_window: Window
 var _ring_rack_grid: GridContainer
@@ -651,6 +653,7 @@ var _rune_pouch_items: Array = []
 var _rune_pouch_capacity: int = 9
 var _rune_pouch_unlocked: int = 2
 var _rune_pouch_signature: String = ""
+var _rune_pouch_revision: int = -1
 var _next_rune_sequence: int = 1
 var _rune_pouch_window: Window
 var _rune_pouch_grid: GridContainer
@@ -3285,19 +3288,24 @@ func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -
 	if player_data.has("inventory") and typeof(inventory_data) == TYPE_DICTIONARY:
 		_apply_inventory_snapshot(inventory_data as Dictionary)
 		_inventory_revision = int(player_data.get("inventory_revision", _inventory_revision))
-	var ammunition_data: Variant = player_data.get("ammunition_pouch", {})
-	if typeof(ammunition_data) == TYPE_DICTIONARY:
+	var ammunition_data: Variant = player_data.get("ammunition_pouch", null)
+	if player_data.has("ammunition_pouch") and typeof(ammunition_data) == TYPE_DICTIONARY:
 		_apply_ammunition_pouch_snapshot(ammunition_data as Dictionary)
+		_ammunition_pouch_revision = int(player_data.get(
+			"ammunition_pouch_revision", _ammunition_pouch_revision,
+		))
 	var last_ammunition_sequence: int = int(player_data.get("last_ammunition_sequence", 0))
 	_next_ammunition_sequence = maxi(_next_ammunition_sequence, last_ammunition_sequence + 1)
-	var ring_data: Variant = player_data.get("ring_rack", {})
-	if typeof(ring_data) == TYPE_DICTIONARY:
+	var ring_data: Variant = player_data.get("ring_rack", null)
+	if player_data.has("ring_rack") and typeof(ring_data) == TYPE_DICTIONARY:
 		_apply_ring_rack_snapshot(ring_data as Dictionary)
+		_ring_rack_revision = int(player_data.get("ring_rack_revision", _ring_rack_revision))
 	var last_ring_sequence: int = int(player_data.get("last_ring_sequence", 0))
 	_next_ring_sequence = maxi(_next_ring_sequence, last_ring_sequence + 1)
-	var rune_data: Variant = player_data.get("rune_pouch", {})
-	if typeof(rune_data) == TYPE_DICTIONARY:
+	var rune_data: Variant = player_data.get("rune_pouch", null)
+	if player_data.has("rune_pouch") and typeof(rune_data) == TYPE_DICTIONARY:
 		_apply_rune_pouch_snapshot(rune_data as Dictionary)
+		_rune_pouch_revision = int(player_data.get("rune_pouch_revision", _rune_pouch_revision))
 	var last_rune_sequence: int = int(player_data.get("last_rune_sequence", 0))
 	_next_rune_sequence = maxi(_next_rune_sequence, last_rune_sequence + 1)
 	var bank_data: Variant = player_data.get("bank", null)

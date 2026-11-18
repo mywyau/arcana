@@ -28,6 +28,9 @@ type snapshotDeltaTracker struct {
 	lastInventoryRevision   uint64
 	lastEquipmentRevision   uint64
 	lastBankRevision        uint64
+	lastAmmunitionRevision  uint64
+	lastRingRackRevision    uint64
+	lastRunePouchRevision   uint64
 }
 
 // applyPrivateState removes unchanged private containers from the local
@@ -67,9 +70,30 @@ func (t *snapshotDeltaTracker) applyPrivateState(
 			player.Bank = nil
 		}
 
+		ammunitionChanged := full || !t.privateStateInitialized ||
+			player.AmmunitionPouchRevision != t.lastAmmunitionRevision
+		if !ammunitionChanged {
+			player.AmmunitionPouch = nil
+		}
+
+		ringRackChanged := full || !t.privateStateInitialized ||
+			player.RingRackRevision != t.lastRingRackRevision
+		if !ringRackChanged {
+			player.RingRack = nil
+		}
+
+		runePouchChanged := full || !t.privateStateInitialized ||
+			player.RunePouchRevision != t.lastRunePouchRevision
+		if !runePouchChanged {
+			player.RunePouch = nil
+		}
+
 		t.lastInventoryRevision = player.InventoryRevision
 		t.lastEquipmentRevision = player.EquipmentRevision
 		t.lastBankRevision = player.BankRevision
+		t.lastAmmunitionRevision = player.AmmunitionPouchRevision
+		t.lastRingRackRevision = player.RingRackRevision
+		t.lastRunePouchRevision = player.RunePouchRevision
 		t.privateStateInitialized = true
 		return
 	}

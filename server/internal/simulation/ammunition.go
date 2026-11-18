@@ -25,7 +25,7 @@ type AmmunitionTransferCommand struct {
 }
 
 func newAmmunitionPouch() inventoryState {
-	return inventoryState{capacity: BaseAmmunitionPouchUnlocked}
+	return inventoryState{capacity: BaseAmmunitionPouchUnlocked, revision: 1}
 }
 
 func ammunitionForWeapon(player *playerState, weapon WeaponDefinition) (ItemCost, int, bool) {
@@ -79,7 +79,7 @@ func ammunitionPouchFromSnapshot(snapshot AmmunitionPouchSnapshot) (inventorySta
 		snapshot.UnlockedSlots > snapshot.Capacity {
 		return inventoryState{}, fmt.Errorf("ammunition pouch capacity is invalid")
 	}
-	pouch := inventoryState{capacity: snapshot.UnlockedSlots, items: append([]InventoryItem(nil), snapshot.Items...)}
+	pouch := inventoryState{capacity: snapshot.UnlockedSlots, items: append([]InventoryItem(nil), snapshot.Items...), revision: 1}
 	seenItems := make(map[string]struct{}, len(pouch.items))
 	seenSlots := make(map[int]struct{}, len(pouch.items))
 	for _, item := range pouch.items {

@@ -119,10 +119,13 @@ type PlayerSnapshot struct {
 	Inventory                    InventorySnapshot
 	InventoryRevision            uint64
 	AmmunitionPouch              AmmunitionPouchSnapshot
+	AmmunitionPouchRevision      uint64
 	LastAmmunitionSequence       uint64
 	RingRack                     RingRackSnapshot
+	RingRackRevision             uint64
 	LastRingSequence             uint64
 	RunePouch                    RunePouchSnapshot
+	RunePouchRevision            uint64
 	LastRuneSequence             uint64
 	Bank                         BankSnapshot
 	BankRevision                 uint64
@@ -902,8 +905,11 @@ func populatePrivatePlayerSnapshot(snapshot *PlayerSnapshot, player *playerState
 	snapshot.Inventory = snapshotInventory(player.inventory)
 	snapshot.InventoryRevision = player.inventory.revision
 	snapshot.AmmunitionPouch = snapshotAmmunitionPouch(player.ammunitionPouch)
+	snapshot.AmmunitionPouchRevision = player.ammunitionPouch.revision
 	snapshot.RingRack = snapshotRingRack(player.ringRack)
+	snapshot.RingRackRevision = player.ringRack.revision
 	snapshot.RunePouch = snapshotRunePouch(player.runePouch)
+	snapshot.RunePouchRevision = player.runePouch.revision
 	snapshot.Bank = snapshotBank(player.bank)
 	snapshot.BankRevision = player.bank.revision
 	snapshot.Skills = snapshotSkills(player.skills)

@@ -11,6 +11,7 @@ func TestRingRackEquipsFiveDistinctRingInstances(t *testing.T) {
 		t.Fatal(err)
 	}
 	player := world.players["player-one"]
+	initialRackRevision := player.ringRack.revision
 	for _, itemID := range []string{ItemRubyRing, ItemEmeraldRing, ItemSapphireRing, ItemDiamondRing, ItemRubyRing} {
 		if !player.inventory.add(itemID, 1) {
 			t.Fatalf("could not add %q", itemID)
@@ -30,6 +31,10 @@ func TestRingRackEquipsFiveDistinctRingInstances(t *testing.T) {
 	if len(snapshot.RingRack.Items) != RingRackCapacity || len(snapshot.Inventory.Items) != 0 {
 		t.Fatalf("ring state = rack %+v, inventory %+v", snapshot.RingRack, snapshot.Inventory)
 	}
+	if snapshot.RingRackRevision <= initialRackRevision {
+		t.Fatalf("ring rack revision = %d, want greater than %d", snapshot.RingRackRevision, initialRackRevision)
+	}
+	depositRevision := snapshot.RingRackRevision
 
 	if err := world.QueueRingTransfer(RingTransferCommand{
 		PlayerID: "player-one", Sequence: 6, RackSlot: 0,
@@ -40,6 +45,9 @@ func TestRingRackEquipsFiveDistinctRingInstances(t *testing.T) {
 	snapshot = mustPlayer(t, world, "player-one")
 	if len(snapshot.RingRack.Items) != 4 || len(snapshot.Inventory.Items) != 1 || snapshot.LastRingSequence != 6 {
 		t.Fatalf("state after withdrawal = %+v", snapshot)
+	}
+	if snapshot.RingRackRevision <= depositRevision {
+		t.Fatalf("ring rack revision after withdrawal = %d, want greater than %d", snapshot.RingRackRevision, depositRevision)
 	}
 }
 

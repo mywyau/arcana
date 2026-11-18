@@ -331,8 +331,10 @@ combat metadata. Sequence numbers must increase for the duration of the
 connection. Protocol version 5 introduced public entity deltas. Protocol
 version 6 added independent inventory and equipment revisions. Protocol
 version 7 adds an independent bank revision, allowing ordinary snapshots to
-omit the potentially large bank payload until it changes. Older clients must
-be rebuilt before connecting.
+omit the potentially large bank payload until it changes. Protocol version 8
+adds independent ammunition pouch, rune pouch and ring rack revisions, so
+those private containers are likewise sent only when changed. Older clients
+must be rebuilt before connecting.
 
 The server logs an aggregate `performance` line every 30 seconds with tick,
 snapshot, encoding, payload, WebSocket write, character-save, entity-count,

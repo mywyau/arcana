@@ -255,6 +255,19 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"bank": {"capacity": 100, "next_expansion_cost": 1000, "items": [{
 				"slot": 0, "item_id": "air_rune", "quantity": 5,
 			}]},
+			"ammunition_pouch_revision": 1,
+			"ammunition_pouch": {"capacity": 10, "unlocked_slots": 2, "items": [{
+				"slot": 0, "item_id": "bronze_arrow", "quantity": 10,
+			}]},
+			"ring_rack_revision": 1,
+			"ring_rack": {"capacity": 5, "items": [{
+				"slot": 0, "item_id": "ruby_ring", "quantity": 1,
+				"instance_id": "ring-instance",
+			}]},
+			"rune_pouch_revision": 1,
+			"rune_pouch": {"capacity": 9, "unlocked_slots": 2, "items": [{
+				"slot": 0, "item_id": "air_rune", "quantity": 5,
+			}]},
 		}],
 	})
 	main.call("_on_snapshot_received", {
@@ -268,6 +281,9 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"equipment_revision": 1,
 			"inventory_revision": 1,
 			"bank_revision": 1,
+			"ammunition_pouch_revision": 1,
+			"ring_rack_revision": 1,
+			"rune_pouch_revision": 1,
 			"next_consume_pulse": 2,
 		}],
 	})
@@ -286,6 +302,18 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 	_check(
 		(main.get("_bank_items") as Array).size() == 1,
 		"unchanged bank survives an omitted payload",
+	)
+	_check(
+		(main.get("_ammunition_pouch_items") as Array).size() == 1,
+		"unchanged ammunition pouch survives an omitted payload",
+	)
+	_check(
+		(main.get("_ring_rack_items") as Array).size() == 1,
+		"unchanged ring rack survives an omitted payload",
+	)
+	_check(
+		(main.get("_rune_pouch_items") as Array).size() == 1,
+		"unchanged rune pouch survives an omitted payload",
 	)
 	var inventory_window: InventoryWindow = main.get("_inventory_window") as InventoryWindow
 	var presentations: Dictionary = inventory_window._presentations

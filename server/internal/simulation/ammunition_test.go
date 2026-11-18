@@ -19,6 +19,7 @@ func TestAmmunitionTransferMovesWholeStackBothWays(t *testing.T) {
 	}
 	player := world.players["player-one"]
 	player.skills[SkillRange] = SkillExperienceForLevel(ironEquipmentLevel)
+	initialPouchRevision := player.ammunitionPouch.revision
 	if !player.inventory.add(ItemIronArrow, 25) {
 		t.Fatal("could not add iron arrows")
 	}
@@ -33,6 +34,10 @@ func TestAmmunitionTransferMovesWholeStackBothWays(t *testing.T) {
 		(InventorySnapshot{Items: snapshot.AmmunitionPouch.Items}).itemsQuantity(ItemIronArrow) != 25 {
 		t.Fatalf("state after ammunition deposit = inventory %+v, pouch %+v", snapshot.Inventory, snapshot.AmmunitionPouch)
 	}
+	if snapshot.AmmunitionPouchRevision <= initialPouchRevision {
+		t.Fatalf("ammunition pouch revision = %d, want greater than %d", snapshot.AmmunitionPouchRevision, initialPouchRevision)
+	}
+	depositRevision := snapshot.AmmunitionPouchRevision
 
 	if err := world.QueueAmmunitionTransfer(AmmunitionTransferCommand{
 		PlayerID: "player-one", Sequence: 2, PouchSlot: 0,
@@ -43,6 +48,9 @@ func TestAmmunitionTransferMovesWholeStackBothWays(t *testing.T) {
 	snapshot = mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemIronArrow) != 25 || len(snapshot.AmmunitionPouch.Items) != 0 {
 		t.Fatalf("state after ammunition withdrawal = inventory %+v, pouch %+v", snapshot.Inventory, snapshot.AmmunitionPouch)
+	}
+	if snapshot.AmmunitionPouchRevision <= depositRevision {
+		t.Fatalf("ammunition pouch revision after withdrawal = %d, want greater than %d", snapshot.AmmunitionPouchRevision, depositRevision)
 	}
 }
 
@@ -80,12 +88,16 @@ func TestWeaponUsesFirstCompatibleAmmunitionSlotAndTierStrength(t *testing.T) {
 	if !player.ammunitionPouch.add(ItemBronzeArrow, 1) || !player.ammunitionPouch.add(ItemMithrilArrow, 5) {
 		t.Fatal("could not fill ammunition pouch")
 	}
+	beforeConsumption := player.ammunitionPouch.revision
 	cost, strength, available := ammunitionForWeapon(player, bow)
 	if !available || cost.ItemID != ItemBronzeArrow || strength != -1 {
 		t.Fatalf("first ammunition = %+v, strength %d, available %t", cost, strength, available)
 	}
 	if !payItemCosts(&player.ammunitionPouch, []ItemCost{cost}) {
 		t.Fatal("could not consume bronze arrow")
+	}
+	if player.ammunitionPouch.revision <= beforeConsumption {
+		t.Fatalf("ammunition consumption revision = %d, want greater than %d", player.ammunitionPouch.revision, beforeConsumption)
 	}
 	cost, strength, available = ammunitionForWeapon(player, bow)
 	if !available || cost.ItemID != ItemMithrilArrow || strength != 2 {
