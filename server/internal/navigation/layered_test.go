@@ -299,6 +299,29 @@ func TestPrototypeMapRoutesAroundInflatedObstacle(t *testing.T) {
 	}
 }
 
+func TestPrototypeMapTyrantArenaHasWalkableEntranceAndSolidWalls(t *testing.T) {
+	world := NewPrototypeMap()
+	start := simulation.Position{X: -48, Z: 45}
+	center := simulation.Position{X: -48, Z: 60}
+	path, err := world.FindPath(start, center)
+	if err != nil {
+		t.Fatalf("FindPath() through Tyrant arena entrance returned %v", err)
+	}
+	if len(path) == 0 || path[len(path)-1] != center {
+		t.Fatalf("arena entrance path = %+v, want destination %+v", path, center)
+	}
+
+	for _, blocked := range []simulation.Position{
+		{X: -48, Z: 71},
+		{X: -59, Z: 60},
+		{X: -55, Z: 49},
+	} {
+		if _, err := world.FindPath(start, blocked); err == nil {
+			t.Fatalf("FindPath() accepted arena wall destination %+v", blocked)
+		}
+	}
+}
+
 func TestLayeredMapReportsUnreachableDestination(t *testing.T) {
 	world := NewLayeredMapWithObstacles(
 		[]Layer{{ID: "ground", MinimumX: -2, MaximumX: 2, MinimumZ: -2, MaximumZ: 2}},

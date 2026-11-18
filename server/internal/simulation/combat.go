@@ -433,9 +433,9 @@ func newCombatState() *combatState {
 	cinderImpHome := Position{X: 5, Z: 42}
 	tideWispHome := Position{X: 15, Z: 42}
 	thornlingHome := Position{X: 25, Z: 42}
-	riftTyrantHome := Position{X: -40, Z: 64}
-	rangedTyrantHome := Position{X: 0, Z: 64}
-	mageTyrantHome := Position{X: 40, Z: 64}
+	riftTyrantHome := tyrantCombatArenas[riftTyrantTargetID].Center
+	rangedTyrantHome := tyrantCombatArenas[rangedTyrantTargetID].Center
+	mageTyrantHome := tyrantCombatArenas[mageTyrantTargetID].Center
 	hillWardenProfile := combatProfileForEnemy(hillWardenTargetID)
 	hillWarden := &TargetSnapshot{
 		ID:            hillWardenTargetID,
@@ -1172,6 +1172,15 @@ func (w *World) applyTargetCommands() {
 			player.autoApproaching = false
 			player.lastActionResult = "engaged"
 			if target, targetExists := w.combat.dummyByID(command.TargetID); targetExists && !target.Defeated {
+				if arena, enclosed := combatArenaForTarget(command.TargetID); enclosed && !arena.contains(player.position) {
+					if err := w.approachCombatArena(player, arena); err != nil {
+						player.lastActionResult = "target_unreachable"
+					} else {
+						player.lastActionResult = "approaching"
+					}
+					delete(w.combat.pendingTargets, id)
+					continue
+				}
 				weapon, _ := equippedWeaponDefinitionForStyle(player)
 				attackRange := weapon.Range
 				approachRange := weapon.ApproachRange
@@ -1216,6 +1225,15 @@ func (w *World) resolveAutoAttacks() {
 		}
 		if target.Defeated {
 			w.clearPlayerTarget(player, "target_defeated")
+			continue
+		}
+		if arena, enclosed := combatArenaForTarget(player.combatTarget); enclosed && !arena.contains(player.position) {
+			if err := w.approachCombatArena(player, arena); err != nil {
+				player.lastActionResult = "target_unreachable"
+				player.autoApproaching = false
+			} else {
+				player.lastActionResult = "approaching"
+			}
 			continue
 		}
 		weapon, _ := equippedWeaponDefinitionForStyle(player)
@@ -1421,7 +1439,11 @@ func (w *World) updateRoamingEnemies() {
 
 		hadTarget := enemy.target.TargetID != ""
 		player, hasTarget := w.players[enemy.target.TargetID]
-		if hadTarget && (!hasTarget || player.defeated || distance(player.position, enemy.home) > profile.LeashRange) {
+		outsideArena := false
+		if arena, enclosed := combatArenaForTarget(id); enclosed && hasTarget {
+			outsideArena = !arena.contains(player.position)
+		}
+		if hadTarget && (!hasTarget || player.defeated || outsideArena || distance(player.position, enemy.home) > profile.LeashRange) {
 			clearDummyTarget(enemy.target)
 			enemy.path = nil
 			hasTarget = false
@@ -1462,6 +1484,9 @@ func (w *World) nearestDetectablePlayer(enemyID string, enemy *roamingEnemyState
 	nearestDistance := math.Inf(1)
 	for _, player := range w.players {
 		if player.defeated || distance(player.position, enemy.home) > profile.LeashRange {
+			continue
+		}
+		if arena, enclosed := combatArenaForTarget(enemyID); enclosed && !arena.contains(player.position) {
 			continue
 		}
 		candidateDistance := distance(enemy.target.Position, player.position)

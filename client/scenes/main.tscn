@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/account_api_client.gd" id="13_account_api"]
 [ext_resource type="PackedScene" path="res://scenes/auth_gate.tscn" id="14_auth_gate"]
 [ext_resource type="Script" path="res://scripts/minimap_hud.gd" id="15_minimap"]
+[ext_resource type="Script" path="res://scripts/tyrant_arenas.gd" id="16_tyrant_arenas"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -171,6 +172,9 @@ metadata/navigation_layer_id = "ground"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody" unique_id=1744783982]
 shape = SubResource("GroundShape")
+
+[node name="TyrantArenas" type="Node3D" parent="."]
+script = ExtResource("16_tyrant_arenas")
 
 [node name="UpperLevel" type="Node3D" parent="." unique_id=607603903]
 script = ExtResource("4_floor_visibility")

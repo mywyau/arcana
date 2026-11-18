@@ -116,12 +116,16 @@ func TestWardenAndTyrantOutrangeLongRangeBow(t *testing.T) {
 
 func TestSpecialistTyrantsHaveDistinctWorldSpawnsAndVisualKinds(t *testing.T) {
 	world := NewWorld()
+	rift := world.combat.targets[riftTyrantTargetID]
 	ranged := world.combat.targets[rangedTyrantTargetID]
 	mage := world.combat.targets[mageTyrantTargetID]
-	if ranged == nil || ranged.Position != (Position{X: 0, Z: 64}) || ranged.Kind != targetKindRangedBoss {
+	if rift == nil || rift.Position != (Position{X: -48, Z: 60}) || rift.Kind != targetKindBoss {
+		t.Fatalf("Rift Tyrant = %+v", rift)
+	}
+	if ranged == nil || ranged.Position != (Position{X: 0, Z: 60}) || ranged.Kind != targetKindRangedBoss {
 		t.Fatalf("Ranged Tyrant = %+v", ranged)
 	}
-	if mage == nil || mage.Position != (Position{X: 40, Z: 64}) || mage.Kind != targetKindMageBoss {
+	if mage == nil || mage.Position != (Position{X: 48, Z: 60}) || mage.Kind != targetKindMageBoss {
 		t.Fatalf("Mage Tyrant = %+v", mage)
 	}
 }

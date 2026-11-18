@@ -88,11 +88,34 @@ func NewPrototypeMap() *LayeredMap {
 				To:        simulation.Position{X: 2, Y: 3, Z: 0},
 			},
 		},
-		[]Obstacle{
+		append([]Obstacle{
 			{LayerID: "ground", MinimumX: 0.5, MaximumX: 1.5, MinimumZ: -1, MaximumZ: 1},
 			{LayerID: "upper", MinimumX: -3, MaximumX: -2, MinimumZ: -1, MaximumZ: 2},
-		},
+		}, prototypeTyrantArenaObstacles()...),
 	)
+}
+
+// prototypeTyrantArenaObstacles mirrors client/scripts/tyrant_arenas.gd. Each
+// arena has a six-unit opening in its southern wall so players can path in and
+// out while bosses remain constrained by their server-side encounter bounds.
+func prototypeTyrantArenaObstacles() []Obstacle {
+	const (
+		centerZ       = 60.0
+		outerHalfSize = 11.5
+		innerHalfSize = 10.5
+		entranceHalf  = 3.0
+	)
+	obstacles := make([]Obstacle, 0, 15)
+	for _, centerX := range []float64{-48, 0, 48} {
+		obstacles = append(obstacles,
+			Obstacle{LayerID: "ground", MinimumX: centerX - outerHalfSize, MaximumX: centerX + outerHalfSize, MinimumZ: centerZ + innerHalfSize, MaximumZ: centerZ + outerHalfSize},
+			Obstacle{LayerID: "ground", MinimumX: centerX - outerHalfSize, MaximumX: centerX - innerHalfSize, MinimumZ: centerZ - outerHalfSize, MaximumZ: centerZ + outerHalfSize},
+			Obstacle{LayerID: "ground", MinimumX: centerX + innerHalfSize, MaximumX: centerX + outerHalfSize, MinimumZ: centerZ - outerHalfSize, MaximumZ: centerZ + outerHalfSize},
+			Obstacle{LayerID: "ground", MinimumX: centerX - outerHalfSize, MaximumX: centerX - entranceHalf, MinimumZ: centerZ - outerHalfSize, MaximumZ: centerZ - innerHalfSize},
+			Obstacle{LayerID: "ground", MinimumX: centerX + entranceHalf, MaximumX: centerX + outerHalfSize, MinimumZ: centerZ - outerHalfSize, MaximumZ: centerZ - innerHalfSize},
+		)
+	}
+	return obstacles
 }
 
 func (m *LayeredMap) Locate(position simulation.Position) (simulation.NavigationLocation, error) {
