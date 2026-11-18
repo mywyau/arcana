@@ -46,6 +46,10 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	changed.Players[1].Position.X = 9
 	changed.Players[1].CombatTarget = ""
 	changed.Targets[0].Health = 0
+	changed.Targets[0].TelegraphType = "heavy_strike"
+	changed.Targets[0].TelegraphPosition = protocol.Position{X: 4, Z: 5}
+	changed.Targets[0].TelegraphRadius = 2.75
+	changed.Targets[0].TelegraphImpactPulse = 12
 	stats = tracker.apply(changed, "local", now.Add(2*time.Second))
 	if stats.PlayerUpdates != 1 || stats.TargetUpdates != 1 {
 		t.Fatalf("delta stats = %#v", stats)
@@ -60,6 +64,12 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	target := changed.TargetUpdates[0]
 	if target.Health == nil || *target.Health != 0 {
 		t.Fatalf("target health delta = %#v", target)
+	}
+	if target.TelegraphType == nil || *target.TelegraphType != "heavy_strike" ||
+		target.TelegraphPosition == nil || *target.TelegraphPosition != (protocol.Position{X: 4, Z: 5}) ||
+		target.TelegraphRadius == nil || *target.TelegraphRadius != 2.75 ||
+		target.TelegraphImpactPulse == nil || *target.TelegraphImpactPulse != 12 {
+		t.Fatalf("target telegraph delta = %#v", target)
 	}
 	if target.Name != nil || target.Position != nil {
 		t.Fatalf("unchanged target fields were sent: %#v", target)

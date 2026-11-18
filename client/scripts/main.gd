@@ -3785,6 +3785,15 @@ func _sync_targets(
 			float(coordinates.get("z", 0.0)),
 		))
 		view.set_defeated(bool(target_data.get("defeated", false)))
+		var telegraph_position_data: Variant = target_data.get("telegraph_position", {})
+		var telegraph_position := Vector3.ZERO
+		if typeof(telegraph_position_data) == TYPE_DICTIONARY:
+			telegraph_position = _snapshot_vector(telegraph_position_data as Dictionary)
+		view.set_attack_telegraph(
+			str(target_data.get("telegraph_type", "")),
+			telegraph_position,
+			float(target_data.get("telegraph_radius", 0.0)),
+		)
 		_target_states[target_id] = target_data.duplicate(true)
 		active_ids[target_id] = true
 

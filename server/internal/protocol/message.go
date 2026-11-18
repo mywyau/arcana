@@ -240,42 +240,50 @@ type CombatEvent struct {
 }
 
 type TargetSnapshot struct {
-	ID              string   `json:"id"`
-	Name            string   `json:"name"`
-	Kind            string   `json:"kind"`
-	Position        Position `json:"position"`
-	Health          int      `json:"health"`
-	MaximumHealth   int      `json:"maximum_health"`
-	TargetID        string   `json:"target_id"`
-	NextAttackPulse uint64   `json:"next_attack_pulse"`
-	Defeated        bool     `json:"defeated"`
-	RespawnAtPulse  uint64   `json:"respawn_at_pulse"`
-	DodgeRate       float64  `json:"dodge_rate"`
-	Accuracy        int      `json:"accuracy"`
-	Evasion         int      `json:"evasion"`
-	AttackType      string   `json:"attack_type"`
-	CombatLevel     int      `json:"combat_level"`
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Kind                 string   `json:"kind"`
+	Position             Position `json:"position"`
+	Health               int      `json:"health"`
+	MaximumHealth        int      `json:"maximum_health"`
+	TargetID             string   `json:"target_id"`
+	NextAttackPulse      uint64   `json:"next_attack_pulse"`
+	Defeated             bool     `json:"defeated"`
+	RespawnAtPulse       uint64   `json:"respawn_at_pulse"`
+	DodgeRate            float64  `json:"dodge_rate"`
+	Accuracy             int      `json:"accuracy"`
+	Evasion              int      `json:"evasion"`
+	AttackType           string   `json:"attack_type"`
+	CombatLevel          int      `json:"combat_level"`
+	TelegraphType        string   `json:"telegraph_type,omitempty"`
+	TelegraphPosition    Position `json:"telegraph_position"`
+	TelegraphRadius      float64  `json:"telegraph_radius,omitempty"`
+	TelegraphImpactPulse uint64   `json:"telegraph_impact_pulse,omitempty"`
 }
 
 // TargetUpdate contains only public target fields which changed since this
 // connection's previous snapshot. Pointer fields preserve meaningful zero
 // values such as zero health or an empty combat target.
 type TargetUpdate struct {
-	ID              string    `json:"id"`
-	Name            *string   `json:"name,omitempty"`
-	Kind            *string   `json:"kind,omitempty"`
-	Position        *Position `json:"position,omitempty"`
-	Health          *int      `json:"health,omitempty"`
-	MaximumHealth   *int      `json:"maximum_health,omitempty"`
-	TargetID        *string   `json:"target_id,omitempty"`
-	NextAttackPulse *uint64   `json:"next_attack_pulse,omitempty"`
-	Defeated        *bool     `json:"defeated,omitempty"`
-	RespawnAtPulse  *uint64   `json:"respawn_at_pulse,omitempty"`
-	DodgeRate       *float64  `json:"dodge_rate,omitempty"`
-	Accuracy        *int      `json:"accuracy,omitempty"`
-	Evasion         *int      `json:"evasion,omitempty"`
-	AttackType      *string   `json:"attack_type,omitempty"`
-	CombatLevel     *int      `json:"combat_level,omitempty"`
+	ID                   string    `json:"id"`
+	Name                 *string   `json:"name,omitempty"`
+	Kind                 *string   `json:"kind,omitempty"`
+	Position             *Position `json:"position,omitempty"`
+	Health               *int      `json:"health,omitempty"`
+	MaximumHealth        *int      `json:"maximum_health,omitempty"`
+	TargetID             *string   `json:"target_id,omitempty"`
+	NextAttackPulse      *uint64   `json:"next_attack_pulse,omitempty"`
+	Defeated             *bool     `json:"defeated,omitempty"`
+	RespawnAtPulse       *uint64   `json:"respawn_at_pulse,omitempty"`
+	DodgeRate            *float64  `json:"dodge_rate,omitempty"`
+	Accuracy             *int      `json:"accuracy,omitempty"`
+	Evasion              *int      `json:"evasion,omitempty"`
+	AttackType           *string   `json:"attack_type,omitempty"`
+	CombatLevel          *int      `json:"combat_level,omitempty"`
+	TelegraphType        *string   `json:"telegraph_type,omitempty"`
+	TelegraphPosition    *Position `json:"telegraph_position,omitempty"`
+	TelegraphRadius      *float64  `json:"telegraph_radius,omitempty"`
+	TelegraphImpactPulse *uint64   `json:"telegraph_impact_pulse,omitempty"`
 }
 
 type DropSnapshot struct {

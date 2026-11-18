@@ -30,6 +30,9 @@ var _authoritative_position: Vector3
 var _rest_color: Color = REST_COLOR
 var _target_kind: String = "dummy"
 var _rest_attack_scale: Vector3 = Vector3.ONE
+var _telegraph_mesh: MeshInstance3D
+var _telegraph_material: StandardMaterial3D
+var _telegraph_time: float = 0.0
 
 
 func _ready() -> void:
@@ -37,13 +40,54 @@ func _ready() -> void:
 	if source != null:
 		_material = source.duplicate() as StandardMaterial3D
 		mesh.material_override = _material
+	_create_telegraph_visual()
 
 
 func _process(delta: float) -> void:
+	if _telegraph_mesh != null and _telegraph_mesh.visible:
+		_telegraph_time += delta
+		var pulse: float = 0.58 + sin(_telegraph_time * 8.0) * 0.18
+		_telegraph_material.albedo_color = Color(1.0, 0.12, 0.08, pulse)
 	if not _mobile or not _has_position:
 		return
 	var weight: float = 1.0 - exp(-14.0 * delta)
 	global_position = global_position.lerp(_authoritative_position, weight)
+
+
+func _create_telegraph_visual() -> void:
+	_telegraph_mesh = MeshInstance3D.new()
+	_telegraph_mesh.name = "AttackTelegraph"
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.0
+	disc.bottom_radius = 1.0
+	disc.height = 0.035
+	disc.radial_segments = 64
+	_telegraph_material = StandardMaterial3D.new()
+	_telegraph_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_telegraph_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_telegraph_material.albedo_color = Color(1.0, 0.12, 0.08, 0.65)
+	disc.material = _telegraph_material
+	_telegraph_mesh.mesh = disc
+	_telegraph_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_telegraph_mesh)
+	_telegraph_mesh.top_level = true
+	_telegraph_mesh.visible = false
+
+
+func set_attack_telegraph(
+	telegraph_type: String,
+	telegraph_position: Vector3,
+	radius: float,
+) -> void:
+	if _telegraph_mesh == null:
+		return
+	var active: bool = telegraph_type == "heavy_strike" and radius > 0.0
+	_telegraph_mesh.visible = active
+	if not active:
+		_telegraph_time = 0.0
+		return
+	_telegraph_mesh.global_position = telegraph_position + Vector3(0.0, 0.05, 0.0)
+	_telegraph_mesh.scale = Vector3(radius, 1.0, radius)
 
 
 func set_target_id(target_id: String) -> void:

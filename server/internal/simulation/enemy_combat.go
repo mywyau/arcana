@@ -13,6 +13,14 @@ type enemyCombatProfile struct {
 	AttackTypes    []DamageType
 	Defence        DefenceBonuses
 	Elements       ElementalResistances
+	HeavyStrike    heavyStrikeProfile
+}
+
+type heavyStrikeProfile struct {
+	EveryAttacks     uint64
+	WindupPulses     uint64
+	Radius           float64
+	DamageMultiplier float64
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
@@ -94,8 +102,11 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		AttackTypes: []DamageType{
 			DamageTypeStab, DamageTypeSlash, DamageTypeCrush,
 		},
-		Defence:  DefenceBonuses{Stab: 55, Slash: 65, Crush: 48, Ranged: 60, Magic: 52},
+		Defence:  DefenceBonuses{Stab: 100, Slash: 115, Crush: 90, Ranged: 105, Magic: 95},
 		Elements: ElementalResistances{Air: 10, Water: 10, Earth: 10, Fire: 10, Holy: -10, Dark: 20},
+		HeavyStrike: heavyStrikeProfile{
+			EveryAttacks: 4, WindupPulses: 2, Radius: 2.75, DamageMultiplier: 2,
+		},
 	},
 	rangedTyrantTargetID: {
 		CombatLevel:    35,
@@ -105,8 +116,11 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		DetectionRange: 18,
 		LeashRange:     24,
 		DamageType:     DamageTypeRanged,
-		Defence:        DefenceBonuses{Stab: 45, Slash: 50, Crush: 40, Ranged: 70, Magic: 45},
+		Defence:        DefenceBonuses{Stab: 85, Slash: 90, Crush: 80, Ranged: 120, Magic: 85},
 		Elements:       ElementalResistances{Air: 5, Water: 10, Earth: -10, Fire: 5, Holy: 0, Dark: 10},
+		HeavyStrike: heavyStrikeProfile{
+			EveryAttacks: 4, WindupPulses: 2, Radius: 2.75, DamageMultiplier: 2,
+		},
 	},
 	mageTyrantTargetID: {
 		CombatLevel:    35,
@@ -116,8 +130,11 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		DetectionRange: 18,
 		LeashRange:     24,
 		DamageType:     DamageTypeMagic,
-		Defence:        DefenceBonuses{Stab: 40, Slash: 45, Crush: 35, Ranged: 45, Magic: 75},
+		Defence:        DefenceBonuses{Stab: 80, Slash: 85, Crush: 75, Ranged: 90, Magic: 125},
 		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},
+		HeavyStrike: heavyStrikeProfile{
+			EveryAttacks: 4, WindupPulses: 2, Radius: 2.75, DamageMultiplier: 2,
+		},
 	},
 }
 

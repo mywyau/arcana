@@ -110,15 +110,15 @@ const (
 	hillWardenEvasionScore               = 18
 	wildFowlEvasionScore                 = 2
 	cowEvasionScore                      = 4
-	riftTyrantMaximumHealth              = 650
-	riftTyrantAccuracyScore              = 40
-	riftTyrantEvasionScore               = 30
-	rangedTyrantMaximumHealth            = 600
-	rangedTyrantAccuracyScore            = 44
-	rangedTyrantEvasionScore             = 34
-	mageTyrantMaximumHealth              = 575
-	mageTyrantAccuracyScore              = 46
-	mageTyrantEvasionScore               = 32
+	riftTyrantMaximumHealth              = 1100
+	riftTyrantAccuracyScore              = 48
+	riftTyrantEvasionScore               = 38
+	rangedTyrantMaximumHealth            = 1000
+	rangedTyrantAccuracyScore            = 52
+	rangedTyrantEvasionScore             = 42
+	mageTyrantMaximumHealth              = 950
+	mageTyrantAccuracyScore              = 54
+	mageTyrantEvasionScore               = 40
 	combatEventHistoryLimit              = 32
 )
 
@@ -332,26 +332,30 @@ type CombatStyleCommand struct {
 }
 
 type TargetSnapshot struct {
-	ID              string
-	Name            string
-	Kind            string
-	Position        Position
-	Health          int
-	MaximumHealth   int
-	TargetID        PlayerID
-	NextAttackPulse uint64
-	Defeated        bool
-	RespawnAtPulse  uint64
-	DodgeRate       float64
-	Accuracy        int
-	Evasion         int
-	AttackType      DamageType
-	CombatLevel     int
-	Defence         DefenceBonuses
-	Elements        ElementalResistances
-	InfiniteHealth  bool
-	NonRetaliating  bool
-	attackSequence  uint64
+	ID                   string
+	Name                 string
+	Kind                 string
+	Position             Position
+	Health               int
+	MaximumHealth        int
+	TargetID             PlayerID
+	NextAttackPulse      uint64
+	Defeated             bool
+	RespawnAtPulse       uint64
+	DodgeRate            float64
+	Accuracy             int
+	Evasion              int
+	AttackType           DamageType
+	CombatLevel          int
+	TelegraphType        string
+	TelegraphPosition    Position
+	TelegraphRadius      float64
+	TelegraphImpactPulse uint64
+	Defence              DefenceBonuses
+	Elements             ElementalResistances
+	InfiniteHealth       bool
+	NonRetaliating       bool
+	attackSequence       uint64
 }
 
 type combatState struct {
@@ -1484,6 +1488,13 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		clearDummyTarget(dummy)
 		return
 	}
+	if dummy.TelegraphType != "" {
+		if w.combat.pulse < dummy.TelegraphImpactPulse {
+			return
+		}
+		w.resolveHeavyStrike(dummyID, dummy, profile)
+		return
+	}
 	if distanceToPlayer > profile.AttackRange || w.combat.pulse < dummy.NextAttackPulse {
 		return
 	}
@@ -1491,6 +1502,15 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	damageType := enemyAttackType(profile, dummy.attackSequence)
 	dummy.attackSequence++
 	dummy.AttackType = damageType
+	if profile.HeavyStrike.EveryAttacks > 0 &&
+		dummy.attackSequence%profile.HeavyStrike.EveryAttacks == 0 {
+		dummy.TelegraphType = "heavy_strike"
+		dummy.TelegraphPosition = player.position
+		dummy.TelegraphRadius = profile.HeavyStrike.Radius
+		dummy.TelegraphImpactPulse = w.combat.pulse + profile.HeavyStrike.WindupPulses
+		dummy.NextAttackPulse = dummy.TelegraphImpactPulse
+		return
+	}
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 	accuracyChance := calculatedAccuracyChance(dummy.Accuracy)
 	dodgeChance := playerDodgeChance(dummy.Accuracy, player)
@@ -1526,6 +1546,37 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	})
 	if player.health == 0 {
 		w.defeatPlayer(player)
+	}
+}
+
+func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
+	position := dummy.TelegraphPosition
+	radius := dummy.TelegraphRadius
+	damageType := dummy.AttackType
+	clearTargetTelegraph(dummy)
+	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
+
+	playerIDs := make([]PlayerID, 0, len(w.players))
+	for id := range w.players {
+		playerIDs = append(playerIDs, id)
+	}
+	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
+	for _, id := range playerIDs {
+		player := w.players[id]
+		if player.defeated || distance(player.position, position) > radius {
+			continue
+		}
+		damage := int(math.Round(float64(profile.AttackDamage) * profile.HeavyStrike.DamageMultiplier))
+		damageDealt := reduceIncomingDamage(player, damage, damageType)
+		player.health = max(0, player.health-damageDealt)
+		triggerEmergencyPrayer(player)
+		w.combat.recordEvent(CombatEvent{
+			Pulse: w.combat.pulse, Type: CombatEventDamage,
+			SourceID: dummyID, TargetID: string(player.id), Amount: damageDealt,
+		})
+		if player.health == 0 {
+			w.defeatPlayer(player)
+		}
 	}
 }
 
@@ -1581,6 +1632,14 @@ func (w *World) clearPlayerTarget(player *playerState, result string) {
 func clearDummyTarget(dummy *TargetSnapshot) {
 	dummy.TargetID = ""
 	dummy.NextAttackPulse = 0
+	clearTargetTelegraph(dummy)
+}
+
+func clearTargetTelegraph(dummy *TargetSnapshot) {
+	dummy.TelegraphType = ""
+	dummy.TelegraphPosition = Position{}
+	dummy.TelegraphRadius = 0
+	dummy.TelegraphImpactPulse = 0
 }
 
 func (combat *combatState) recordEvent(event CombatEvent) {

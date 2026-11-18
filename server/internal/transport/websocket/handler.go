@@ -1606,5 +1606,11 @@ func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnap
 		Evasion:         target.Evasion,
 		AttackType:      string(target.AttackType),
 		CombatLevel:     target.CombatLevel,
+		TelegraphType:   target.TelegraphType,
+		TelegraphPosition: protocol.Position{
+			X: target.TelegraphPosition.X, Y: target.TelegraphPosition.Y, Z: target.TelegraphPosition.Z,
+		},
+		TelegraphRadius:      target.TelegraphRadius,
+		TelegraphImpactPulse: target.TelegraphImpactPulse,
 	}
 }

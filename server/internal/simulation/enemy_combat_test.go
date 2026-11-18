@@ -157,19 +157,76 @@ func TestRiftTyrantCyclesAttackStyleOnEachAttack(t *testing.T) {
 
 func TestTyrantsHaveBossTierDefence(t *testing.T) {
 	tests := []struct {
-		targetID string
-		type_    DamageType
-		minimum  int
+		targetID      string
+		type_         DamageType
+		minimum       int
+		maximumHealth int
 	}{
-		{targetID: riftTyrantTargetID, type_: DamageTypeSlash, minimum: 60},
-		{targetID: rangedTyrantTargetID, type_: DamageTypeRanged, minimum: 65},
-		{targetID: mageTyrantTargetID, type_: DamageTypeMagic, minimum: 70},
+		{targetID: riftTyrantTargetID, type_: DamageTypeSlash, minimum: 110, maximumHealth: 1100},
+		{targetID: rangedTyrantTargetID, type_: DamageTypeRanged, minimum: 115, maximumHealth: 1000},
+		{targetID: mageTyrantTargetID, type_: DamageTypeMagic, minimum: 120, maximumHealth: 950},
 	}
 	for _, test := range tests {
 		profile := combatProfileForEnemy(test.targetID)
 		if got := defenceBonusForDamageType(profile.Defence, test.type_); got < test.minimum {
 			t.Errorf("%s %s defence = %d, want at least %d", test.targetID, test.type_, got, test.minimum)
 		}
+		if got := NewWorld().combat.targets[test.targetID].MaximumHealth; got != test.maximumHealth {
+			t.Errorf("%s maximum health = %d, want %d", test.targetID, got, test.maximumHealth)
+		}
+		if profile.HeavyStrike.EveryAttacks != 4 || profile.HeavyStrike.WindupPulses != 2 ||
+			profile.HeavyStrike.Radius != 2.75 || profile.HeavyStrike.DamageMultiplier != 2 {
+			t.Errorf("%s heavy strike = %+v", test.targetID, profile.HeavyStrike)
+		}
+	}
+}
+
+func TestTyrantHeavyStrikeTelegraphsAndCanBeEscaped(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	boss := world.combat.targets[riftTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", boss.Position, 4)
+	player := world.players["player-one"]
+	player.maximumHealth = 200
+	player.health = 200
+	boss.TargetID = player.id
+	boss.attackSequence = 3
+	boss.NextAttackPulse = 10
+	world.combat.pulse = 10
+
+	world.resolveOneDummyAttack(riftTyrantTargetID, boss)
+	if player.health != 200 || boss.TelegraphType != "heavy_strike" ||
+		boss.TelegraphPosition != player.position || boss.TelegraphRadius != 2.75 || boss.TelegraphImpactPulse != 12 {
+		t.Fatalf("heavy strike windup: player health=%d boss=%+v", player.health, boss)
+	}
+
+	player.position.X += boss.TelegraphRadius + 1
+	world.combat.pulse = boss.TelegraphImpactPulse
+	world.resolveOneDummyAttack(riftTyrantTargetID, boss)
+	if player.health != 200 {
+		t.Fatalf("escaped heavy strike health = %d, want 200", player.health)
+	}
+	if boss.TelegraphType != "" || boss.TelegraphRadius != 0 || boss.TelegraphImpactPulse != 0 {
+		t.Fatalf("resolved telegraph was not cleared: %+v", boss)
+	}
+}
+
+func TestTyrantHeavyStrikeDamagesPlayersRemainingInArea(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	boss := world.combat.targets[riftTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", boss.Position, 4)
+	player := world.players["player-one"]
+	player.maximumHealth = 200
+	player.health = 200
+	boss.TargetID = player.id
+	boss.attackSequence = 3
+	boss.NextAttackPulse = 10
+	world.combat.pulse = 10
+	world.resolveOneDummyAttack(riftTyrantTargetID, boss)
+
+	world.combat.pulse = boss.TelegraphImpactPulse
+	world.resolveOneDummyAttack(riftTyrantTargetID, boss)
+	if got, want := player.health, 156; got != want {
+		t.Fatalf("health after heavy strike = %d, want %d", got, want)
 	}
 }
 

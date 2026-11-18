@@ -327,6 +327,22 @@ func targetUpdate(
 		update.CombatLevel = pointer(current.CombatLevel)
 		changed = true
 	}
+	if full || previous.TelegraphType != current.TelegraphType {
+		update.TelegraphType = pointer(current.TelegraphType)
+		changed = true
+	}
+	if full || previous.TelegraphPosition != current.TelegraphPosition {
+		update.TelegraphPosition = pointer(current.TelegraphPosition)
+		changed = true
+	}
+	if full || previous.TelegraphRadius != current.TelegraphRadius {
+		update.TelegraphRadius = pointer(current.TelegraphRadius)
+		changed = true
+	}
+	if full || previous.TelegraphImpactPulse != current.TelegraphImpactPulse {
+		update.TelegraphImpactPulse = pointer(current.TelegraphImpactPulse)
+		changed = true
+	}
 	return update, changed
 }
 
