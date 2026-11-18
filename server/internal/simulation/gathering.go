@@ -359,6 +359,17 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if err := w.validateTimedAction(player, spot, &command); err != nil {
 		return err
 	}
+	if spot.Station == craftingStationForging {
+		if _, reinforcement := reinforcementRecipe(command.RecipeID); reinforcement {
+			if command.Quantity > 1 {
+				return fmt.Errorf("equipment upgrades must be made one at a time")
+			}
+			command.Quantity = 1
+		}
+	}
+	if usesProductionBatch(spot.Station) && command.Quantity > maximumProductionBatchSize {
+		return fmt.Errorf("production quantity cannot exceed %d", maximumProductionBatchSize)
+	}
 	if command.Quantity > 0 && !usesProductionBatch(spot.Station) {
 		return fmt.Errorf("quantity is not supported for gathering spot %q", spot.ID)
 	}

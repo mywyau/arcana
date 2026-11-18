@@ -48,6 +48,7 @@ func configure(
 	_make_one = _window.get_node("Panel/Margin/VBox/Actions/Brew") as Button
 	_make_x = _window.get_node("Panel/Margin/VBox/Actions/MakeX") as Button
 	_make_all = _window.get_node("Panel/Margin/VBox/Actions/MakeAll") as Button
+	_make_all.text = "Make up to 10"
 	var close := _window.get_node("Panel/Margin/VBox/Header/Close") as Button
 
 	InterfaceStyle.configure_window(_window)
@@ -183,7 +184,7 @@ func _refresh_result() -> void:
 	else:
 		_result.text = "Requires exactly one Vial of Water and at least one herb"
 	if _pending:
-		_result.text = "Brewing one potion every 600 ms • %d remaining" % _remaining
+		_result.text = "Brewing one potion every 1.8 seconds • %d remaining" % _remaining
 	_make_one.disabled = not valid or _pending
 	_make_one.text = "Brewing…" if _pending else "Make 1"
 	_make_x.disabled = not valid or _pending
@@ -241,7 +242,7 @@ func _open_quantity_dialog() -> void:
 	var maximum := _maximum_brews()
 	if maximum < 1 or _pending:
 		return
-	_quantity_input.max_value = maximum
+	_quantity_input.max_value = mini(maximum, 10)
 	_quantity_input.value = mini(maximum, 5)
 	_quantity_dialog.popup_centered()
 	_quantity_input.grab_focus()

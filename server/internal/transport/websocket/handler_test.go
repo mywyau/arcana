@@ -904,7 +904,7 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 		"last_combat_style_sequence", "active_prayers", "active_prayer_set",
 		"last_prayer_sequence", "selected_spell", "last_spell_sequence", "dodge_rate",
 		"experience_locked", "last_experience_lock_sequence", "last_pickup_sequence",
-		"last_consume_sequence", "next_consume_pulse", "last_brew_sequence", "brew_remaining",
+		"last_consume_sequence", "next_food_consume_pulse", "next_potion_consume_pulse", "last_brew_sequence", "brew_remaining",
 		"next_brew_pulse", "brewing_result", "last_fletch_sequence", "fletch_remaining",
 		"next_fletch_pulse", "fletching_result", "gathering_spot", "gathering_result",
 		"next_gather_pulse", "last_gather_sequence",

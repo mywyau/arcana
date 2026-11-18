@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-func TestPlayerStartsUnarmedWithEmptyTwentySlotInventory(t *testing.T) {
+func TestPlayerStartsUnarmedWithEmptySixteenSlotInventory(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 
 	player := mustPlayer(t, world, "player-one")
-	if got, want := player.Inventory.Capacity, 20; got != want {
+	if got, want := player.Inventory.Capacity, BaseInventoryCapacity; got != want {
 		t.Fatalf("Inventory.Capacity = %d, want %d", got, want)
 	}
 	if got, want := len(player.Inventory.Items), 0; got != want {
@@ -52,6 +52,25 @@ func TestCookedMinnowsStackToFivePerSlot(t *testing.T) {
 	}
 	if !inventory.remove(ItemCookedMinnow, 7) || inventory.quantity(ItemCookedMinnow) != 3 {
 		t.Fatalf("minnow stacks after removal = %+v", inventory.items)
+	}
+}
+
+func TestBulkyResourcesStackToTenPerSlot(t *testing.T) {
+	for _, itemID := range []string{ItemCopperOre, ItemBronzeBar, ItemNormalLogs, ItemLeather} {
+		inventory := inventoryState{capacity: 2}
+		if !inventory.add(itemID, 12) {
+			t.Fatalf("add() rejected %s with enough slots", itemID)
+		}
+		if len(inventory.items) != 2 || inventory.items[0].Quantity != 10 || inventory.items[1].Quantity != 2 {
+			t.Errorf("%s stacks = %+v, want quantities 10 and 2", itemID, inventory.items)
+		}
+	}
+}
+
+func TestAmmunitionRemainsFreelyStackable(t *testing.T) {
+	inventory := inventoryState{capacity: 1}
+	if !inventory.add(ItemIronArrow, 5_000) || len(inventory.items) != 1 || inventory.items[0].Quantity != 5_000 {
+		t.Fatalf("ammunition stack = %+v, want one stack of 5000", inventory.items)
 	}
 }
 

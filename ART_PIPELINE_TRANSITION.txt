@@ -1,0 +1,141 @@
+ARCANA ART PIPELINE TRANSITION PLAN
+===================================
+
+Purpose
+-------
+
+The current world is a code-generated, low-poly proof of concept. That is a
+useful foundation rather than wasted work: it has allowed movement, layered
+navigation, combat, gathering, interaction ranges and networking to be tested
+before investing heavily in finished artwork.
+
+The game systems do not need to be rewritten to introduce custom artwork.
+Generated geometry can be replaced gradually with authored assets while the
+existing server-authoritative gameplay remains intact.
+
+
+Responsibility boundary
+-----------------------
+
+Godot client:
+
+- Models, materials and textures
+- Decorative geometry
+- Water, foliage and other visual animation
+- Click and selection shapes
+- Visual effects and presentation
+
+Go server:
+
+- Authoritative positions
+- Walkable surfaces and navigation obstacles
+- Interaction ranges
+- Gathering resources and production stations
+- Fishing spots and other gameplay definitions
+- Validation of player actions
+
+A detailed client model does not require equally detailed server geometry. For
+example, a complex tree can remain one simple circular obstacle on the server.
+This keeps navigation predictable and avoids unnecessary simulation cost.
+
+
+Asset replacement examples
+--------------------------
+
+- Generated tree -> custom Blender tree exported as a .glb scene
+- Primitive rocks -> authored low-poly rock and ore formations
+- Flat platforms -> modular terrain, cliff, wall and ramp pieces
+- Plain water -> custom water mesh with an animated Godot shader
+- Capsule character -> a rigged and customisable character model
+
+Trees and rocks are the easiest assets to replace. Animated water is also
+mostly client-side. Raised terrain is more involved because its walkable
+surfaces, walls, slopes and connections between levels must also be understood
+by the Go navigation system.
+
+
+Recommended workflow
+--------------------
+
+1. Create an asset in Blender at an agreed scale and orientation.
+2. Export it as glTF/.glb into the appropriate client asset directory.
+3. Create a reusable Godot scene containing the model, materials and a simple
+   click/collision shape.
+4. Place the scene using world content data rather than embedding placement
+   rules inside UI or networking code.
+5. Add a simple matching obstacle to server navigation when the prop blocks
+   movement.
+6. Attach a server interaction definition when the prop supports gathering,
+   fishing, production or another action.
+7. Test clicking, pathfinding, interaction range and visibility before making
+   additional variants.
+
+
+Recommended implementation stages
+---------------------------------
+
+Stage 1: Establish the asset seam
+
+- Extract one existing tree into a reusable WorldProp scene.
+- Allow the scene to use either generated placeholder geometry or an imported
+  Blender model.
+- Preserve its current woodcutting behaviour and server position.
+- Document scale, origin, orientation and naming conventions.
+
+Stage 2: Validate reusable props
+
+- Replace one tree and one rock with custom assets.
+- Give each a simplified collision/click shape.
+- Confirm that server navigation and gathering still behave identically.
+- Establish consistent folders for source files, imported models, materials
+  and reusable scenes.
+
+Stage 3: Build a modular environment kit
+
+- Ground and terrain chunks
+- Cliffs and raised edges
+- Ramps and stairs
+- Walls and fences
+- Shoreline pieces
+- Tree and rock families
+- Animated water material
+
+Pieces should snap together at predictable dimensions. Their visual meshes can
+be detailed while their server navigation representation remains coarse.
+
+Stage 4: Introduce a data-driven world layout
+
+Avoid manually maintaining the same prop coordinates in unrelated client and
+server files. A world placement record should eventually describe fields such
+as:
+
+- Stable object ID
+- Position and rotation
+- Client visual scene
+- Interaction type and resource definition
+- Interaction range
+- Navigation obstacle or walkable layer
+- Respawn or replenishment settings
+
+The client can use this data to place visual scenes, while the server uses the
+relevant subset for navigation and authoritative interactions. Static visuals
+should not be included repeatedly in network snapshots.
+
+Stage 5: Create a designed game area
+
+Keep the current proof-of-concept world as a development and testing map. Build
+a separate polished area once the asset and placement pipeline is reliable.
+This avoids disrupting the useful test stations, monsters and resources while
+the final world style is still evolving.
+
+
+Suggested next slice
+--------------------
+
+Create one reusable WorldProp tree scene and replace one generated tree without
+changing its gameplay. This is a deliberately small change that tests the full
+Blender-to-Godot workflow and creates a safe replacement seam for future art.
+
+After that works, apply the same pattern to rocks. Leave authored raised terrain
+until the prop workflow is stable because terrain requires additional work in
+the layered server pathfinder.

@@ -1282,7 +1282,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
-columns = 5
+columns = 4
 
 [node name="UtilityTabs" type="PanelContainer" parent="UI/InventoryHUD/Margin/VBox"]
 custom_minimum_size = Vector2(0, 70)

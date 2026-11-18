@@ -43,6 +43,7 @@ func configure(
 	_make_one = _window.get_node("Panel/Margin/VBox/Actions/Make1") as Button
 	_make_x = _window.get_node("Panel/Margin/VBox/Actions/MakeX") as Button
 	_make_all = _window.get_node("Panel/Margin/VBox/Actions/MakeAll") as Button
+	_make_all.text = "Make up to 10"
 	var close := _window.get_node("Panel/Margin/VBox/Header/Close") as Button
 
 	InterfaceStyle.configure_window(_window)
@@ -333,7 +334,7 @@ func _open_quantity_dialog() -> void:
 	var maximum := _maximum_batches()
 	if maximum < 1 or _pending:
 		return
-	_quantity_input.max_value = maximum
+	_quantity_input.max_value = mini(maximum, 10)
 	_quantity_input.value = mini(maximum, 5)
 	_quantity_dialog.popup_centered()
 	_quantity_input.grab_focus()

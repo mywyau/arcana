@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 11
+	CurrentVersion            = 12
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -382,7 +382,8 @@ type PlayerSnapshot struct {
 	LastDropSequence             uint64                   `json:"last_drop_sequence,omitempty"`
 	LastInventoryMoveSequence    uint64                   `json:"last_inventory_move_sequence,omitempty"`
 	LastConsumeSequence          uint64                   `json:"last_consume_sequence,omitempty"`
-	NextConsumePulse             uint64                   `json:"next_consume_pulse,omitempty"`
+	NextFoodConsumePulse         uint64                   `json:"next_food_consume_pulse,omitempty"`
+	NextPotionConsumePulse       uint64                   `json:"next_potion_consume_pulse,omitempty"`
 	LastBrewSequence             uint64                   `json:"last_brew_sequence,omitempty"`
 	BrewRemaining                int                      `json:"brew_remaining,omitempty"`
 	NextBrewPulse                uint64                   `json:"next_brew_pulse,omitempty"`

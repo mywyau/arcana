@@ -18,7 +18,7 @@ func TestFletchingShaftsProducesTwentyAndGrantsXP(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("QueueFletch() returned an unexpected error: %v", err)
 	}
-	world.Step(600 * time.Millisecond)
+	world.Step(time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 	snapshot := mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemArrowShafts) != 20 ||
 		snapshot.Inventory.itemsQuantity(ItemKnife) != 1 ||
@@ -47,7 +47,7 @@ func TestFletchingIronArrowsConsumesBundlesOfTwenty(t *testing.T) {
 		t.Fatalf("fletching start revision = %d, want greater than %d", player.fletchingRevision, initialRevision)
 	}
 	startRevision := player.fletchingRevision
-	world.Step(600 * time.Millisecond)
+	world.Step(time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 	first := mustPlayer(t, world, "player-one")
 	if first.Inventory.itemsQuantity(ItemIronArrow) != 20 || first.FletchRemaining != 1 {
 		t.Fatalf("first arrow batch = %+v", first)
@@ -55,7 +55,7 @@ func TestFletchingIronArrowsConsumesBundlesOfTwenty(t *testing.T) {
 	if first.FletchingRevision <= startRevision {
 		t.Fatalf("first batch revision = %d, want greater than %d", first.FletchingRevision, startRevision)
 	}
-	world.Step(600 * time.Millisecond)
+	world.Step(time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 	second := mustPlayer(t, world, "player-one")
 	if second.Inventory.itemsQuantity(ItemIronArrow) != 40 ||
 		mustSkill(t, second, SkillFletching).Experience != SkillExperienceForLevel(2)+44 || second.FletchRemaining != 0 {
@@ -79,11 +79,29 @@ func TestFletchingExperienceRaisesFletchingLevel(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("QueueFletch(make all) returned an unexpected error: %v", err)
 	}
-	world.Step(10 * actionPulseInterval)
+	world.Step(10 * time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 	snapshot := mustPlayer(t, world, "player-one")
 	fletching := mustSkill(t, snapshot, SkillFletching)
 	if fletching.Experience != 100 || fletching.Level != SkillLevelForExperience(100) {
 		t.Fatalf("Fletching progress = %+v, want 100 XP on the current curve", fletching)
+	}
+}
+
+func TestMakeAllFletchingIsCappedAtTenBatches(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatal(err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemKnife, 1)
+	player.inventory.add(ItemNormalLogs, 12)
+	if err := world.QueueFletch(FletchCommand{
+		PlayerID: "player-one", Sequence: 1, RecipeID: FletchArrowShafts, Quantity: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if player.fletchRemaining != maximumProductionBatchSize {
+		t.Fatalf("make-all fletching remaining = %d, want %d", player.fletchRemaining, maximumProductionBatchSize)
 	}
 }
 
@@ -122,13 +140,13 @@ func TestBasicFletchingChainProducesUsableIronArrows(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("fletch arrow shafts: %v", err)
 	}
-	world.Step(actionPulseInterval)
+	world.Step(time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 	if err := world.QueueFletch(FletchCommand{
 		PlayerID: "player-one", Sequence: 2, RecipeID: FletchIronArrows, Quantity: 1,
 	}); err != nil {
 		t.Fatalf("assemble iron arrows: %v", err)
 	}
-	world.Step(actionPulseInterval)
+	world.Step(time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 
 	snapshot := mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemIronArrow) != 20 ||
@@ -177,11 +195,11 @@ func TestCarveAndStringShortbow(t *testing.T) {
 	if err := world.QueueFletch(FletchCommand{PlayerID: "player-one", Sequence: 1, RecipeID: FletchUnstrungShortbow, Quantity: 1}); err != nil {
 		t.Fatalf("carve shortbow: %v", err)
 	}
-	world.Step(2 * actionPulseInterval)
+	world.Step(time.Duration(fletchingCarvingIntervalPulses) * actionPulseInterval)
 	if err := world.QueueFletch(FletchCommand{PlayerID: "player-one", Sequence: 2, RecipeID: FletchShortbow, Quantity: 1}); err != nil {
 		t.Fatalf("string shortbow: %v", err)
 	}
-	world.Step(actionPulseInterval)
+	world.Step(time.Duration(fletchingAssemblyIntervalPulses) * actionPulseInterval)
 	if player.inventory.quantity(string(WeaponBow)) != 1 || player.inventory.quantity(ItemBowstring) != 0 || player.inventory.quantity(ItemNormalLogs) != 0 {
 		t.Fatalf("shortbow inventory = %+v", player.inventory)
 	}

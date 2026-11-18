@@ -135,7 +135,8 @@ type PlayerSnapshot struct {
 	LastDropSequence             uint64
 	LastInventoryMoveSequence    uint64
 	LastConsumeSequence          uint64
-	NextConsumePulse             uint64
+	NextFoodConsumePulse         uint64
+	NextPotionConsumePulse       uint64
 	LastBrewSequence             uint64
 	BrewRemaining                int
 	NextBrewPulse                uint64
@@ -234,7 +235,8 @@ type playerState struct {
 	lastDropSequence             uint64
 	lastInventoryMoveSequence    uint64
 	lastConsumeSequence          uint64
-	nextConsumePulse             uint64
+	nextFoodConsumePulse         uint64
+	nextPotionConsumePulse       uint64
 	combatBoosts                 map[SkillID]activeCombatBoost
 	combatBoostsRevision         uint64
 	lastBrewSequence             uint64
@@ -903,7 +905,8 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		LastDropSequence:             player.lastDropSequence,
 		LastInventoryMoveSequence:    player.lastInventoryMoveSequence,
 		LastConsumeSequence:          player.lastConsumeSequence,
-		NextConsumePulse:             player.nextConsumePulse,
+		NextFoodConsumePulse:         player.nextFoodConsumePulse,
+		NextPotionConsumePulse:       player.nextPotionConsumePulse,
 		LastBrewSequence:             player.lastBrewSequence,
 		BrewRemaining:                player.brewRemaining,
 		NextBrewPulse:                player.nextBrewPulse,

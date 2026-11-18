@@ -27,8 +27,43 @@ func TestCookedMinnowHealsConsumesOneAndDelaysAttack(t *testing.T) {
 	if snapshot.Health != 98 || snapshot.Inventory.itemsQuantity(ItemCookedMinnow) != 2 {
 		t.Fatalf("player after eating = %+v", snapshot)
 	}
-	if snapshot.LastConsumeSequence != 1 || snapshot.NextConsumePulse != 2 || snapshot.NextAttackPulse != 2 {
+	if snapshot.LastConsumeSequence != 1 || snapshot.NextFoodConsumePulse != 2 ||
+		snapshot.NextPotionConsumePulse != 0 || snapshot.NextAttackPulse != 2 {
 		t.Fatalf("consume cadence after eating = %+v", snapshot)
+	}
+}
+
+func TestFoodAndPotionCooldownsAreIndependent(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	player := world.players["player-one"]
+	player.health = 50
+	player.prayer = 50
+	if !player.inventory.add(ItemCookedMinnow, 1) || !player.inventory.add(ItemPrayerPotion, 1) {
+		t.Fatal("could not add test consumables")
+	}
+	if err := world.QueueConsumeItem(ConsumeItemCommand{
+		PlayerID: "player-one", Sequence: 1, ItemID: ItemCookedMinnow, InventorySlot: 0,
+	}); err != nil {
+		t.Fatalf("QueueConsumeItem(food) returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+
+	if err := world.QueueConsumeItem(ConsumeItemCommand{
+		PlayerID: "player-one", Sequence: 2, ItemID: ItemPrayerPotion, InventorySlot: 1,
+	}); err != nil {
+		t.Fatalf("QueueConsumeItem(potion) during food cooldown returned an unexpected error: %v", err)
+	}
+	world.Step(50 * time.Millisecond)
+
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.Health != 58 || snapshot.Prayer != 75 {
+		t.Fatalf("player after food and potion = %+v", snapshot)
+	}
+	if snapshot.NextFoodConsumePulse != 2 || snapshot.NextPotionConsumePulse != 2 {
+		t.Fatalf("independent consume cadence = %+v", snapshot)
 	}
 }
 

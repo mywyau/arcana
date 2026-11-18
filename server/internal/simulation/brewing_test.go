@@ -22,6 +22,10 @@ func TestKnownThreeItemBrewCreatesPrayerPotionAndGrantsHerbloreXP(t *testing.T) 
 	}); err != nil {
 		t.Fatalf("QueueBrew() returned an unexpected error: %v", err)
 	}
+	world.Step(time.Duration(brewingIntervalPulses-1) * actionPulseInterval)
+	if got := mustPlayer(t, world, "player-one").Inventory.itemsQuantity(ItemPrayerPotion); got != 0 {
+		t.Fatalf("prayer potions before brewing interval = %d, want 0", got)
+	}
 	world.Step(actionPulseInterval)
 	snapshot := mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemPrayerPotion) != 1 ||
@@ -31,7 +35,7 @@ func TestKnownThreeItemBrewCreatesPrayerPotionAndGrantsHerbloreXP(t *testing.T) 
 	}
 }
 
-func TestMakeAllBrewsOnePotionPerSixHundredMillisecondPulse(t *testing.T) {
+func TestMakeAllBrewsOnePotionPerBrewingInterval(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -51,7 +55,7 @@ func TestMakeAllBrewsOnePotionPerSixHundredMillisecondPulse(t *testing.T) {
 	previousRevision := player.brewingRevision
 
 	for made := 1; made <= 3; made++ {
-		world.Step(600 * time.Millisecond)
+		world.Step(time.Duration(brewingIntervalPulses) * actionPulseInterval)
 		snapshot := mustPlayer(t, world, "player-one")
 		if got := snapshot.Inventory.itemsQuantity(ItemMinorHealingPotion); got != made {
 			t.Fatalf("potions after %d pulse(s) = %d, want %d", made, got, made)
@@ -63,6 +67,33 @@ func TestMakeAllBrewsOnePotionPerSixHundredMillisecondPulse(t *testing.T) {
 			t.Fatalf("brewing revision after potion %d = %d, want greater than %d", made, snapshot.BrewingRevision, previousRevision)
 		}
 		previousRevision = snapshot.BrewingRevision
+	}
+}
+
+func TestMakeAllBrewingIsCappedAtTenPotions(t *testing.T) {
+	world := NewWorld()
+	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
+		t.Fatal(err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemVialOfWater, 12)
+	player.inventory.add(ItemSunleaf, 12)
+	if err := world.QueueBrew(BrewCommand{
+		PlayerID: "player-one", Sequence: 1,
+		ItemIDs: []string{ItemVialOfWater, ItemSunleaf}, Quantity: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if player.brewRemaining != maximumProductionBatchSize {
+		t.Fatalf("make-all brewing remaining = %d, want %d", player.brewRemaining, maximumProductionBatchSize)
+	}
+	for range maximumProductionBatchSize {
+		world.Step(time.Duration(brewingIntervalPulses) * actionPulseInterval)
+	}
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.Inventory.itemsQuantity(ItemMinorHealingPotion) != maximumProductionBatchSize ||
+		snapshot.Inventory.itemsQuantity(ItemVialOfWater) != 2 {
+		t.Fatalf("inventory after capped brewing = %+v", snapshot.Inventory)
 	}
 }
 

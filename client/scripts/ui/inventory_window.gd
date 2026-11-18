@@ -49,7 +49,8 @@ func render(presentations: Dictionary, capacity: int) -> void:
 
 
 func _change_page(direction: int) -> void:
-	var page_count := ceili(float(_total_slots) / float(_page_size))
+	var visible_slots := maxi(1, mini(_capacity, _total_slots))
+	var page_count := ceili(float(visible_slots) / float(_page_size))
 	_page = clampi(_page + direction, 0, page_count - 1)
 	_rebuild()
 
@@ -61,10 +62,11 @@ func _rebuild() -> void:
 		_grid.remove_child(child)
 		child.queue_free()
 	var unlocked_slots := mini(_capacity, _total_slots)
-	var page_count := ceili(float(_total_slots) / float(_page_size))
+	var visible_slots := maxi(1, unlocked_slots)
+	var page_count := ceili(float(visible_slots) / float(_page_size))
 	_page = clampi(_page, 0, page_count - 1)
 	var first_slot := _page * _page_size
-	var final_slot := mini(first_slot + _page_size, _total_slots)
+	var final_slot := mini(first_slot + _page_size, unlocked_slots)
 	_summary.text = "Inventory  •  %d/%d slots used" % [_presentations.size(), unlocked_slots]
 	_page_label.text = "Page %d/%d" % [_page + 1, page_count]
 	_previous_button.disabled = _page == 0

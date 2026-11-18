@@ -25,7 +25,7 @@ const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
 const MENU_TAB_BAR_GAP: float = 10.0
-const INVENTORY_TOTAL_SLOTS: int = 50
+const INVENTORY_TOTAL_SLOTS: int = 28
 const INVENTORY_PAGE_SIZE: int = INVENTORY_TOTAL_SLOTS
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
 const GAME_MESSAGE_LIMIT: int = 100
@@ -389,17 +389,17 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"diamond_amulet": "Defence level 5",
 }
 const CONSUMABLE_ITEMS: Dictionary = {
-	"cooked_minnow": {"healing": 8, "stack_limit": 5},
-	"cooked_trout": {"healing": 12, "stack_limit": 5},
-	"cooked_salmon": {"healing": 16, "stack_limit": 5},
-	"cooked_tuna": {"healing": 20, "stack_limit": 5},
-	"cooked_lobster": {"healing": 25, "stack_limit": 5},
-	"prayer_potion": {"prayer_restore": 25, "stack_limit": 5},
-	"minor_healing_potion": {"healing": 15, "stack_limit": 5},
-	"murky_brew": {"healing": 5, "stack_limit": 5},
-	"melee_potion": {"boost": "+3 Attack, Strength, and Defence for 5 minutes", "stack_limit": 5},
-	"ranging_potion": {"boost": "+3 Range for 5 minutes", "stack_limit": 5},
-	"magic_potion": {"boost": "+3 Magic for 5 minutes", "stack_limit": 5},
+	"cooked_minnow": {"healing": 8, "stack_limit": 5, "cooldown_group": "food"},
+	"cooked_trout": {"healing": 12, "stack_limit": 5, "cooldown_group": "food"},
+	"cooked_salmon": {"healing": 16, "stack_limit": 5, "cooldown_group": "food"},
+	"cooked_tuna": {"healing": 20, "stack_limit": 5, "cooldown_group": "food"},
+	"cooked_lobster": {"healing": 25, "stack_limit": 5, "cooldown_group": "food"},
+	"prayer_potion": {"prayer_restore": 25, "stack_limit": 5, "cooldown_group": "potion"},
+	"minor_healing_potion": {"healing": 15, "stack_limit": 5, "cooldown_group": "potion"},
+	"murky_brew": {"healing": 5, "stack_limit": 5, "cooldown_group": "potion"},
+	"melee_potion": {"boost": "+3 Attack, Strength, and Defence for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"ranging_potion": {"boost": "+3 Range for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"magic_potion": {"boost": "+3 Magic for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
 }
 const BREWING_INGREDIENTS: Dictionary = {
 	"vial_of_water": {"name": "Vial of Water", "role": "Base"},
@@ -614,7 +614,8 @@ var _next_attack_pulse: int = 0
 var _auto_approaching: bool = false
 var _action_pulse: int = 0
 var _last_consume_sequence: int = 0
-var _next_consume_pulse: int = 0
+var _next_food_consume_pulse: int = 0
+var _next_potion_consume_pulse: int = 0
 var _queued_consume_item: String = ""
 var _queued_consume_slot: int = -1
 var _last_gather_sequence: int = 0
@@ -721,7 +722,7 @@ var _combat_style: String = "crush"
 var _last_combat_style_sequence: int = 0
 var _next_combat_style_sequence: int = 1
 var _queued_combat_style: String = ""
-var _inventory_capacity: int = 20
+var _inventory_capacity: int = 16
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
 var _inventory_revision: int = -1
@@ -1862,7 +1863,7 @@ func _request_brew(item_ids: Array[String], quantity: int, maximum_available: in
 	if network.send_brew(_next_brew_sequence, item_ids, quantity):
 		_next_brew_sequence += 1
 		_brew_pending = true
-		_brew_remaining = maximum_available if quantity == 0 else quantity
+		_brew_remaining = mini(maximum_available, 10) if quantity == 0 else quantity
 		_sync_brewing_ui()
 
 
@@ -1904,7 +1905,7 @@ func _request_fletch(recipe_id: String, quantity: int, maximum_available: int) -
 	if network.send_fletch(_next_fletch_sequence, recipe_id, quantity):
 		_next_fletch_sequence += 1
 		_fletch_pending = true
-		_fletch_remaining = maximum_available if quantity == 0 else quantity
+		_fletch_remaining = mini(maximum_available, 10) if quantity == 0 else quantity
 		_sync_fletching_ui()
 
 
@@ -2523,14 +2524,25 @@ func _request_consume_item(item_id: String, inventory_slot: int) -> void:
 	if not can_benefit:
 		status_label.text = "You are already at full %s" % ("prayer" if restores_prayer else "health")
 		return
-	if _action_pulse < _next_consume_pulse:
-		status_label.text = "Consumable cooldown: %d pulse(s) remaining" % (_next_consume_pulse - _action_pulse)
+	var cooldown_group: String = str(consumable.get("cooldown_group", "food"))
+	var next_consume_pulse: int = _consume_cooldown_pulse(item_id)
+	if _action_pulse < next_consume_pulse:
+		status_label.text = "%s cooldown: %d pulse(s) remaining" % [
+			cooldown_group.capitalize(), next_consume_pulse - _action_pulse,
+		]
 		return
 	if network.send_consume_item(_next_consume_sequence, item_id, inventory_slot):
 		_queued_consume_item = item_id
 		_queued_consume_slot = inventory_slot
 		_next_consume_sequence += 1
 		_update_inventory_hud()
+
+
+func _consume_cooldown_pulse(item_id: String) -> int:
+	var consumable: Dictionary = CONSUMABLE_ITEMS.get(item_id, {}) as Dictionary
+	if str(consumable.get("cooldown_group", "food")) == "potion":
+		return _next_potion_consume_pulse
+	return _next_food_consume_pulse
 
 
 func _request_inventory_swap(from_slot: int, to_slot: int) -> void:
@@ -2906,7 +2918,8 @@ func _on_welcome_received(player_id: String) -> void:
 
 func _on_snapshot_received(snapshot: Dictionary) -> void:
 	var snapshot_tick: int = int(snapshot.get("tick", 0))
-	var previous_consume_cooldown: int = maxi(0, _next_consume_pulse - _action_pulse)
+	var previous_food_cooldown: int = maxi(0, _next_food_consume_pulse - _action_pulse)
+	var previous_potion_cooldown: int = maxi(0, _next_potion_consume_pulse - _action_pulse)
 	_action_pulse = int(snapshot.get("action_pulse", 0))
 	_sync_snapshot_world(snapshot)
 	var full_reconciliation: bool = bool(snapshot.get("full_reconciliation", false))
@@ -3041,7 +3054,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			inventory_selection_changed = (
 				_apply_local_production_progress_snapshot(player_data) or inventory_selection_changed
 			)
-			if maxi(0, _next_consume_pulse - _action_pulse) != previous_consume_cooldown:
+			if (
+				maxi(0, _next_food_consume_pulse - _action_pulse) != previous_food_cooldown
+				or maxi(0, _next_potion_consume_pulse - _action_pulse) != previous_potion_cooldown
+			):
 				inventory_selection_changed = true
 			var gathering_revision: int = int(player_data.get("gathering_revision", _gathering_revision))
 			var gathering_changed: bool = full_reconciliation or gathering_revision != _gathering_revision
@@ -3513,7 +3529,8 @@ func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -
 func _apply_local_production_progress_snapshot(player_data: Dictionary) -> bool:
 	var inventory_selection_changed := false
 	_last_consume_sequence = int(player_data.get("last_consume_sequence", 0))
-	_next_consume_pulse = int(player_data.get("next_consume_pulse", 0))
+	_next_food_consume_pulse = int(player_data.get("next_food_consume_pulse", 0))
+	_next_potion_consume_pulse = int(player_data.get("next_potion_consume_pulse", 0))
 	_next_consume_sequence = maxi(_next_consume_sequence, _last_consume_sequence + 1)
 	if _last_consume_sequence >= _next_consume_sequence - 1 and not _queued_consume_item.is_empty():
 		var consumed_item_id: String = _queued_consume_item
@@ -5197,8 +5214,12 @@ func _skill_guide_categories(skill_id: String) -> Dictionary:
 			continue
 		for recipe_value: Variant in _production_recipes.get(station, []):
 			var recipe := recipe_value as Dictionary
+			var category: String = _production_skill_guide_category(station, recipe)
+			var recipe_name: String = str(recipe.get("name", "Recipe"))
+			if station == "fletching" and category == "bows":
+				recipe_name = _fletching_bow_guide_name(recipe)
 			_add_skill_guide_entry(categories, {
-				"category": "production", "action": "Create", "name": str(recipe.get("name", "Recipe")),
+				"category": category, "action": "Create", "name": recipe_name,
 				"required_level": int(recipe.get("required_level", 1)),
 			})
 
@@ -5222,6 +5243,29 @@ func _skill_guide_categories(skill_id: String) -> Dictionary:
 	return categories
 
 
+func _production_skill_guide_category(station: String, recipe: Dictionary) -> String:
+	if station != "fletching":
+		return "production"
+	var reward_item: String = str(recipe.get("reward_item", ""))
+	if reward_item.contains("bolt"):
+		return "bolts"
+	if reward_item == "arrow_shafts":
+		return "components"
+	if reward_item.contains("arrow"):
+		return "arrows"
+	if reward_item.contains("bow"):
+		return "bows"
+	return "other"
+
+
+func _fletching_bow_guide_name(recipe: Dictionary) -> String:
+	var reward_item: String = str(recipe.get("reward_item", ""))
+	for timber: String in ["oak", "willow", "maple", "yew"]:
+		if reward_item.contains(timber + "_shortbow"):
+			return "%s Shortbow" % timber.capitalize()
+	return "Shortbow"
+
+
 func _skill_guide_text(skill_id: String, current_level: int, category_filter: String = "") -> String:
 	var categories := _skill_guide_categories(skill_id)
 
@@ -5241,21 +5285,26 @@ func _skill_guide_text(skill_id: String, current_level: int, category_filter: St
 				left_level == right_level and str(left.get("name", "")) < str(right.get("name", ""))
 			)
 		)
-		output.append("[font_size=18][b]%s[/b][/font_size]" % category.capitalize())
+		output.append("[font_size=18][b]%s[/b][/font_size]" % _skill_guide_category_name(category))
+		output.append("[table=2]")
 		for entry_value: Variant in entries:
 			var entry := entry_value as Dictionary
 			var required_level: int = int(entry.get("required_level", 1))
-			var colour: String = "#91d889" if required_level <= current_level else "#8b929c"
-			output.append("[color=%s][b]Lv %d[/b][/color]  %s %s" % [
-				colour, required_level, str(entry.get("action", "Use")), str(entry.get("name", "Unlock")),
+			var colour: String = "#47347f" if required_level <= current_level else "#5c607a"
+			output.append("[cell][right][color=%s][b]Lv %d[/b][/color][/right][/cell][cell]  %s[/cell]" % [
+				colour, required_level, str(entry.get("name", "Unlock")),
 			])
+		output.append("[/table]")
 		output.append("")
 	return "\n".join(output)
 
 
 func _ordered_skill_guide_categories(categories: Dictionary) -> Array[String]:
 	var ordered: Array[String] = []
-	for category: String in ["gathering", "equipment", "production", "spells", "prayers"]:
+	for category: String in [
+		"gathering", "weapons", "armour", "ammunition", "spellbooks", "tools", "equipment",
+		"bows", "arrows", "bolts", "components", "production", "spells", "prayers", "other",
+	]:
 		if categories.has(category) and not (categories[category] as Array).is_empty():
 			ordered.append(category)
 	var remaining: Array[String] = []
@@ -5297,7 +5346,16 @@ func _refresh_skill_guide_tabs(categories: Dictionary) -> void:
 func _skill_guide_category_name(category: String) -> String:
 	match category:
 		"gathering": return "Gathering"
+		"weapons": return "Weapons"
+		"armour": return "Armour"
+		"ammunition": return "Ammunition"
+		"spellbooks": return "Spellbooks"
+		"tools": return "Tools"
 		"equipment": return "Equipment"
+		"bows": return "Bows"
+		"arrows": return "Arrows"
+		"bolts": return "Bolts"
+		"components": return "Components"
 		"production": return "Recipes"
 		"spells": return "Spells"
 		"prayers": return "Prayers"
@@ -5314,6 +5372,14 @@ func _on_skill_guide_category_selected(category: String) -> void:
 func _add_skill_guide_entry(categories: Dictionary, entry: Dictionary) -> void:
 	var category: String = str(entry.get("category", "other"))
 	var entries: Array = categories.get(category, []) as Array
+	for existing_value: Variant in entries:
+		var existing := existing_value as Dictionary
+		if (
+			str(existing.get("action", "")) == str(entry.get("action", ""))
+			and str(existing.get("name", "")) == str(entry.get("name", ""))
+			and int(existing.get("required_level", 1)) == int(entry.get("required_level", 1))
+		):
+			return
 	entries.append(entry)
 	categories[category] = entries
 
@@ -6569,7 +6635,7 @@ func _update_inventory_hud() -> void:
 			"disabled": _player_defeated and is_equipable,
 			"highlight": "pending" if is_queued or is_consume_queued else "equipped" if is_equipped else "",
 			"cooldown_seconds": (
-				float(maxi(0, _next_consume_pulse - _action_pulse)) * ACTION_PULSE_SECONDS
+				float(maxi(0, _consume_cooldown_pulse(item_id) - _action_pulse)) * ACTION_PULSE_SECONDS
 				if is_consumable else 0.0
 			),
 		}

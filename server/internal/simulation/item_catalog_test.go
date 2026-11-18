@@ -164,8 +164,18 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		t.Fatalf("Unarmed definition = %+v, %t; want virtual item", unarmed, exists)
 	}
 	for _, itemID := range []string{ItemNormalLogs, ItemOakLogs, ItemWillowLogs, ItemMapleLogs, ItemYewLogs} {
-		if definition, _ := itemDefinition(itemID); definition.StackLimit != 10 {
-			t.Errorf("%s stack limit = %d, want 10", itemID, definition.StackLimit)
+		if definition, _ := itemDefinition(itemID); definition.StackLimit != bulkyResourceStackLimit {
+			t.Errorf("%s stack limit = %d, want %d", itemID, definition.StackLimit, bulkyResourceStackLimit)
+		}
+	}
+	for _, itemID := range []string{
+		ItemCopperOre, ItemTinOre, ItemIronOre, ItemCoal, ItemMithrilOre,
+		ItemGoldOre, ItemSilverOre, ItemAdamantiteOre, ItemClay,
+		ItemBronzeBar, ItemIronBar, ItemSteelBar, ItemMithrilBar,
+		ItemGoldBar, ItemSilverBar, ItemAdamantiteBar, ItemLeather, ItemBones,
+	} {
+		if definition, _ := itemDefinition(itemID); definition.StackLimit != bulkyResourceStackLimit {
+			t.Errorf("bulky resource %s stack limit = %d, want %d", itemID, definition.StackLimit, bulkyResourceStackLimit)
 		}
 	}
 	for _, itemID := range []string{ItemKnife, ItemChisel, ItemSewingNeedle, ItemTinderbox, ItemHammer, ItemFishingRod, ItemLobsterCage} {

@@ -1414,7 +1414,8 @@ func populateLocalPlayerMessage(message *protocol.PlayerSnapshot, player simulat
 	message.LastMerchantSequence = player.LastMerchantSequence
 	message.LastPickupSequence = player.LastPickupSequence
 	message.LastConsumeSequence = player.LastConsumeSequence
-	message.NextConsumePulse = player.NextConsumePulse
+	message.NextFoodConsumePulse = player.NextFoodConsumePulse
+	message.NextPotionConsumePulse = player.NextPotionConsumePulse
 	message.LastBrewSequence = player.LastBrewSequence
 	message.BrewRemaining = player.BrewRemaining
 	message.NextBrewPulse = player.NextBrewPulse

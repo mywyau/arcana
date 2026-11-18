@@ -48,7 +48,7 @@ func TestPersistentPlayerStateRoundTripsEveryDurableSubsystem(t *testing.T) {
 		ArmourSlotHead: 2, ArmourSlotBody: 3, ArmourSlotLeftHand: 1,
 	}
 	state.EquippedSpellbook = ItemHolyBook
-	state.Inventory = InventorySnapshot{Capacity: 35, Items: []InventoryItem{
+	state.Inventory = InventorySnapshot{Capacity: MaxInventoryCapacity, Items: []InventoryItem{
 		{Slot: 0, ItemID: ItemCoins, Quantity: 12_345},
 		{Slot: 7, ItemID: string(WeaponDagger), Quantity: 1, InstanceID: "inventory-dagger", Reinforcement: 2},
 	}}

@@ -3,6 +3,7 @@ package simulation
 import "fmt"
 
 const MaximumItemStackQuantity = 2_147_483_647
+const bulkyResourceStackLimit = 10
 
 type ItemKind string
 
@@ -132,10 +133,18 @@ const (
 	runeEquipmentLevel       = 25
 )
 
+type ConsumableCooldownGroup string
+
+const (
+	ConsumableCooldownFood   ConsumableCooldownGroup = "food"
+	ConsumableCooldownPotion ConsumableCooldownGroup = "potion"
+)
+
 type ConsumableDefinition struct {
 	Healing           int
 	PrayerRestoration int
 	CooldownPulses    uint64
+	CooldownGroup     ConsumableCooldownGroup
 	DelaysAttacks     bool
 	SkillBoosts       []SkillBoostDefinition
 	BoostDuration     uint64
@@ -522,11 +531,11 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemDarkRune, Name: "Dark Rune", Kind: ItemKindResource},
 	{ID: ItemFocusRune, Name: "Focus Rune", Kind: ItemKindResource},
 	{ID: ItemBlankRune, Name: "Blank Rune", Kind: ItemKindResource},
-	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: 25},
-	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource},
-	{ID: ItemSilverOre, Name: "Silver Ore", Kind: ItemKindResource},
-	{ID: ItemClay, Name: "Clay", Kind: ItemKindResource},
-	{ID: ItemAdamantiteOre, Name: "Adamantite Ore", Kind: ItemKindResource},
+	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemSilverOre, Name: "Silver Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemClay, Name: "Clay", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemAdamantiteOre, Name: "Adamantite Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemUncutSapphire, Name: "Uncut Sapphire", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemSapphire, Name: "Sapphire", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemUncutEmerald, Name: "Uncut Emerald", Kind: ItemKindResource, StackLimit: 10},
@@ -545,7 +554,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemSteelBolt, Name: "Steel Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
 	{ID: ItemMithrilBolt, Name: "Mithril Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 2, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
 	{ID: ItemAdamantiteBolt, Name: "Adamantite Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 3, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
-	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: bronzeEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe"}},
 	{ID: ItemIronPickaxe, Name: "Iron Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: ironEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe", SuccessBonus: 0.05}},
@@ -585,19 +594,19 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemUnstrungYewShortbow, Name: "Unstrung Yew Shortbow", Kind: ItemKindResource},
 	{
 		ID: ItemPrayerPotion, Name: "Prayer Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{PrayerRestoration: 25, CooldownPulses: 2},
+		Consumable: ConsumableDefinition{PrayerRestoration: 25, CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion},
 	},
 	{
 		ID: ItemMinorHealingPotion, Name: "Minor Healing Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{Healing: 15, CooldownPulses: 2},
+		Consumable: ConsumableDefinition{Healing: 15, CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion},
 	},
 	{
 		ID: ItemMurkyBrew, Name: "Murky Brew", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{Healing: 5, CooldownPulses: 2},
+		Consumable: ConsumableDefinition{Healing: 5, CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion},
 	},
 	{
 		ID: ItemMeleePotion, Name: "Melee Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{CooldownPulses: 2, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
+		Consumable: ConsumableDefinition{CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
 			{Skill: SkillAttack, Levels: combatPotionBoostLevels},
 			{Skill: SkillStrength, Levels: combatPotionBoostLevels},
 			{Skill: SkillDefence, Levels: combatPotionBoostLevels},
@@ -605,47 +614,47 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: ItemRangingPotion, Name: "Ranging Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{CooldownPulses: 2, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
+		Consumable: ConsumableDefinition{CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
 			{Skill: SkillRange, Levels: combatPotionBoostLevels},
 		}},
 	},
 	{
 		ID: ItemMagicPotion, Name: "Magic Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{CooldownPulses: 2, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
+		Consumable: ConsumableDefinition{CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
 			{Skill: SkillMagic, Levels: combatPotionBoostLevels},
 		}},
 	},
-	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemWillowLogs, Name: "Willow Logs", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemMapleLogs, Name: "Maple Logs", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemYewLogs, Name: "Yew Logs", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource},
-	{ID: ItemTinOre, Name: "Tin Ore", Kind: ItemKindResource},
-	{ID: ItemIronOre, Name: "Iron Ore", Kind: ItemKindResource},
-	{ID: ItemCoal, Name: "Coal", Kind: ItemKindResource},
-	{ID: ItemMithrilOre, Name: "Mithril Ore", Kind: ItemKindResource},
-	{ID: ItemBronzeBar, Name: "Bronze Bar", Kind: ItemKindResource},
-	{ID: ItemIronBar, Name: "Iron Bar", Kind: ItemKindResource},
-	{ID: ItemMithrilBar, Name: "Mithril Bar", Kind: ItemKindResource},
-	{ID: ItemGoldBar, Name: "Gold Bar", Kind: ItemKindResource},
-	{ID: ItemSilverBar, Name: "Silver Bar", Kind: ItemKindResource},
-	{ID: ItemSteelBar, Name: "Steel Bar", Kind: ItemKindResource},
-	{ID: ItemAdamantiteBar, Name: "Adamantite Bar", Kind: ItemKindResource},
+	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemWillowLogs, Name: "Willow Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemMapleLogs, Name: "Maple Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemYewLogs, Name: "Yew Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemCopperOre, Name: "Copper Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemTinOre, Name: "Tin Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemIronOre, Name: "Iron Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemCoal, Name: "Coal", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemMithrilOre, Name: "Mithril Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemBronzeBar, Name: "Bronze Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemIronBar, Name: "Iron Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemMithrilBar, Name: "Mithril Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemGoldBar, Name: "Gold Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemSilverBar, Name: "Silver Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemSteelBar, Name: "Steel Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemAdamantiteBar, Name: "Adamantite Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{
 		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
 		StackLimit: 5,
-		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2, DelaysAttacks: true},
+		Consumable: ConsumableDefinition{Healing: 8, CooldownPulses: 2, CooldownGroup: ConsumableCooldownFood, DelaysAttacks: true},
 	},
 	{ID: ItemRawMinnow, Name: "Raw Minnow", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemRawTrout, Name: "Raw Trout", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedTrout, Name: "Cooked Trout", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 12, CooldownPulses: 2, DelaysAttacks: true}},
+	{ID: ItemCookedTrout, Name: "Cooked Trout", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 12, CooldownPulses: 2, CooldownGroup: ConsumableCooldownFood, DelaysAttacks: true}},
 	{ID: ItemRawSalmon, Name: "Raw Salmon", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedSalmon, Name: "Cooked Salmon", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 16, CooldownPulses: 2, DelaysAttacks: true}},
+	{ID: ItemCookedSalmon, Name: "Cooked Salmon", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 16, CooldownPulses: 2, CooldownGroup: ConsumableCooldownFood, DelaysAttacks: true}},
 	{ID: ItemRawTuna, Name: "Raw Tuna", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedTuna, Name: "Cooked Tuna", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 20, CooldownPulses: 2, DelaysAttacks: true}},
+	{ID: ItemCookedTuna, Name: "Cooked Tuna", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 20, CooldownPulses: 2, CooldownGroup: ConsumableCooldownFood, DelaysAttacks: true}},
 	{ID: ItemRawLobster, Name: "Raw Lobster", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemCookedLobster, Name: "Cooked Lobster", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 25, CooldownPulses: 2, DelaysAttacks: true}},
+	{ID: ItemCookedLobster, Name: "Cooked Lobster", Kind: ItemKindConsumable, StackLimit: 5, Consumable: ConsumableDefinition{Healing: 25, CooldownPulses: 2, CooldownGroup: ConsumableCooldownFood, DelaysAttacks: true}},
 })
 
 type weaponStyleDefinition struct {
@@ -737,6 +746,10 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 				definition.Consumable.Healing < 0 || definition.Consumable.PrayerRestoration < 0 ||
 				(definition.Consumable.Healing == 0 && definition.Consumable.PrayerRestoration == 0 && len(definition.Consumable.SkillBoosts) == 0) {
 				return nil, fmt.Errorf("consumable %q requires a stack limit, positive effect, and cooldown", definition.ID)
+			}
+			if definition.Consumable.CooldownGroup != ConsumableCooldownFood &&
+				definition.Consumable.CooldownGroup != ConsumableCooldownPotion {
+				return nil, fmt.Errorf("consumable %q requires a valid cooldown group", definition.ID)
 			}
 			if len(definition.Consumable.SkillBoosts) > 0 && definition.Consumable.BoostDuration == 0 {
 				return nil, fmt.Errorf("consumable %q has boosts without a duration", definition.ID)

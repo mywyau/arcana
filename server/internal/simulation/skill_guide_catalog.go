@@ -1,6 +1,10 @@
 package simulation
 
-import "sort"
+import (
+	"sort"
+	"strconv"
+	"strings"
+)
 
 // SkillGuideEntrySnapshot exposes level unlock metadata without leaking the
 // rest of the authoritative item or world definitions to the client.
@@ -17,6 +21,7 @@ type SkillGuideEntrySnapshot struct {
 // spell, and prayer unlocks already have dedicated client catalogues.
 func SkillGuideCatalog() []SkillGuideEntrySnapshot {
 	entries := make([]SkillGuideEntrySnapshot, 0)
+	tierSummaries := make(map[string]SkillGuideEntrySnapshot)
 	for _, spot := range newGatheringSpots() {
 		if spot.RequiredLevel < 1 || spot.Skill == "" {
 			continue
@@ -52,11 +57,22 @@ func SkillGuideCatalog() []SkillGuideEntrySnapshot {
 			} else if item.Ammunition {
 				action = "Equip"
 			}
-			entries = append(entries, SkillGuideEntrySnapshot{
-				ID: item.ID, Skill: requirement.Skill, Category: "equipment", Action: action,
+			entry := SkillGuideEntrySnapshot{
+				ID: item.ID, Skill: requirement.Skill, Category: skillGuideItemCategory(item), Action: action,
 				Name: item.Name, RequiredLevel: requirement.Level,
-			})
+			}
+			if summary, ok := skillGuideTierSummary(item, entry); ok {
+				key := strings.Join([]string{
+					string(summary.Skill), summary.Category, summary.Name, strconv.Itoa(summary.RequiredLevel),
+				}, "|")
+				tierSummaries[key] = summary
+				continue
+			}
+			entries = append(entries, entry)
 		}
+	}
+	for _, summary := range tierSummaries {
+		entries = append(entries, summary)
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Skill != entries[j].Skill {
@@ -71,4 +87,57 @@ func SkillGuideCatalog() []SkillGuideEntrySnapshot {
 		return entries[i].Name < entries[j].Name
 	})
 	return entries
+}
+
+func skillGuideTierSummary(item ItemDefinition, entry SkillGuideEntrySnapshot) (SkillGuideEntrySnapshot, bool) {
+	tier, ok := skillGuideTierName(item, entry.Category)
+	if !ok {
+		return SkillGuideEntrySnapshot{}, false
+	}
+	suffix := "equipment"
+	switch entry.Category {
+	case "weapons":
+		suffix = "weapons"
+	case "armour":
+		suffix = "armour"
+	case "ammunition":
+		suffix = "ammunition"
+	}
+	entry.ID = "tier:" + strings.ToLower(strings.ReplaceAll(tier, "'", "")) + ":" + entry.Category
+	entry.Name = tier + " " + suffix
+	return entry, true
+}
+
+func skillGuideTierName(item ItemDefinition, category string) (string, bool) {
+	for _, tier := range []string{"Bronze", "Iron", "Steel", "Mithril", "Adamantite", "Rune"} {
+		if strings.HasPrefix(item.Name, tier+" ") {
+			return tier, true
+		}
+	}
+	if category != "armour" {
+		return "", false
+	}
+	for _, tier := range []string{"Mage's", "Moonspun", "Enchanted", "Stardew", "Swift", "Scout", "Tracker", "Hunter", "Marksman"} {
+		if strings.HasPrefix(item.Name, tier+" ") {
+			return tier, true
+		}
+	}
+	return "", false
+}
+
+func skillGuideItemCategory(item ItemDefinition) string {
+	switch {
+	case item.Kind == ItemKindWeapon:
+		return "weapons"
+	case item.Kind == ItemKindArmour:
+		return "armour"
+	case item.Ammunition:
+		return "ammunition"
+	case item.Kind == ItemKindSpellbook:
+		return "spellbooks"
+	case item.GatheringTool.Family != "":
+		return "tools"
+	default:
+		return "equipment"
+	}
 }

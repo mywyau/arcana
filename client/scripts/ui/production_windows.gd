@@ -331,7 +331,7 @@ func _setup_batch_controls() -> void:
 	InterfaceStyle.configure_popup_menu(_action_menu)
 	_action_menu.add_item("Make 1", 0)
 	_action_menu.add_item("Make X", 1)
-	_action_menu.add_item("Make All", 2)
+	_action_menu.add_item("Make up to 10", 2)
 	_action_menu.id_pressed.connect(_on_batch_action_selected)
 	add_child(_action_menu)
 
@@ -342,7 +342,7 @@ func _setup_batch_controls() -> void:
 	_quantity_dialog.get_ok_button().text = "Start"
 	_quantity_input = SpinBox.new()
 	_quantity_input.min_value = 1
-	_quantity_input.max_value = 10_000
+	_quantity_input.max_value = 10
 	_quantity_input.step = 1
 	_quantity_input.value = 5
 	_quantity_input.custom_minimum_size = Vector2(280, 44)

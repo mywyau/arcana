@@ -316,7 +316,8 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 				{"slot": 0, "item_id": "cooked_minnow", "quantity": 1},
 				{"slot": 1, "item_id": "prayer_potion", "quantity": 1},
 			]},
-			"next_consume_pulse": 2,
+			"next_food_consume_pulse": 2,
+			"next_potion_consume_pulse": 0,
 			"bank_revision": 1,
 			"bank": {"capacity": 100, "next_expansion_cost": 1000, "items": [{
 				"slot": 0, "item_id": "air_rune", "quantity": 5,
@@ -363,7 +364,8 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"ammunition_pouch_revision": 1,
 			"ring_rack_revision": 1,
 			"rune_pouch_revision": 1,
-			"next_consume_pulse": 2,
+			"next_food_consume_pulse": 2,
+			"next_potion_consume_pulse": 0,
 		}],
 	})
 	_check(
@@ -420,7 +422,8 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			}],
 			"combat_boosts_revision": 2,
 			"active_combat_boosts": [],
-			"next_consume_pulse": 2,
+			"next_food_consume_pulse": 2,
+			"next_potion_consume_pulse": 0,
 		}],
 	})
 	_check(
@@ -440,7 +443,8 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"brewing_revision": 2,
 			"fletching_revision": 2,
 			"gathering_revision": 2,
-			"next_consume_pulse": 2,
+			"next_food_consume_pulse": 2,
+			"next_potion_consume_pulse": 0,
 		}],
 	})
 	_check(int(main.get("_brew_remaining")) == 0, "completed brewing clears progress with an explicit revision")
@@ -450,11 +454,11 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 	var presentations: Dictionary = inventory_window._presentations
 	_check(
 		is_equal_approx(float((presentations[0] as Dictionary).get("cooldown_seconds", 0.0)), 0.6),
-		"food displays the authoritative consumable cooldown",
+		"food displays the authoritative food cooldown",
 	)
 	_check(
-		is_equal_approx(float((presentations[1] as Dictionary).get("cooldown_seconds", 0.0)), 0.6),
-		"potions display the authoritative consumable cooldown",
+		is_zero_approx(float((presentations[1] as Dictionary).get("cooldown_seconds", 0.0))),
+		"food cooldown does not appear on potions",
 	)
 
 
@@ -803,24 +807,61 @@ func _test_skill_guides_show_authoritative_unlock_levels() -> void:
 	var main: Node = MAIN_SCENE.instantiate()
 	main.call("_on_skill_guide_received", [
 		{"id": "oak", "skill": "woodcutting", "category": "gathering", "action": "Cut", "name": "Oak Tree", "required_level": 5},
-		{"id": "staff", "skill": "magic", "category": "equipment", "action": "Wield", "name": "Mage Staff", "required_level": 10},
+		{"id": "staff", "skill": "magic", "category": "weapons", "action": "Wield", "name": "Mage Staff", "required_level": 10},
+		{"id": "robe", "skill": "magic", "category": "armour", "action": "Wear", "name": "Mage Robe", "required_level": 5},
 	])
+	main.set("_production_recipes", {"fletching": [
+		{"name": "Unstrung Shortbow", "required_level": 1, "reward_item": "unstrung_shortbow"},
+		{"name": "Shortbow", "required_level": 1, "reward_item": "bow"},
+		{"name": "Unstrung Oak Shortbow", "required_level": 2, "reward_item": "unstrung_oak_shortbow"},
+		{"name": "Oak Shortbow", "required_level": 2, "reward_item": "oak_shortbow"},
+		{"name": "20 Iron Arrows", "required_level": 2, "reward_item": "iron_arrow"},
+		{"name": "20 Arrow Shafts", "required_level": 1, "reward_item": "arrow_shafts"},
+		{"name": "20 Iron Bolts", "required_level": 3, "reward_item": "iron_bolt"},
+	]})
 	var test_spells: Array[Dictionary] = [{"name": "Fire Bolt", "required_magic_level": 7}]
 	main.set("_spells", test_spells)
 	var woodcutting_guide: String = str(main.call("_skill_guide_text", "woodcutting", 3))
 	var magic_guide: String = str(main.call("_skill_guide_text", "magic", 8))
 	var magic_spells: String = str(main.call("_skill_guide_text", "magic", 8, "spells"))
-	var magic_equipment: String = str(main.call("_skill_guide_text", "magic", 8, "equipment"))
-	_check(woodcutting_guide.contains("Lv 5") and woodcutting_guide.contains("Cut Oak Tree"), "skill guide shows gathering unlock levels")
-	_check(magic_guide.contains("Lv 7") and magic_guide.contains("Cast Fire Bolt"), "skill guide shows spell unlock levels")
-	_check(magic_guide.contains("Lv 10") and magic_guide.contains("Wield Mage Staff"), "skill guide shows equipment requirements")
+	var magic_weapons: String = str(main.call("_skill_guide_text", "magic", 8, "weapons"))
+	var magic_armour: String = str(main.call("_skill_guide_text", "magic", 8, "armour"))
+	var fletching_bows: String = str(main.call("_skill_guide_text", "fletching", 8, "bows"))
+	var fletching_arrows: String = str(main.call("_skill_guide_text", "fletching", 8, "arrows"))
+	var fletching_bolts: String = str(main.call("_skill_guide_text", "fletching", 8, "bolts"))
+	_check(woodcutting_guide.contains("Lv 5") and woodcutting_guide.contains("Oak Tree"), "skill guide shows gathering unlock levels")
+	_check(not woodcutting_guide.contains("Cut Oak Tree"), "skill guide rows omit redundant action verbs")
 	_check(
-		magic_spells.contains("Cast Fire Bolt") and not magic_spells.contains("Mage Staff"),
+		magic_guide.contains("[table=2]") and magic_guide.contains("[right]") and magic_guide.contains("[cell]  "),
+		"skill guide uses an aligned level column with padded unlock names",
+	)
+	_check(magic_guide.contains("Lv 7") and magic_guide.contains("Fire Bolt"), "skill guide shows spell unlock levels")
+	_check(magic_guide.contains("Lv 10") and magic_guide.contains("Mage Staff"), "skill guide shows equipment requirements")
+	_check(
+		magic_spells.contains("Fire Bolt") and not magic_spells.contains("Mage Staff"),
 		"skill guide spell tab filters out equipment unlocks",
 	)
 	_check(
-		magic_equipment.contains("Mage Staff") and not magic_equipment.contains("Fire Bolt"),
-		"skill guide equipment tab filters out spell unlocks",
+		magic_weapons.contains("Mage Staff") and not magic_weapons.contains("Mage Robe"),
+		"combat skill guide separates weapons from armour",
+	)
+	_check(
+		magic_armour.contains("Mage Robe") and not magic_armour.contains("Mage Staff"),
+		"combat skill guide separates armour from weapons",
+	)
+	_check(
+		fletching_bows.count("Shortbow") == 2
+			and fletching_bows.contains("Lv 1") and fletching_bows.contains("Lv 2")
+			and not fletching_bows.contains("Unstrung") and not fletching_bows.contains("Iron Arrows"),
+		"fletching guide summarizes each complete bow tier once",
+	)
+	_check(
+		fletching_arrows.contains("Iron Arrows") and not fletching_arrows.contains("Oak Shortbow"),
+		"fletching guide has an arrows category",
+	)
+	_check(
+		fletching_bolts.contains("Iron Bolts") and not fletching_bolts.contains("Arrow Shafts"),
+		"fletching guide supports a bolts category",
 	)
 	main.free()
 

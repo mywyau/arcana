@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const brewingIntervalPulses uint64 = 3
+
 type BrewCommand struct {
 	PlayerID PlayerID
 	Sequence uint64
@@ -65,18 +67,21 @@ func (w *World) QueueBrew(command BrewCommand) error {
 	maximum := maximumBrewCount(player.inventory, command.ItemIDs)
 	remaining := command.Quantity
 	if remaining == 0 {
-		remaining = maximum
+		remaining = min(maximum, maximumProductionBatchSize)
+	}
+	if remaining > maximumProductionBatchSize {
+		return fmt.Errorf("brewing quantity cannot exceed %d", maximumProductionBatchSize)
 	}
 	if remaining < 1 || remaining > maximum {
 		return fmt.Errorf("cannot brew %d mixture(s); ingredients allow %d", remaining, maximum)
 	}
 	command.ItemIDs = append([]string(nil), command.ItemIDs...)
 	w.pendingBrews[command.PlayerID] = pendingBrew{
-		command: command, remaining: remaining, nextPulse: w.combat.pulse + 1,
+		command: command, remaining: remaining, nextPulse: w.combat.pulse + brewingIntervalPulses,
 	}
 	player.lastBrewSequence = command.Sequence
 	player.brewRemaining = remaining
-	player.nextBrewPulse = w.combat.pulse + 1
+	player.nextBrewPulse = w.combat.pulse + brewingIntervalPulses
 	player.brewingResult = "brewing"
 	player.brewingRevision++
 	return nil
@@ -126,7 +131,7 @@ func (w *World) applyPendingBrews() {
 			delete(w.pendingBrews, id)
 			continue
 		}
-		pending.nextPulse = w.combat.pulse + 1
+		pending.nextPulse = w.combat.pulse + brewingIntervalPulses
 		player.nextBrewPulse = pending.nextPulse
 		player.brewingRevision++
 		w.pendingBrews[id] = pending

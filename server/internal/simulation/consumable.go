@@ -59,8 +59,9 @@ func (w *World) QueueConsumeItem(command ConsumeItemCommand) error {
 	if !playerCanBenefitFromConsumable(player, item.Consumable) {
 		return fmt.Errorf("player %q is already full for item %q", command.PlayerID, command.ItemID)
 	}
-	if w.combat.pulse < player.nextConsumePulse {
-		return fmt.Errorf("consumable cooldown lasts until pulse %d", player.nextConsumePulse)
+	nextConsumePulse := consumableCooldownPulse(player, item.Consumable.CooldownGroup)
+	if w.combat.pulse < nextConsumePulse {
+		return fmt.Errorf("%s cooldown lasts until pulse %d", item.Consumable.CooldownGroup, nextConsumePulse)
 	}
 	w.pendingConsumables[command.PlayerID] = command
 	return nil
@@ -76,12 +77,12 @@ func (w *World) applyPendingConsumables() {
 		command := w.pendingConsumables[id]
 		delete(w.pendingConsumables, id)
 		player, exists := w.players[id]
-		if !exists || player.defeated ||
-			w.combat.pulse < player.nextConsumePulse {
+		if !exists || player.defeated {
 			continue
 		}
 		item, exists := itemDefinition(command.ItemID)
 		if !exists || item.Kind != ItemKindConsumable ||
+			w.combat.pulse < consumableCooldownPulse(player, item.Consumable.CooldownGroup) ||
 			!playerCanBenefitFromConsumable(player, item.Consumable) ||
 			!player.inventory.removeFromSlot(command.InventorySlot, command.ItemID, 1) {
 			continue
@@ -100,11 +101,27 @@ func (w *World) applyPendingConsumables() {
 			player.combatBoostsRevision++
 		}
 		player.lastConsumeSequence = command.Sequence
-		player.nextConsumePulse = w.combat.pulse + item.Consumable.CooldownPulses
+		nextConsumePulse := w.combat.pulse + item.Consumable.CooldownPulses
+		setConsumableCooldownPulse(player, item.Consumable.CooldownGroup, nextConsumePulse)
 		if item.Consumable.DelaysAttacks {
-			player.nextAttackPulse = max(player.nextAttackPulse, player.nextConsumePulse)
+			player.nextAttackPulse = max(player.nextAttackPulse, nextConsumePulse)
 		}
 	}
+}
+
+func consumableCooldownPulse(player *playerState, group ConsumableCooldownGroup) uint64 {
+	if group == ConsumableCooldownPotion {
+		return player.nextPotionConsumePulse
+	}
+	return player.nextFoodConsumePulse
+}
+
+func setConsumableCooldownPulse(player *playerState, group ConsumableCooldownGroup, pulse uint64) {
+	if group == ConsumableCooldownPotion {
+		player.nextPotionConsumePulse = pulse
+		return
+	}
+	player.nextFoodConsumePulse = pulse
 }
 
 func playerCanBenefitFromConsumable(player *playerState, consumable ConsumableDefinition) bool {

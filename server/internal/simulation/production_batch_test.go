@@ -14,11 +14,28 @@ func TestProductionBatchCompletion(t *testing.T) {
 		t.Fatal("two-step batch did not complete after its second step")
 	}
 
-	unlimited := newProductionBatch(0)
-	for step := 0; step < 3; step++ {
-		if unlimited.completeStep() {
-			t.Fatalf("unlimited batch completed after step %d", step+1)
+	maximum := newProductionBatch(0)
+	for step := 1; step <= maximumProductionBatchSize; step++ {
+		completed := maximum.completeStep()
+		if completed != (step == maximumProductionBatchSize) {
+			t.Fatalf("maximum batch completion after step %d = %t", step, completed)
 		}
+	}
+}
+
+func TestProductionBatchRejectsMoreThanTenLots(t *testing.T) {
+	world := NewWorld()
+	spot := world.gatheringSpots[starterCookingRangeID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatal(err)
+	}
+	world.players["player-one"].inventory.add(ItemRawMinnow, maximumProductionBatchSize+1)
+	err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterCookingRangeID,
+		RecipeID: ItemCookedMinnow, Quantity: maximumProductionBatchSize + 1,
+	})
+	if err == nil {
+		t.Fatal("QueueGather() accepted a production batch larger than ten")
 	}
 }
 

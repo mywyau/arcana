@@ -1,22 +1,23 @@
 package simulation
 
-// productionBatch represents either a fixed number of crafts or an unlimited
-// batch that continues until ingredients or output space run out.
+const maximumProductionBatchSize = 10
+
+// productionBatch represents a bounded production order. A zero quantity is
+// the client-facing "make available" request and resolves to at most ten lots.
 type productionBatch struct {
-	limited   bool
 	remaining int
 }
 
 func newProductionBatch(quantity int) productionBatch {
-	return productionBatch{
-		limited:   quantity > 0,
-		remaining: quantity,
+	if quantity == 0 || quantity > maximumProductionBatchSize {
+		quantity = maximumProductionBatchSize
 	}
+	return productionBatch{remaining: quantity}
 }
 
 func (batch *productionBatch) completeStep() bool {
-	if batch == nil || !batch.limited {
-		return false
+	if batch == nil || batch.remaining <= 0 {
+		return true
 	}
 	if batch.remaining > 0 {
 		batch.remaining--
@@ -27,5 +28,6 @@ func (batch *productionBatch) completeStep() bool {
 func usesProductionBatch(station craftingStationID) bool {
 	return station == craftingStationCooking ||
 		station == craftingStationSmelting ||
+		station == craftingStationForging ||
 		station == craftingStationRunecrafting
 }

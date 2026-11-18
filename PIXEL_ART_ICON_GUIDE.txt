@@ -1,0 +1,244 @@
+ARCANA PIXEL ART ICON GUIDE
+===========================
+
+Purpose
+-------
+
+Pixel art can provide a consistent visual style for inventory items,
+equipment, skills, prayers, spells and HUD navigation tabs. The current client
+already supports PNG icons, although it presently contains a mixture of PNG,
+SVG and generated placeholder artwork.
+
+Icons can be replaced gradually without changing their underlying gameplay.
+Replacing an existing file while retaining its path usually requires no code
+changes because Godot will reimport it automatically.
+
+
+Recommended software
+--------------------
+
+- Aseprite: focused and polished pixel-art editor; paid.
+- Pixelorama: free and purpose-built for pixel art.
+- LibreSprite: free editor with an Aseprite-style workflow.
+- Krita: free general art tool; disable anti-aliasing when drawing pixel art.
+
+Pixelorama is a suitable free starting point.
+
+
+Initial icon standard
+---------------------
+
+- Source canvas: 32 x 32 pixels
+- Transparent background
+- No anti-aliasing
+- Nearest-neighbour scaling
+- Consistent lighting from the upper-left
+- Object occupies approximately 75-85% of the canvas
+- One-pixel dark outline where it improves readability
+- Approximately 4-8 colours per material
+- Consistent padding and visual centre
+
+More intricate equipment could use a 48 x 48 source canvas later, but adopting
+one standard size first will make the interface more consistent.
+
+Always inspect an icon at its actual display size. Details that look attractive
+while zoomed in may disappear or become visual noise in the HUD.
+
+
+Basic drawing workflow
+----------------------
+
+Example: an iron sword
+
+1. Create a transparent 32 x 32 canvas.
+2. Sketch a strong and recognisable diagonal silhouette.
+3. Add a dark one-pixel outline where needed.
+4. Fill the blade with two or three grey shades.
+5. Add a bright highlight along its upper-left edge.
+6. Give the hilt a distinct brown, leather or gold colour.
+7. Inspect the result at 100% scale.
+8. Export it as a PNG without resizing or anti-aliasing.
+
+Readability and a distinctive silhouette are more important than realism at
+this resolution.
+
+
+Material and tier language
+--------------------------
+
+Use consistent colours so players can recognise item tiers without reading a
+tooltip:
+
+- Bronze: warm brown and orange
+- Iron: dark neutral grey
+- Steel: brighter cool grey
+- Mithril: azure blue
+- Adamantite: a distinctive deep green or another reserved tier colour
+- Magic equipment: purple, blue and luminous highlights
+- Holy equipment: warm gold, cream and bright yellow
+- Dark equipment: deep purple with cold highlights
+
+Items belonging to the same tier should share highlights, shadows and palette
+choices even when their shapes differ.
+
+
+Rules by icon category
+----------------------
+
+Item and equipment icons:
+
+- Depict the actual object.
+- Use a consistent three-quarter perspective where useful.
+- Give materials distinctive colours and highlights.
+- Keep the silhouette readable when displayed in an inventory slot.
+
+Skill and navigation icons:
+
+- Use bold, immediately recognisable silhouettes.
+- Prefer one primary symbol, such as a pickaxe for Mining.
+- Avoid small decorative details.
+- Verify that the icon remains legible at approximately 20 x 20 pixels.
+
+Spell and prayer icons:
+
+- Use consistent elemental colour language.
+- Give each effect a distinct silhouette rather than relying only on colour.
+- Fire can use red/orange, water blue, earth green, air white, holy gold and
+  dark magic purple.
+- Related spell tiers can reuse a motif while increasing visual intensity.
+
+
+Project directories
+-------------------
+
+Store exported icons in the most relevant client directory:
+
+client/assets/icons/items/
+client/assets/icons/equipment/weapons/
+client/assets/icons/equipment/armour/
+client/assets/icons/navigation/
+client/assets/icons/skills/
+client/assets/icons/prayers/
+client/assets/icons/spells/
+
+Use lowercase snake_case filenames that describe the game concept:
+
+mithril_sword.png
+cooked_salmon.png
+tab_inventory.png
+skill_mining.png
+
+Avoid spaces, generation prompts, version suffixes and arbitrary sequence
+numbers in final filenames.
+
+
+Registering icons in code
+-------------------------
+
+Reference item and HUD icons through:
+
+client/scripts/ui/icon_catalog.gd
+
+Example:
+
+const MITHRIL_SWORD: Texture2D = preload(
+    "res://assets/icons/equipment/weapons/mithril_sword.png"
+)
+
+If an existing icon is replaced using the same filename and path, the existing
+catalogue entry should continue to work without a code change.
+
+IconCatalog.centered_icon() can correct asymmetric transparent padding at
+runtime, but consistently centring the source artwork remains preferable.
+
+
+Godot import settings
+---------------------
+
+For genuine pixel-art PNGs, use:
+
+- Filter: disabled
+- Mipmaps: disabled for HUD icons
+- Compression: lossless
+- Repeat: disabled
+
+These settings prevent blurred edges when icons are enlarged. Godot-generated
+.import files should remain beside their source assets.
+
+
+Dropped items in the 3D world
+-----------------------------
+
+Inventory icons and world drops serve different purposes and should eventually
+be separate assets:
+
+- Inventory icon: a flat pixel-art PNG designed for fast recognition in a HUD
+  slot.
+- World drop: a small low-poly 3D scene placed naturally on the ground.
+
+The current proof-of-concept can continue using icon-based ground sprites while
+proper models are unavailable, but final dropped items do not need to look like
+floating inventory icons.
+
+Examples of suitable world-drop models:
+
+- Sword: a low-poly sword resting flat or at a slight angle
+- Armour: a helm, folded armour bundle or representative armour piece
+- Coins: a small static coin pile
+- Ore: a compact cluster of ore chunks
+- Logs: one or more short log pieces
+- Fish: a simple fish model resting on its side
+- Runes and arrows: a small pile rather than a single oversized object
+- Potions: a bottle standing upright or resting at a slight angle
+
+Dropped models should remain still rather than floating or continuously
+rotating. A subtle highlight, outline, name label or interaction marker can make
+them discoverable without making them physically unnatural.
+
+Each item definition should ultimately support two presentation references:
+
+- icon: the texture used by inventory, equipment and interfaces
+- world_scene: the Godot scene used when the item exists on the ground
+
+Conceptual example:
+
+iron_sword
+    icon: res://assets/icons/equipment/weapons/iron_sword.png
+    world_scene: res://scenes/world/items/iron_sword_drop.tscn
+
+The world scene can contain:
+
+- The imported .glb model
+- Its material
+- A placement offset and resting rotation
+- A simple click/intersection shape larger than very thin geometry
+- Optional selection or loot highlighting
+
+The gameplay identity, quantity, ownership and despawn time remain
+server-authoritative. The Godot client only selects and displays the appropriate
+world scene for the drop received from the server.
+
+It is acceptable to reuse an equipped weapon model as its dropped model when
+the scale and origin work correctly. Materials, stackable resources and tiny
+items will often benefit from dedicated pile models.
+
+For performance, only nearby drops should be instantiated. Repeated common
+models can later use pooling or shared meshes; there is no need to give every
+individual dropped object a unique mesh resource.
+
+
+Recommended first exercise
+--------------------------
+
+Draw a coordinated progression of five swords:
+
+- Bronze sword
+- Iron sword
+- Steel sword
+- Mithril sword
+- Adamantite sword
+
+Use the same canvas size, angle, outline, lighting direction and amount of
+padding for all five. Change the material palette and only the details needed
+to communicate progression. This small set can establish the visual rules
+before attempting to redraw the full item catalogue.
