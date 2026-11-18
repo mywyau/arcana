@@ -31,6 +31,11 @@ type snapshotDeltaTracker struct {
 	lastAmmunitionRevision  uint64
 	lastRingRackRevision    uint64
 	lastRunePouchRevision   uint64
+	lastSkillsRevision      uint64
+	lastCombatBoostRevision uint64
+	lastBrewingRevision     uint64
+	lastFletchingRevision   uint64
+	lastGatheringRevision   uint64
 }
 
 // applyPrivateState removes unchanged private containers from the local
@@ -88,12 +93,56 @@ func (t *snapshotDeltaTracker) applyPrivateState(
 			player.RunePouch = nil
 		}
 
+		skillsChanged := full || !t.privateStateInitialized ||
+			player.SkillsRevision != t.lastSkillsRevision
+		if !skillsChanged {
+			player.Skills = nil
+		}
+
+		combatBoostsChanged := full || !t.privateStateInitialized ||
+			player.CombatBoostsRevision != t.lastCombatBoostRevision
+		if !combatBoostsChanged {
+			player.ActiveCombatBoosts = nil
+		}
+
+		brewingChanged := full || !t.privateStateInitialized ||
+			player.BrewingRevision != t.lastBrewingRevision
+		if !brewingChanged {
+			player.LastBrewSequence = 0
+			player.BrewRemaining = 0
+			player.NextBrewPulse = 0
+			player.BrewingResult = ""
+		}
+
+		fletchingChanged := full || !t.privateStateInitialized ||
+			player.FletchingRevision != t.lastFletchingRevision
+		if !fletchingChanged {
+			player.LastFletchSequence = 0
+			player.FletchRemaining = 0
+			player.NextFletchPulse = 0
+			player.FletchingResult = ""
+		}
+
+		gatheringChanged := full || !t.privateStateInitialized ||
+			player.GatheringRevision != t.lastGatheringRevision
+		if !gatheringChanged {
+			player.LastGatherSequence = 0
+			player.GatheringSpot = ""
+			player.GatheringResult = ""
+			player.NextGatherPulse = 0
+		}
+
 		t.lastInventoryRevision = player.InventoryRevision
 		t.lastEquipmentRevision = player.EquipmentRevision
 		t.lastBankRevision = player.BankRevision
 		t.lastAmmunitionRevision = player.AmmunitionPouchRevision
 		t.lastRingRackRevision = player.RingRackRevision
 		t.lastRunePouchRevision = player.RunePouchRevision
+		t.lastSkillsRevision = player.SkillsRevision
+		t.lastCombatBoostRevision = player.CombatBoostsRevision
+		t.lastBrewingRevision = player.BrewingRevision
+		t.lastFletchingRevision = player.FletchingRevision
+		t.lastGatheringRevision = player.GatheringRevision
 		t.privateStateInitialized = true
 		return
 	}

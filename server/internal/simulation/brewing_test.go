@@ -39,11 +39,16 @@ func TestMakeAllBrewsOnePotionPerSixHundredMillisecondPulse(t *testing.T) {
 	player := world.players["player-one"]
 	player.inventory.add(ItemVialOfWater, 3)
 	player.inventory.add(ItemSunleaf, 3)
+	initialRevision := player.brewingRevision
 	if err := world.QueueBrew(BrewCommand{
 		PlayerID: "player-one", Sequence: 1, ItemIDs: []string{ItemVialOfWater, ItemSunleaf}, Quantity: 0,
 	}); err != nil {
 		t.Fatalf("QueueBrew(make all) returned an unexpected error: %v", err)
 	}
+	if player.brewingRevision <= initialRevision {
+		t.Fatalf("brewing start revision = %d, want greater than %d", player.brewingRevision, initialRevision)
+	}
+	previousRevision := player.brewingRevision
 
 	for made := 1; made <= 3; made++ {
 		world.Step(600 * time.Millisecond)
@@ -54,6 +59,10 @@ func TestMakeAllBrewsOnePotionPerSixHundredMillisecondPulse(t *testing.T) {
 		if snapshot.BrewRemaining != 3-made {
 			t.Fatalf("remaining after %d pulse(s) = %d, want %d", made, snapshot.BrewRemaining, 3-made)
 		}
+		if snapshot.BrewingRevision <= previousRevision {
+			t.Fatalf("brewing revision after potion %d = %d, want greater than %d", made, snapshot.BrewingRevision, previousRevision)
+		}
+		previousRevision = snapshot.BrewingRevision
 	}
 }
 

@@ -245,6 +245,30 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"equipped_armour": {"head": "iron_helm"},
 			"equipped_armour_instances": {"head": "helm-instance"},
 			"equipment_revision": 1,
+			"skills_revision": 1,
+			"skills": [{
+				"id": "attack", "experience": 125, "level": 2,
+				"current_level_experience": 83, "next_level_experience": 174,
+			}],
+			"combat_boosts_revision": 1,
+			"active_combat_boosts": [{
+				"skill": "attack", "levels": 3, "expires_at_pulse": 500,
+			}],
+			"brewing_revision": 1,
+			"last_brew_sequence": 1,
+			"brew_remaining": 2,
+			"next_brew_pulse": 5,
+			"brewing_result": "brewing",
+			"fletching_revision": 1,
+			"last_fletch_sequence": 1,
+			"fletch_remaining": 3,
+			"next_fletch_pulse": 6,
+			"fletching_result": "fletching",
+			"gathering_revision": 1,
+			"last_gather_sequence": 1,
+			"gathering_spot": "starter_fishing_spot",
+			"next_gather_pulse": 7,
+			"gathering_result": "fishing",
 			"inventory_revision": 1,
 			"inventory": {"capacity": 20, "items": [
 				{"slot": 0, "item_id": "cooked_minnow", "quantity": 1},
@@ -279,6 +303,11 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"equipped_weapon": "iron_sword",
 			"equipped_armour": {"head": "iron_helm"},
 			"equipment_revision": 1,
+			"skills_revision": 1,
+			"combat_boosts_revision": 1,
+			"brewing_revision": 1,
+			"fletching_revision": 1,
+			"gathering_revision": 1,
 			"inventory_revision": 1,
 			"bank_revision": 1,
 			"ammunition_pouch_revision": 1,
@@ -315,6 +344,56 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 		(main.get("_rune_pouch_items") as Array).size() == 1,
 		"unchanged rune pouch survives an omitted payload",
 	)
+	_check(
+		int(((main.get("_skill_progress") as Dictionary)["attack"] as Dictionary)["experience"]) == 125,
+		"unchanged skills survive an omitted payload",
+	)
+	_check(
+		(main.get("_active_combat_boosts") as Array).size() == 1,
+		"unchanged combat boosts survive an omitted payload",
+	)
+	_check(int(main.get("_brew_remaining")) == 2, "unchanged brewing progress survives an omitted payload")
+	_check(int(main.get("_fletch_remaining")) == 3, "unchanged fletching progress survives an omitted payload")
+	_check(str(main.get("_gathering_spot")) == "starter_fishing_spot", "unchanged gathering progress survives an omitted payload")
+	main.call("_on_snapshot_received", {
+		"tick": 3,
+		"action_pulse": 1,
+		"players": [{
+			"id": "local",
+			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"skills_revision": 2,
+			"skills": [{
+				"id": "attack", "experience": 174, "level": 3,
+				"current_level_experience": 174, "next_level_experience": 276,
+			}],
+			"combat_boosts_revision": 2,
+			"active_combat_boosts": [],
+			"next_consume_pulse": 2,
+		}],
+	})
+	_check(
+		int(((main.get("_skill_progress") as Dictionary)["attack"] as Dictionary)["experience"]) == 174,
+		"changed skills replace the cached skill payload",
+	)
+	_check(
+		(main.get("_active_combat_boosts") as Array).is_empty(),
+		"an explicit empty combat boost payload clears expired boosts",
+	)
+	main.call("_on_snapshot_received", {
+		"tick": 4,
+		"action_pulse": 1,
+		"players": [{
+			"id": "local",
+			"position": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"brewing_revision": 2,
+			"fletching_revision": 2,
+			"gathering_revision": 2,
+			"next_consume_pulse": 2,
+		}],
+	})
+	_check(int(main.get("_brew_remaining")) == 0, "completed brewing clears progress with an explicit revision")
+	_check(int(main.get("_fletch_remaining")) == 0, "completed fletching clears progress with an explicit revision")
+	_check(str(main.get("_gathering_spot")).is_empty(), "completed gathering clears progress with an explicit revision")
 	var inventory_window: InventoryWindow = main.get("_inventory_window") as InventoryWindow
 	var presentations: Dictionary = inventory_window._presentations
 	_check(

@@ -59,6 +59,7 @@ func (w *World) resolvePrayerAltarAction(player *playerState, spot gatheringSpot
 		}
 		player.gatheringResult = "sacrificed_bone"
 		player.nextGatherPulse = w.combat.pulse + 1
+		player.gatheringRevision++
 		return
 	}
 	player.prayer = player.maximumPrayer

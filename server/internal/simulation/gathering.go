@@ -442,6 +442,7 @@ func (w *World) startPendingGathering() {
 			stopPlayer(player)
 			player.gatheringResult = spot.ActiveResult
 		}
+		player.gatheringRevision++
 		delete(w.pendingGathering, id)
 	}
 }
@@ -485,6 +486,7 @@ func (w *World) resolveGatheringActions() {
 		if player.gatheringTraversal && player.gatheringResult == "approaching" {
 			player.gatheringResult = spot.ActiveResult
 			player.nextGatherPulse = w.combat.pulse + spot.Interval
+			player.gatheringRevision++
 			continue
 		}
 		if SkillLevelForExperience(player.skills[spot.Skill]) < spot.RequiredLevel {
@@ -547,6 +549,7 @@ func clearGathering(player *playerState, result string) {
 	if player == nil {
 		return
 	}
+	changed := player.gatheringSpot != "" || player.gatheringResult != result || player.nextGatherPulse != 0
 	player.gatheringSpot = ""
 	player.gatheringRecipe = ""
 	player.gatheringInstanceID = ""
@@ -556,6 +559,9 @@ func clearGathering(player *playerState, result string) {
 	player.gatheringTraversal = false
 	player.nextGatherPulse = 0
 	player.gatheringResult = result
+	if changed {
+		player.gatheringRevision++
+	}
 }
 
 func (w *World) gatheringSpotSnapshots() []GatheringSpotSnapshot {

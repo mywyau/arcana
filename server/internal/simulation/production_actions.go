@@ -145,6 +145,7 @@ func (w *World) resolveForgingAction(player *playerState) {
 	}
 	player.gatheringResult = "forged_" + recipe.RewardItem
 	player.nextGatherPulse = w.combat.pulse + recipe.Interval
+	player.gatheringRevision++
 }
 
 func (w *World) resolveIngredientProduction(player *playerState, spot gatheringSpotDefinition) {
@@ -169,4 +170,5 @@ func (w *World) finishProductionStep(player *playerState, result string, interva
 	}
 	player.gatheringResult = result
 	player.nextGatherPulse = w.combat.pulse + interval
+	player.gatheringRevision++
 }

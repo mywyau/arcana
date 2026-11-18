@@ -1262,14 +1262,17 @@ func populateLocalPlayerMessage(message *protocol.PlayerSnapshot, player simulat
 	message.BrewRemaining = player.BrewRemaining
 	message.NextBrewPulse = player.NextBrewPulse
 	message.BrewingResult = player.BrewingResult
+	message.BrewingRevision = player.BrewingRevision
 	message.LastFletchSequence = player.LastFletchSequence
 	message.FletchRemaining = player.FletchRemaining
 	message.NextFletchPulse = player.NextFletchPulse
 	message.FletchingResult = player.FletchingResult
+	message.FletchingRevision = player.FletchingRevision
 	message.GatheringSpot = player.GatheringSpot
 	message.GatheringResult = player.GatheringResult
 	message.NextGatherPulse = player.NextGatherPulse
 	message.LastGatherSequence = player.LastGatherSequence
+	message.GatheringRevision = player.GatheringRevision
 	message.Path = make([]protocol.Position, 0, len(player.Path))
 	for _, waypoint := range player.Path {
 		message.Path = append(message.Path, protocol.Position{
@@ -1350,13 +1353,16 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 			SellPrice: simulation.MerchantSellPrice(item),
 		})
 	}
-	message.ActiveCombatBoosts = make([]protocol.ActiveCombatBoost, 0, len(player.ActiveCombatBoosts))
+	combatBoosts := make([]protocol.ActiveCombatBoost, 0, len(player.ActiveCombatBoosts))
+	message.CombatBoostsRevision = player.CombatBoostsRevision
 	for _, boost := range player.ActiveCombatBoosts {
-		message.ActiveCombatBoosts = append(message.ActiveCombatBoosts, protocol.ActiveCombatBoost{
+		combatBoosts = append(combatBoosts, protocol.ActiveCombatBoost{
 			Skill: string(boost.Skill), Levels: boost.Levels, ExpiresAtPulse: boost.ExpiresAtPulse,
 		})
 	}
+	message.ActiveCombatBoosts = &combatBoosts
 	message.Skills = make([]protocol.SkillSnapshot, 0, len(player.Skills))
+	message.SkillsRevision = player.SkillsRevision
 	for _, skill := range player.Skills {
 		message.Skills = append(message.Skills, protocol.SkillSnapshot{
 			ID:                     string(skill.ID),

@@ -140,6 +140,7 @@ type PlayerSnapshot struct {
 	BrewRemaining                int
 	NextBrewPulse                uint64
 	BrewingResult                string
+	BrewingRevision              uint64
 	LastFletchSequence           uint64
 	LastGemCutSequence           uint64
 	LastFireSequence             uint64
@@ -147,12 +148,16 @@ type PlayerSnapshot struct {
 	FletchRemaining              int
 	NextFletchPulse              uint64
 	FletchingResult              string
+	FletchingRevision            uint64
 	GatheringSpot                string
 	GatheringResult              string
 	NextGatherPulse              uint64
 	LastGatherSequence           uint64
+	GatheringRevision            uint64
 	Skills                       []SkillSnapshot
+	SkillsRevision               uint64
 	ActiveCombatBoosts           []ActiveCombatBoostSnapshot
+	CombatBoostsRevision         uint64
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -231,16 +236,19 @@ type playerState struct {
 	lastConsumeSequence          uint64
 	nextConsumePulse             uint64
 	combatBoosts                 map[SkillID]activeCombatBoost
+	combatBoostsRevision         uint64
 	lastBrewSequence             uint64
 	brewRemaining                int
 	nextBrewPulse                uint64
 	brewingResult                string
+	brewingRevision              uint64
 	lastFletchSequence           uint64
 	lastGemCutSequence           uint64
 	lastFireSequence             uint64
 	fletchRemaining              int
 	nextFletchPulse              uint64
 	fletchingResult              string
+	fletchingRevision            uint64
 	gatheringSpot                string
 	gatheringRecipe              string
 	gatheringInstanceID          string
@@ -251,8 +259,10 @@ type playerState struct {
 	gatheringTraversal           bool
 	nextGatherPulse              uint64
 	lastGatherSequence           uint64
+	gatheringRevision            uint64
 	lastDebugSkillSequence       uint64
 	skills                       skillState
+	skillsRevision               uint64
 }
 
 // World owns the active gameplay state. Gameplay state changes happen in Step.
@@ -433,7 +443,9 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
-		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), combatBoosts: make(map[SkillID]activeCombatBoost),
+		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), skillsRevision: 1,
+		combatBoosts: make(map[SkillID]activeCombatBoost), combatBoostsRevision: 1,
+		brewingRevision: 1, fletchingRevision: 1, gatheringRevision: 1,
 	}
 	return nil
 }
@@ -471,7 +483,9 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
-		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), combatBoosts: make(map[SkillID]activeCombatBoost),
+		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), skillsRevision: 1,
+		combatBoosts: make(map[SkillID]activeCombatBoost), combatBoostsRevision: 1,
+		brewingRevision: 1, fletchingRevision: 1, gatheringRevision: 1,
 	}
 	return nil
 }
@@ -640,15 +654,23 @@ func (w *World) applyPendingSuspensions() {
 	for id := range w.pendingSuspensions {
 		player, exists := w.players[id]
 		if exists {
+			delete(w.pendingBrews, id)
+			delete(w.pendingFletches, id)
 			stopPlayer(player)
 			player.combatTarget = ""
 			player.nextAttackPulse = 0
 			player.autoApproaching = false
 			player.autoPickingUp = false
-			player.brewRemaining = 0
-			player.nextBrewPulse = 0
-			player.fletchRemaining = 0
-			player.nextFletchPulse = 0
+			if player.brewRemaining != 0 || player.nextBrewPulse != 0 {
+				player.brewRemaining = 0
+				player.nextBrewPulse = 0
+				player.brewingRevision++
+			}
+			if player.fletchRemaining != 0 || player.nextFletchPulse != 0 {
+				player.fletchRemaining = 0
+				player.nextFletchPulse = 0
+				player.fletchingRevision++
+			}
 			clearGathering(player, "disconnected")
 			clearActivePrayers(player)
 			player.lastActionResult = "disconnected"
@@ -881,6 +903,7 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		BrewRemaining:                player.brewRemaining,
 		NextBrewPulse:                player.nextBrewPulse,
 		BrewingResult:                player.brewingResult,
+		BrewingRevision:              player.brewingRevision,
 		LastFletchSequence:           player.lastFletchSequence,
 		LastGemCutSequence:           player.lastGemCutSequence,
 		LastFireSequence:             player.lastFireSequence,
@@ -888,10 +911,12 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		FletchRemaining:              player.fletchRemaining,
 		NextFletchPulse:              player.nextFletchPulse,
 		FletchingResult:              player.fletchingResult,
+		FletchingRevision:            player.fletchingRevision,
 		GatheringSpot:                player.gatheringSpot,
 		GatheringResult:              player.gatheringResult,
 		NextGatherPulse:              player.nextGatherPulse,
 		LastGatherSequence:           player.lastGatherSequence,
+		GatheringRevision:            player.gatheringRevision,
 	}
 	if player.destination != nil {
 		snapshot.Destination = positionPointer(*player.destination)
@@ -913,7 +938,9 @@ func populatePrivatePlayerSnapshot(snapshot *PlayerSnapshot, player *playerState
 	snapshot.Bank = snapshotBank(player.bank)
 	snapshot.BankRevision = player.bank.revision
 	snapshot.Skills = snapshotSkills(player.skills)
+	snapshot.SkillsRevision = player.skillsRevision
 	snapshot.ActiveCombatBoosts = activeCombatBoostSnapshots(player)
+	snapshot.CombatBoostsRevision = player.combatBoostsRevision
 }
 
 func validatePlayer(id PlayerID, position Position, speed float64) error {

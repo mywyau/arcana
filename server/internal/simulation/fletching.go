@@ -174,6 +174,7 @@ func (w *World) QueueFletch(command FletchCommand) error {
 	player.fletchRemaining = remaining
 	player.nextFletchPulse = w.combat.pulse + recipe.Interval
 	player.fletchingResult = "fletching"
+	player.fletchingRevision++
 	return nil
 }
 
@@ -193,7 +194,15 @@ func (w *World) applyPendingFletches() {
 	for _, id := range playerIDs {
 		pending := w.pendingFletches[id]
 		player, exists := w.players[id]
-		if !exists || player.defeated {
+		if !exists {
+			delete(w.pendingFletches, id)
+			continue
+		}
+		if player.defeated {
+			player.fletchRemaining = 0
+			player.nextFletchPulse = 0
+			player.fletchingResult = "fletching_stopped"
+			player.fletchingRevision++
 			delete(w.pendingFletches, id)
 			continue
 		}
@@ -206,6 +215,7 @@ func (w *World) applyPendingFletches() {
 			player.fletchRemaining = 0
 			player.nextFletchPulse = 0
 			player.fletchingResult = "fletching_stopped"
+			player.fletchingRevision++
 			delete(w.pendingFletches, id)
 			continue
 		}
@@ -216,11 +226,13 @@ func (w *World) applyPendingFletches() {
 		player.fletchRemaining = pending.remaining
 		if pending.remaining <= 0 {
 			player.nextFletchPulse = 0
+			player.fletchingRevision++
 			delete(w.pendingFletches, id)
 			continue
 		}
 		pending.nextPulse = w.combat.pulse + recipe.Interval
 		player.nextFletchPulse = pending.nextPulse
+		player.fletchingRevision++
 		w.pendingFletches[id] = pending
 	}
 }

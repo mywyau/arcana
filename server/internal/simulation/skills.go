@@ -164,6 +164,7 @@ func grantSkillExperience(player *playerState, skill SkillID, amount int64) {
 	}
 	previousLevel := SkillLevelForExperience(player.skills[skill])
 	player.skills[skill] += amount
+	player.skillsRevision++
 	if skill == SkillAgility {
 		player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(player.skills[SkillAgility]))
 	} else if skill == SkillVitality && SkillLevelForExperience(player.skills[SkillVitality]) != previousLevel {
@@ -249,6 +250,7 @@ func (w *World) applyPendingDebugSkills() {
 				experience = command.Experience
 			}
 			player.skills[command.Skill] = experience
+			player.skillsRevision++
 			if command.Skill == SkillAgility {
 				player.speed = movementSpeedForAgility(player.baseSpeed, SkillLevelForExperience(experience))
 			} else if command.Skill == SkillVitality {

@@ -733,7 +733,7 @@ func TestSnapshotMessageAttachesOnlyRequestedPrivatePlayerToPublicFrame(t *testi
 	remote, found := findPlayer(message, "player-two")
 	if !found || remote.Inventory != nil || remote.Bank != nil || remote.CombatStats != nil ||
 		remote.CombatMatchup != nil || remote.AmmunitionPouch != nil || remote.RingRack != nil ||
-		remote.RunePouch != nil || len(remote.Skills) != 0 || len(remote.ActiveCombatBoosts) != 0 {
+		remote.RunePouch != nil || len(remote.Skills) != 0 || remote.ActiveCombatBoosts != nil {
 		t.Fatalf("remote private state was exposed: %+v, found %t", remote, found)
 	}
 	for _, player := range publicFrame.Players {
@@ -793,6 +793,11 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 		CombatStats:               simulation.CombatStatsSnapshot{TotalAccuracy: 12},
 		CombatMatchup:             simulation.CombatMatchupSnapshot{TargetID: "dummy", PlayerHitChance: 0.75},
 		Skills:                    []simulation.SkillSnapshot{{ID: simulation.SkillAttack, Level: 10}},
+		SkillsRevision:            4,
+		CombatBoostsRevision:      5,
+		BrewingRevision:           6,
+		FletchingRevision:         7,
+		GatheringRevision:         8,
 		LastDropSequence:          11,
 		LastInventoryMoveSequence: 12,
 		LastGemCutSequence:        13,
@@ -818,7 +823,7 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 	remote := message.Players[1]
 	if remote.Inventory != nil || remote.Bank != nil || remote.CombatStats != nil || remote.CombatMatchup != nil ||
 		remote.AmmunitionPouch != nil || remote.RingRack != nil || remote.RunePouch != nil ||
-		len(remote.Skills) != 0 || len(remote.ActiveCombatBoosts) != 0 {
+		len(remote.Skills) != 0 || remote.ActiveCombatBoosts != nil {
 		t.Fatalf("remote private state was exposed: %+v", remote)
 	}
 	if remote.Position.X != 2 || remote.Position.Z != 3 || remote.Speed != 7 ||
@@ -838,7 +843,7 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 	}
 	for _, field := range []string{
 		"inventory", "bank", "combat_stats", "combat_matchup", "ammunition_pouch",
-		"ring_rack", "rune_pouch", "skills", "active_combat_boosts",
+		"ring_rack", "rune_pouch", "skills", "skills_revision", "active_combat_boosts", "combat_boosts_revision",
 		"last_drop_sequence", "last_inventory_move_sequence", "last_gem_cut_sequence",
 		"last_fire_sequence", "last_debug_skill_sequence",
 		"destination", "path", "last_command_sequence", "last_command_tick", "navigation_location",
@@ -854,6 +859,7 @@ func TestSnapshotMessageOmitsRemotePrivateState(t *testing.T) {
 		"next_brew_pulse", "brewing_result", "last_fletch_sequence", "fletch_remaining",
 		"next_fletch_pulse", "fletching_result", "gathering_spot", "gathering_result",
 		"next_gather_pulse", "last_gather_sequence",
+		"brewing_revision", "fletching_revision", "gathering_revision",
 	} {
 		if _, exposed := payload[field]; exposed {
 			t.Errorf("remote JSON includes private field %q: %s", field, encoded)

@@ -84,9 +84,13 @@ func TestExperienceLockPreventsAllSkillExperience(t *testing.T) {
 		t.Fatalf("locked skills gained XP: %+v", player.skills)
 	}
 	player.experienceLocked = false
+	beforeRevision := player.skillsRevision
 	grantSkillExperience(player, SkillCooking, 25)
 	if player.skills[SkillCooking] != 25 {
 		t.Fatalf("unlocked Cooking XP = %d, want 25", player.skills[SkillCooking])
+	}
+	if player.skillsRevision <= beforeRevision {
+		t.Fatalf("skills revision = %d, want greater than %d", player.skillsRevision, beforeRevision)
 	}
 }
 
@@ -136,9 +140,13 @@ func TestDebugSkillShrineSetsExactLevelExperience(t *testing.T) {
 		t.Fatalf("QueueDebugSetSkill() returned an unexpected error: %v", err)
 	}
 	world.Step(50)
-	attack := mustSkill(t, mustPlayer(t, world, "player-one"), SkillAttack)
+	player := mustPlayer(t, world, "player-one")
+	attack := mustSkill(t, player, SkillAttack)
 	if attack.Level != 30 || attack.Experience != SkillExperienceForLevel(30) {
 		t.Fatalf("Attack = %+v, want level 30 at its exact threshold", attack)
+	}
+	if player.SkillsRevision <= 1 {
+		t.Fatalf("skills revision = %d after debug update, want greater than 1", player.SkillsRevision)
 	}
 }
 

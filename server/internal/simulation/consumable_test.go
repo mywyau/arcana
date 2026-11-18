@@ -148,11 +148,16 @@ func TestCombatPotionsApplyLowLevelBoostsForFiveMinutes(t *testing.T) {
 		world := NewWorld()
 		mustAddPlayer(t, world, "player-one", Position{}, 4)
 		player := world.players["player-one"]
+		initialBoostRevision := player.combatBoostsRevision
 		player.inventory.add(test.itemID, 1)
 		if err := world.QueueConsumeItem(ConsumeItemCommand{PlayerID: "player-one", Sequence: 1, ItemID: test.itemID}); err != nil {
 			t.Fatalf("QueueConsumeItem(%q) returned error: %v", test.itemID, err)
 		}
 		world.Step(actionPulseInterval)
+		activeBoostRevision := player.combatBoostsRevision
+		if activeBoostRevision <= initialBoostRevision {
+			t.Errorf("%s boost revision = %d, want greater than %d", test.itemID, activeBoostRevision, initialBoostRevision)
+		}
 		for _, skill := range test.skills {
 			if got := effectiveCombatSkillLevel(player, skill); got != 1+combatPotionBoostLevels {
 				t.Errorf("%s after %s = %d, want %d", skill, test.itemID, got, 1+combatPotionBoostLevels)
@@ -170,6 +175,9 @@ func TestCombatPotionsApplyLowLevelBoostsForFiveMinutes(t *testing.T) {
 		world.Step(actionPulseInterval)
 		if len(player.combatBoosts) != 0 {
 			t.Errorf("%s remained active after five minutes: %+v", test.itemID, player.combatBoosts)
+		}
+		if player.combatBoostsRevision <= activeBoostRevision {
+			t.Errorf("%s expiry revision = %d, want greater than %d", test.itemID, player.combatBoostsRevision, activeBoostRevision)
 		}
 	}
 }

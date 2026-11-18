@@ -98,7 +98,8 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 	tracker.applyPrivateState(initial, "local", stats.Full)
 	local := initial.Players[0]
 	if local.Inventory == nil || local.Bank == nil || local.AmmunitionPouch == nil || local.RingRack == nil ||
-		local.RunePouch == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
+		local.RunePouch == nil || local.Skills == nil || local.ActiveCombatBoosts == nil ||
+		local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
 		t.Fatalf("initial private state was incomplete: %#v", local)
 	}
 
@@ -107,7 +108,8 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 	tracker.applyPrivateState(unchanged, "local", stats.Full)
 	local = unchanged.Players[0]
 	if local.Inventory != nil || local.Bank != nil || local.AmmunitionPouch != nil || local.RingRack != nil ||
-		local.RunePouch != nil || local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
+		local.RunePouch != nil || local.Skills != nil || local.ActiveCombatBoosts != nil ||
+		local.EquippedWeaponInstanceID != "" || local.EquippedArmourInstances != nil {
 		t.Fatalf("unchanged private state was sent: %#v", local)
 	}
 	if local.EquippedWeapon != "sword" || local.EquippedArmour["head"] != "iron_helm" {
@@ -171,13 +173,96 @@ func TestSnapshotDeltaTrackerOmitsUnchangedPrivateContainers(t *testing.T) {
 		t.Fatalf("independent rune pouch revision was not respected: %#v", local)
 	}
 
+	skillsChanged := deltaTestSnapshot()
+	skillsChanged.Players[0].InventoryRevision++
+	skillsChanged.Players[0].BankRevision++
+	skillsChanged.Players[0].AmmunitionPouchRevision++
+	skillsChanged.Players[0].RingRackRevision++
+	skillsChanged.Players[0].RunePouchRevision++
+	skillsChanged.Players[0].SkillsRevision++
+	stats = tracker.apply(skillsChanged, "local", now.Add(7*time.Second))
+	tracker.applyPrivateState(skillsChanged, "local", stats.Full)
+	local = skillsChanged.Players[0]
+	if local.Skills == nil || local.ActiveCombatBoosts != nil || local.Inventory != nil || local.Bank != nil {
+		t.Fatalf("independent skills revision was not respected: %#v", local)
+	}
+
+	boostsChanged := deltaTestSnapshot()
+	boostsChanged.Players[0].InventoryRevision++
+	boostsChanged.Players[0].BankRevision++
+	boostsChanged.Players[0].AmmunitionPouchRevision++
+	boostsChanged.Players[0].RingRackRevision++
+	boostsChanged.Players[0].RunePouchRevision++
+	boostsChanged.Players[0].SkillsRevision++
+	boostsChanged.Players[0].CombatBoostsRevision++
+	stats = tracker.apply(boostsChanged, "local", now.Add(8*time.Second))
+	tracker.applyPrivateState(boostsChanged, "local", stats.Full)
+	local = boostsChanged.Players[0]
+	if local.ActiveCombatBoosts == nil || local.Skills != nil || local.Inventory != nil || local.Bank != nil {
+		t.Fatalf("independent combat boosts revision was not respected: %#v", local)
+	}
+
 	full := deltaTestSnapshot()
 	stats = tracker.apply(full, "local", now.Add(fullReconciliationInterval))
 	tracker.applyPrivateState(full, "local", stats.Full)
 	local = full.Players[0]
 	if local.Inventory == nil || local.Bank == nil || local.AmmunitionPouch == nil || local.RingRack == nil ||
-		local.RunePouch == nil || local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
+		local.RunePouch == nil || local.Skills == nil || local.ActiveCombatBoosts == nil ||
+		local.EquippedWeaponInstanceID == "" || local.EquippedArmourInstances == nil {
 		t.Fatalf("full reconciliation omitted private state: %#v", local)
+	}
+}
+
+func TestSnapshotDeltaTrackerGatesProductionProgressIndependently(t *testing.T) {
+	tracker := newSnapshotDeltaTracker()
+	now := time.Unix(500, 0)
+
+	initial := deltaTestSnapshot()
+	stats := tracker.apply(initial, "local", now)
+	tracker.applyPrivateState(initial, "local", stats.Full)
+	local := initial.Players[0]
+	if local.BrewRemaining == 0 || local.FletchRemaining == 0 || local.GatheringSpot == "" {
+		t.Fatalf("initial production progress was incomplete: %#v", local)
+	}
+
+	unchanged := deltaTestSnapshot()
+	stats = tracker.apply(unchanged, "local", now.Add(time.Second))
+	tracker.applyPrivateState(unchanged, "local", stats.Full)
+	local = unchanged.Players[0]
+	if local.LastBrewSequence != 0 || local.BrewRemaining != 0 || local.BrewingResult != "" ||
+		local.LastFletchSequence != 0 || local.FletchRemaining != 0 || local.FletchingResult != "" ||
+		local.LastGatherSequence != 0 || local.GatheringSpot != "" || local.GatheringResult != "" {
+		t.Fatalf("unchanged production progress was sent: %#v", local)
+	}
+
+	brewingChanged := deltaTestSnapshot()
+	brewingChanged.Players[0].BrewingRevision++
+	stats = tracker.apply(brewingChanged, "local", now.Add(2*time.Second))
+	tracker.applyPrivateState(brewingChanged, "local", stats.Full)
+	local = brewingChanged.Players[0]
+	if local.BrewRemaining == 0 || local.FletchRemaining != 0 || local.GatheringSpot != "" {
+		t.Fatalf("independent brewing revision was not respected: %#v", local)
+	}
+
+	fletchingChanged := deltaTestSnapshot()
+	fletchingChanged.Players[0].BrewingRevision++
+	fletchingChanged.Players[0].FletchingRevision++
+	stats = tracker.apply(fletchingChanged, "local", now.Add(3*time.Second))
+	tracker.applyPrivateState(fletchingChanged, "local", stats.Full)
+	local = fletchingChanged.Players[0]
+	if local.FletchRemaining == 0 || local.BrewRemaining != 0 || local.GatheringSpot != "" {
+		t.Fatalf("independent fletching revision was not respected: %#v", local)
+	}
+
+	gatheringChanged := deltaTestSnapshot()
+	gatheringChanged.Players[0].BrewingRevision++
+	gatheringChanged.Players[0].FletchingRevision++
+	gatheringChanged.Players[0].GatheringRevision++
+	stats = tracker.apply(gatheringChanged, "local", now.Add(4*time.Second))
+	tracker.applyPrivateState(gatheringChanged, "local", stats.Full)
+	local = gatheringChanged.Players[0]
+	if local.GatheringSpot == "" || local.BrewRemaining != 0 || local.FletchRemaining != 0 {
+		t.Fatalf("independent gathering revision was not respected: %#v", local)
 	}
 }
 
@@ -198,6 +283,25 @@ func deltaTestSnapshot() *protocol.WorldSnapshot {
 				RingRackRevision:        1,
 				RunePouch:               &protocol.RunePouchSnapshot{Capacity: 9, UnlockedSlots: 2},
 				RunePouchRevision:       1,
+				Skills:                  []protocol.SkillSnapshot{{ID: "attack", Level: 1}},
+				SkillsRevision:          1,
+				ActiveCombatBoosts:      pointerToSlice([]protocol.ActiveCombatBoost{}),
+				CombatBoostsRevision:    1,
+				LastBrewSequence:        1,
+				BrewRemaining:           2,
+				NextBrewPulse:           10,
+				BrewingResult:           "brewing",
+				BrewingRevision:         1,
+				LastFletchSequence:      1,
+				FletchRemaining:         3,
+				NextFletchPulse:         11,
+				FletchingResult:         "fletching",
+				FletchingRevision:       1,
+				LastGatherSequence:      1,
+				GatheringSpot:           "fishing_spot",
+				GatheringResult:         "fishing",
+				NextGatherPulse:         12,
+				GatheringRevision:       1,
 			},
 			{
 				ID: "remote", Position: protocol.Position{X: 2}, Speed: 6, CombatTarget: "target",
@@ -210,4 +314,8 @@ func deltaTestSnapshot() *protocol.WorldSnapshot {
 			Health: 10, MaximumHealth: 10, Accuracy: 4, Evasion: 3, CombatLevel: 2,
 		}},
 	}
+}
+
+func pointerToSlice[T any](value []T) *[]T {
+	return &value
 }

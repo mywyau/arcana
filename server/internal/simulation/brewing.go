@@ -78,6 +78,7 @@ func (w *World) QueueBrew(command BrewCommand) error {
 	player.brewRemaining = remaining
 	player.nextBrewPulse = w.combat.pulse + 1
 	player.brewingResult = "brewing"
+	player.brewingRevision++
 	return nil
 }
 
@@ -90,7 +91,15 @@ func (w *World) applyPendingBrews() {
 	for _, id := range playerIDs {
 		pending := w.pendingBrews[id]
 		player, exists := w.players[id]
-		if !exists || player.defeated {
+		if !exists {
+			delete(w.pendingBrews, id)
+			continue
+		}
+		if player.defeated {
+			player.brewRemaining = 0
+			player.nextBrewPulse = 0
+			player.brewingResult = "brewing_stopped"
+			player.brewingRevision++
 			delete(w.pendingBrews, id)
 			continue
 		}
@@ -102,6 +111,7 @@ func (w *World) applyPendingBrews() {
 			player.brewRemaining = 0
 			player.nextBrewPulse = 0
 			player.brewingResult = "brewing_stopped"
+			player.brewingRevision++
 			delete(w.pendingBrews, id)
 			continue
 		}
@@ -112,11 +122,13 @@ func (w *World) applyPendingBrews() {
 		player.brewRemaining = pending.remaining
 		if pending.remaining <= 0 {
 			player.nextBrewPulse = 0
+			player.brewingRevision++
 			delete(w.pendingBrews, id)
 			continue
 		}
 		pending.nextPulse = w.combat.pulse + 1
 		player.nextBrewPulse = pending.nextPulse
+		player.brewingRevision++
 		w.pendingBrews[id] = pending
 	}
 }

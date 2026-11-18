@@ -96,6 +96,9 @@ func (w *World) applyPendingConsumables() {
 				Levels: boost.Levels, ExpiresAtPulse: w.combat.pulse + item.Consumable.BoostDuration,
 			}
 		}
+		if len(item.Consumable.SkillBoosts) > 0 {
+			player.combatBoostsRevision++
+		}
 		player.lastConsumeSequence = command.Sequence
 		player.nextConsumePulse = w.combat.pulse + item.Consumable.CooldownPulses
 		if item.Consumable.DelaysAttacks {
@@ -126,10 +129,15 @@ func effectiveCombatSkillLevel(player *playerState, skill SkillID) int {
 
 func (w *World) expireCombatBoosts() {
 	for _, player := range w.players {
+		changed := false
 		for skill, boost := range player.combatBoosts {
 			if w.combat.pulse >= boost.ExpiresAtPulse {
 				delete(player.combatBoosts, skill)
+				changed = true
 			}
+		}
+		if changed {
+			player.combatBoostsRevision++
 		}
 	}
 }

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 8
+	CurrentVersion            = 10
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -362,6 +362,7 @@ type PlayerSnapshot struct {
 	BrewRemaining                int                      `json:"brew_remaining,omitempty"`
 	NextBrewPulse                uint64                   `json:"next_brew_pulse,omitempty"`
 	BrewingResult                string                   `json:"brewing_result,omitempty"`
+	BrewingRevision              uint64                   `json:"brewing_revision,omitempty"`
 	LastFletchSequence           uint64                   `json:"last_fletch_sequence,omitempty"`
 	LastGemCutSequence           uint64                   `json:"last_gem_cut_sequence,omitempty"`
 	LastFireSequence             uint64                   `json:"last_fire_sequence,omitempty"`
@@ -369,12 +370,16 @@ type PlayerSnapshot struct {
 	FletchRemaining              int                      `json:"fletch_remaining,omitempty"`
 	NextFletchPulse              uint64                   `json:"next_fletch_pulse,omitempty"`
 	FletchingResult              string                   `json:"fletching_result,omitempty"`
+	FletchingRevision            uint64                   `json:"fletching_revision,omitempty"`
 	GatheringSpot                string                   `json:"gathering_spot,omitempty"`
 	GatheringResult              string                   `json:"gathering_result,omitempty"`
 	NextGatherPulse              uint64                   `json:"next_gather_pulse,omitempty"`
 	LastGatherSequence           uint64                   `json:"last_gather_sequence,omitempty"`
+	GatheringRevision            uint64                   `json:"gathering_revision,omitempty"`
 	Skills                       []SkillSnapshot          `json:"skills,omitempty"`
-	ActiveCombatBoosts           []ActiveCombatBoost      `json:"active_combat_boosts,omitempty"`
+	SkillsRevision               uint64                   `json:"skills_revision,omitempty"`
+	ActiveCombatBoosts           *[]ActiveCombatBoost     `json:"active_combat_boosts,omitempty"`
+	CombatBoostsRevision         uint64                   `json:"combat_boosts_revision,omitempty"`
 }
 
 // PlayerUpdate is the public, field-level delta for a remote player. Private

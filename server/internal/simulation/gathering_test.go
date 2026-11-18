@@ -145,6 +145,7 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	world.players["player-one"].inventory.add(ItemFishingRod, 1)
+	initialRevision := world.players["player-one"].gatheringRevision
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID,
 	}); err != nil {
@@ -156,6 +157,9 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 	if started.GatheringSpot != starterFishingSpotID || started.GatheringResult != "fishing" {
 		t.Fatalf("started gathering state = %+v", started)
 	}
+	if started.GatheringRevision <= initialRevision {
+		t.Fatalf("gathering start revision = %d, want greater than %d", started.GatheringRevision, initialRevision)
+	}
 	world.Step(fishingInterval * actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
 	if got := player.Inventory.itemsQuantity(ItemRawMinnow); got != 1 {
@@ -166,6 +170,9 @@ func TestStarterFishingSpotAutomaticallyCatchesRawMinnowsAndGrantsXP(t *testing.
 	}
 	if player.GatheringResult != "caught_raw_minnow" || player.NextGatherPulse != 8 {
 		t.Fatalf("gathering state after first catch = %+v", player)
+	}
+	if player.GatheringRevision <= started.GatheringRevision {
+		t.Fatalf("gathering result revision = %d, want greater than %d", player.GatheringRevision, started.GatheringRevision)
 	}
 
 	world.Step(fishingInterval * actionPulseInterval)

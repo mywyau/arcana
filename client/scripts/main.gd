@@ -609,6 +609,7 @@ var _last_gather_sequence: int = 0
 var _gathering_spot: String = ""
 var _gathering_result: String = ""
 var _next_gather_pulse: int = 0
+var _gathering_revision: int = -1
 var _gathering_views: Dictionary = {}
 var _gathering_states: Dictionary = {}
 var _bank_chest_views: Dictionary = {}
@@ -673,6 +674,7 @@ var _player_maximum_prayer: int = 100
 var _active_prayers: Array[String] = []
 var _prayer_feedback_initialized: bool = false
 var _active_combat_boosts: Array = []
+var _combat_boosts_revision: int = -1
 var _combat_boost_feedback_initialized: bool = false
 var _combat_boost_widgets: Dictionary = {}
 var _active_prayer_set: String = "common_litany"
@@ -729,6 +731,7 @@ var _skill_progress: Dictionary = {
 	"runecrafting": {"experience": 0, "level": 1, "current": 0, "next": 41},
 	"vitality": {"experience": 0, "level": 1, "current": 0, "next": 41},
 }
+var _skills_revision: int = -1
 var _skill_tiles: Dictionary = {}
 var _skill_details_window: Window
 var _skill_details_icon: TextureRect
@@ -778,6 +781,7 @@ var _brew_remaining: int = 0
 var _next_brew_pulse: int = 0
 var _last_brew_sequence: int = 0
 var _brewing_result_text: String = ""
+var _brewing_revision: int = -1
 var _brewing_ui: BrewingWindow
 var _next_fletch_sequence: int = 1
 var _last_fletch_sequence: int = 0
@@ -785,6 +789,7 @@ var _fletch_pending: bool = false
 var _fletch_remaining: int = 0
 var _next_fletch_pulse: int = 0
 var _fletching_result_text: String = ""
+var _fletching_revision: int = -1
 var _fletching_ui: FletchingWindow
 var _inventory_window: InventoryWindow
 var _inventory_context_menu: InventoryContextMenu
@@ -2758,7 +2763,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var server_driven_path: bool = (
 			bool(player_data.get("auto_approaching", false))
 			or bool(player_data.get("auto_picking_up", false))
-			or not str(player_data.get("gathering_spot", "")).is_empty()
+			or not str(player_data.get("gathering_spot", _gathering_spot)).is_empty()
 		)
 		var correction: float = view.apply_authoritative_state(
 			position,
@@ -2821,8 +2826,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					_active_prayers = active_prayers
 					prayer_changed = true
 				_prayer_feedback_initialized = true
-			var combat_boosts_data: Variant = player_data.get("active_combat_boosts", [])
-			if typeof(combat_boosts_data) == TYPE_ARRAY:
+			var combat_boosts_data: Variant = player_data.get("active_combat_boosts", null)
+			if player_data.has("active_combat_boosts") and typeof(combat_boosts_data) == TYPE_ARRAY:
 				var combat_boosts: Array = (combat_boosts_data as Array).duplicate(true)
 				if combat_boosts != _active_combat_boosts:
 					if _combat_boost_feedback_initialized:
@@ -2832,6 +2837,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							sound_effects.play_feedback(&"boost")
 					_active_combat_boosts = combat_boosts
 				_combat_boost_feedback_initialized = true
+				_combat_boosts_revision = int(player_data.get(
+					"combat_boosts_revision", _combat_boosts_revision,
+				))
 				_update_combat_boost_hud()
 			_last_prayer_sequence = int(player_data.get("last_prayer_sequence", 0))
 			if _last_prayer_sequence >= _next_prayer_sequence - 1 and not _queued_prayer_id.is_empty():
@@ -2866,12 +2874,23 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			)
 			if maxi(0, _next_consume_pulse - _action_pulse) != previous_consume_cooldown:
 				inventory_selection_changed = true
-			_last_gather_sequence = int(player_data.get("last_gather_sequence", 0))
+			var gathering_revision: int = int(player_data.get("gathering_revision", _gathering_revision))
+			var gathering_changed: bool = full_reconciliation or gathering_revision != _gathering_revision
+			_last_gather_sequence = int(player_data.get(
+				"last_gather_sequence", 0 if gathering_changed else _last_gather_sequence,
+			))
 			_next_gather_sequence = maxi(_next_gather_sequence, _last_gather_sequence + 1)
 			var previous_gathering_spot: String = _gathering_spot
-			_gathering_spot = str(player_data.get("gathering_spot", ""))
-			_next_gather_pulse = int(player_data.get("next_gather_pulse", 0))
-			var gathering_result_text: String = str(player_data.get("gathering_result", ""))
+			_gathering_spot = str(player_data.get(
+				"gathering_spot", "" if gathering_changed else _gathering_spot,
+			))
+			_next_gather_pulse = int(player_data.get(
+				"next_gather_pulse", 0 if gathering_changed else _next_gather_pulse,
+			))
+			var gathering_result_text: String = str(player_data.get(
+				"gathering_result", "" if gathering_changed else _gathering_result,
+			))
+			_gathering_revision = gathering_revision
 			if gathering_result_text != _gathering_result:
 				var previous_gathering_result: String = _gathering_result
 				_gathering_result = gathering_result_text
@@ -3281,9 +3300,10 @@ func _materialize_target_payloads(snapshot: Dictionary, full_reconciliation: boo
 
 
 func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -> void:
-	var skills_data: Variant = player_data.get("skills", [])
-	if typeof(skills_data) == TYPE_ARRAY:
+	var skills_data: Variant = player_data.get("skills", null)
+	if player_data.has("skills") and typeof(skills_data) == TYPE_ARRAY:
 		_apply_skills_snapshot(skills_data as Array)
+		_skills_revision = int(player_data.get("skills_revision", _skills_revision))
 	var inventory_data: Variant = player_data.get("inventory", null)
 	if player_data.has("inventory") and typeof(inventory_data) == TYPE_DICTIONARY:
 		_apply_inventory_snapshot(inventory_data as Dictionary)
@@ -3339,13 +3359,24 @@ func _apply_local_production_progress_snapshot(player_data: Dictionary) -> bool:
 				boost_description,
 			]
 			_append_game_message(status_label.text)
-	_last_brew_sequence = int(player_data.get("last_brew_sequence", 0))
+	var brewing_revision: int = int(player_data.get("brewing_revision", _brewing_revision))
+	var brewing_changed: bool = brewing_revision != _brewing_revision
+	_last_brew_sequence = int(player_data.get(
+		"last_brew_sequence", 0 if brewing_changed else _last_brew_sequence,
+	))
 	_next_brew_sequence = maxi(_next_brew_sequence, _last_brew_sequence + 1)
 	var previous_brew_pending: bool = _brew_pending
 	var previous_brew_remaining: int = _brew_remaining
-	_brew_remaining = int(player_data.get("brew_remaining", 0))
-	_next_brew_pulse = int(player_data.get("next_brew_pulse", 0))
-	var brewing_result_text: String = str(player_data.get("brewing_result", ""))
+	_brew_remaining = int(player_data.get(
+		"brew_remaining", 0 if brewing_changed else _brew_remaining,
+	))
+	_next_brew_pulse = int(player_data.get(
+		"next_brew_pulse", 0 if brewing_changed else _next_brew_pulse,
+	))
+	var brewing_result_text: String = str(player_data.get(
+		"brewing_result", "" if brewing_changed else _brewing_result_text,
+	))
+	_brewing_revision = brewing_revision
 	if _brew_pending and _brew_remaining <= 0 and _last_brew_sequence >= _next_brew_sequence - 1:
 		_brew_pending = false
 		_sync_brewing_ui()
@@ -3361,13 +3392,24 @@ func _apply_local_production_progress_snapshot(player_data: Dictionary) -> bool:
 	_brewing_result_text = brewing_result_text
 	if previous_brew_pending != _brew_pending or previous_brew_remaining != _brew_remaining:
 		_sync_brewing_ui()
-	_last_fletch_sequence = int(player_data.get("last_fletch_sequence", 0))
+	var fletching_revision: int = int(player_data.get("fletching_revision", _fletching_revision))
+	var fletching_changed: bool = fletching_revision != _fletching_revision
+	_last_fletch_sequence = int(player_data.get(
+		"last_fletch_sequence", 0 if fletching_changed else _last_fletch_sequence,
+	))
 	_next_fletch_sequence = maxi(_next_fletch_sequence, _last_fletch_sequence + 1)
 	var previous_fletch_pending: bool = _fletch_pending
 	var previous_fletch_remaining: int = _fletch_remaining
-	_fletch_remaining = int(player_data.get("fletch_remaining", 0))
-	_next_fletch_pulse = int(player_data.get("next_fletch_pulse", 0))
-	var fletching_result_text: String = str(player_data.get("fletching_result", ""))
+	_fletch_remaining = int(player_data.get(
+		"fletch_remaining", 0 if fletching_changed else _fletch_remaining,
+	))
+	_next_fletch_pulse = int(player_data.get(
+		"next_fletch_pulse", 0 if fletching_changed else _next_fletch_pulse,
+	))
+	var fletching_result_text: String = str(player_data.get(
+		"fletching_result", "" if fletching_changed else _fletching_result_text,
+	))
+	_fletching_revision = fletching_revision
 	var fletching_batch_message := ""
 	if previous_fletch_remaining > _fletch_remaining and fletching_result_text not in ["", "fletching", "fletching_stopped"]:
 		fletching_batch_message = _play_fletching_completion_feedback(fletching_result_text)

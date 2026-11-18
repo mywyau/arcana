@@ -37,21 +37,32 @@ func TestFletchingIronArrowsConsumesBundlesOfTwenty(t *testing.T) {
 	player.inventory.add(ItemArrowShafts, 40)
 	player.inventory.add(ItemFeathers, 40)
 	player.inventory.add(ItemIronArrowTips, 40)
+	initialRevision := player.fletchingRevision
 	if err := world.QueueFletch(FletchCommand{
 		PlayerID: "player-one", Sequence: 1, RecipeID: FletchIronArrows, Quantity: 0,
 	}); err != nil {
 		t.Fatalf("QueueFletch(make all) returned an unexpected error: %v", err)
 	}
+	if player.fletchingRevision <= initialRevision {
+		t.Fatalf("fletching start revision = %d, want greater than %d", player.fletchingRevision, initialRevision)
+	}
+	startRevision := player.fletchingRevision
 	world.Step(600 * time.Millisecond)
 	first := mustPlayer(t, world, "player-one")
 	if first.Inventory.itemsQuantity(ItemIronArrow) != 20 || first.FletchRemaining != 1 {
 		t.Fatalf("first arrow batch = %+v", first)
+	}
+	if first.FletchingRevision <= startRevision {
+		t.Fatalf("first batch revision = %d, want greater than %d", first.FletchingRevision, startRevision)
 	}
 	world.Step(600 * time.Millisecond)
 	second := mustPlayer(t, world, "player-one")
 	if second.Inventory.itemsQuantity(ItemIronArrow) != 40 ||
 		mustSkill(t, second, SkillFletching).Experience != SkillExperienceForLevel(2)+44 || second.FletchRemaining != 0 {
 		t.Fatalf("completed arrow batches = %+v", second)
+	}
+	if second.FletchingRevision <= first.FletchingRevision {
+		t.Fatalf("completed fletching revision = %d, want greater than %d", second.FletchingRevision, first.FletchingRevision)
 	}
 }
 

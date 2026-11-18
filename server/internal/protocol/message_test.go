@@ -1,15 +1,38 @@
 package protocol
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
 
 func TestDecodeAuthenticateMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":8,"client_version":"0.1.0-beta"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":10,"client_version":"0.1.0-beta"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
 	if message.Type != MessageAuthenticate || message.GuestToken != "token" || message.Sequence != 0 ||
 		message.ProtocolVersion != CurrentVersion || message.ClientVersion != "0.1.0-beta" {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
+func TestCombatBoostPayloadDistinguishesEmptyFromOmitted(t *testing.T) {
+	empty := []ActiveCombatBoost{}
+	payload, err := json.Marshal(PlayerSnapshot{ActiveCombatBoosts: &empty})
+	if err != nil {
+		t.Fatalf("marshal empty boosts: %v", err)
+	}
+	if !bytes.Contains(payload, []byte(`"active_combat_boosts":[]`)) {
+		t.Fatalf("empty boost payload = %s, want an explicit empty list", payload)
+	}
+
+	payload, err = json.Marshal(PlayerSnapshot{})
+	if err != nil {
+		t.Fatalf("marshal omitted boosts: %v", err)
+	}
+	if bytes.Contains(payload, []byte(`"active_combat_boosts"`)) {
+		t.Fatalf("unchanged boost payload = %s, want field omitted", payload)
 	}
 }
 

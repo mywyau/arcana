@@ -78,6 +78,7 @@ func recordUnsuccessfulGatheringAttempt(
 	}
 	player.gatheringResult = result
 	player.nextGatherPulse = pulse + interval
+	player.gatheringRevision++
 }
 
 func validateRenewableGathering(player *playerState, spot gatheringSpotDefinition, command *GatherCommand) error {
@@ -125,6 +126,7 @@ func (w *World) resolveRenewableGathering(player *playerState, spot gatheringSpo
 		}
 		player.gatheringResult = "caught_" + recipe.RewardItem
 		player.nextGatherPulse = w.combat.pulse + recipe.Interval
+		player.gatheringRevision++
 		return
 	}
 
@@ -160,4 +162,5 @@ func (w *World) resolveRenewableGathering(player *playerState, spot gatheringSpo
 	grantSkillExperience(player, spot.Skill, spot.RewardXP)
 	player.gatheringResult = spot.RewardResult
 	player.nextGatherPulse = w.combat.pulse + spot.Interval
+	player.gatheringRevision++
 }
