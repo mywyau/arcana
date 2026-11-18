@@ -621,6 +621,7 @@ var _last_merchant_sequence: int = 0
 var _bank_items: Array = []
 var _bank_capacity: int = 100
 var _bank_next_expansion_cost: int = 1000
+var _bank_revision: int = -1
 var _bank_signature: String = ""
 var _active_bank_chest_id: String = ""
 var _pending_bank_chest_id: String = ""
@@ -3295,9 +3296,10 @@ func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -
 		_apply_rune_pouch_snapshot(rune_data as Dictionary)
 	var last_rune_sequence: int = int(player_data.get("last_rune_sequence", 0))
 	_next_rune_sequence = maxi(_next_rune_sequence, last_rune_sequence + 1)
-	var bank_data: Variant = player_data.get("bank", {})
-	if typeof(bank_data) == TYPE_DICTIONARY:
+	var bank_data: Variant = player_data.get("bank", null)
+	if player_data.has("bank") and typeof(bank_data) == TYPE_DICTIONARY:
 		_apply_bank_snapshot(bank_data as Dictionary)
+		_bank_revision = int(player_data.get("bank_revision", _bank_revision))
 	var last_bank_sequence: int = int(player_data.get("last_bank_sequence", 0))
 	_next_bank_sequence = maxi(_next_bank_sequence, last_bank_sequence + 1)
 	_update_bank_proximity(position)

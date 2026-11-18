@@ -85,11 +85,15 @@ func TestPurchaseBankExpansionUsesInventoryAndBankCoins(t *testing.T) {
 	player := world.players["player-one"]
 	player.inventory.add(ItemCoins, 600)
 	player.bank.add(InventoryItem{ItemID: ItemCoins, Quantity: 400})
+	bankRevision := player.bank.revision
 	if err := world.PurchaseBankExpansion("player-one", 1); err != nil {
 		t.Fatalf("PurchaseBankExpansion() returned an unexpected error: %v", err)
 	}
 	if player.bank.capacity != 150 || player.inventory.quantity(ItemCoins) != 0 {
 		t.Fatalf("state after expansion = capacity %d, inventory %+v", player.bank.capacity, player.inventory)
+	}
+	if player.bank.revision <= bankRevision {
+		t.Fatalf("bank revision after expansion = %d, want greater than %d", player.bank.revision, bankRevision)
 	}
 	if coins := snapshotBank(player.bank); len(coins.Items) != 0 || coins.NextExpansionCost != 1700 {
 		t.Fatalf("bank after expansion = %+v", coins)
@@ -103,6 +107,7 @@ func TestBankDepositsWholeStackAndWithdrawsRequestedQuantity(t *testing.T) {
 	}
 	player := world.players["player-one"]
 	player.inventory.add(ItemAirRune, 3)
+	initialBankRevision := player.bank.revision
 
 	if err := world.QueueBankTransfer(BankTransferCommand{
 		PlayerID: "player-one", Sequence: 1, Deposit: true, ItemID: ItemAirRune, InventorySlot: 0,
@@ -114,6 +119,10 @@ func TestBankDepositsWholeStackAndWithdrawsRequestedQuantity(t *testing.T) {
 	if snapshot.Inventory.itemsQuantity(ItemAirRune) != 0 || len(snapshot.Bank.Items) != 1 || snapshot.Bank.Items[0].Quantity != 3 {
 		t.Fatalf("state after deposits = inventory %+v, bank %+v", snapshot.Inventory, snapshot.Bank)
 	}
+	if snapshot.BankRevision <= initialBankRevision {
+		t.Fatalf("bank revision after deposit = %d, want greater than %d", snapshot.BankRevision, initialBankRevision)
+	}
+	depositRevision := snapshot.BankRevision
 
 	if err := world.QueueBankTransfer(BankTransferCommand{
 		PlayerID: "player-one", Sequence: 2, BankSlot: snapshot.Bank.Items[0].Slot, Quantity: 2,
@@ -124,6 +133,24 @@ func TestBankDepositsWholeStackAndWithdrawsRequestedQuantity(t *testing.T) {
 	snapshot = mustPlayer(t, world, "player-one")
 	if snapshot.Inventory.itemsQuantity(ItemAirRune) != 2 || snapshot.Bank.Items[0].Quantity != 1 || snapshot.LastBankSequence != 2 {
 		t.Fatalf("state after withdrawal = %+v", snapshot)
+	}
+	if snapshot.BankRevision <= depositRevision {
+		t.Fatalf("bank revision after withdrawal = %d, want greater than %d", snapshot.BankRevision, depositRevision)
+	}
+}
+
+func TestBankRevisionChangesOnlyAfterSuccessfulMutations(t *testing.T) {
+	bank := newEmptyBank()
+	initial := bank.revision
+	if !bank.add(InventoryItem{ItemID: ItemAirRune, Quantity: 2}) || bank.revision <= initial {
+		t.Fatalf("bank revision after add = %d, want greater than %d", bank.revision, initial)
+	}
+	afterAdd := bank.revision
+	if _, removed := bank.removeQuantity(0, 3); removed || bank.revision != afterAdd {
+		t.Fatalf("failed removal changed bank revision from %d to %d", afterAdd, bank.revision)
+	}
+	if _, removed := bank.removeQuantity(0, 1); !removed || bank.revision <= afterAdd {
+		t.Fatalf("bank revision after removal = %d, want greater than %d", bank.revision, afterAdd)
 	}
 }
 

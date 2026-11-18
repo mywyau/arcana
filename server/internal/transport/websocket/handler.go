@@ -1157,6 +1157,7 @@ func snapshotMessageWithPrivateOptions(
 				Capacity: privateState.Bank.Capacity, NextExpansionCost: privateState.Bank.NextExpansionCost,
 				Items: make([]protocol.InventoryItem, 0, len(privateState.Bank.Items)),
 			}
+			playerMessage.BankRevision = privateState.BankRevision
 			for _, item := range privateState.Bank.Items {
 				playerMessage.Bank.Items = append(playerMessage.Bank.Items, protocol.InventoryItem{
 					Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,

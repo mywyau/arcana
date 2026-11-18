@@ -71,6 +71,7 @@ type BankSnapshot struct {
 type bankState struct {
 	capacity int
 	items    []InventoryItem
+	revision uint64
 }
 
 type BankTransferCommand struct {
@@ -85,7 +86,7 @@ type BankTransferCommand struct {
 }
 
 func newEmptyBank() bankState {
-	return bankState{capacity: BankCapacity}
+	return bankState{capacity: BankCapacity, revision: 1}
 }
 
 func snapshotBank(bank bankState) BankSnapshot {
@@ -134,7 +135,7 @@ func bankFromSnapshot(snapshot BankSnapshot) (bankState, error) {
 		}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Slot < items[j].Slot })
-	return bankState{capacity: snapshot.Capacity, items: items}, nil
+	return bankState{capacity: snapshot.Capacity, items: items, revision: 1}, nil
 }
 
 func bankExpansionCost(capacity int) int {
@@ -205,6 +206,7 @@ func (w *World) PurchaseBankExpansion(playerID PlayerID, sequence uint64) error 
 		return fmt.Errorf("%d coins are required", cost)
 	}
 	bank.capacity += BankExpansionSize
+	bank.revision++
 	player.inventory = inventory
 	player.bank = bank
 	player.lastBankSequence = sequence
@@ -234,6 +236,7 @@ func (bank *bankState) add(item InventoryItem) bool {
 					return false
 				}
 				bank.items[index].Quantity += item.Quantity
+				bank.revision++
 				return true
 			}
 		}
@@ -252,6 +255,7 @@ func (bank *bankState) add(item InventoryItem) bool {
 		item.Slot = slot
 		bank.items = append(bank.items, item)
 		sort.Slice(bank.items, func(i, j int) bool { return bank.items[i].Slot < bank.items[j].Slot })
+		bank.revision++
 		return true
 	}
 	return false
@@ -275,13 +279,14 @@ func (bank *bankState) removeQuantity(slot, quantity int) (InventoryItem, bool) 
 		} else {
 			bank.items[index].Quantity -= quantity
 		}
+		bank.revision++
 		return removed, true
 	}
 	return InventoryItem{}, false
 }
 
 func cloneBank(bank bankState) bankState {
-	return bankState{capacity: bank.capacity, items: append([]InventoryItem(nil), bank.items...)}
+	return bankState{capacity: bank.capacity, items: append([]InventoryItem(nil), bank.items...), revision: bank.revision}
 }
 
 func (w *World) QueueBankTransfer(command BankTransferCommand) error {

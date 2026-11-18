@@ -27,6 +27,7 @@ type snapshotDeltaTracker struct {
 	privateStateInitialized bool
 	lastInventoryRevision   uint64
 	lastEquipmentRevision   uint64
+	lastBankRevision        uint64
 }
 
 // applyPrivateState removes unchanged private containers from the local
@@ -60,8 +61,15 @@ func (t *snapshotDeltaTracker) applyPrivateState(
 			player.ActiveSpellbook = ""
 		}
 
+		bankChanged := full || !t.privateStateInitialized ||
+			player.BankRevision != t.lastBankRevision
+		if !bankChanged {
+			player.Bank = nil
+		}
+
 		t.lastInventoryRevision = player.InventoryRevision
 		t.lastEquipmentRevision = player.EquipmentRevision
+		t.lastBankRevision = player.BankRevision
 		t.privateStateInitialized = true
 		return
 	}

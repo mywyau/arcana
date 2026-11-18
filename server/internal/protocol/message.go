@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 6
+	CurrentVersion            = 7
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -341,6 +341,7 @@ type PlayerSnapshot struct {
 	Inventory                    *InventorySnapshot       `json:"inventory,omitempty"`
 	InventoryRevision            uint64                   `json:"inventory_revision,omitempty"`
 	Bank                         *InventorySnapshot       `json:"bank,omitempty"`
+	BankRevision                 uint64                   `json:"bank_revision,omitempty"`
 	AmmunitionPouch              *AmmunitionPouchSnapshot `json:"ammunition_pouch,omitempty"`
 	LastAmmunitionSequence       uint64                   `json:"last_ammunition_sequence,omitempty"`
 	RingRack                     *RingRackSnapshot        `json:"ring_rack,omitempty"`

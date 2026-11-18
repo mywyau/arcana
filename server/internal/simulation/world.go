@@ -125,6 +125,7 @@ type PlayerSnapshot struct {
 	RunePouch                    RunePouchSnapshot
 	LastRuneSequence             uint64
 	Bank                         BankSnapshot
+	BankRevision                 uint64
 	LastBankSequence             uint64
 	LastMerchantSequence         uint64
 	LastPickupSequence           uint64
@@ -904,6 +905,7 @@ func populatePrivatePlayerSnapshot(snapshot *PlayerSnapshot, player *playerState
 	snapshot.RingRack = snapshotRingRack(player.ringRack)
 	snapshot.RunePouch = snapshotRunePouch(player.runePouch)
 	snapshot.Bank = snapshotBank(player.bank)
+	snapshot.BankRevision = player.bank.revision
 	snapshot.Skills = snapshotSkills(player.skills)
 	snapshot.ActiveCombatBoosts = activeCombatBoostSnapshots(player)
 }

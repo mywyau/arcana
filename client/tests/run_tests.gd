@@ -247,6 +247,10 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"inventory": {"capacity": 20, "items": [{
 				"slot": 0, "item_id": "cooked_minnow", "quantity": 1,
 			}]},
+			"bank_revision": 1,
+			"bank": {"capacity": 100, "next_expansion_cost": 1000, "items": [{
+				"slot": 0, "item_id": "air_rune", "quantity": 5,
+			}]},
 		}],
 	})
 	main.call("_on_snapshot_received", {
@@ -258,6 +262,7 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 			"equipped_armour": {"head": "iron_helm"},
 			"equipment_revision": 1,
 			"inventory_revision": 1,
+			"bank_revision": 1,
 		}],
 	})
 	_check(
@@ -271,6 +276,10 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 	_check(
 		(main.get("_inventory_items") as Array).size() == 1,
 		"unchanged inventory survives an omitted payload",
+	)
+	_check(
+		(main.get("_bank_items") as Array).size() == 1,
+		"unchanged bank survives an omitted payload",
 	)
 
 
