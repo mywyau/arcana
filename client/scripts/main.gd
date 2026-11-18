@@ -21,6 +21,7 @@ const BANK_COLLISION_MASK: int = 64
 const MERCHANT_COLLISION_MASK: int = 128
 const ALL_WORLD_COLLISION_MASK: int = 7
 const HUD_MINIMUM_SCALE: float = 0.75
+const MENU_HUD_MINIMUM_SCALE: float = 0.55
 const HUD_MAXIMUM_SCALE: float = 1.5
 const HUD_HANDLE_HEIGHT: float = 28.0
 const HUD_RESIZE_HANDLE_SIZE: float = 30.0
@@ -28,6 +29,7 @@ const MENU_TAB_BAR_GAP: float = 10.0
 const INVENTORY_TOTAL_SLOTS: int = 28
 const INVENTORY_PAGE_SIZE: int = INVENTORY_TOTAL_SLOTS
 const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
+const INVENTORY_HUD_BASE_SIZE: Vector2 = Vector2(520.0, 500.0)
 const GAME_MESSAGE_LIMIT: int = 100
 const ACTION_PULSE_SECONDS: float = 0.6
 const GATHERING_PROGRESS_RESULTS: Dictionary = {
@@ -4312,9 +4314,10 @@ func _configure_player_menu() -> void:
 			else tab_icons[tab_name] as Texture2D
 		)
 		tab_button.expand_icon = true
+		tab_button.custom_minimum_size = Vector2(78, 62)
 		tab_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tab_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		tab_button.add_theme_constant_override("icon_max_width", 42)
+		tab_button.add_theme_constant_override("icon_max_width", 50)
 		_style_menu_tab_button(tab_button)
 		tab_button.tooltip_text = (
 			"%s  •  %d" % [tab_name, int(HUD_TAB_HOTKEYS[tab_name])]
@@ -4490,7 +4493,7 @@ func _setup_hud_layout() -> void:
 		menu_tabs_hud.size.y + MENU_TAB_BAR_GAP,
 	)
 	for panel: Control in menu_panels:
-		panel.size = MENU_HUD_BASE_SIZE
+		panel.size = INVENTORY_HUD_BASE_SIZE if panel == inventory_hud else MENU_HUD_BASE_SIZE
 		panel.global_position = default_menu_position
 	menu_tabs_hud.global_position = default_menu_position - Vector2(
 		0.0,
@@ -4694,7 +4697,9 @@ func _on_hud_resize_handle_input(event: InputEvent, group_id: String, corner: Ve
 		var horizontal_delta: float = pointer_delta.x * _hud_resize_corner.x / maxf(1.0, _hud_resize_base_size.x)
 		var vertical_delta: float = pointer_delta.y * _hud_resize_corner.y / maxf(1.0, _hud_resize_base_size.y)
 		var scale_delta: float = horizontal_delta if absf(horizontal_delta) >= absf(vertical_delta) else vertical_delta
-		var next_scale: float = clampf(_hud_scale_start + scale_delta, HUD_MINIMUM_SCALE, HUD_MAXIMUM_SCALE)
+		var next_scale: float = clampf(
+			_hud_scale_start + scale_delta, _minimum_hud_scale(group_id), HUD_MAXIMUM_SCALE,
+		)
 		var next_bounds_position := _hud_resize_opposite
 		if _hud_resize_corner.x < 0.0:
 			next_bounds_position.x -= _hud_resize_base_size.x * next_scale
@@ -4709,13 +4714,16 @@ func _set_hud_group_layout(group_id: String, requested_position: Vector2, reques
 	var group: Dictionary = _hud_groups[group_id]
 	var layout_scale: float = float(group["scale"])
 	if requested_scale >= 0.0:
-		layout_scale = clampf(requested_scale, HUD_MINIMUM_SCALE, HUD_MAXIMUM_SCALE)
+		layout_scale = clampf(requested_scale, _minimum_hud_scale(group_id), HUD_MAXIMUM_SCALE)
 	var maximum_size := Vector2.ZERO
 	var menu_top_extent: float = 0.0
 	var menu_bottom_extent: float = 0.0
 	var panels: Array = group["panels"]
 	var bounds_panels: Array = panels
 	var visible_panel: Control = _get_visible_hud_panel(group_id)
+	if group_id == "menu" and visible_panel != null:
+		menu_tabs_hud.size.x = visible_panel.size.x
+		menu_utility_tabs_hud.size.x = visible_panel.size.x
 	if visible_panel != null:
 		bounds_panels = [visible_panel]
 	for panel_value: Variant in bounds_panels:
@@ -4761,6 +4769,10 @@ func _set_hud_group_layout(group_id: String, requested_position: Vector2, reques
 	elif group_id == "player":
 		_position_player_details_hud()
 	_refresh_hud_edit_handles()
+
+
+func _minimum_hud_scale(group_id: String) -> float:
+	return MENU_HUD_MINIMUM_SCALE if group_id == "menu" else HUD_MINIMUM_SCALE
 
 
 func _load_hud_layout() -> void:

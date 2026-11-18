@@ -46,6 +46,7 @@ func _run() -> void:
 	_test_skill_guides_show_authoritative_unlock_levels()
 	_test_skill_slot_tooltip_and_hover_style()
 	_test_light_interface_theme_and_chest_slots()
+	_test_inventory_hud_compact_layout()
 	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
@@ -768,6 +769,33 @@ func _test_beta_build_uses_hosted_server() -> void:
 	_check(local_url.begins_with("ws://localhost:"), "development builds default to localhost")
 	_check(beta_url.begins_with("wss://"), "beta builds default to a secure WebSocket endpoint")
 	_check(not beta_url.contains("localhost"), "beta builds do not default to localhost")
+
+
+func _test_inventory_hud_compact_layout() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	var inventory_hud := main.get_node("UI/InventoryHUD") as Control
+	var inventory_grid := main.get_node("UI/InventoryHUD/Margin/VBox/ContentScroll/Grid") as GridContainer
+	var upper_tab := main.get_node("UI/MenuTabsHUD/Margin/Row/Inventory") as Button
+	var lower_tab := main.get_node("UI/MenuUtilityTabsHUD/Margin/Row/Settings") as Button
+	_check(
+		inventory_hud.size.x <= 520.0 and inventory_hud.size.y <= 500.0,
+		"inventory HUD has a smaller default footprint",
+	)
+	_check(
+		inventory_grid.get_theme_constant("h_separation") == 4
+			and inventory_grid.get_theme_constant("v_separation") == 4,
+		"inventory slots use compact row and column spacing",
+	)
+	_check(
+		upper_tab.custom_minimum_size.y >= 62.0 and lower_tab.custom_minimum_size.y >= 62.0,
+		"upper and lower menu tabs have larger click targets",
+	)
+	_check(
+		float(main.call("_minimum_hud_scale", "menu")) <= 0.55
+			and float(main.call("_minimum_hud_scale", "chat")) >= 0.75,
+		"menu HUD can scale smaller without reducing other HUD readability limits",
+	)
+	main.free()
 
 
 func _test_minimap_layout_and_projection() -> void:

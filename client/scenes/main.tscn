@@ -1173,8 +1173,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1280,8 +1280,8 @@ vertical_scroll_mode = 1
 [node name="Grid" type="GridContainer" parent="UI/InventoryHUD/Margin/VBox/ContentScroll"]
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
 columns = 4
 
 [node name="UtilityTabs" type="PanelContainer" parent="UI/InventoryHUD/Margin/VBox"]
@@ -1511,8 +1511,8 @@ text = ""
 anchors_preset = 3
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -82.0
+offset_left = -540.0
+offset_top = -92.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1531,42 +1531,42 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="Styles" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(78, 62)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = ""
 
 [node name="Skills" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(78, 62)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = ""
 
 [node name="Inventory" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(78, 62)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = ""
 
 [node name="Equipment" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(78, 62)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = ""
 
 [node name="Magic" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(78, 62)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = ""
 
 [node name="Prayer" type="Button" parent="UI/MenuTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(78, 62)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
@@ -1576,8 +1576,8 @@ text = ""
 anchors_preset = 3
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -82.0
+offset_left = -540.0
+offset_top = -92.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1600,13 +1600,13 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Settings" type="Button" parent="UI/MenuUtilityTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(82, 62)
 layout_mode = 2
 toggle_mode = true
 text = ""
 
 [node name="Account" type="Button" parent="UI/MenuUtilityTabsHUD/Margin/Row"]
-custom_minimum_size = Vector2(70, 52)
+custom_minimum_size = Vector2(82, 62)
 layout_mode = 2
 toggle_mode = true
 text = ""
