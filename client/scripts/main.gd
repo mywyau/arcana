@@ -28,8 +28,7 @@ const HUD_RESIZE_HANDLE_SIZE: float = 30.0
 const MENU_TAB_BAR_GAP: float = 10.0
 const INVENTORY_TOTAL_SLOTS: int = 28
 const INVENTORY_PAGE_SIZE: int = INVENTORY_TOTAL_SLOTS
-const MENU_HUD_BASE_SIZE: Vector2 = Vector2(600.0, 650.0)
-const INVENTORY_HUD_BASE_SIZE: Vector2 = Vector2(520.0, 500.0)
+const MENU_HUD_BASE_SIZE: Vector2 = Vector2(520.0, 500.0)
 const GAME_MESSAGE_LIMIT: int = 100
 const ACTION_PULSE_SECONDS: float = 0.6
 const GATHERING_PROGRESS_RESULTS: Dictionary = {
@@ -384,11 +383,6 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"moonspun_hood": "Magic level 10", "moonspun_robe_top": "Magic level 10", "moonspun_gloves": "Magic level 10", "moonspun_bottoms": "Magic level 10", "moonspun_boots": "Magic level 10",
 	"enchanted_hood": "Magic level 15", "enchanted_robe_top": "Magic level 15", "enchanted_gloves": "Magic level 15", "enchanted_bottoms": "Magic level 15", "enchanted_boots": "Magic level 15",
 	"stardew_hood": "Magic level 20", "stardew_robe_top": "Magic level 20", "stardew_gloves": "Magic level 20", "stardew_bottoms": "Magic level 20", "stardew_boots": "Magic level 20",
-	"amulet_ferocity": "Attack level 5",
-	"amulet_hawk": "Range level 5",
-	"amulet_embers": "Magic level 5",
-	"amulet_fury": "Defence level 5",
-	"diamond_amulet": "Defence level 5",
 }
 const CONSUMABLE_ITEMS: Dictionary = {
 	"cooked_minnow": {"healing": 8, "stack_limit": 5, "cooldown_group": "food"},
@@ -793,6 +787,9 @@ var _pending_crafting_station_id: String = ""
 var _pending_crafting_station: String = ""
 var _pending_crafting_position: Vector3 = Vector3.ZERO
 var _pending_crafting_range: float = 0.0
+var _active_crafting_station_id: String = ""
+var _active_crafting_position: Vector3 = Vector3.ZERO
+var _active_crafting_range: float = 0.0
 var _next_brew_sequence: int = 1
 var _brew_pending: bool = false
 var _brew_remaining: int = 0
@@ -961,6 +958,8 @@ func _ready() -> void:
 	network.account_logged_out.connect(_on_account_logged_out)
 	network.client_update_required.connect(_on_client_update_required)
 	network.session_replaced.connect(_on_session_replaced)
+	_style_chat_channel_tab(game_chat_tab)
+	_style_chat_channel_tab(local_chat_tab)
 	game_chat_tab.pressed.connect(_select_chat_channel.bind("game"))
 	local_chat_tab.pressed.connect(_select_chat_channel.bind("local"))
 	chat_send_button.pressed.connect(_on_chat_send_pressed)
@@ -1374,6 +1373,7 @@ func _physics_process(_delta: float) -> void:
 	var sequence: int = _next_sequence
 	if network.send_move(sequence, destination):
 		_pending_crafting_station_id = ""
+		_close_active_crafting_station()
 		_next_sequence += 1
 		if not _combat_target.is_empty() or _last_action_sequence < _next_action_sequence - 1:
 			_request_disengage()
@@ -1756,6 +1756,12 @@ func _crafting_station_name(station: String) -> String:
 
 
 func _open_crafting_station_window(station: String) -> void:
+	if station in ["cooking", "smelting", "forging"]:
+		_active_crafting_station_id = _selected_station_id
+		_active_crafting_position = _selected_station_position
+		_active_crafting_range = float(
+			(_gathering_states.get(_selected_station_id, {}) as Dictionary).get("range", 2.5)
+		)
 	match station:
 		"forging": _open_smithing_window()
 		"smelting": _open_smelting_window()
@@ -1764,6 +1770,11 @@ func _open_crafting_station_window(station: String) -> void:
 
 
 func _update_crafting_station_proximity(player_position: Vector3) -> void:
+	if not _active_crafting_station_id.is_empty():
+		if _production_windows == null or not _production_windows.has_visible_station():
+			_clear_active_crafting_station()
+		elif player_position.distance_to(_active_crafting_position) > _active_crafting_range:
+			_close_active_crafting_station()
 	if _pending_crafting_station_id.is_empty():
 		return
 	if player_position.distance_to(_pending_crafting_position) > _pending_crafting_range:
@@ -1777,6 +1788,18 @@ func _update_crafting_station_proximity(player_position: Vector3) -> void:
 	if network.send_move(_next_sequence, player_position):
 		_next_sequence += 1
 	_open_crafting_station_window(station)
+
+
+func _close_active_crafting_station() -> void:
+	if _production_windows != null:
+		_production_windows.close_stations()
+	_clear_active_crafting_station()
+
+
+func _clear_active_crafting_station() -> void:
+	_active_crafting_station_id = ""
+	_active_crafting_position = Vector3.ZERO
+	_active_crafting_range = 0.0
 
 
 func _open_cooking_window() -> void:
@@ -2644,6 +2667,29 @@ func _select_chat_channel(channel: String) -> void:
 	_render_chat_messages()
 
 
+func _style_chat_channel_tab(button: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.27, 0.29, 0.38, 0.98)
+	normal.border_color = Color(0.43, 0.45, 0.58, 0.95)
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(6)
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.34, 0.37, 0.47, 1.0)
+	hover.border_color = Color(0.58, 0.61, 0.74, 1.0)
+	var selected := normal.duplicate() as StyleBoxFlat
+	selected.bg_color = Color(0.19, 0.48, 0.31, 1.0)
+	selected.border_color = Color(0.42, 0.86, 0.57, 1.0)
+	selected.set_border_width_all(2)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("focus", hover)
+	button.add_theme_stylebox_override("pressed", selected)
+	button.add_theme_stylebox_override("hover_pressed", selected)
+	button.add_theme_color_override("font_color", Color(0.9, 0.92, 0.96))
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_pressed_color", Color.WHITE)
+
+
 func _set_chat_input_active(active: bool) -> void:
 	if active:
 		_select_chat_channel("local")
@@ -3103,7 +3149,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"sacrificed_bone":
 						status_label.text = "Sacrificing bones… • 10 Prayer XP"
 					"missing_bones":
-						status_label.text = "All bones sacrificed"
+						status_label.text = "You need bones to make that sacrifice"
 					"sacrificed_all_bones":
 						status_label.text = "All bones sacrificed • Prayer XP gained"
 					"fishing":
@@ -3160,6 +3206,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						status_label.text = "Woodcutting stopped: an axe is required"
 					"tree_depleted":
 						status_label.text = "Woodcutting stopped: the tree is depleted"
+					"fishing_spot_depleted":
+						status_label.text = "Fishing stopped: this spot needs time to recover"
 					"smelting":
 						status_label.text = "Smelting…"
 					"smelted_bronze_bar":
@@ -3988,7 +4036,7 @@ func _gathering_result_is_rejection(result: String) -> bool:
 		result.begins_with("missing_")
 		or result.begins_with("requires_")
 		or result in [
-			"inventory_full", "tree_depleted", "vein_depleted", "reinforcement_failed",
+			"inventory_full", "tree_depleted", "vein_depleted", "fishing_spot_depleted", "reinforcement_failed",
 		]
 	)
 
@@ -4493,7 +4541,7 @@ func _setup_hud_layout() -> void:
 		menu_tabs_hud.size.y + MENU_TAB_BAR_GAP,
 	)
 	for panel: Control in menu_panels:
-		panel.size = INVENTORY_HUD_BASE_SIZE if panel == inventory_hud else MENU_HUD_BASE_SIZE
+		panel.size = MENU_HUD_BASE_SIZE
 		panel.global_position = default_menu_position
 	menu_tabs_hud.global_position = default_menu_position - Vector2(
 		0.0,
@@ -5025,7 +5073,7 @@ func _populate_placeholder_skills() -> void:
 		var skill: Dictionary = skill_data
 		var skill_name: String = str(skill.get("name", "Skill"))
 		var skill_tile := Button.new()
-		skill_tile.custom_minimum_size = Vector2(124, 108)
+		skill_tile.custom_minimum_size = Vector2(116, 108)
 		skill_tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		skill_tile.focus_mode = Control.FOCUS_NONE
 		skill_tile.icon = SKILL_ICONS.get(skill_name, TAB_SKILLS_ICON) as Texture2D
@@ -5555,7 +5603,7 @@ func _update_magic_hud() -> void:
 		if required_book != _active_spellbook:
 			continue
 		var spell_button: Variant = SPELL_SLOT_SCRIPT.new()
-		spell_button.custom_minimum_size = Vector2(116, 116)
+		spell_button.custom_minimum_size = Vector2(112, 112)
 		spell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		spell_button.focus_mode = Control.FOCUS_NONE
 		spell_button.toggle_mode = not spell_id.is_empty()
@@ -5944,78 +5992,37 @@ func _update_detailed_combat_stats() -> void:
 
 
 func _detailed_offence_text() -> String:
-	var spell_id: String = str(_combat_stats.get("spell", ""))
 	var equipment_offence: Dictionary = _combat_stats.get("equipment_offence", {}) as Dictionary
-	var loadout_text: String = "%s • %s" % [
-		str(_combat_stats.get("weapon", "unarmed")).capitalize(),
-		str(_combat_stats.get("style", "crush")).capitalize(),
-	]
-	var accuracy_breakdown: String = "Weapon: %s\nStyle: %s\nGear: %s" % [
-		_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
-		_signed_stat(int(_combat_stats.get("style_accuracy_bonus", 0))),
-		_signed_stat(int(_combat_stats.get("equipment_accuracy_bonus", 0))),
-	]
-	var prayer_hit_chance_bonus: float = float(_combat_stats.get("prayer_hit_chance_bonus", 0.0))
-	if prayer_hit_chance_bonus > 0.0:
-		accuracy_breakdown += "\nPrayer hit: +%.0f%%" % (prayer_hit_chance_bonus * 100.0)
-	var damage_breakdown: String = "Weapon: %s" % _signed_stat(
-		int(_combat_stats.get("strength_bonus", 0)),
-	)
-	damage_breakdown += "\nGear: %s" % _signed_stat(
-		int(_combat_stats.get("equipment_strength_bonus", 0)),
-	)
-	var ammunition_strength: int = int(_combat_stats.get("ammunition_strength_bonus", 0))
-	if ammunition_strength != 0:
-		damage_breakdown += "\nAmmo: %s" % _signed_stat(ammunition_strength)
-	if not spell_id.is_empty():
-		loadout_text = "%s • %s" % [
-			spell_id.capitalize(), str(_combat_stats.get("weapon", "unarmed")).capitalize(),
+	var attack_speed_modifier: int = int(_combat_stats.get("attack_interval_modifier", 0))
+	var attack_speed_text: String = "None"
+	if attack_speed_modifier != 0:
+		attack_speed_text = "%s pulse%s" % [
+			_signed_stat(attack_speed_modifier),
+			"" if absi(attack_speed_modifier) == 1 else "s",
 		]
-		accuracy_breakdown = "Spell: %s\nFocus: %s\nGear: %s" % [
-			_signed_stat(int(_combat_stats.get("spell_accuracy_bonus", 0))),
-			_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
-			_signed_stat(int(_combat_stats.get("equipment_accuracy_bonus", 0))),
-		]
-		damage_breakdown = "Spell: %s\nFocus: %s\nGear: %s" % [
-			_signed_stat(int(_combat_stats.get("spell_power", 0))),
-			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
-			_signed_stat(int(_combat_stats.get("equipment_strength_bonus", 0))),
-		]
-	var prayer_damage_bonus: float = float(_combat_stats.get("prayer_damage_bonus", 0.0))
-	if prayer_damage_bonus > 0.0 and spell_id.is_empty():
-		damage_breakdown += "\nPrayer: +%.0f%%" % (prayer_damage_bonus * 100.0)
-	var attack_interval: int = int(_combat_stats.get("attack_interval", 0))
-	var base_attack_interval: int = int(_combat_stats.get("base_attack_interval", attack_interval))
-	var attack_speed_text: String = "Current: %d pulses / %.1fs\nBase: %d pulses\nGear mod: %s" % [
-		attack_interval, attack_interval * 0.6, base_attack_interval,
-		_signed_stat(int(_combat_stats.get("attack_interval_modifier", 0))),
-	]
-	var armour_offence_text: String = "Melee: %s acc / %s str\nRanged: %s acc / %s str\nMagic: %s acc / %s str" % [
-		_signed_stat(int(equipment_offence.get("melee_accuracy", 0))),
-		_signed_stat(int(equipment_offence.get("melee_strength", 0))),
-		_signed_stat(int(equipment_offence.get("ranged_accuracy", 0))),
-		_signed_stat(int(equipment_offence.get("ranged_strength", 0))),
-		_signed_stat(int(equipment_offence.get("magic_accuracy", 0))),
-		_signed_stat(int(equipment_offence.get("magic_strength", 0))),
-	]
 	return (
-		"[table=2]"
-		+"[cell][b]LOADOUT[/b]\n%s\n\n" % loadout_text
-		+"[b]ACCURACY[/b]\nTotal: %d\n" % int(_combat_stats.get("total_accuracy", 0))
-		+"%s Lv: %d\n%s\n\n[b]ARMOUR OFFENCE[/b]\n%s[/cell]" % [
-			str(_combat_stats.get("accuracy_skill", "attack")).capitalize(),
-			int(_combat_stats.get("accuracy_level", 1)), accuracy_breakdown, armour_offence_text,
+		"[table=3]"
+		+"[cell][b]GEAR ACCURACY[/b]\n\n"
+		+"Melee  %s\n\nRanged  %s\n\nMagic  %s[/cell]" % [
+			_signed_stat(int(equipment_offence.get("melee_accuracy", 0))),
+			_signed_stat(int(equipment_offence.get("ranged_accuracy", 0))),
+			_signed_stat(int(equipment_offence.get("magic_accuracy", 0))),
 		]
-		+"[cell][b]DAMAGE[/b]\nRange: %d–%d\n" % [
-			int(_combat_stats.get("minimum_damage", 0)),
-			int(_combat_stats.get("maximum_damage", 0)),
+		+"[cell][b]GEAR POWER[/b]\n\n"
+		+"Melee  %s\n\nRanged  %s\n\nMagic  %s[/cell]" % [
+			_signed_stat(int(equipment_offence.get("melee_strength", 0))),
+			_signed_stat(int(equipment_offence.get("ranged_strength", 0))),
+			_signed_stat(int(equipment_offence.get("magic_strength", 0))),
 		]
-		+"%s Lv: %d\n%s\nSkill: +%.1f\n\n" % [
-			str(_combat_stats.get("damage_skill", "strength")).capitalize(),
-			int(_combat_stats.get("damage_level", 1)), damage_breakdown,
-			float(_combat_stats.get("skill_damage_bonus", 0.0)),
+		+"[cell][b]WEAPON & AMMO[/b]\n\n"
+		+"%s\n\nAccuracy  %s\nPower  %s\nAmmo power  %s\n\nSpeed modifier  %s[/cell]" % [
+			str(_combat_stats.get("weapon", "unarmed")).replace("_", " ").capitalize(),
+			_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
+			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
+			_signed_stat(int(_combat_stats.get("ammunition_strength_bonus", 0))),
+			attack_speed_text,
 		]
-		+"[b]SPEED[/b]\n%s[/cell][/table]" % attack_speed_text
+		+"[/table]"
 	)
 
 
@@ -6023,28 +6030,24 @@ func _detailed_defence_text() -> String:
 	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
 	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
 	return (
-		"[table=2]"
-		+"[cell][b]DEFENCE BONUSES[/b]\n"
-		+"Stab Def: %s\nSlash Def: %s\nCrush Def: %s\n" % [
+		"[table=3]"
+		+"[cell][b]MELEE DEFENCE[/b]\n\n"
+		+"Stab  %s\n\nSlash  %s\n\nCrush  %s[/cell]" % [
 			_signed_stat(int(defence.get("stab", 0))),
 			_signed_stat(int(defence.get("slash", 0))),
 			_signed_stat(int(defence.get("crush", 0))),
 		]
-		+"Range Def: %s\nMagic Def: %s[/cell]" % [
+		+"[cell][b]OTHER DEFENCE[/b]\n\n"
+		+"Ranged  %s\n\nMagic  %s[/cell]" % [
 			_signed_stat(int(defence.get("ranged", 0))),
 			_signed_stat(int(defence.get("magic", 0))),
 		]
-		+"[cell][b]OVERVIEW[/b]\n"
-		+"Evasion: %d\n" % int(_combat_stats.get("total_evasion", 1))
-		+"Agility: %d\n" % int(_combat_stats.get("agility_level", 1))
-		+"Gear evasion: %s\n" % _signed_stat(int(_combat_stats.get("equipment_evasion_bonus", 0)))
-		+"Prayer DR: %.0f%%\n" % (
-			float(_combat_stats.get("prayer_damage_reduction", 0.0)) * 100.0
-		)
-		+"Crush DR: %.1f%%\n" % (
+		+"[cell][b]EQUIPMENT UTILITY[/b]\n\n"
+		+"Evasion  %s\n\n" % _signed_stat(int(_combat_stats.get("equipment_evasion_bonus", 0)))
+		+"Bonus health  %s\n\n" % _signed_stat(int(_combat_stats.get("maximum_health_bonus", 0)))
+		+"Crush reduction  %.1f%%[/cell][/table]" % (
 			float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0
 		)
-		+"Bonus HP: +%d[/cell][/table]" % int(_combat_stats.get("maximum_health_bonus", 0))
 	)
 
 

@@ -120,6 +120,27 @@ func close_overlays() -> bool:
 	return false
 
 
+func has_visible_station() -> bool:
+	return (
+		(_cooking_window != null and _cooking_window.visible)
+		or (_smelting_window != null and _smelting_window.visible)
+		or (_smithing_window != null and _smithing_window.visible)
+	)
+
+
+func close_stations() -> bool:
+	var closed := false
+	for window: Window in [_cooking_window, _smelting_window, _smithing_window]:
+		if window != null and window.visible:
+			window.hide()
+			closed = true
+	if _action_menu != null and _action_menu.visible:
+		_action_menu.hide()
+	if _quantity_dialog != null and _quantity_dialog.visible:
+		_quantity_dialog.hide()
+	return closed
+
+
 func _render_cooking() -> void:
 	_clear_children(_cooking_grid)
 	_cooking_details_toggle.set_pressed_no_signal(_cooking_details_visible)

@@ -67,7 +67,7 @@ func TestFoodAndPotionCooldownsAreIndependent(t *testing.T) {
 	}
 }
 
-func TestCookedMinnowCannotBeEatenAtFullHealthOrDuringCooldown(t *testing.T) {
+func TestCookedMinnowCanBeEatenAtFullHealthButNotDuringCooldown(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -78,17 +78,14 @@ func TestCookedMinnowCannotBeEatenAtFullHealthOrDuringCooldown(t *testing.T) {
 	}
 	if err := world.QueueConsumeItem(ConsumeItemCommand{
 		PlayerID: "player-one", Sequence: 1, ItemID: ItemCookedMinnow,
-	}); err == nil {
-		t.Fatal("QueueConsumeItem() error = nil at full health")
-	}
-
-	player.health = 50
-	if err := world.QueueConsumeItem(ConsumeItemCommand{
-		PlayerID: "player-one", Sequence: 1, ItemID: ItemCookedMinnow,
 	}); err != nil {
-		t.Fatalf("QueueConsumeItem() returned an unexpected error: %v", err)
+		t.Fatalf("QueueConsumeItem() rejected food at full health: %v", err)
 	}
 	world.Step(50 * time.Millisecond)
+	snapshot := mustPlayer(t, world, "player-one")
+	if snapshot.Health != snapshot.MaximumHealth || snapshot.Inventory.itemsQuantity(ItemCookedMinnow) != 1 {
+		t.Fatalf("player after eating at full health = %+v", snapshot)
+	}
 	if err := world.QueueConsumeItem(ConsumeItemCommand{
 		PlayerID: "player-one", Sequence: 2, ItemID: ItemCookedMinnow,
 	}); err == nil {

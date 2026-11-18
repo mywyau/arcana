@@ -128,6 +128,9 @@ func playerCanBenefitFromConsumable(player *playerState, consumable ConsumableDe
 	if player == nil {
 		return false
 	}
+	if consumable.CooldownGroup == ConsumableCooldownFood && consumable.Healing > 0 {
+		return true
+	}
 	return consumable.Healing > 0 && player.health < player.maximumHealth ||
 		consumable.PrayerRestoration > 0 && player.prayer < player.maximumPrayer ||
 		len(consumable.SkillBoosts) > 0

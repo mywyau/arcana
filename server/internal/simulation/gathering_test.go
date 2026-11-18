@@ -277,17 +277,45 @@ func TestPrayerAltarSacrificesAllBonesOnePerPulseAndGrantsXP(t *testing.T) {
 	}
 }
 
-func TestPrayerAltarRejectsBoneSacrificeWithoutBones(t *testing.T) {
+func TestPrayerAltarChecksForBonesAfterApproachingWithinRange(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterPrayerAltarID]
-	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+	start := Position{X: spot.Position.X - spot.Range - 2, Y: spot.Position.Y, Z: spot.Position.Z}
+	if err := world.AddPlayer("player-one", start, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterPrayerAltarID, RecipeID: prayerSacrificeBonesID,
-	}); err == nil {
-		t.Fatal("QueueGather(sacrifice bones) error = nil without bones")
+	}); err != nil {
+		t.Fatalf("QueueGather(sacrifice bones) rejected the distant approach: %v", err)
 	}
+
+	step := 50 * time.Millisecond
+	world.Step(step)
+	approaching := mustPlayer(t, world, "player-one")
+	travelled := distance(start, approaching.Position)
+	maximumStep := approaching.Speed*step.Seconds() + 0.001
+	if travelled <= 0 || travelled > maximumStep {
+		t.Fatalf("first altar approach moved %.3f units, want gradual movement in (0, %.3f]", travelled, maximumStep)
+	}
+	if approaching.GatheringResult != "approaching" {
+		t.Fatalf("gathering result while approaching = %q, want approaching", approaching.GatheringResult)
+	}
+
+	for range 100 {
+		world.Step(step)
+		player := mustPlayer(t, world, "player-one")
+		if player.GatheringResult == "missing_bones" {
+			if distance(player.Position, spot.Position) > spot.Range {
+				t.Fatalf("bones were checked %.3f units from altar, range is %.3f", distance(player.Position, spot.Position), spot.Range)
+			}
+			if player.GatheringSpot != "" {
+				t.Fatalf("gathering spot after missing bones = %q, want cleared", player.GatheringSpot)
+			}
+			return
+		}
+	}
+	t.Fatal("player did not receive missing_bones after reaching the altar")
 }
 
 func TestGodAltarChangesPrayerSetAndClearsActivePrayers(t *testing.T) {
@@ -377,21 +405,57 @@ func TestFishingSpotOnlyAllowsItsConfiguredFish(t *testing.T) {
 
 func TestEachFishingSpotContainsOneFishRecipe(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0))
-	want := map[string]string{
-		starterFishingSpotID: ItemRawMinnow,
-		starterTroutSpotID:   ItemRawTrout,
-		starterSalmonSpotID:  ItemRawSalmon,
-		starterTunaSpotID:    ItemRawTuna,
-		starterLobsterSpotID: ItemRawLobster,
+	want := map[string]struct {
+		recipe   string
+		capacity int
+		recharge uint64
+	}{
+		starterFishingSpotID: {ItemRawMinnow, minnowSpotCapacity, minnowRechargePulses},
+		starterTroutSpotID:   {ItemRawTrout, troutSpotCapacity, troutRechargePulses},
+		starterSalmonSpotID:  {ItemRawSalmon, salmonSpotCapacity, salmonRechargePulses},
+		starterTunaSpotID:    {ItemRawTuna, tunaSpotCapacity, tunaRechargePulses},
+		starterLobsterSpotID: {ItemRawLobster, lobsterSpotCapacity, lobsterRechargePulses},
 	}
-	for spotID, recipeID := range want {
+	for spotID, expected := range want {
 		spot, exists := world.gatheringSpots[spotID]
 		if !exists {
 			t.Fatalf("fishing spot %q is missing", spotID)
 		}
-		if spot.Station != craftingStationFishing || spot.RecipeID != recipeID {
-			t.Fatalf("fishing spot %q = %+v, want recipe %q", spotID, spot, recipeID)
+		if spot.Station != craftingStationFishing || spot.RecipeID != expected.recipe ||
+			spot.CurrentAmount != expected.capacity || spot.MaximumAmount != expected.capacity ||
+			spot.RechargePulses != expected.recharge {
+			t.Fatalf("fishing spot %q = %+v, want %+v", spotID, spot, expected)
 		}
+	}
+}
+
+func TestFishingSpotConsumesSharedCapacityAndSlowlyRecharges(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0))
+	spot := world.gatheringSpots[starterFishingSpotID]
+	spot.CurrentAmount = 1
+	world.gatheringSpots[starterFishingSpotID] = spot
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatal(err)
+	}
+	world.players["player-one"].inventory.add(ItemFishingRod, 1)
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterFishingSpotID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	world.Step(50 * time.Millisecond)
+	world.Step(fishingInterval * actionPulseInterval)
+	if got := world.gatheringSpots[starterFishingSpotID].CurrentAmount; got != 0 {
+		t.Fatalf("depleted fishing amount = %d, want 0", got)
+	}
+	clearGathering(world.players["player-one"], "")
+	world.Step((minnowRechargePulses - 1) * actionPulseInterval)
+	if got := world.gatheringSpots[starterFishingSpotID].CurrentAmount; got != 0 {
+		t.Fatalf("fishing spot recharged early to %d", got)
+	}
+	world.Step(actionPulseInterval)
+	if got := world.gatheringSpots[starterFishingSpotID].CurrentAmount; got != 1 {
+		t.Fatalf("recharged fishing amount = %d, want 1", got)
 	}
 }
 
@@ -811,7 +875,7 @@ func TestWoodcuttingTreeProgressionAndRecharge(t *testing.T) {
 	if player := mustPlayer(t, world, "player-one"); player.GatheringResult != "tree_depleted" {
 		t.Fatalf("gathering did not stop at depleted tree: %+v", player)
 	}
-	world.Step(4 * actionPulseInterval)
+	world.Step(time.Duration(slowedRenewableRecharge(8)-4) * actionPulseInterval)
 	if got := world.gatheringSpots[starterNormalTreeID].CurrentAmount; got != 1 {
 		t.Fatalf("recharged tree amount = %d, want 1", got)
 	}

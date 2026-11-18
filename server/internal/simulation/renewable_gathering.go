@@ -101,6 +101,14 @@ func validateRenewableGathering(player *playerState, spot gatheringSpotDefinitio
 }
 
 func (w *World) resolveRenewableGathering(player *playerState, spot gatheringSpotDefinition) {
+	if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
+		result := spot.DepletedResult
+		if result == "" {
+			result = "vein_depleted"
+		}
+		clearGathering(player, result)
+		return
+	}
 	if spot.Station == craftingStationFishing {
 		recipe, exists := foodRecipe(spot.Station, player.gatheringRecipe)
 		if !exists {
@@ -124,20 +132,13 @@ func (w *World) resolveRenewableGathering(player *playerState, spot gatheringSpo
 			}
 			return
 		}
+		w.consumeRenewableResource(spot)
 		player.gatheringResult = "caught_" + recipe.RewardItem
 		player.nextGatherPulse = w.combat.pulse + recipe.Interval
 		player.gatheringRevision++
 		return
 	}
 
-	if spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
-		result := spot.DepletedResult
-		if result == "" {
-			result = "vein_depleted"
-		}
-		clearGathering(player, result)
-		return
-	}
 	candidate := cloneInventory(player.inventory)
 	if !payItemCosts(&candidate, spot.Costs) {
 		clearGathering(player, spot.MissingResult)
@@ -152,15 +153,20 @@ func (w *World) resolveRenewableGathering(player *playerState, spot gatheringSpo
 		return
 	}
 	player.inventory = candidate
-	if spot.MaximumAmount > 0 {
-		spot.CurrentAmount--
-		if spot.NextRecharge == 0 {
-			spot.NextRecharge = w.combat.pulse + spot.RechargePulses
-		}
-		w.gatheringSpots[spot.ID] = spot
-	}
+	w.consumeRenewableResource(spot)
 	grantSkillExperience(player, spot.Skill, spot.RewardXP)
 	player.gatheringResult = spot.RewardResult
 	player.nextGatherPulse = w.combat.pulse + spot.Interval
 	player.gatheringRevision++
+}
+
+func (w *World) consumeRenewableResource(spot gatheringSpotDefinition) {
+	if spot.MaximumAmount <= 0 {
+		return
+	}
+	spot.CurrentAmount--
+	if spot.NextRecharge == 0 {
+		spot.NextRecharge = w.combat.pulse + spot.RechargePulses
+	}
+	w.gatheringSpots[spot.ID] = spot
 }

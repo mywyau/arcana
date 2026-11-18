@@ -42,7 +42,7 @@ const (
 	miningExperience              = 10
 	copperVeinCapacity            = 20
 	tinVeinCapacity               = 20
-	copperRechargePulses          = 10
+	copperRechargePulses          = 20
 	ironVeinCapacity              = 16
 	coalVeinCapacity              = 12
 	mithrilVeinCapacity           = 8
@@ -55,6 +55,17 @@ const (
 	willowTreeCapacity            = 8
 	mapleTreeCapacity             = 6
 	yewTreeCapacity               = 4
+	minnowSpotCapacity            = 20
+	troutSpotCapacity             = 16
+	salmonSpotCapacity            = 14
+	tunaSpotCapacity              = 10
+	lobsterSpotCapacity           = 8
+	minnowRechargePulses          = 18
+	troutRechargePulses           = 24
+	salmonRechargePulses          = 28
+	tunaRechargePulses            = 36
+	lobsterRechargePulses         = 48
+	renewableRechargeSlowdown     = 2
 	agilityObstacleExperience     = 50
 	agilityObstacleInterval       = 5
 	agilityBeamHalfLength         = 3.25
@@ -155,11 +166,11 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 	return map[string]gatheringSpotDefinition{
 		// Fishing grounds: spaced far enough apart that each pond reads as its
 		// own resource while still forming one obvious testing area.
-		starterFishingSpotID: fishingSpot(starterFishingSpotID, "Minnow Pond", Position{X: -55, Z: 22}, ItemRawMinnow),
-		starterTroutSpotID:   fishingSpot(starterTroutSpotID, "Trout Pond", Position{X: -43, Z: 22}, ItemRawTrout),
-		starterSalmonSpotID:  fishingSpot(starterSalmonSpotID, "Salmon Pond", Position{X: -31, Z: 22}, ItemRawSalmon),
-		starterTunaSpotID:    fishingSpot(starterTunaSpotID, "Tuna Fishing Spot", Position{X: -49, Z: 10}, ItemRawTuna),
-		starterLobsterSpotID: fishingSpot(starterLobsterSpotID, "Lobster Fishing Spot", Position{X: -37, Z: 10}, ItemRawLobster),
+		starterFishingSpotID: fishingSpot(starterFishingSpotID, "Minnow Pond", Position{X: -55, Z: 22}, ItemRawMinnow, minnowSpotCapacity, minnowRechargePulses),
+		starterTroutSpotID:   fishingSpot(starterTroutSpotID, "Trout Pond", Position{X: -43, Z: 22}, ItemRawTrout, troutSpotCapacity, troutRechargePulses),
+		starterSalmonSpotID:  fishingSpot(starterSalmonSpotID, "Salmon Pond", Position{X: -31, Z: 22}, ItemRawSalmon, salmonSpotCapacity, salmonRechargePulses),
+		starterTunaSpotID:    fishingSpot(starterTunaSpotID, "Tuna Fishing Spot", Position{X: -49, Z: 10}, ItemRawTuna, tunaSpotCapacity, tunaRechargePulses),
+		starterLobsterSpotID: fishingSpot(starterLobsterSpotID, "Lobster Fishing Spot", Position{X: -37, Z: 10}, ItemRawLobster, lobsterSpotCapacity, lobsterRechargePulses),
 		starterCookingRangeID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCookingRangeID, Name: "Cooking Range", Skill: SkillCooking,
@@ -268,7 +279,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 	}
 }
 
-func fishingSpot(id, name string, position Position, recipeID string) gatheringSpotDefinition {
+func fishingSpot(id, name string, position Position, recipeID string, capacity int, recharge uint64) gatheringSpotDefinition {
 	recipe, exists := fishingRecipes[recipeID]
 	if !exists {
 		panic(fmt.Sprintf("fishing spot %q uses unknown recipe %q", id, recipeID))
@@ -283,9 +294,11 @@ func fishingSpot(id, name string, position Position, recipeID string) gatheringS
 		GatheringSpotSnapshot: GatheringSpotSnapshot{
 			ID: id, Name: name, Skill: SkillFishing, Position: position, Range: gatheringRange,
 			RequiredLevel: recipe.RequiredLevel, Station: craftingStationFishing, RecipeID: recipeID,
+			CurrentAmount: capacity, MaximumAmount: capacity,
 		},
 		ActionKind:   timedActionGathering,
 		ActiveResult: "fishing", RequiredTool: requiredTool, MissingResult: missingResult,
+		DepletedResult: "fishing_spot_depleted", RechargePulses: recharge,
 		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
 		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "fishing_unsuccessful",
 	}
@@ -300,7 +313,8 @@ func miningVein(id, name string, position Position, level int, reward string, xp
 		ActionKind: timedActionGathering,
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "mining", RewardResult: "mined_" + reward,
-		MissingResult: "missing_pickaxe", RequiredTool: ItemBronzePickaxe, RechargePulses: recharge,
+		MissingResult: "missing_pickaxe", RequiredTool: ItemBronzePickaxe,
+		RechargePulses:    slowedRenewableRecharge(recharge),
 		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
 		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "mining_unsuccessful",
 	}
@@ -316,10 +330,14 @@ func woodcuttingTree(id, name string, position Position, level int, reward strin
 		RewardItem: reward, RewardQuantity: 1, RewardXP: xp, Interval: interval,
 		ActiveResult: "woodcutting", RewardResult: "chopped_" + reward,
 		MissingResult: "missing_axe", DepletedResult: "tree_depleted",
-		RequiredTool: ItemBronzeAxe, RechargePulses: recharge,
+		RequiredTool: ItemBronzeAxe, RechargePulses: slowedRenewableRecharge(recharge),
 		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
 		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "woodcutting_unsuccessful",
 	}
+}
+
+func slowedRenewableRecharge(basePulses uint64) uint64 {
+	return basePulses * renewableRechargeSlowdown
 }
 
 func (w *World) QueueGather(command GatherCommand) error {
@@ -373,10 +391,6 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if command.Quantity > 0 && !usesProductionBatch(spot.Station) {
 		return fmt.Errorf("quantity is not supported for gathering spot %q", spot.ID)
 	}
-	if spot.Station != "" && spot.MaximumAmount > 0 && spot.CurrentAmount <= 0 {
-		return fmt.Errorf("gathering spot %q is depleted", spot.ID)
-	}
-
 	interactionPosition := spot.Position
 	completionPosition := spot.Position
 	traversal := spot.ID == starterAgilityObstacleID

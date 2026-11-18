@@ -32,6 +32,7 @@ func _run() -> void:
 	await _test_logout_returns_to_account_gate()
 	await _test_welcome_hides_account_gate()
 	await _test_chat_message_packet_is_forwarded()
+	_test_chat_channel_selection_is_clear()
 	await _test_duplicate_login_submission_is_blocked()
 	await _test_registration_collects_public_character_name()
 	await _test_account_rate_limit_feedback_includes_retry_time()
@@ -47,6 +48,7 @@ func _run() -> void:
 	_test_skill_slot_tooltip_and_hover_style()
 	_test_light_interface_theme_and_chest_slots()
 	_test_inventory_hud_compact_layout()
+	_test_equipment_details_only_show_equipment_bonuses()
 	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
@@ -85,6 +87,19 @@ func _test_chat_message_packet_is_forwarded() -> void:
 	_cleanup_network_identity(network)
 	network.free()
 	await process_frame
+
+
+func _test_chat_channel_selection_is_clear() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	var game_tab := main.get_node("UI/ChatHUD/Margin/VBox/Channels/Game") as Button
+	main.call("_style_chat_channel_tab", game_tab)
+	var normal := game_tab.get_theme_stylebox("normal") as StyleBoxFlat
+	var selected := game_tab.get_theme_stylebox("pressed") as StyleBoxFlat
+	_check(
+		selected.bg_color.g > selected.bg_color.r and selected.bg_color != normal.bg_color,
+		"selected chat channel uses a distinct green state",
+	)
+	main.free()
 
 
 func _test_revoked_session_requires_login() -> void:
@@ -681,11 +696,20 @@ func _test_xp_tracker_supports_overlapping_drops() -> void:
 	var tracker := XP_TRACKER_SCENE.instantiate() as XPTracker
 	root.add_child(tracker)
 	await process_frame
+	var total_font_size: int = tracker.total_label.get_theme_font_size("font_size")
+	var gain_font_size: int = tracker.gain_label.get_theme_font_size("font_size")
+	var icon_size: Vector2 = tracker.skill_icon.custom_minimum_size
+	_check(tracker is PanelContainer, "XP tracker has its own HUD background panel")
+	_check(
+		gain_font_size < total_font_size and icon_size.x < float(total_font_size),
+		"XP gain text and icon are smaller than the persistent total XP counter",
+	)
 	tracker.show_gain("Attack", null, 12, 120)
 	tracker.show_gain("Strength", null, 9, 84)
 	var drops := tracker.get_node("DropLayer").get_children()
 	_check(drops.size() == 2, "XP tracker keeps overlapping XP drops visible")
-	_check(tracker.total_label.text == "Total Strength XP  84", "XP tracker updates the persistent skill total")
+	_check(tracker.total_label.text == "84 XP", "XP tracker shows a compact value-first skill total")
+	_check(tracker.total_skill_icon.tooltip_text == "Strength", "XP tracker identifies the total with its skill icon")
 	_check((drops[0].get_node("Gain") as Label).text == "+12 XP", "XP drop keeps its own gained amount")
 	_check(drops[1].position.y > drops[0].position.y, "rapid XP drops begin in separate visual lanes")
 	tracker.queue_free()
@@ -781,6 +805,15 @@ func _test_inventory_hud_compact_layout() -> void:
 		inventory_hud.size.x <= 520.0 and inventory_hud.size.y <= 500.0,
 		"inventory HUD has a smaller default footprint",
 	)
+	var shared_panel_size := inventory_hud.size
+	var shared_panels_match := true
+	for panel_name: String in [
+		"CombatHUD", "SkillsHUD", "EquipmentHUD", "MagicHUD", "PrayerHUD", "StylesHUD", "SettingsHUD",
+	]:
+		shared_panels_match = shared_panels_match and (
+			(main.get_node("UI/" + panel_name) as Control).size == shared_panel_size
+		)
+	_check(shared_panels_match, "all shared menu tabs use the same fixed panel size")
 	_check(
 		inventory_grid.get_theme_constant("h_separation") == 4
 			and inventory_grid.get_theme_constant("v_separation") == 4,
@@ -795,6 +828,49 @@ func _test_inventory_hud_compact_layout() -> void:
 			and float(main.call("_minimum_hud_scale", "chat")) >= 0.75,
 		"menu HUD can scale smaller without reducing other HUD readability limits",
 	)
+	main.free()
+
+
+func _test_equipment_details_only_show_equipment_bonuses() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	main.set("_combat_stats", {
+		"weapon": "steel_sword",
+		"style": "slash",
+		"accuracy_level": 42,
+		"damage_level": 37,
+		"agility_level": 29,
+		"weapon_accuracy_bonus": 8,
+		"strength_bonus": 6,
+		"ammunition_strength_bonus": 2,
+		"attack_interval_modifier": -1,
+		"equipment_offence": {
+			"melee_accuracy": 5, "ranged_accuracy": 3, "magic_accuracy": 1,
+			"melee_strength": 4, "ranged_strength": 2, "magic_strength": 1,
+		},
+		"defence_bonuses": {"stab": 10, "slash": 11, "crush": 9, "ranged": 8, "magic": 4},
+		"equipment_evasion_bonus": 3,
+		"maximum_health_bonus": 20,
+		"armour_damage_reduction": 0.125,
+	})
+	var offence: String = str(main.call("_detailed_offence_text"))
+	var defence: String = str(main.call("_detailed_defence_text"))
+	var details_panel := main.get_node("UI/CombatStatsHUD") as Control
+	_check(
+		offence.contains("[table=3]") and offence.contains("GEAR ACCURACY")
+			and offence.contains("GEAR POWER") and offence.contains("WEAPON & AMMO"),
+		"equipment offence details use the available width across three equipment columns",
+	)
+	_check(
+		not offence.contains("Lv") and not offence.contains("Style")
+			and not offence.contains("TOTAL") and not offence.contains("DAMAGE RANGE"),
+		"equipment offence details omit skill levels, attack styles, and derived combat totals",
+	)
+	_check(
+		defence.contains("[table=3]") and defence.contains("EQUIPMENT UTILITY")
+			and not defence.contains("Agility") and not defence.contains("Prayer"),
+		"equipment defence details retain equipment bonuses without character levels or prayers",
+	)
+	_check(details_panel.size.x >= 900.0, "equipment details window uses a wider compact layout")
 	main.free()
 
 

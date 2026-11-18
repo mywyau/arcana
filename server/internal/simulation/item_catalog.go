@@ -453,22 +453,18 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemArcanistCape, Name: "Arcanist Cape", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotCape, Defence: DefenceBonuses{Magic: 1}, Offence: OffenceBonuses{MagicAccuracy: 3, MagicStrength: 2}}},
 	{
 		ID: ItemAmuletFerocity, Name: "Ruby Amulet", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: 5}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MeleeAccuracy: 5, MeleeStrength: 5}},
+		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MeleeAccuracy: 5, MeleeStrength: 5}},
 	},
 	{
 		ID: ItemAmuletHawk, Name: "Emerald Amulet", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: 5}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{RangedAccuracy: 5, RangedStrength: 5}},
+		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{RangedAccuracy: 5, RangedStrength: 5}},
 	},
 	{
 		ID: ItemAmuletEmbers, Name: "Sapphire Amulet", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillMagic, Level: 5}},
-		Armour:            ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MagicAccuracy: 5, MagicStrength: 5}},
+		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{MagicAccuracy: 5, MagicStrength: 5}},
 	},
 	{
 		ID: ItemAmuletFury, Name: "Amulet of Fury", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
 		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{
 			MeleeAccuracy: 2, RangedAccuracy: 2, MagicAccuracy: 2,
 			MeleeStrength: 2, RangedStrength: 2, MagicStrength: 2,
@@ -476,7 +472,6 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	},
 	{
 		ID: ItemDiamondAmulet, Name: "Diamond Amulet", Kind: ItemKindArmour,
-		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: 5}},
 		Armour: ArmourDefinition{Slot: ArmourSlotNeck, Offence: OffenceBonuses{
 			MeleeAccuracy: 2, RangedAccuracy: 2, MagicAccuracy: 2,
 			MeleeStrength: 2, RangedStrength: 2, MagicStrength: 2,

@@ -267,6 +267,24 @@ func TestEquipmentProgressionUsesFiveLevelTiers(t *testing.T) {
 	}
 }
 
+func TestJewelleryHasNoEquipRequirements(t *testing.T) {
+	itemIDs := []string{
+		ItemAmuletFerocity, ItemAmuletHawk, ItemAmuletEmbers, ItemAmuletFury, ItemDiamondAmulet,
+		ItemRubyRing, ItemEmeraldRing, ItemSapphireRing, ItemDiamondRing,
+		ItemRingOfMight, ItemRingOfMarksmanship, ItemRingOfSorcery,
+		ItemTyrantsRing, ItemRangedTyrantsRing, ItemMageTyrantsRing,
+	}
+	for _, itemID := range itemIDs {
+		definition, exists := itemDefinition(itemID)
+		if !exists {
+			t.Fatalf("jewellery item %q is missing", itemID)
+		}
+		if len(definition.EquipRequirements) != 0 {
+			t.Errorf("jewellery item %q requirements = %+v, want none", itemID, definition.EquipRequirements)
+		}
+	}
+}
+
 func TestBuildItemCatalogRejectsDuplicateIDs(t *testing.T) {
 	definitions := []ItemDefinition{
 		{ID: "duplicate", Name: "First", Kind: ItemKindResource},

@@ -10,9 +10,9 @@ func validateWorldInteraction(player *playerState, spot gatheringSpotDefinition,
 	case "", prayerRestoreRecipeID:
 		command.RecipeID = prayerRestoreRecipeID
 	case prayerSacrificeBonesID:
-		if !player.inventory.contains(ItemBones) {
-			return fmt.Errorf("bones are required")
-		}
+		// Bone availability is deliberately checked by resolvePrayerAltarAction
+		// after the player reaches the altar. Rejecting here interrupts the
+		// server-driven approach and can visually pull a moving player backwards.
 	case prayerAdoptCommonID, prayerAdoptWarID:
 		if command.RecipeID != spot.RecipeID {
 			return fmt.Errorf("prayer set %q is not available at altar %q", command.RecipeID, spot.ID)

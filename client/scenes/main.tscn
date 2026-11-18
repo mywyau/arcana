@@ -1055,8 +1055,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1317,8 +1317,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1334,7 +1334,7 @@ theme_override_constants/margin_bottom = 12
 
 [node name="VBox" type="VBoxContainer" parent="UI/SettingsHUD/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="TabRow" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
 layout_mode = 2
@@ -1390,19 +1390,19 @@ text = "Interface"
 theme_override_font_sizes/font_size = 20
 
 [node name="ShowDiagnostics" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 button_pressed = true
 text = "Show network diagnostics"
 
 [node name="ShowXPTracker" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 button_pressed = true
 text = "Show XP tracker"
 
 [node name="DisableXP" type="CheckButton" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Disable all XP gain"
 tooltip_text = "Actions still work, but no skills gain experience while this is enabled."
@@ -1413,7 +1413,7 @@ text = "Audio"
 theme_override_font_sizes/font_size = 20
 
 [node name="MusicVolume" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 theme_override_constants/separation = 12
 
@@ -1438,7 +1438,7 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="EffectsVolume" type="HBoxContainer" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 theme_override_constants/separation = 12
 
@@ -1463,12 +1463,12 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="EditHUD" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Edit HUD layout"
 
 [node name="ResetHUD" type="Button" parent="UI/SettingsHUD/Margin/VBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Reset HUD layout"
 
@@ -1619,8 +1619,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1709,8 +1709,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1811,10 +1811,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -400.0
-offset_top = -285.0
-offset_right = 400.0
-offset_bottom = 285.0
+offset_left = -450.0
+offset_top = -260.0
+offset_right = 450.0
+offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("HUDPanelStyle")
@@ -1871,7 +1871,7 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-text = "Equipment & Set Effects"
+text = "Set Effects"
 
 [node name="Stats" type="RichTextLabel" parent="UI/CombatStatsHUD/Margin/VBox"]
 layout_mode = 2
@@ -1890,8 +1890,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -1979,8 +1979,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
@@ -2069,8 +2069,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -620.0
-offset_top = -670.0
+offset_left = -540.0
+offset_top = -520.0
 offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 0
