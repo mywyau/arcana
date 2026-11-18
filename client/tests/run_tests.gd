@@ -31,7 +31,9 @@ func _run() -> void:
 	await _test_replaced_session_stops_and_can_reconnect()
 	await _test_logout_returns_to_account_gate()
 	await _test_welcome_hides_account_gate()
+	await _test_chat_message_packet_is_forwarded()
 	await _test_duplicate_login_submission_is_blocked()
+	await _test_registration_collects_public_character_name()
 	await _test_account_rate_limit_feedback_includes_retry_time()
 	await _test_local_movement_reconciliation_ignores_stale_routes()
 	await _test_equipped_boots_follow_leg_pivots()
@@ -43,6 +45,7 @@ func _run() -> void:
 	_test_fletching_options_follow_clicked_item_and_inventory()
 	_test_skill_guides_show_authoritative_unlock_levels()
 	_test_skill_slot_tooltip_and_hover_style()
+	_test_light_interface_theme_and_chest_slots()
 	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
@@ -56,6 +59,31 @@ func _run() -> void:
 		return
 	print("Client tests passed: %d checks." % _checks)
 	quit(0)
+
+
+func _test_chat_message_packet_is_forwarded() -> void:
+	var network := _isolated_network_client("chat-packet")
+	var received: Array[Dictionary] = []
+	network.chat_message_received.connect(func(message: Dictionary) -> void: received.append(message))
+	network._handle_packet(JSON.stringify({
+		"type": "chat_message",
+		"chat": {
+			"id": 7,
+			"channel": "local",
+			"sender_id": "player-one",
+			"sender_name": "Player One",
+			"text": "Hello nearby players",
+			"sent_at_unix_ms": 1795000000000,
+		},
+	}).to_utf8_buffer())
+	_check(received.size() == 1, "chat packet is forwarded once")
+	_check(
+		received.size() == 1 and str(received[0].get("sender_name", "")) == "Player One",
+		"chat packet preserves the authoritative sender name",
+	)
+	_cleanup_network_identity(network)
+	network.free()
+	await process_frame
 
 
 func _test_revoked_session_requires_login() -> void:
@@ -298,7 +326,7 @@ func _test_snapshot_deltas_preserve_unchanged_public_state(main: Node) -> void:
 				"slot": 0, "item_id": "bronze_arrow", "quantity": 10,
 			}]},
 			"ring_rack_revision": 1,
-			"ring_rack": {"capacity": 5, "items": [{
+			"ring_rack": {"capacity": 4, "items": [{
 				"slot": 0, "item_id": "ruby_ring", "quantity": 1,
 				"instance_id": "ring-instance",
 			}]},
@@ -439,12 +467,37 @@ func _test_duplicate_login_submission_is_blocked() -> void:
 		func(_email: String, _password: String) -> void: state["submissions"] += 1
 	)
 	gate.show_login()
-	gate.email_input.text = "player@example.com"
+	gate.email_input.text = "Arcane Hero"
 	gate.password_input.text = "strong-password"
 	gate._submit()
 	gate._submit()
 	_check(int(state["submissions"]) == 1, "duplicate login submission is ignored while busy")
 	_check(gate.submit_button.disabled, "login controls remain locked during the request")
+	gate.queue_free()
+	await process_frame
+
+
+func _test_registration_collects_public_character_name() -> void:
+	var gate: AuthGate = AUTH_GATE_SCENE.instantiate()
+	root.add_child(gate)
+	await process_frame
+	var registration: Dictionary = {"character_name": "", "email": ""}
+	gate.registration_requested.connect(func(
+		character_name: String, email: String, _password: String, _link_guest: bool,
+	) -> void:
+		registration["character_name"] = character_name
+		registration["email"] = email
+	)
+	gate._set_registering(true)
+	gate.character_name_input.text = "Arcane Hero"
+	gate.email_input.text = "player@example.com"
+	gate.password_input.text = "strong-password"
+	gate.confirmation_input.text = "strong-password"
+	gate._submit()
+	_check(registration.get("character_name", "") == "Arcane Hero", "registration submits the public character name")
+	_check(registration.get("email", "") == "player@example.com", "registration keeps email as the private account identifier")
+	_check(gate._character_name_is_valid("Hero_42"), "registration accepts supported character name characters")
+	_check(not gate._character_name_is_valid("-invalid"), "registration rejects names beginning with punctuation")
 	gate.queue_free()
 	await process_frame
 
@@ -591,6 +644,16 @@ func _test_action_rejection_feedback() -> void:
 	_check(bool(main.call("_gathering_result_is_rejection", "missing_axe")), "missing tools trigger rejected-action feedback")
 	_check(bool(main.call("_gathering_result_is_rejection", "requires_woodcutting_level_5")), "level requirements trigger rejected-action feedback")
 	_check(not bool(main.call("_gathering_result_is_rejection", "chopped_oak_logs")), "successful gathering does not trigger rejected-action feedback")
+	var path_error := "find path: position { 1, 2, 3 } is not on a walkable layer"
+	_check(
+		str(main.call("_friendly_server_error", "command_rejected", path_error)) == "You cannot walk there.",
+		"navigation diagnostics use a concise player-facing message",
+	)
+	main.set("_combat_debug_hud_visible", true)
+	_check(
+		str(main.call("_friendly_server_error", "command_rejected", path_error)) == path_error,
+		"navigation diagnostics remain available in debug mode",
+	)
 	main.free()
 
 	var effects := SoundEffects.new()
@@ -746,9 +809,19 @@ func _test_skill_guides_show_authoritative_unlock_levels() -> void:
 	main.set("_spells", test_spells)
 	var woodcutting_guide: String = str(main.call("_skill_guide_text", "woodcutting", 3))
 	var magic_guide: String = str(main.call("_skill_guide_text", "magic", 8))
+	var magic_spells: String = str(main.call("_skill_guide_text", "magic", 8, "spells"))
+	var magic_equipment: String = str(main.call("_skill_guide_text", "magic", 8, "equipment"))
 	_check(woodcutting_guide.contains("Lv 5") and woodcutting_guide.contains("Cut Oak Tree"), "skill guide shows gathering unlock levels")
 	_check(magic_guide.contains("Lv 7") and magic_guide.contains("Cast Fire Bolt"), "skill guide shows spell unlock levels")
 	_check(magic_guide.contains("Lv 10") and magic_guide.contains("Wield Mage Staff"), "skill guide shows equipment requirements")
+	_check(
+		magic_spells.contains("Cast Fire Bolt") and not magic_spells.contains("Mage Staff"),
+		"skill guide spell tab filters out equipment unlocks",
+	)
+	_check(
+		magic_equipment.contains("Mage Staff") and not magic_equipment.contains("Fire Bolt"),
+		"skill guide equipment tab filters out spell unlocks",
+	)
 	main.free()
 
 
@@ -769,6 +842,36 @@ func _test_skill_slot_tooltip_and_hover_style() -> void:
 	progress_bar.free()
 	skill_tile.free()
 	main.free()
+
+
+func _test_light_interface_theme_and_chest_slots() -> void:
+	var debug_window := DebugSkillWindow.new()
+	_check(debug_window.borderless, "test skill shrine suppresses the duplicate native close control")
+	debug_window.free()
+
+	var interface_theme := InterfaceStyle.create_theme()
+	_check(
+		interface_theme.get_color("font_color", "Label") == InterfaceStyle.TEXT_COLOR,
+		"light interfaces use the shared dark navy text colour",
+	)
+	_check(
+		InterfaceStyle.PANEL_COLOR.get_luminance() > 0.7,
+		"interface panels use the lighter pastel palette",
+	)
+
+	var bank_window := BankWindow.new()
+	var chest_slot := Button.new()
+	bank_window.call("_style_chest_slot", chest_slot)
+	_check(
+		chest_slot.get_theme_stylebox("normal") is StyleBoxEmpty,
+		"chest item slots have no permanent square background",
+	)
+	_check(
+		chest_slot.get_theme_stylebox("hover") is StyleBoxFlat,
+		"chest item slots retain visible hover feedback",
+	)
+	chest_slot.free()
+	bank_window.free()
 
 
 func _main_auth_harness() -> Dictionary:

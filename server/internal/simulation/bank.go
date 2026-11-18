@@ -16,6 +16,7 @@ const (
 	TestHerbsChestID         = "test_herbs_chest"
 	TestCraftingChestID      = "test_crafting_chest"
 	TestFoodChestID          = "test_food_chest"
+	TestBossRewardsChestID   = "test_boss_rewards_chest"
 	BankCapacity             = 100
 	MaximumBankCapacity      = 1000
 	BankExpansionSize        = 50
@@ -27,7 +28,7 @@ const (
 var starterBankChest = BankChestSnapshot{
 	ID:       StarterBankChestID,
 	Name:     "Bank Chest",
-	Position: Position{X: -18, Z: -21},
+	Position: Position{X: -18, Z: -35},
 	Range:    bankInteractionRange,
 }
 
@@ -41,6 +42,7 @@ var testSupplyChests = []BankChestSnapshot{
 	{ID: TestHerbsChestID, Name: "Herbs Test Chest", Position: Position{X: -6, Z: -47}, Range: bankInteractionRange},
 	{ID: TestCraftingChestID, Name: "Crafting Test Chest", Position: Position{X: 0, Z: -47}, Range: bankInteractionRange},
 	{ID: TestFoodChestID, Name: "Food Test Chest", Position: Position{X: 6, Z: -47}, Range: bankInteractionRange},
+	{ID: TestBossRewardsChestID, Name: "Boss Rewards Test Chest", Position: Position{X: 12, Z: -35}, Range: bankInteractionRange},
 }
 
 var (
@@ -53,6 +55,7 @@ var (
 	TestHerbsChestPosition    = testSupplyChests[6].Position
 	TestCraftingChestPosition = testSupplyChests[7].Position
 	TestFoodChestPosition     = testSupplyChests[8].Position
+	TestBossRewardsPosition   = testSupplyChests[9].Position
 )
 
 type BankChestSnapshot struct {

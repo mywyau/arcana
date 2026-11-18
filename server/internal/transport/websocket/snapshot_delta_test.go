@@ -279,7 +279,7 @@ func deltaTestSnapshot() *protocol.WorldSnapshot {
 				Bank: &protocol.InventorySnapshot{Capacity: 100}, BankRevision: 1,
 				AmmunitionPouch:         &protocol.AmmunitionPouchSnapshot{Capacity: 10, UnlockedSlots: 2},
 				AmmunitionPouchRevision: 1,
-				RingRack:                &protocol.RingRackSnapshot{Capacity: 5},
+				RingRack:                &protocol.RingRackSnapshot{Capacity: 4},
 				RingRackRevision:        1,
 				RunePouch:               &protocol.RunePouchSnapshot{Capacity: 9, UnlockedSlots: 2},
 				RunePouchRevision:       1,

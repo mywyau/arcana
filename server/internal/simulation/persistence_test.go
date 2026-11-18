@@ -6,6 +6,27 @@ import (
 	"time"
 )
 
+func TestNormalizeLegacyRingRackReturnsFifthRingToInventory(t *testing.T) {
+	state := DefaultPersistentPlayerState()
+	state.RingRack.Capacity = 5
+	state.RingRack.Items = []InventoryItem{
+		{Slot: 0, ItemID: ItemRubyRing, Quantity: 1, InstanceID: "ring-0"},
+		{Slot: 1, ItemID: ItemEmeraldRing, Quantity: 1, InstanceID: "ring-1"},
+		{Slot: 2, ItemID: ItemSapphireRing, Quantity: 1, InstanceID: "ring-2"},
+		{Slot: 3, ItemID: ItemDiamondRing, Quantity: 1, InstanceID: "ring-3"},
+		{Slot: 4, ItemID: ItemRubyRing, Quantity: 1, InstanceID: "ring-4"},
+	}
+	if err := normalizeLegacyRingRack(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state.RingRack.Capacity != RingRackCapacity || len(state.RingRack.Items) != RingRackCapacity {
+		t.Fatalf("normalized ring rack = %+v", state.RingRack)
+	}
+	if len(state.Inventory.Items) != 1 || state.Inventory.Items[0].InstanceID != "ring-4" {
+		t.Fatalf("normalized inventory = %+v", state.Inventory)
+	}
+}
+
 func TestPersistentPlayerStateRoundTripsEveryDurableSubsystem(t *testing.T) {
 	originalWorld := NewWorld()
 	state := DefaultPersistentPlayerState()

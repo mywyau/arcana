@@ -132,6 +132,9 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if state.Inventory.Capacity < BaseInventoryCapacity {
 		state.Inventory.Capacity = BaseInventoryCapacity
 	}
+	if err := normalizeLegacyRingRack(&state); err != nil {
+		return fmt.Errorf("restore ring rack: %w", err)
+	}
 	inventory, err := inventoryFromSnapshot(state.Inventory)
 	if err != nil {
 		return fmt.Errorf("restore inventory: %w", err)
@@ -281,6 +284,52 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		gatheringRevision:            1,
 	}
 	return nil
+}
+
+func normalizeLegacyRingRack(state *PersistentPlayerState) error {
+	if state.RingRack.Capacity == 0 && len(state.RingRack.Items) == 0 {
+		return nil
+	}
+	if state.RingRack.Capacity != RingRackCapacity && state.RingRack.Capacity != 5 {
+		return nil
+	}
+	kept := make([]InventoryItem, 0, RingRackCapacity)
+	for _, item := range state.RingRack.Items {
+		if item.Slot < RingRackCapacity {
+			kept = append(kept, item)
+			continue
+		}
+		if slot, available := firstFreePersistentSlot(state.Inventory.Items, state.Inventory.Capacity); available {
+			item.Slot = slot
+			state.Inventory.Items = append(state.Inventory.Items, item)
+			continue
+		}
+		if slot, available := firstFreePersistentSlot(state.Bank.Items, state.Bank.Capacity); available {
+			item.Slot = slot
+			state.Bank.Items = append(state.Bank.Items, item)
+			continue
+		}
+		return fmt.Errorf("cannot return legacy fifth ring because inventory and bank are full")
+	}
+	state.RingRack.Capacity = RingRackCapacity
+	state.RingRack.Items = kept
+	return nil
+}
+
+func firstFreePersistentSlot(items []InventoryItem, capacity int) (int, bool) {
+	if capacity <= 0 {
+		return 0, false
+	}
+	occupied := make(map[int]struct{}, len(items))
+	for _, item := range items {
+		occupied[item.Slot] = struct{}{}
+	}
+	for slot := 0; slot < capacity; slot++ {
+		if _, exists := occupied[slot]; !exists {
+			return slot, true
+		}
+	}
+	return 0, false
 }
 
 func recordOwnedInstance(owned map[string]string, instanceID, location string) error {

@@ -13,7 +13,7 @@ const (
 )
 
 var starterMerchant = MerchantSnapshot{
-	ID: MerchantID, Name: "Travelling Shopkeeper", Position: Position{X: 0, Z: -24},
+	ID: MerchantID, Name: "Travelling Shopkeeper", Position: Position{X: -18, Z: -41},
 	Range: merchantInteractionRange,
 }
 

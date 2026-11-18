@@ -16,6 +16,7 @@ var _available: int = 0
 
 func _ready() -> void:
 	_menu = PopupMenu.new()
+	InterfaceStyle.configure_popup_menu(_menu)
 	_menu.name = "BankItemMenu"
 	_menu.min_size = Vector2i(190, 0)
 	_menu.add_theme_font_size_override("font_size", 18)

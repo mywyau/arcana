@@ -22,7 +22,10 @@ func _ready() -> void:
 	_popup = PopupPanel.new()
 	_popup.name = "InventoryContextMenu"
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
+	panel_style.bg_color = Color(0.22, 0.23, 0.38, 1.0)
+	panel_style.border_color = Color(0.48, 0.46, 0.72, 1.0)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(8)
 	_popup.add_theme_stylebox_override("panel", panel_style)
 	add_child(_popup)
 	var margin := MarginContainer.new()

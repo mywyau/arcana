@@ -20,14 +20,15 @@ const (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrInvalidCredentials = errors.New("invalid email, character name or password")
 	ErrInvalidSession     = errors.New("invalid or expired account session")
 )
 
 type Authentication struct {
-	PlayerID     string
-	Email        string
-	SessionToken string
+	PlayerID      string
+	Email         string
+	CharacterName string
+	SessionToken  string
 }
 
 type Manager struct {
@@ -60,6 +61,16 @@ func (manager *Manager) Register(
 	email string,
 	password string,
 ) (Authentication, error) {
+	return manager.RegisterNamed(ctx, playerID, defaultCharacterName(playerID), email, password)
+}
+
+func (manager *Manager) RegisterNamed(
+	ctx context.Context,
+	playerID string,
+	characterName string,
+	email string,
+	password string,
+) (Authentication, error) {
 	if playerID == "" {
 		return Authentication{}, fmt.Errorf("player ID is required")
 	}
@@ -71,7 +82,11 @@ func (manager *Manager) Register(
 	if err != nil {
 		return Authentication{}, err
 	}
-	return manager.registerWithPasswordHash(ctx, playerID, normalizedEmail, passwordHash)
+	normalizedName, err := NormalizeCharacterName(characterName)
+	if err != nil {
+		return Authentication{}, err
+	}
+	return manager.registerWithPasswordHash(ctx, playerID, normalizedName, normalizedEmail, passwordHash)
 }
 
 // RegisterNewCharacter provisions an account-owned character without creating
@@ -82,12 +97,38 @@ func (manager *Manager) RegisterNewCharacter(
 	password string,
 	characters CharacterRepository,
 ) (Authentication, error) {
+	return manager.registerNewCharacter(ctx, "", email, password, characters)
+}
+
+func (manager *Manager) RegisterNamedNewCharacter(
+	ctx context.Context,
+	characterName string,
+	email string,
+	password string,
+	characters CharacterRepository,
+) (Authentication, error) {
+	return manager.registerNewCharacter(ctx, characterName, email, password, characters)
+}
+
+func (manager *Manager) registerNewCharacter(
+	ctx context.Context,
+	characterName string,
+	email string,
+	password string,
+	characters CharacterRepository,
+) (Authentication, error) {
 	if characters == nil {
 		return Authentication{}, fmt.Errorf("character repository is required")
 	}
 	normalizedEmail, err := NormalizeEmail(email)
 	if err != nil {
 		return Authentication{}, err
+	}
+	if characterName != "" {
+		characterName, err = NormalizeCharacterName(characterName)
+		if err != nil {
+			return Authentication{}, err
+		}
 	}
 	passwordHash, err := manager.hasher.Hash(password)
 	if err != nil {
@@ -108,8 +149,11 @@ func (manager *Manager) RegisterNewCharacter(
 		if err := characters.Save(ctx, playerID, simulation.DefaultPersistentPlayerState()); err != nil {
 			return Authentication{}, fmt.Errorf("create character: %w", err)
 		}
+		if characterName == "" {
+			characterName = defaultCharacterName(playerID)
+		}
 		authentication, err := manager.registerWithPasswordHash(
-			ctx, playerID, normalizedEmail, passwordHash,
+			ctx, playerID, characterName, normalizedEmail, passwordHash,
 		)
 		if err == nil {
 			return authentication, nil
@@ -124,6 +168,7 @@ func (manager *Manager) RegisterNewCharacter(
 func (manager *Manager) registerWithPasswordHash(
 	ctx context.Context,
 	playerID string,
+	characterName string,
 	normalizedEmail string,
 	passwordHash string,
 ) (Authentication, error) {
@@ -132,11 +177,12 @@ func (manager *Manager) registerWithPasswordHash(
 		return Authentication{}, err
 	}
 	if err := manager.accounts.CreateAccount(ctx, Account{
-		ID: accountID, Email: normalizedEmail, PasswordHash: passwordHash, PlayerID: playerID,
+		ID: accountID, Email: normalizedEmail, CharacterName: characterName,
+		PasswordHash: passwordHash, PlayerID: playerID,
 	}); err != nil {
 		return Authentication{}, err
 	}
-	authentication, err := manager.issueSession(ctx, accountID, playerID, normalizedEmail)
+	authentication, err := manager.issueSession(ctx, accountID, playerID, normalizedEmail, characterName)
 	if err == nil {
 		return authentication, nil
 	}
@@ -148,12 +194,12 @@ func (manager *Manager) registerWithPasswordHash(
 
 func (manager *Manager) Login(
 	ctx context.Context,
-	email string,
+	identifier string,
 	password string,
 ) (Authentication, error) {
-	value, found, err := manager.accounts.FindAccountByEmail(ctx, email)
+	value, found, err := manager.accounts.FindAccountByLogin(ctx, identifier)
 	if err != nil {
-		if errors.Is(err, ErrInvalidEmail) {
+		if errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidCharacterName) {
 			return Authentication{}, ErrInvalidCredentials
 		}
 		return Authentication{}, err
@@ -168,7 +214,7 @@ func (manager *Manager) Login(
 	if !matched {
 		return Authentication{}, ErrInvalidCredentials
 	}
-	return manager.issueSession(ctx, value.ID, value.PlayerID, value.Email)
+	return manager.issueSession(ctx, value.ID, value.PlayerID, value.Email, value.CharacterName)
 }
 
 func (manager *Manager) AuthenticateSession(
@@ -186,7 +232,7 @@ func (manager *Manager) AuthenticateSession(
 	if !found {
 		return Authentication{}, ErrInvalidSession
 	}
-	return Authentication{PlayerID: value.PlayerID, Email: value.Email}, nil
+	return Authentication{PlayerID: value.PlayerID, Email: value.Email, CharacterName: value.CharacterName}, nil
 }
 
 // Logout revokes one device session. Deleting an already-revoked valid token
@@ -215,6 +261,7 @@ func (manager *Manager) issueSession(
 	accountID string,
 	playerID string,
 	email string,
+	characterName string,
 ) (Authentication, error) {
 	for {
 		rawToken := make([]byte, sessionTokenBytes)
@@ -222,11 +269,12 @@ func (manager *Manager) issueSession(
 			return Authentication{}, fmt.Errorf("generate account session: %w", err)
 		}
 		err := manager.sessions.CreateSession(ctx, Session{
-			TokenHash: sha256.Sum256(rawToken),
-			AccountID: accountID,
-			PlayerID:  playerID,
-			Email:     email,
-			ExpiresAt: time.Now().Add(sessionLifetime),
+			TokenHash:     sha256.Sum256(rawToken),
+			AccountID:     accountID,
+			PlayerID:      playerID,
+			Email:         email,
+			CharacterName: characterName,
+			ExpiresAt:     time.Now().Add(sessionLifetime),
 		})
 		if errors.Is(err, ErrSessionExists) {
 			continue
@@ -235,11 +283,17 @@ func (manager *Manager) issueSession(
 			return Authentication{}, fmt.Errorf("create account session: %w", err)
 		}
 		return Authentication{
-			PlayerID:     playerID,
-			Email:        email,
-			SessionToken: base64.RawURLEncoding.EncodeToString(rawToken),
+			PlayerID:      playerID,
+			Email:         email,
+			CharacterName: characterName,
+			SessionToken:  base64.RawURLEncoding.EncodeToString(rawToken),
 		}, nil
 	}
+}
+
+func defaultCharacterName(playerID string) string {
+	digest := sha256.Sum256([]byte(playerID))
+	return fmt.Sprintf("Player%x", digest[:6])
 }
 
 func randomID(prefix string, byteCount int) (string, error) {

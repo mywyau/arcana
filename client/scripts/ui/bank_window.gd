@@ -120,6 +120,7 @@ func _update_expansion_button(next_expansion_cost: int, available_coins: int) ->
 
 func _create_slot(slot: int, item: Dictionary) -> Button:
 	var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
+	_style_chest_slot(slot_button)
 	slot_button.custom_minimum_size = Vector2(112, 86)
 	slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slot_button.focus_mode = Control.FOCUS_NONE
@@ -154,6 +155,7 @@ func _create_supply_slot(supply: Dictionary) -> Button:
 	var item_id: String = str(supply.get("item_id", ""))
 	var quantity: int = int(supply.get("quantity", 1))
 	var slot_button: Variant = INVENTORY_SLOT_SCRIPT.new()
+	_style_chest_slot(slot_button)
 	slot_button.custom_minimum_size = Vector2(112, 86)
 	slot_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slot_button.focus_mode = Control.FOCUS_NONE
@@ -165,6 +167,22 @@ func _create_supply_slot(supply: Dictionary) -> Button:
 	slot_button.tooltip_text = "%s ×%d • click to take the stack" % [item_id.capitalize(), quantity]
 	slot_button.pressed.connect(_on_supply_pressed.bind(drop_id))
 	return slot_button
+
+
+func _style_chest_slot(slot_button: Button) -> void:
+	var empty := StyleBoxEmpty.new()
+	for state: String in ["normal", "focus", "disabled"]:
+		slot_button.add_theme_stylebox_override(state, empty)
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(0.72, 0.73, 0.90, 0.38)
+	hover.border_color = Color(0.55, 0.52, 0.82, 0.85)
+	hover.set_border_width_all(2)
+	hover.set_corner_radius_all(8)
+	slot_button.add_theme_stylebox_override("hover", hover)
+	var pressed := hover.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(0.62, 0.64, 0.86, 0.55)
+	slot_button.add_theme_stylebox_override("pressed", pressed)
+	slot_button.add_theme_stylebox_override("hover_pressed", pressed)
 
 
 func _on_slot_pressed(bank_slot: int) -> void:

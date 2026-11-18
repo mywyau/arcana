@@ -75,32 +75,44 @@ outline_size = 5
 outline_color = Color(0.04, 0.06, 0.08, 0.85)
 
 [sub_resource type="StyleBoxFlat" id="HUDPanelStyle"]
-bg_color = Color(0.065, 0.075, 0.15, 0.96)
+bg_color = Color(0.17, 0.18, 0.32, 0.97)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.35, 0.27, 0.58, 0.95)
+border_color = Color(0.52, 0.48, 0.76, 0.96)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="UtilityStripStyle"]
-bg_color = Color(0.085, 0.09, 0.18, 0.98)
+bg_color = Color(0.21, 0.22, 0.37, 0.98)
 border_width_top = 2
-border_color = Color(0.4, 0.3, 0.66, 0.95)
+border_color = Color(0.58, 0.53, 0.82, 0.96)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="HUDBarBackground"]
-bg_color = Color(0.105, 0.115, 0.22, 0.97)
+bg_color = Color(0.25, 0.26, 0.41, 0.97)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="InterfacePanelStyle"]
+bg_color = Color(0.78, 0.8, 0.92, 0.99)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.48, 0.46, 0.72, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [sub_resource type="StyleBoxFlat" id="PlayerHealthFill"]
 bg_color = Color(0.16, 0.68, 0.38, 1)
@@ -261,7 +273,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("HUDPanelStyle")
+theme_override_styles/panel = SubResource("InterfacePanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="SmithingWindow/Panel"]
 layout_mode = 2
@@ -305,7 +317,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("HUDPanelStyle")
+theme_override_styles/panel = SubResource("InterfacePanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="SmeltingWindow/Panel"]
 layout_mode = 2
@@ -357,7 +369,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("HUDPanelStyle")
+theme_override_styles/panel = SubResource("InterfacePanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="CookingWindow/Panel"]
 layout_mode = 2
@@ -416,7 +428,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("HUDPanelStyle")
+theme_override_styles/panel = SubResource("InterfacePanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="BrewingWindow/Panel"]
 layout_mode = 2
@@ -529,7 +541,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("HUDPanelStyle")
+theme_override_styles/panel = SubResource("InterfacePanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="FletchingWindow/Panel"]
 layout_mode = 2
@@ -669,7 +681,7 @@ anchors_preset = 3
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 20.0
-offset_top = -470.0
+offset_top = -510.0
 offset_right = 580.0
 offset_bottom = -210.0
 grow_vertical = 0
@@ -694,8 +706,13 @@ custom_minimum_size = Vector2(100, 32)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
-disabled = true
 text = "Game"
+
+[node name="Local" type="Button" parent="UI/ChatHUD/Margin/VBox/Channels"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+toggle_mode = true
+text = "Local"
 
 [node name="Messages" type="RichTextLabel" parent="UI/ChatHUD/Margin/VBox"]
 custom_minimum_size = Vector2(0, 190)
@@ -710,6 +727,22 @@ context_menu_enabled = true
 shortcut_keys_enabled = true
 theme_override_colors/default_color = Color(0.88, 0.91, 0.94, 1)
 theme_override_font_sizes/normal_font_size = 16
+
+[node name="InputRow" type="HBoxContainer" parent="UI/ChatHUD/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ChatInput" type="LineEdit" parent="UI/ChatHUD/Margin/VBox/InputRow"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Press Tab to chat…"
+max_length = 200
+
+[node name="Send" type="Button" parent="UI/ChatHUD/Margin/VBox/InputRow"]
+custom_minimum_size = Vector2(72, 36)
+layout_mode = 2
+text = "Send"
 
 [node name="PlayerVitalsHUD" type="PanelContainer" parent="UI"]
 mouse_filter = 2
@@ -2116,7 +2149,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
-columns = 2
+columns = 3
 
 [node name="BankHUD" type="PanelContainer" parent="UI"]
 visible = false

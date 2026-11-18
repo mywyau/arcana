@@ -480,6 +480,15 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		MeleeAccuracy: 1, RangedAccuracy: 1, MagicAccuracy: 1,
 		MeleeStrength: 1, RangedStrength: 1, MagicStrength: 1,
 	}}},
+	{ID: ItemRingOfMight, Name: "Ring of Might", Kind: ItemKindArmour, Armour: ArmourDefinition{
+		Slot: ArmourSlotRing, Offence: OffenceBonuses{MeleeAccuracy: 5, MeleeStrength: 5},
+	}},
+	{ID: ItemRingOfMarksmanship, Name: "Ring of Marksmanship", Kind: ItemKindArmour, Armour: ArmourDefinition{
+		Slot: ArmourSlotRing, Offence: OffenceBonuses{RangedAccuracy: 5, RangedStrength: 5},
+	}},
+	{ID: ItemRingOfSorcery, Name: "Ring of Sorcery", Kind: ItemKindArmour, Armour: ArmourDefinition{
+		Slot: ArmourSlotRing, Offence: OffenceBonuses{MagicAccuracy: 5, MagicStrength: 5},
+	}},
 	{ID: ItemTyrantsRing, Name: "Tyrant's Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{
 		Slot: ArmourSlotRing, Offence: OffenceBonuses{MeleeStrength: 100},
 	}},

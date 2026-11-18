@@ -119,10 +119,11 @@ func TestStoreGuestAndCharacterRoundTrip(t *testing.T) {
 		t.Fatalf("hash integration password: %v", err)
 	}
 	wantAccount := account.Account{
-		ID:           accountID,
-		Email:        accountID + "@example.invalid",
-		PasswordHash: passwordHash,
-		PlayerID:     guest.PlayerID,
+		ID:            accountID,
+		Email:         accountID + "@example.invalid",
+		CharacterName: "Integration Hero",
+		PasswordHash:  passwordHash,
+		PlayerID:      guest.PlayerID,
 	}
 	if err := store.CreateAccount(ctx, wantAccount); err != nil {
 		t.Fatalf("CreateAccount() returned an unexpected error: %v", err)

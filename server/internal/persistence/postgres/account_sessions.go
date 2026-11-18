@@ -38,13 +38,14 @@ func (store *Store) FindSession(
 	value.TokenHash = tokenHash
 	err := store.database.QueryRowContext(ctx, `
 		SELECT account_sessions.account_id, characters.player_id, accounts.email,
+		       characters.character_name,
 		       account_sessions.expires_at
 		FROM account_sessions
 		JOIN accounts ON accounts.account_id = account_sessions.account_id
 		JOIN characters ON characters.account_id = account_sessions.account_id
 		WHERE account_sessions.token_hash = $1
 		  AND account_sessions.expires_at > now()`, tokenHash[:],
-	).Scan(&value.AccountID, &value.PlayerID, &value.Email, &value.ExpiresAt)
+	).Scan(&value.AccountID, &value.PlayerID, &value.Email, &value.CharacterName, &value.ExpiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return account.Session{}, false, nil
 	}

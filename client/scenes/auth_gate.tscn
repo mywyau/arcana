@@ -112,7 +112,15 @@ text = "Create account"
 [node name="Email" type="LineEdit" parent="Backdrop/Center/Card/Margin/Content"]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
-placeholder_text = "Email address"
+placeholder_text = "Email address or character name"
+clear_button_enabled = true
+
+[node name="CharacterName" type="LineEdit" parent="Backdrop/Center/Card/Margin/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+placeholder_text = "Character name"
+max_length = 20
 clear_button_enabled = true
 
 [node name="Password" type="LineEdit" parent="Backdrop/Center/Card/Margin/Content"]

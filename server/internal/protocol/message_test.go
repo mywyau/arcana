@@ -7,12 +7,22 @@ import (
 )
 
 func TestDecodeAuthenticateMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":10,"client_version":"0.1.0-beta"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":11,"client_version":"0.1.0-beta"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
 	if message.Type != MessageAuthenticate || message.GuestToken != "token" || message.Sequence != 0 ||
 		message.ProtocolVersion != CurrentVersion || message.ClientVersion != "0.1.0-beta" {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
+func TestDecodeSendChatMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"send_chat","sequence":7,"channel":"local","text":"hello"}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() error = %v", err)
+	}
+	if message.Type != MessageSendChat || message.Sequence != 7 || message.Channel != "local" || message.Text != "hello" {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
 	}
 }

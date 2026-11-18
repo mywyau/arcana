@@ -10,14 +10,14 @@ type starterToolSpawn struct {
 }
 
 var starterToolSpawns = []starterToolSpawn{
-	{Position: Position{X: -11, Z: 14}, ItemID: ItemFishingRod},
-	{Position: Position{X: -21, Z: -14}, ItemID: ItemLobsterCage},
-	{Position: Position{X: 16, Z: 12}, ItemID: ItemBronzePickaxe},
-	{Position: Position{X: -13, Z: -2}, ItemID: ItemBronzeAxe},
-	{Position: Position{X: 7, Z: 8}, ItemID: ItemHammer},
-	{Position: Position{X: -13, Z: -5}, ItemID: ItemTinderbox},
-	{Position: Position{X: -13, Z: 1}, ItemID: ItemKnife},
-	{Position: Position{X: 16, Z: 15}, ItemID: ItemChisel},
+	{Position: Position{X: -58, Z: 22}, ItemID: ItemFishingRod},
+	{Position: Position{X: -34, Z: 10}, ItemID: ItemLobsterCage},
+	{Position: Position{X: 28, Z: 9}, ItemID: ItemBronzePickaxe},
+	{Position: Position{X: -58, Z: -5}, ItemID: ItemBronzeAxe},
+	{Position: Position{X: 38, Z: -5}, ItemID: ItemHammer},
+	{Position: Position{X: -52, Z: -8}, ItemID: ItemTinderbox},
+	{Position: Position{X: -46, Z: -8}, ItemID: ItemKnife},
+	{Position: Position{X: 28, Z: 29}, ItemID: ItemChisel},
 }
 
 // AddStarterToolSpawns makes essential skilling tools available in every

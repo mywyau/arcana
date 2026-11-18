@@ -14,21 +14,22 @@ func TestManagerRegistersLogsInAndAuthenticatesSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewManager() error = %v", err)
 	}
-	registered, err := manager.Register(
-		context.Background(), "player-one", " Player@Example.com ", "strong-password",
+	registered, err := manager.RegisterNamed(
+		context.Background(), "player-one", "Arcane Hero", " Player@Example.com ", "strong-password",
 	)
 	if err != nil {
 		t.Fatalf("Register() error = %v", err)
 	}
-	if registered.PlayerID != "player-one" || registered.Email != "player@example.com" || registered.SessionToken == "" {
+	if registered.PlayerID != "player-one" || registered.Email != "player@example.com" ||
+		registered.CharacterName != "Arcane Hero" || registered.SessionToken == "" {
 		t.Fatalf("registered authentication = %+v", registered)
 	}
 
 	fromSession, err := manager.AuthenticateSession(context.Background(), registered.SessionToken)
-	if err != nil || fromSession.PlayerID != "player-one" {
+	if err != nil || fromSession.PlayerID != "player-one" || fromSession.CharacterName != "Arcane Hero" {
 		t.Fatalf("AuthenticateSession() = %+v, error %v", fromSession, err)
 	}
-	loggedIn, err := manager.Login(context.Background(), "PLAYER@example.com", "strong-password")
+	loggedIn, err := manager.Login(context.Background(), "arcane hero", "strong-password")
 	if err != nil || loggedIn.PlayerID != "player-one" || loggedIn.SessionToken == "" {
 		t.Fatalf("Login() = %+v, error %v", loggedIn, err)
 	}

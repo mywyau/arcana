@@ -29,16 +29,20 @@ func configure(websocket_url: String) -> void:
 	_base_url = _base_url.trim_suffix("/")
 
 
-func register(email: String, password: String, guest_token: String = "") -> bool:
-	var payload: Dictionary = {"email": email.strip_edges(), "password": password}
+func register(character_name: String, email: String, password: String, guest_token: String = "") -> bool:
+	var payload: Dictionary = {
+		"character_name": character_name.strip_edges(),
+		"email": email.strip_edges(),
+		"password": password,
+	}
 	if not guest_token.is_empty():
 		payload["guest_token"] = guest_token
 	return _start_request("/api/account/register", payload)
 
 
-func login(email: String, password: String) -> bool:
+func login(identifier: String, password: String) -> bool:
 	return _start_request("/api/account/login", {
-		"email": email.strip_edges(),
+		"identifier": identifier.strip_edges(),
 		"password": password,
 	})
 

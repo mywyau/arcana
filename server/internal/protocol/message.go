@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 10
+	CurrentVersion            = 11
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -42,11 +42,13 @@ const (
 	MessageRingWithdraw       = "ring_withdraw"
 	MessageRuneDeposit        = "rune_deposit"
 	MessageRuneWithdraw       = "rune_withdraw"
+	MessageSendChat           = "send_chat"
 	MessageWelcome            = "welcome"
 	MessageAccountSession     = "account_session"
 	MessageAccountLoggedOut   = "account_logged_out"
 	MessageSnapshot           = "snapshot"
 	MessageError              = "error"
+	MessageChat               = "chat_message"
 )
 
 type Position struct {
@@ -89,6 +91,8 @@ type ClientMessage struct {
 	Password        string    `json:"password,omitempty"`
 	ProtocolVersion int       `json:"protocol_version,omitempty"`
 	ClientVersion   string    `json:"client_version,omitempty"`
+	Channel         string    `json:"channel,omitempty"`
+	Text            string    `json:"text,omitempty"`
 }
 
 type ServerMessage struct {
@@ -97,6 +101,7 @@ type ServerMessage struct {
 	GuestToken        string                     `json:"guest_token,omitempty"`
 	SessionToken      string                     `json:"session_token,omitempty"`
 	AccountEmail      string                     `json:"account_email,omitempty"`
+	CharacterName     string                     `json:"character_name,omitempty"`
 	ProductionRecipes []ProductionRecipeSnapshot `json:"production_recipes,omitempty"`
 	Spellbooks        []SpellbookCatalogSnapshot `json:"spellbooks,omitempty"`
 	Spells            []SpellCatalogSnapshot     `json:"spells,omitempty"`
@@ -105,6 +110,16 @@ type ServerMessage struct {
 	SkillGuide        []SkillGuideEntrySnapshot  `json:"skill_guide,omitempty"`
 	Snapshot          *WorldSnapshot             `json:"snapshot,omitempty"`
 	Error             *ErrorMessage              `json:"error,omitempty"`
+	Chat              *ChatMessage               `json:"chat,omitempty"`
+}
+
+type ChatMessage struct {
+	ID           uint64 `json:"id"`
+	Channel      string `json:"channel"`
+	SenderID     string `json:"sender_id"`
+	SenderName   string `json:"sender_name"`
+	Text         string `json:"text"`
+	SentAtUnixMS int64  `json:"sent_at_unix_ms"`
 }
 
 type SkillGuideEntrySnapshot struct {
@@ -553,7 +568,8 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageMerchantSell && message.Type != MessageMerchantBuy &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw &&
 		message.Type != MessageRingDeposit && message.Type != MessageRingWithdraw &&
-		message.Type != MessageRuneDeposit && message.Type != MessageRuneWithdraw {
+		message.Type != MessageRuneDeposit && message.Type != MessageRuneWithdraw &&
+		message.Type != MessageSendChat {
 		return ClientMessage{}, fmt.Errorf("unsupported message type %q", message.Type)
 	}
 	if message.Type != MessageAuthenticate && message.Sequence == 0 {

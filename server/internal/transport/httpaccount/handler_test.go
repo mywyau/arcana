@@ -35,15 +35,15 @@ func TestAccountHTTPRegistrationLoginAndLogout(t *testing.T) {
 	handler.RegisterRoutes(mux)
 
 	registered := requestAuthentication(t, mux, "/api/account/register", map[string]string{
-		"email": "player@example.com", "password": "strong-password",
+		"email": "player@example.com", "character_name": "Arcane Hero", "password": "strong-password",
 	})
 	if registered.PlayerID == "" || registered.SessionToken == "" {
 		t.Fatalf("registration response = %+v", registered)
 	}
 	loggedIn := requestAuthentication(t, mux, "/api/account/login", map[string]string{
-		"email": "PLAYER@example.com", "password": "strong-password",
+		"identifier": "arcane hero", "password": "strong-password",
 	})
-	if loggedIn.PlayerID != registered.PlayerID || loggedIn.SessionToken == "" {
+	if loggedIn.PlayerID != registered.PlayerID || loggedIn.CharacterName != "Arcane Hero" || loggedIn.SessionToken == "" {
 		t.Fatalf("login response = %+v, registration = %+v", loggedIn, registered)
 	}
 
@@ -154,14 +154,14 @@ func TestRegistrationRateLimitUsesTrustedForwardedAddress(t *testing.T) {
 
 	for index, forwardedAddress := range []string{"198.51.100.1, 10.0.0.1", "198.51.100.2, 10.0.0.1"} {
 		response := requestJSON(t, handler, "/api/account/register", map[string]string{
-			"email": "player" + strconv.Itoa(index) + "@example.com", "password": "strong-password",
+			"email": "player" + strconv.Itoa(index) + "@example.com", "character_name": "Hero" + strconv.Itoa(index), "password": "strong-password",
 		}, "10.0.0.1:1234", forwardedAddress)
 		if response.Code != http.StatusCreated {
 			t.Fatalf("forwarded client %d registration status = %d", index+1, response.Code)
 		}
 	}
 	limited := requestJSON(t, handler, "/api/account/register", map[string]string{
-		"email": "third@example.com", "password": "strong-password",
+		"email": "third@example.com", "character_name": "Third Hero", "password": "strong-password",
 	}, "10.0.0.1:1234", "198.51.100.1, 10.0.0.1")
 	if limited.Code != http.StatusTooManyRequests {
 		t.Fatalf("repeated forwarded client registration status = %d", limited.Code)
@@ -181,13 +181,13 @@ func TestRegistrationRateLimitIgnoresUntrustedForwardedAddress(t *testing.T) {
 	})
 
 	first := requestJSON(t, handler, "/api/account/register", map[string]string{
-		"email": "first@example.com", "password": "strong-password",
+		"email": "first@example.com", "character_name": "First Hero", "password": "strong-password",
 	}, "10.0.0.1:1234", "198.51.100.1")
 	if first.Code != http.StatusCreated {
 		t.Fatalf("first registration status = %d", first.Code)
 	}
 	limited := requestJSON(t, handler, "/api/account/register", map[string]string{
-		"email": "second@example.com", "password": "strong-password",
+		"email": "second@example.com", "character_name": "Second Hero", "password": "strong-password",
 	}, "10.0.0.1:1234", "198.51.100.2")
 	if limited.Code != http.StatusTooManyRequests {
 		t.Fatalf("spoofed forwarded client registration status = %d", limited.Code)
@@ -222,7 +222,7 @@ func TestAccountHTTPRegistrationLinksExistingGuest(t *testing.T) {
 	handler.RegisterRoutes(mux)
 
 	registered := requestAuthentication(t, mux, "/api/account/register", map[string]string{
-		"email": "guest@example.com", "password": "strong-password", "guest_token": guest.Token,
+		"email": "guest@example.com", "character_name": "Guest Hero", "password": "strong-password", "guest_token": guest.Token,
 	})
 	if registered.PlayerID != guest.PlayerID {
 		t.Fatalf("registered player = %s, want %s", registered.PlayerID, guest.PlayerID)

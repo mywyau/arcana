@@ -26,10 +26,10 @@ func TestElementalMonstersHaveDistinctSpellWeaknesses(t *testing.T) {
 		resistedElement MagicElement
 		position        Position
 	}{
-		{dustWraithTargetID, targetKindDust, MagicElementAir, MagicElementEarth, Position{X: -8, Z: 34}},
-		{cinderImpTargetID, targetKindCinder, MagicElementWater, MagicElementFire, Position{X: 36, Z: 4}},
-		{tideWispTargetID, targetKindTide, MagicElementEarth, MagicElementWater, Position{X: -36, Z: 4}},
-		{thornlingTargetID, targetKindThorn, MagicElementFire, MagicElementEarth, Position{X: 8, Z: 34}},
+		{dustWraithTargetID, targetKindDust, MagicElementAir, MagicElementEarth, Position{X: -5, Z: 42}},
+		{cinderImpTargetID, targetKindCinder, MagicElementWater, MagicElementFire, Position{X: 5, Z: 42}},
+		{tideWispTargetID, targetKindTide, MagicElementEarth, MagicElementWater, Position{X: 15, Z: 42}},
+		{thornlingTargetID, targetKindThorn, MagicElementFire, MagicElementEarth, Position{X: 25, Z: 42}},
 	}
 	world := NewWorld()
 	for _, test := range tests {
@@ -118,10 +118,10 @@ func TestSpecialistTyrantsHaveDistinctWorldSpawnsAndVisualKinds(t *testing.T) {
 	world := NewWorld()
 	ranged := world.combat.targets[rangedTyrantTargetID]
 	mage := world.combat.targets[mageTyrantTargetID]
-	if ranged == nil || ranged.Position != (Position{X: -40, Z: -35}) || ranged.Kind != targetKindRangedBoss {
+	if ranged == nil || ranged.Position != (Position{X: 0, Z: 64}) || ranged.Kind != targetKindRangedBoss {
 		t.Fatalf("Ranged Tyrant = %+v", ranged)
 	}
-	if mage == nil || mage.Position != (Position{X: 38, Z: -34}) || mage.Kind != targetKindMageBoss {
+	if mage == nil || mage.Position != (Position{X: 40, Z: 64}) || mage.Kind != targetKindMageBoss {
 		t.Fatalf("Mage Tyrant = %+v", mage)
 	}
 }

@@ -7,13 +7,14 @@ import (
 )
 
 func TestSupplyChestsAreSplitAndDoNotOverlap(t *testing.T) {
-	if len(testSupplyChests) != 9 {
-		t.Fatalf("test supply chest count = %d, want 9", len(testSupplyChests))
+	if len(testSupplyChests) != 10 {
+		t.Fatalf("test supply chest count = %d, want 10", len(testSupplyChests))
 	}
 	wantIDs := map[string]bool{
 		TestMeleeChestID: true, TestRangedChestID: true, TestMagicChestID: true,
 		TestOresChestID: true, TestBarsChestID: true, TestToolsChestID: true,
 		TestHerbsChestID: true, TestCraftingChestID: true, TestFoodChestID: true,
+		TestBossRewardsChestID: true,
 	}
 	for index, chest := range testSupplyChests {
 		if !wantIDs[chest.ID] || chest.Name == "" {

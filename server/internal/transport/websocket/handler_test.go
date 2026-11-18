@@ -14,10 +14,53 @@ import (
 	"github.com/coder/websocket/wsjson"
 
 	"github.com/mywyau/arcana/server/internal/character"
+	chatservice "github.com/mywyau/arcana/server/internal/chat"
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/protocol"
 	"github.com/mywyau/arcana/server/internal/simulation"
 )
+
+func TestBroadcastLocalChatOnlyReachesNearbyActivePlayers(t *testing.T) {
+	world := simulation.NewWorld()
+	for playerID, position := range map[simulation.PlayerID]simulation.Position{
+		"sender": {X: 0, Z: 0}, "nearby": {X: localChatRadius - 1, Z: 0},
+		"distant": {X: localChatRadius + 1, Z: 0},
+	} {
+		if err := world.AddPlayer(playerID, position, simulation.DefaultPlayerMovementSpeed); err != nil {
+			t.Fatalf("AddPlayer(%s): %v", playerID, err)
+		}
+	}
+	handler, err := NewHandler(world, 100*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	channels := map[simulation.PlayerID]chan outboundResponse{}
+	for _, playerID := range []simulation.PlayerID{"sender", "nearby", "distant"} {
+		responses := make(chan outboundResponse, 1)
+		channels[playerID] = responses
+		handler.activeClients[playerID] = &activeClient{responses: responses, cancel: func() {}}
+	}
+	handler.broadcastLocalChat("sender", chatservice.Message{
+		ID: 4, Channel: chatservice.ChannelLocal, SenderID: "sender",
+		SenderName: "Sender", Text: "hello", SentAt: time.Now(),
+	})
+
+	for _, playerID := range []simulation.PlayerID{"sender", "nearby"} {
+		select {
+		case response := <-channels[playerID]:
+			if response.message.Chat == nil || response.message.Chat.Text != "hello" || response.message.Chat.SenderName != "Sender" {
+				t.Fatalf("%s response = %+v", playerID, response.message)
+			}
+		default:
+			t.Fatalf("%s did not receive local chat", playerID)
+		}
+	}
+	select {
+	case response := <-channels["distant"]:
+		t.Fatalf("distant player received local chat: %+v", response.message)
+	default:
+	}
+}
 
 func TestHandlerMovesConnectionPlayerAndSendsSnapshots(t *testing.T) {
 	world := simulation.NewWorld()

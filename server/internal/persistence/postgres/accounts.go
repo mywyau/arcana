@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/mywyau/arcana/server/internal/account"
 )
@@ -38,9 +41,13 @@ func (store *Store) CreateAccount(ctx context.Context, value account.Account) er
 	}
 
 	result, err = tx.ExecContext(ctx, `
-		UPDATE characters SET account_id = $1, updated_at = now()
-		WHERE player_id = $2 AND account_id IS NULL`, value.ID, value.PlayerID)
+		UPDATE characters SET account_id = $1, character_name = $3, updated_at = now()
+		WHERE player_id = $2 AND account_id IS NULL`, value.ID, value.PlayerID, value.CharacterName)
 	if err != nil {
+		var postgresError *pgconn.PgError
+		if errors.As(err, &postgresError) && postgresError.ConstraintName == "characters_character_name_lower_unique" {
+			return account.ErrCharacterNameExists
+		}
 		return fmt.Errorf("link character to account: %w", err)
 	}
 	rows, err = result.RowsAffected()
@@ -66,11 +73,12 @@ func (store *Store) FindAccountByEmail(
 	}
 	var value account.Account
 	err = store.database.QueryRowContext(ctx, `
-		SELECT accounts.account_id, accounts.email, accounts.password_hash, characters.player_id
+		SELECT accounts.account_id, accounts.email, characters.character_name,
+		       accounts.password_hash, characters.player_id
 		FROM accounts
 		JOIN characters ON characters.account_id = accounts.account_id
 		WHERE accounts.email = $1`, normalizedEmail,
-	).Scan(&value.ID, &value.Email, &value.PasswordHash, &value.PlayerID)
+	).Scan(&value.ID, &value.Email, &value.CharacterName, &value.PasswordHash, &value.PlayerID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return account.Account{}, false, nil
 	}
@@ -80,13 +88,59 @@ func (store *Store) FindAccountByEmail(
 	return value, true, nil
 }
 
+func (store *Store) FindAccountByLogin(
+	ctx context.Context,
+	identifier string,
+) (account.Account, bool, error) {
+	identifier = strings.TrimSpace(identifier)
+	var value account.Account
+	var err error
+	if normalizedEmail, emailErr := account.NormalizeEmail(identifier); emailErr == nil {
+		err = store.database.QueryRowContext(ctx, `
+			SELECT accounts.account_id, accounts.email, characters.character_name,
+			       accounts.password_hash, characters.player_id
+			FROM accounts
+			JOIN characters ON characters.account_id = accounts.account_id
+			WHERE accounts.email = $1`, normalizedEmail,
+		).Scan(&value.ID, &value.Email, &value.CharacterName, &value.PasswordHash, &value.PlayerID)
+	} else {
+		normalizedName, nameErr := account.NormalizeCharacterName(identifier)
+		if nameErr != nil {
+			return account.Account{}, false, nameErr
+		}
+		err = store.database.QueryRowContext(ctx, `
+			SELECT accounts.account_id, accounts.email, characters.character_name,
+			       accounts.password_hash, characters.player_id
+			FROM accounts
+			JOIN characters ON characters.account_id = accounts.account_id
+			WHERE lower(characters.character_name) = lower($1)`, normalizedName,
+		).Scan(&value.ID, &value.Email, &value.CharacterName, &value.PasswordHash, &value.PlayerID)
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return account.Account{}, false, nil
+	}
+	if err != nil {
+		return account.Account{}, false, fmt.Errorf("query account by login: %w", err)
+	}
+	return value, true, nil
+}
+
 func (store *Store) DeleteAccount(ctx context.Context, accountID string) error {
-	if _, err := store.database.ExecContext(
-		ctx,
-		"DELETE FROM accounts WHERE account_id = $1",
-		accountID,
+	tx, err := store.database.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin account deletion: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx,
+		"UPDATE characters SET character_name = NULL WHERE account_id = $1", accountID,
 	); err != nil {
+		return fmt.Errorf("clear character name: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM accounts WHERE account_id = $1", accountID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit account deletion: %w", err)
 	}
 	return nil
 }

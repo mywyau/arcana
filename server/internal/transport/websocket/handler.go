@@ -15,6 +15,7 @@ import (
 
 	"github.com/mywyau/arcana/server/internal/account"
 	"github.com/mywyau/arcana/server/internal/character"
+	chatservice "github.com/mywyau/arcana/server/internal/chat"
 	"github.com/mywyau/arcana/server/internal/identity"
 	"github.com/mywyau/arcana/server/internal/protocol"
 	"github.com/mywyau/arcana/server/internal/servermetrics"
@@ -31,6 +32,7 @@ const (
 	disconnectedLogoutDelay      = 2 * time.Minute
 	connectionReplacementTimeout = 5 * time.Second
 	DefaultVisibilityRadius      = 40.0
+	localChatRadius              = 30.0
 )
 
 var errAccountRequired = errors.New("an account is required to enter this world")
@@ -42,6 +44,7 @@ type Handler struct {
 	snapshotInterval        time.Duration
 	guestIdentities         *identity.GuestManager
 	accounts                *account.Manager
+	chat                    *chatservice.Service
 	characters              character.Repository
 	characterSaveInterval   time.Duration
 	disconnectedLogoutDelay time.Duration
@@ -65,8 +68,10 @@ type pendingLogout struct {
 }
 
 type activeClient struct {
-	replaced chan struct{}
-	done     chan struct{}
+	replaced  chan struct{}
+	done      chan struct{}
+	responses chan<- outboundResponse
+	cancel    context.CancelFunc
 }
 
 type HandlerOptions struct {
@@ -177,6 +182,7 @@ func NewHandlerWithRepositoriesAndOptions(
 	return &Handler{
 		world: world, snapshotInterval: snapshotInterval,
 		guestIdentities: guestIdentities, accounts: accountManager, characters: characters,
+		chat:                    chatservice.NewService(),
 		characterSaveInterval:   characterSaveInterval,
 		disconnectedLogoutDelay: disconnectedLogoutDelay,
 		allowDebug:              options.AllowDebugCommands,
@@ -236,7 +242,9 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		return
 	}
 	playerID := simulation.PlayerID(authentication.PlayerID)
-	client, previous := h.claimActiveClient(playerID)
+	responses := make(chan outboundResponse, 8)
+	environmentRefreshes := make(chan struct{}, 1)
+	client, previous := h.claimActiveClient(playerID, responses, cancel)
 	immediateDeparture := false
 	defer func() {
 		if h.isActiveClient(playerID, client) && h.world.HasPlayerOrPending(playerID) {
@@ -299,15 +307,13 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		}
 	}
 
-	responses := make(chan outboundResponse, 8)
-	environmentRefreshes := make(chan struct{}, 1)
-
 	if err := h.writeMessage(ctx, connection, protocol.ServerMessage{
 		Type:              protocol.MessageWelcome,
 		PlayerID:          string(playerID),
 		GuestToken:        authentication.GuestToken,
 		SessionToken:      authentication.SessionToken,
 		AccountEmail:      authentication.AccountEmail,
+		CharacterName:     authentication.CharacterName,
 		ProductionRecipes: productionRecipeMessages(simulation.ProductionRecipeCatalog()),
 		Spellbooks:        spellbookCatalogMessages(simulation.SpellbookCatalog()),
 		Spells:            spellCatalogMessages(simulation.SpellCatalog()),
@@ -318,7 +324,8 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		return
 	}
 	go h.readCommands(
-		ctx, cancel, connection, playerID, authentication.SessionToken, responses, environmentRefreshes,
+		ctx, cancel, connection, playerID, authentication.CharacterName,
+		authentication.SessionToken, responses, environmentRefreshes,
 	)
 	outbound := newOutboundQueue()
 	defer outbound.close()
@@ -599,14 +606,22 @@ func (h *Handler) SaveAll(ctx context.Context) error {
 }
 
 type authenticatedIdentity struct {
-	PlayerID     string
-	GuestToken   string
-	SessionToken string
-	AccountEmail string
+	PlayerID      string
+	GuestToken    string
+	SessionToken  string
+	AccountEmail  string
+	CharacterName string
 }
 
-func (h *Handler) claimActiveClient(playerID simulation.PlayerID) (*activeClient, *activeClient) {
-	client := &activeClient{replaced: make(chan struct{}), done: make(chan struct{})}
+func (h *Handler) claimActiveClient(
+	playerID simulation.PlayerID,
+	responses chan<- outboundResponse,
+	cancel context.CancelFunc,
+) (*activeClient, *activeClient) {
+	client := &activeClient{
+		replaced: make(chan struct{}), done: make(chan struct{}),
+		responses: responses, cancel: cancel,
+	}
 	h.activeMu.Lock()
 	previous := h.activeClients[playerID]
 	h.activeClients[playerID] = client
@@ -752,7 +767,8 @@ func (h *Handler) authenticate(ctx context.Context, connection *websocket.Conn) 
 			return authenticatedIdentity{}, err
 		}
 		return authenticatedIdentity{
-			PlayerID: value.PlayerID, SessionToken: message.SessionToken, AccountEmail: value.Email,
+			PlayerID: value.PlayerID, SessionToken: message.SessionToken,
+			AccountEmail: value.Email, CharacterName: value.CharacterName,
 		}, nil
 	}
 	if !h.allowGuests {
@@ -770,11 +786,15 @@ func (h *Handler) readCommands(
 	cancel context.CancelFunc,
 	connection *websocket.Conn,
 	playerID simulation.PlayerID,
+	characterName string,
 	currentSessionToken string,
 	responses chan<- outboundResponse,
 	environmentRefreshes chan<- struct{},
 ) {
 	defer cancel()
+	if characterName == "" {
+		characterName = "Guest"
+	}
 
 	for {
 		_, data, err := connection.Read(ctx)
@@ -808,6 +828,15 @@ func (h *Handler) readCommands(
 						Type: protocol.MessageAccountLoggedOut,
 					})
 				}
+			}
+		case protocol.MessageSendChat:
+			rejectionCode = "chat_rejected"
+			var chatMessage chatservice.Message
+			chatMessage, err = h.chat.Submit(
+				string(playerID), characterName, message.Channel, message.Text,
+			)
+			if err == nil {
+				h.broadcastLocalChat(playerID, chatMessage)
 			}
 		case protocol.MessageMoveTo:
 			destination := simulation.Position{
@@ -1021,6 +1050,58 @@ func (h *Handler) readCommands(
 			case environmentRefreshes <- struct{}{}:
 			default:
 			}
+		}
+	}
+}
+
+func (h *Handler) broadcastLocalChat(senderID simulation.PlayerID, message chatservice.Message) {
+	sender, found := h.world.Player(senderID)
+	if !found {
+		return
+	}
+	frame, index, _, _ := h.sharedPublicFrame(time.Now())
+	candidates := frame.Players
+	if index != nil {
+		candidateFrame, _ := index.candidateSnapshot(*frame, sender, localChatRadius, false)
+		candidates = candidateFrame.Players
+	}
+
+	recipients := make(map[simulation.PlayerID]struct{}, len(candidates)+1)
+	recipients[senderID] = struct{}{}
+	radiusSquared := localChatRadius * localChatRadius
+	for _, candidate := range candidates {
+		if positionWithinRadius(sender.Position, candidate.Position, radiusSquared) {
+			recipients[candidate.ID] = struct{}{}
+		}
+	}
+
+	wireMessage := protocol.ServerMessage{
+		Type: protocol.MessageChat,
+		Chat: &protocol.ChatMessage{
+			ID: message.ID, Channel: message.Channel,
+			SenderID: message.SenderID, SenderName: message.SenderName,
+			Text: message.Text, SentAtUnixMS: message.SentAt.UnixMilli(),
+		},
+	}
+	type destination struct {
+		responses chan<- outboundResponse
+		cancel    context.CancelFunc
+	}
+	destinations := make([]destination, 0, len(recipients))
+	h.activeMu.Lock()
+	for playerID := range recipients {
+		if client := h.activeClients[playerID]; client != nil {
+			destinations = append(destinations, destination{client.responses, client.cancel})
+		}
+	}
+	h.activeMu.Unlock()
+	for _, destination := range destinations {
+		select {
+		case destination.responses <- outboundResponse{message: wireMessage}:
+		default:
+			// Reliable events must not accumulate without bound behind a stalled
+			// connection. The client can reconnect cleanly instead.
+			destination.cancel()
 		}
 	}
 }

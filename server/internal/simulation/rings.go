@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-const RingRackCapacity = 5
+const RingRackCapacity = 4
 
 type RingRackSnapshot struct {
 	Capacity int
@@ -89,7 +89,7 @@ func ringTransferAfter(player *playerState, command RingTransferCommand) (invent
 			return inventoryState{}, inventoryState{}, fmt.Errorf("ring %q requires %s level %d", command.ItemID, requirement.Skill, requirement.Level)
 		}
 		if _, removed := inventory.removeInstance(command.InstanceID); !removed || !rack.addInventoryItem(item) {
-			return inventoryState{}, inventoryState{}, fmt.Errorf("all five ring slots are occupied")
+			return inventoryState{}, inventoryState{}, fmt.Errorf("all four ring slots are occupied")
 		}
 		return inventory, rack, nil
 	}

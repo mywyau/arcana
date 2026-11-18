@@ -18,6 +18,7 @@ func _init() -> void:
 	size = WINDOW_SIZE
 	unresizable = true
 	transient = true
+	borderless = true
 
 
 func _ready() -> void:

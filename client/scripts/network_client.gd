@@ -8,6 +8,7 @@ signal spell_catalog_received(books: Array, spells: Array)
 signal prayer_catalog_received(prayers: Array, prayer_sets: Array)
 signal skill_guide_received(entries: Array)
 signal snapshot_received(snapshot: Dictionary)
+signal chat_message_received(message: Dictionary)
 signal server_error(code: String, message: String)
 signal account_session_received(email: String)
 signal account_login_required(message: String)
@@ -19,7 +20,7 @@ signal session_replaced(message: String)
 
 const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
 const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
-const PROTOCOL_VERSION: int = 10
+const PROTOCOL_VERSION: int = 11
 const BETA_BUILD_FEATURE: String = "arcana_beta"
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
@@ -117,6 +118,22 @@ func send_move(sequence: int, destination: Vector3) -> bool:
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not send movement: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_chat(sequence: int, channel: String, text: String) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot chat while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "send_chat",
+		"sequence": sequence,
+		"channel": channel,
+		"text": text,
+	}))
+	if result != OK:
+		status_changed.emit("Could not send chat message: %s" % error_string(result))
 		return false
 	return true
 
@@ -847,6 +864,12 @@ func _handle_packet(packet: PackedByteArray) -> void:
 				snapshot_received.emit(snapshot as Dictionary)
 			else:
 				server_error.emit("invalid_snapshot", "Snapshot payload is missing")
+		"chat_message":
+			var chat_payload: Variant = message.get("chat")
+			if typeof(chat_payload) == TYPE_DICTIONARY:
+				chat_message_received.emit(chat_payload as Dictionary)
+			else:
+				server_error.emit("invalid_chat", "Chat payload is missing")
 		"account_session":
 			var issued_session: String = str(message.get("session_token", ""))
 			var account_email: String = str(message.get("account_email", ""))
@@ -883,7 +906,7 @@ func _handle_packet(packet: PackedByteArray) -> void:
 					account_login_required.emit("Your session expired. Log in again.")
 				elif error_code == "invalid_credentials":
 					_authentication_blocked = true
-					account_login_required.emit("The email or password was incorrect.")
+					account_login_required.emit("The email, character name, or password was incorrect.")
 				elif error_code == "account_required":
 					_guest_token = ""
 					_save_guest_token()

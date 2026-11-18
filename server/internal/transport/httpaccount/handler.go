@@ -43,15 +43,18 @@ type HandlerOptions struct {
 }
 
 type credentialsRequest struct {
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	GuestToken string `json:"guest_token,omitempty"`
+	Identifier    string `json:"identifier,omitempty"`
+	Email         string `json:"email,omitempty"`
+	CharacterName string `json:"character_name,omitempty"`
+	Password      string `json:"password"`
+	GuestToken    string `json:"guest_token,omitempty"`
 }
 
 type authenticationResponse struct {
-	PlayerID     string `json:"player_id"`
-	Email        string `json:"email"`
-	SessionToken string `json:"session_token"`
+	PlayerID      string `json:"player_id"`
+	Email         string `json:"email"`
+	CharacterName string `json:"character_name"`
+	SessionToken  string `json:"session_token"`
 }
 
 type errorResponse struct {
@@ -135,11 +138,15 @@ func (handler *Handler) register(response http.ResponseWriter, request *http.Req
 	if !ok {
 		return
 	}
+	if strings.TrimSpace(credentials.Email) == "" || strings.TrimSpace(credentials.CharacterName) == "" {
+		writeError(response, http.StatusBadRequest, "email, character name and password are required")
+		return
+	}
 	var authentication account.Authentication
 	var err error
 	if credentials.GuestToken == "" {
-		authentication, err = handler.accounts.RegisterNewCharacter(
-			request.Context(), credentials.Email, credentials.Password, handler.characters,
+		authentication, err = handler.accounts.RegisterNamedNewCharacter(
+			request.Context(), credentials.CharacterName, credentials.Email, credentials.Password, handler.characters,
 		)
 	} else {
 		guest, guestErr := handler.guests.Authenticate(request.Context(), credentials.GuestToken)
@@ -147,17 +154,19 @@ func (handler *Handler) register(response http.ResponseWriter, request *http.Req
 			writeError(response, http.StatusUnauthorized, "guest character could not be verified")
 			return
 		}
-		authentication, err = handler.accounts.Register(
-			request.Context(), guest.PlayerID, credentials.Email, credentials.Password,
+		authentication, err = handler.accounts.RegisterNamed(
+			request.Context(), guest.PlayerID, credentials.CharacterName, credentials.Email, credentials.Password,
 		)
 	}
 	if err != nil {
 		switch {
 		case errors.Is(err, account.ErrAccountExists):
 			writeError(response, http.StatusConflict, "that email address is already registered")
+		case errors.Is(err, account.ErrCharacterNameExists):
+			writeError(response, http.StatusConflict, "that character name is already taken")
 		case errors.Is(err, account.ErrCharacterUnavailable):
 			writeError(response, http.StatusConflict, "that character is already linked to an account")
-		case errors.Is(err, account.ErrInvalidEmail), errors.Is(err, account.ErrInvalidPassword):
+		case errors.Is(err, account.ErrInvalidEmail), errors.Is(err, account.ErrInvalidCharacterName), errors.Is(err, account.ErrInvalidPassword):
 			writeError(response, http.StatusBadRequest, err.Error())
 		default:
 			writeError(response, http.StatusInternalServerError, "could not create account")
@@ -166,7 +175,8 @@ func (handler *Handler) register(response http.ResponseWriter, request *http.Req
 	}
 	writeJSON(response, http.StatusCreated, authenticationResponse{
 		PlayerID: authentication.PlayerID, Email: authentication.Email,
-		SessionToken: authentication.SessionToken,
+		CharacterName: authentication.CharacterName,
+		SessionToken:  authentication.SessionToken,
 	})
 }
 
@@ -180,18 +190,22 @@ func (handler *Handler) login(response http.ResponseWriter, request *http.Reques
 	if !ok {
 		return
 	}
-	failureKey := clientAddress + "|" + strings.ToLower(strings.TrimSpace(credentials.Email))
+	identifier := strings.TrimSpace(credentials.Identifier)
+	if identifier == "" {
+		identifier = strings.TrimSpace(credentials.Email)
+	}
+	failureKey := clientAddress + "|" + strings.ToLower(identifier)
 	if blocked, retryAfter := handler.loginFailureLimiter.Blocked(failureKey); blocked {
 		writeRateLimit(response, retryAfter, "too many failed login attempts; try again later")
 		return
 	}
 	authentication, err := handler.accounts.Login(
-		request.Context(), credentials.Email, credentials.Password,
+		request.Context(), identifier, credentials.Password,
 	)
 	if err != nil {
 		if errors.Is(err, account.ErrInvalidCredentials) {
 			handler.loginFailureLimiter.Allow(failureKey)
-			writeError(response, http.StatusUnauthorized, "invalid email or password")
+			writeError(response, http.StatusUnauthorized, "invalid email, character name or password")
 			return
 		}
 		writeError(response, http.StatusInternalServerError, "could not log in")
@@ -200,7 +214,8 @@ func (handler *Handler) login(response http.ResponseWriter, request *http.Reques
 	handler.loginFailureLimiter.Reset(failureKey)
 	writeJSON(response, http.StatusOK, authenticationResponse{
 		PlayerID: authentication.PlayerID, Email: authentication.Email,
-		SessionToken: authentication.SessionToken,
+		CharacterName: authentication.CharacterName,
+		SessionToken:  authentication.SessionToken,
 	})
 }
 
@@ -250,8 +265,8 @@ func decodeCredentials(
 		writeError(response, http.StatusBadRequest, "request body is invalid")
 		return credentialsRequest{}, false
 	}
-	if strings.TrimSpace(credentials.Email) == "" || credentials.Password == "" {
-		writeError(response, http.StatusBadRequest, "email and password are required")
+	if strings.TrimSpace(credentials.Email) == "" && strings.TrimSpace(credentials.Identifier) == "" || credentials.Password == "" {
+		writeError(response, http.StatusBadRequest, "login identifier and password are required")
 		return credentialsRequest{}, false
 	}
 	return credentials, true

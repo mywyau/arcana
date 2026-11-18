@@ -63,6 +63,8 @@ const ITEM_DISPLAY_NAMES: Dictionary = {
 	"skin_bible": "Skin Bible", "holy_book": "Holy Book", "clerics_tome": "Cleric's Tome",
 	"ruby_ring": "Ruby Ring", "emerald_ring": "Emerald Ring",
 	"sapphire_ring": "Sapphire Ring", "diamond_ring": "Diamond Ring",
+	"ring_of_might": "Ring of Might", "ring_of_marksmanship": "Ring of Marksmanship",
+	"ring_of_sorcery": "Ring of Sorcery",
 	"tyrants_ring": "Tyrant's Ring",
 	"ranged_tyrants_ring": "Ranged Tyrant's Ring",
 	"mage_tyrants_ring": "Mage Tyrant's Ring",
@@ -302,6 +304,7 @@ const ARMOUR_SLOTS: Dictionary = {
 	"diamond_amulet": "neck",
 	"ruby_ring": "ring", "emerald_ring": "ring",
 	"sapphire_ring": "ring", "diamond_ring": "ring",
+	"ring_of_might": "ring", "ring_of_marksmanship": "ring", "ring_of_sorcery": "ring",
 	"tyrants_ring": "ring",
 	"ranged_tyrants_ring": "ring", "mage_tyrants_ring": "ring",
 }
@@ -332,6 +335,9 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"diamond_amulet": "+2 accuracy • +2 strength for melee, ranged, and magic",
 	"ruby_ring": "+2 melee strength", "emerald_ring": "+2 ranged strength",
 	"sapphire_ring": "+2 magic strength", "diamond_ring": "+1 accuracy and strength for all styles",
+	"ring_of_might": "+5 melee accuracy • +5 melee strength",
+	"ring_of_marksmanship": "+5 ranged accuracy • +5 ranged strength",
+	"ring_of_sorcery": "+5 magic accuracy • +5 magic strength",
 	"tyrants_ring": "+100 melee strength",
 	"ranged_tyrants_ring": "+100 ranged strength",
 	"mage_tyrants_ring": "+100 magic strength",
@@ -441,6 +447,10 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var hud_edit_hint: Label = $UI/HudEditHint
 @onready var chat_hud: PanelContainer = $UI/ChatHUD
 @onready var game_message_log: RichTextLabel = $UI/ChatHUD/Margin/VBox/Messages
+@onready var game_chat_tab: Button = $UI/ChatHUD/Margin/VBox/Channels/Game
+@onready var local_chat_tab: Button = $UI/ChatHUD/Margin/VBox/Channels/Local
+@onready var chat_input: LineEdit = $UI/ChatHUD/Margin/VBox/InputRow/ChatInput
+@onready var chat_send_button: Button = $UI/ChatHUD/Margin/VBox/InputRow/Send
 @onready var player_vitals_hud: PanelContainer = $UI/PlayerVitalsHUD
 @onready var combat_boost_hud: PanelContainer = $UI/CombatBoostHUD
 @onready var combat_boost_row: HBoxContainer = $UI/CombatBoostHUD/Margin/Boosts
@@ -596,6 +606,7 @@ var _next_inventory_move_sequence: int = 1
 var _next_consume_sequence: int = 1
 var _next_gather_sequence: int = 1
 var _next_bank_sequence: int = 1
+var _next_chat_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
 var _combat_target: String = ""
@@ -644,7 +655,7 @@ var _ammunition_pouch_window: Window
 var _ammunition_pouch_grid: GridContainer
 var _ammunition_pouch_summary: Label
 var _ring_rack_items: Array = []
-var _ring_rack_capacity: int = 5
+var _ring_rack_capacity: int = 4
 var _ring_rack_signature: String = ""
 var _ring_rack_revision: int = -1
 var _next_ring_sequence: int = 1
@@ -741,6 +752,7 @@ var _skill_details_level: Label
 var _skill_details_progress: ProgressBar
 var _skill_details_xp: Label
 var _skill_details_description: RichTextLabel
+var _skill_details_tabs: VBoxContainer
 var _skill_details_action: Button
 var _skill_context_menu: PopupMenu
 var _skill_context_name: String = ""
@@ -751,6 +763,7 @@ var _next_logout_sequence: int = 1
 var _account_email: String = ""
 var _open_skill_name: String = ""
 var _open_skill_id: String = ""
+var _selected_skill_guide_category: String = ""
 var _skill_guide_entries: Array[Dictionary] = []
 var _combat_stats: Dictionary = {}
 var _combat_matchup: Dictionary = {}
@@ -823,6 +836,8 @@ var _attack_range_indicator: Node3D
 var _attack_range_fill: MeshInstance3D
 var _displayed_attack_range: float = -1.0
 var _game_messages: Array[Dictionary] = []
+var _local_chat_messages: Array[Dictionary] = []
+var _selected_chat_channel: String = "game"
 var _last_network_error_code: String = ""
 var _last_network_error_message: String = ""
 var _xp_tracker_initialized: bool = false
@@ -838,6 +853,8 @@ func _ready() -> void:
 			str(ProjectSettings.get_setting("application/config/name", "Game")),
 			profile_name,
 		])
+	InterfaceStyle.configure_panel(bank_hud)
+	InterfaceStyle.configure_panel(combat_stats_hud)
 	_production_windows = ProductionWindows.new()
 	add_child(_production_windows)
 	_production_windows.configure(
@@ -849,7 +866,10 @@ func _ready() -> void:
 	_world_context_menu = PopupPanel.new()
 	_world_context_menu.name = "WorldContextMenu"
 	var context_panel_style := StyleBoxFlat.new()
-	context_panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
+	context_panel_style.bg_color = Color(0.22, 0.23, 0.38, 1.0)
+	context_panel_style.border_color = Color(0.48, 0.46, 0.72, 1.0)
+	context_panel_style.set_border_width_all(2)
+	context_panel_style.set_corner_radius_all(8)
 	_world_context_menu.add_theme_stylebox_override("panel", context_panel_style)
 	add_child(_world_context_menu)
 	var context_margin := MarginContainer.new()
@@ -863,6 +883,7 @@ func _ready() -> void:
 	context_margin.add_child(_world_context_rows)
 	_crafting_menu = PopupMenu.new()
 	_crafting_menu.name = "CraftingMenu"
+	InterfaceStyle.configure_popup_menu(_crafting_menu)
 	add_child(_crafting_menu)
 	_crafting_menu.id_pressed.connect(_on_crafting_recipe_selected)
 	_brewing_ui = BrewingWindow.new()
@@ -930,12 +951,18 @@ func _ready() -> void:
 	network.prayer_catalog_received.connect(_on_prayer_catalog_received)
 	network.skill_guide_received.connect(_on_skill_guide_received)
 	network.snapshot_received.connect(_on_snapshot_received)
+	network.chat_message_received.connect(_on_chat_message_received)
 	network.server_error.connect(_on_server_error)
 	network.account_session_received.connect(_on_account_session_received)
 	network.account_login_required.connect(_on_account_login_required)
 	network.account_logged_out.connect(_on_account_logged_out)
 	network.client_update_required.connect(_on_client_update_required)
 	network.session_replaced.connect(_on_session_replaced)
+	game_chat_tab.pressed.connect(_select_chat_channel.bind("game"))
+	local_chat_tab.pressed.connect(_select_chat_channel.bind("local"))
+	chat_send_button.pressed.connect(_on_chat_send_pressed)
+	chat_input.text_submitted.connect(_submit_local_chat)
+	chat_input.focus_mode = Control.FOCUS_NONE
 	sword_button.pressed.connect(_request_equip.bind("sword"))
 	dagger_button.pressed.connect(_request_equip.bind("dagger"))
 	bow_button.pressed.connect(_request_equip.bind("bow"))
@@ -1048,6 +1075,13 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if auth_gate.visible:
 		return
+	if chat_input.has_focus():
+		if event is InputEventKey:
+			var chat_key_event := event as InputEventKey
+			if chat_key_event.pressed and chat_key_event.keycode == KEY_ESCAPE:
+				_set_chat_input_active(false)
+				get_viewport().set_input_as_handled()
+			return
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.pressed and not key_event.echo:
@@ -1078,6 +1112,14 @@ func _unhandled_input(event: InputEvent) -> void:
 						return
 					if _hud_edit_mode:
 						_set_hud_edit_mode(false)
+						get_viewport().set_input_as_handled()
+						return
+					if _debug_skill_window != null and _debug_skill_window.visible:
+						_debug_skill_window.hide()
+						get_viewport().set_input_as_handled()
+						return
+					if _skill_details_window != null and _skill_details_window.visible:
+						_skill_details_window.hide()
 						get_viewport().set_input_as_handled()
 						return
 					if _bank_withdraw_controls != null and _bank_withdraw_controls.close_overlays():
@@ -1533,6 +1575,12 @@ func _on_bank_header_input(event: InputEvent) -> void:
 func _input(event: InputEvent) -> void:
 	if auth_gate.visible:
 		return
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_TAB:
+			_set_chat_input_active(not chat_input.has_focus())
+			get_viewport().set_input_as_handled()
+			return
 	if not _bank_dragging:
 		return
 	if event is InputEventMouseButton:
@@ -2571,16 +2619,70 @@ func _append_game_message(message: String, is_error: bool = false) -> void:
 	_game_messages.append({"text": clean_message, "error": is_error})
 	while _game_messages.size() > GAME_MESSAGE_LIMIT:
 		_game_messages.pop_front()
+	if _selected_chat_channel == "game":
+		_render_chat_messages()
+
+
+func _select_chat_channel(channel: String) -> void:
+	_selected_chat_channel = channel
+	game_chat_tab.set_pressed_no_signal(channel == "game")
+	local_chat_tab.set_pressed_no_signal(channel == "local")
+	_render_chat_messages()
+
+
+func _set_chat_input_active(active: bool) -> void:
+	if active:
+		_select_chat_channel("local")
+		chat_input.focus_mode = Control.FOCUS_ALL
+		chat_input.grab_focus()
+		chat_input.caret_column = chat_input.text.length()
+		return
+	chat_input.release_focus()
+	chat_input.focus_mode = Control.FOCUS_NONE
+
+
+func _submit_local_chat(message: String) -> void:
+	var clean_message: String = message.strip_edges()
+	if clean_message.is_empty():
+		return
+	if network.send_chat(_next_chat_sequence, "local", clean_message):
+		_next_chat_sequence += 1
+		chat_input.clear()
+		_select_chat_channel("local")
+
+
+func _on_chat_send_pressed() -> void:
+	_submit_local_chat(chat_input.text)
+
+
+func _on_chat_message_received(message: Dictionary) -> void:
+	if str(message.get("channel", "")) != "local":
+		return
+	_local_chat_messages.append(message.duplicate(true))
+	while _local_chat_messages.size() > GAME_MESSAGE_LIMIT:
+		_local_chat_messages.pop_front()
+	if _selected_chat_channel == "local":
+		_render_chat_messages()
+
+
+func _render_chat_messages() -> void:
 	game_message_log.clear()
-	for entry: Dictionary in _game_messages:
-		game_message_log.push_color(Color(0.95, 0.72, 0.2))
-		game_message_log.add_text("[Game] ")
-		game_message_log.pop()
-		if bool(entry.get("error", false)):
-			game_message_log.push_color(Color(1.0, 0.3, 0.3))
-		game_message_log.add_text(str(entry.get("text", "")) + "\n")
-		if bool(entry.get("error", false)):
+	if _selected_chat_channel == "local":
+		for entry: Dictionary in _local_chat_messages:
+			game_message_log.push_color(Color(0.66, 0.82, 1.0))
+			game_message_log.add_text("%s: " % str(entry.get("sender_name", "Player")))
 			game_message_log.pop()
+			game_message_log.add_text(str(entry.get("text", "")) + "\n")
+	else:
+		for entry: Dictionary in _game_messages:
+			game_message_log.push_color(Color(0.95, 0.72, 0.2))
+			game_message_log.add_text("[Game] ")
+			game_message_log.pop()
+			if bool(entry.get("error", false)):
+				game_message_log.push_color(Color(1.0, 0.3, 0.3))
+			game_message_log.add_text(str(entry.get("text", "")) + "\n")
+			if bool(entry.get("error", false)):
+				game_message_log.pop()
 	game_message_log.scroll_to_line(maxi(0, game_message_log.get_line_count() - 1))
 
 
@@ -2630,13 +2732,13 @@ func _request_account_session_action() -> void:
 	network.return_to_account_gate()
 
 
-func _request_startup_login(email: String, password: String) -> void:
-	account_api.login(email, password)
+func _request_startup_login(identifier: String, password: String) -> void:
+	account_api.login(identifier, password)
 
 
-func _request_startup_registration(email: String, password: String, link_guest: bool) -> void:
+func _request_startup_registration(character_name: String, email: String, password: String, link_guest: bool) -> void:
 	var guest_token: String = network.guest_token_for_registration() if link_guest else ""
-	account_api.register(email, password, guest_token)
+	account_api.register(character_name, email, password, guest_token)
 
 
 func _request_development_guest() -> void:
@@ -4075,6 +4177,10 @@ func _on_server_error(code: String, message: String) -> void:
 
 
 func _friendly_server_error(code: String, message: String) -> String:
+	if code == "command_rejected" and message.to_lower().begins_with("find path:"):
+		if _combat_debug_hud_visible:
+			return message
+		return "You cannot walk there."
 	if code != "gather_rejected":
 		return message.replace("_", " ").capitalize()
 	var readable := message.replace("_", " ")
@@ -4936,10 +5042,11 @@ func _remove_button_background(button: Button) -> void:
 
 func _setup_skill_details_interface() -> void:
 	_skill_details_window = Window.new()
+	_style_interface_window(_skill_details_window)
 	_skill_details_window.title = "Skill Details"
 	_skill_details_window.borderless = true
-	_skill_details_window.min_size = Vector2i(520, 500)
-	_skill_details_window.size = Vector2i(520, 500)
+	_skill_details_window.min_size = Vector2i(680, 520)
+	_skill_details_window.size = Vector2i(680, 520)
 	_skill_details_window.visible = false
 	_skill_details_window.close_requested.connect(_skill_details_window.hide)
 	_skill_details_window.window_input.connect(_on_skill_details_window_input)
@@ -4948,8 +5055,8 @@ func _setup_skill_details_interface() -> void:
 	var panel := PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.055, 0.07, 0.085, 0.98)
-	panel_style.border_color = Color(0.25, 0.32, 0.38, 0.95)
+	panel_style.bg_color = InterfaceStyle.PANEL_COLOR
+	panel_style.border_color = InterfaceStyle.BORDER_COLOR
 	panel_style.set_border_width_all(2)
 	panel_style.set_corner_radius_all(8)
 	panel.add_theme_stylebox_override("panel", panel_style)
@@ -4993,21 +5100,32 @@ func _setup_skill_details_interface() -> void:
 	_style_skill_progress_bar(_skill_details_progress)
 	content.add_child(_skill_details_progress)
 	_skill_details_xp = Label.new()
-	_skill_details_xp.add_theme_color_override("font_color", Color(0.72, 0.78, 0.86))
+	_skill_details_xp.add_theme_color_override("font_color", InterfaceStyle.MUTED_TEXT_COLOR)
 	content.add_child(_skill_details_xp)
 	content.add_child(HSeparator.new())
+	var guide_body := HBoxContainer.new()
+	guide_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	guide_body.add_theme_constant_override("separation", 14)
+	content.add_child(guide_body)
 	_skill_details_description = RichTextLabel.new()
+	_skill_details_description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_skill_details_description.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_skill_details_description.bbcode_enabled = true
 	_skill_details_description.fit_content = false
 	_skill_details_description.scroll_active = true
-	content.add_child(_skill_details_description)
+	guide_body.add_child(_skill_details_description)
+	guide_body.add_child(VSeparator.new())
+	_skill_details_tabs = VBoxContainer.new()
+	_skill_details_tabs.custom_minimum_size.x = 148
+	_skill_details_tabs.add_theme_constant_override("separation", 8)
+	guide_body.add_child(_skill_details_tabs)
 	_skill_details_action = Button.new()
 	_skill_details_action.custom_minimum_size = Vector2(0, 46)
 	_skill_details_action.pressed.connect(_on_skill_details_action)
 	content.add_child(_skill_details_action)
 
 	_skill_context_menu = PopupMenu.new()
+	InterfaceStyle.configure_popup_menu(_skill_context_menu)
 	_skill_context_menu.add_item("Open", 0)
 	_skill_context_menu.id_pressed.connect(_on_skill_context_action)
 	add_child(_skill_context_menu)
@@ -5025,6 +5143,8 @@ func _style_skill_progress_bar(progress_bar: ProgressBar) -> void:
 
 
 func _open_skill_details(skill_name: String, skill_id: String) -> void:
+	if skill_id != _open_skill_id:
+		_selected_skill_guide_category = ""
 	_open_skill_name = skill_name
 	_open_skill_id = skill_id
 	_refresh_skill_details_interface()
@@ -5047,17 +5167,22 @@ func _refresh_skill_details_interface() -> void:
 		_skill_details_progress.value = 0
 		_skill_details_xp.text = "XP progression unavailable"
 		_skill_details_description.text = "This skill is planned but is not trainable yet."
+		_refresh_skill_guide_tabs({})
 	else:
 		var level_xp_span: int = maxi(1, next_level_xp - current_level_xp)
 		_skill_details_progress.max_value = level_xp_span
 		_skill_details_progress.value = clampi(experience - current_level_xp, 0, level_xp_span)
 		_skill_details_xp.text = "XP %d / %s" % [experience, str(next_level_xp) if next_level_xp > 0 else "maximum"]
-		_skill_details_description.text = _skill_guide_text(_open_skill_id, level)
+		var categories := _skill_guide_categories(_open_skill_id)
+		_refresh_skill_guide_tabs(categories)
+		_skill_details_description.text = _skill_guide_text(
+			_open_skill_id, level, _selected_skill_guide_category,
+		)
 	_skill_details_action.visible = _open_skill_id in ["herblore", "fletching"]
 	_skill_details_action.text = "Open Brewing" if _open_skill_id == "herblore" else "Open Fletching"
 
 
-func _skill_guide_text(skill_id: String, current_level: int) -> String:
+func _skill_guide_categories(skill_id: String) -> Dictionary:
 	var categories: Dictionary = {}
 	for entry: Dictionary in _skill_guide_entries:
 		if str(entry.get("skill", "")) == skill_id:
@@ -5094,11 +5219,18 @@ func _skill_guide_text(skill_id: String, current_level: int) -> String:
 			_add_skill_guide_entry(categories, {
 				"category": "production", "action": "Brew", "name": str(brew_name_value), "required_level": 1,
 			})
+	return categories
+
+
+func _skill_guide_text(skill_id: String, current_level: int, category_filter: String = "") -> String:
+	var categories := _skill_guide_categories(skill_id)
 
 	if categories.is_empty():
 		return "No level unlocks are defined for this skill yet."
 	var output := PackedStringArray()
-	for category: String in ["gathering", "equipment", "production", "spells", "prayers"]:
+	for category: String in _ordered_skill_guide_categories(categories):
+		if not category_filter.is_empty() and category != category_filter:
+			continue
 		var entries: Array = categories.get(category, []) as Array
 		if entries.is_empty():
 			continue
@@ -5119,6 +5251,64 @@ func _skill_guide_text(skill_id: String, current_level: int) -> String:
 			])
 		output.append("")
 	return "\n".join(output)
+
+
+func _ordered_skill_guide_categories(categories: Dictionary) -> Array[String]:
+	var ordered: Array[String] = []
+	for category: String in ["gathering", "equipment", "production", "spells", "prayers"]:
+		if categories.has(category) and not (categories[category] as Array).is_empty():
+			ordered.append(category)
+	var remaining: Array[String] = []
+	for category_value: Variant in categories.keys():
+		var category := str(category_value)
+		if category not in ordered and not (categories[category] as Array).is_empty():
+			remaining.append(category)
+	remaining.sort()
+	ordered.append_array(remaining)
+	return ordered
+
+
+func _refresh_skill_guide_tabs(categories: Dictionary) -> void:
+	if _skill_details_tabs == null:
+		return
+	for child: Node in _skill_details_tabs.get_children():
+		_skill_details_tabs.remove_child(child)
+		child.queue_free()
+	var category_order := _ordered_skill_guide_categories(categories)
+	_skill_details_tabs.visible = not category_order.is_empty()
+	if category_order.is_empty():
+		_selected_skill_guide_category = ""
+		return
+	if _selected_skill_guide_category not in category_order:
+		_selected_skill_guide_category = category_order[0]
+	var group := ButtonGroup.new()
+	for category: String in category_order:
+		var tab := Button.new()
+		tab.custom_minimum_size = Vector2(148, 44)
+		tab.toggle_mode = true
+		tab.button_group = group
+		tab.text = _skill_guide_category_name(category)
+		tab.tooltip_text = "Show %s unlocks" % tab.text.to_lower()
+		tab.set_pressed_no_signal(category == _selected_skill_guide_category)
+		tab.pressed.connect(_on_skill_guide_category_selected.bind(category))
+		_skill_details_tabs.add_child(tab)
+
+
+func _skill_guide_category_name(category: String) -> String:
+	match category:
+		"gathering": return "Gathering"
+		"equipment": return "Equipment"
+		"production": return "Recipes"
+		"spells": return "Spells"
+		"prayers": return "Prayers"
+		_: return category.replace("_", " ").capitalize()
+
+
+func _on_skill_guide_category_selected(category: String) -> void:
+	if category == _selected_skill_guide_category:
+		return
+	_selected_skill_guide_category = category
+	_refresh_skill_details_interface()
 
 
 func _add_skill_guide_entry(categories: Dictionary, entry: Dictionary) -> void:
@@ -5476,11 +5666,11 @@ func _update_combat_styles_hud() -> void:
 		var style_id: String = str(style.get("id", ""))
 		var training: String = str(style.get("training", ""))
 		var style_button := Button.new()
-		style_button.custom_minimum_size = Vector2(244, 140)
+		style_button.custom_minimum_size = Vector2(152, 104)
 		style_button.focus_mode = Control.FOCUS_NONE
 		style_button.toggle_mode = true
 		style_button.disabled = _player_defeated
-		style_button.add_theme_font_size_override("font_size", 22)
+		style_button.add_theme_font_size_override("font_size", 19)
 		style_button.add_theme_color_override("font_color", Color(0.82, 0.86, 0.9))
 		style_button.add_theme_color_override("font_hover_color", Color(0.96, 0.98, 1.0))
 		style_button.add_theme_color_override("font_pressed_color", Color(1.0, 0.94, 0.94))
@@ -5509,30 +5699,8 @@ func _update_combat_styles_hud() -> void:
 		style_button.add_theme_stylebox_override("hover", hover_style)
 		style_button.add_theme_stylebox_override("pressed", selected_style_box)
 		style_button.add_theme_stylebox_override("hover_pressed", selected_style_box)
-		style_button.text = "%s\n%s" % [
-			style.get("name", style_id.capitalize()),
-			"%s XP" % training,
-		]
-		style_button.tooltip_text = "Successful hits train %s" % training
-		var accuracy_note: String = ""
-		var uses_projectile_styles: bool = _is_shortbow_weapon(_equipped_weapon) or _equipped_weapon == "crossbow" or _is_magic_focus_weapon(_equipped_weapon)
-		match style_id:
-			"accurate":
-				accuracy_note = "Highest accuracy • tighter damage range" if uses_projectile_styles else "Improves accuracy"
-			"stab", "crush":
-				accuracy_note = "Small accuracy bonus"
-			"rapid":
-				accuracy_note = "Faster attacks • standard range • wider damage range • lowers accuracy" if uses_projectile_styles else "Slightly lowers accuracy"
-			"long_range":
-				accuracy_note = "Long range • standard cadence • wider damage range" if uses_projectile_styles else "Extended attack range"
-			"heavy_crush":
-				accuracy_note = "Slightly lowers accuracy"
-			"heavy_stab":
-				accuracy_note = "Slightly lowers accuracy"
-			"defensive":
-				accuracy_note = "Slightly lowers accuracy while training Defence"
-		if not accuracy_note.is_empty():
-			style_button.tooltip_text += "\n%s" % accuracy_note
+		style_button.text = str(style.get("name", style_id.capitalize()))
+		style_button.tooltip_text = "Trains %s XP" % training
 		style_button.set_pressed_no_signal(style_id == selected_style)
 		style_button.pressed.connect(_request_combat_style.bind(style_id))
 		styles_grid.add_child(style_button)
@@ -5881,19 +6049,11 @@ func _setup_ammunition_pouch_window() -> void:
 	_ammunition_pouch_window.close_requested.connect(_close_ammunition_pouch)
 	_ammunition_pouch_window.window_input.connect(_on_ammunition_pouch_window_input)
 	add_child(_ammunition_pouch_window)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	_ammunition_pouch_window.add_child(margin)
-	var layout := VBoxContainer.new()
-	margin.add_child(layout)
-	var header := HBoxContainer.new()
-	layout.add_child(header)
-	_ammunition_pouch_summary = Label.new()
-	_ammunition_pouch_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(_ammunition_pouch_summary)
+	var shell := _build_container_window_shell(
+		_ammunition_pouch_window, "Ammunition Pouch", _close_ammunition_pouch,
+	)
+	var layout := shell["layout"] as VBoxContainer
+	_ammunition_pouch_summary = shell["summary"] as Label
 	_ammunition_pouch_grid = GridContainer.new()
 	_ammunition_pouch_grid.columns = 5
 	_ammunition_pouch_grid.add_theme_constant_override("h_separation", 8)
@@ -5980,7 +6140,7 @@ func _update_ammunition_pouch_window() -> void:
 
 
 func _apply_ring_rack_snapshot(rack: Dictionary) -> void:
-	var capacity: int = int(rack.get("capacity", 5))
+	var capacity: int = int(rack.get("capacity", 4))
 	var items_data: Variant = rack.get("items", [])
 	if typeof(items_data) != TYPE_ARRAY:
 		return
@@ -6003,34 +6163,60 @@ func _style_interface_window(window: Window) -> void:
 	InterfaceStyle.configure_window(window)
 
 
+func _build_container_window_shell(
+	window: Window,
+	heading: String,
+	close_action: Callable,
+) -> Dictionary:
+	window.borderless = true
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_stylebox_override("panel", InterfaceStyle.make_panel_style())
+	window.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	panel.add_child(margin)
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 12)
+	margin.add_child(layout)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	layout.add_child(header)
+	var title_label := Label.new()
+	title_label.text = heading
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.add_theme_font_size_override("font_size", 23)
+	header.add_child(title_label)
+	var close_button := Button.new()
+	_style_interface_close_button(close_button)
+	close_button.tooltip_text = "Close"
+	close_button.pressed.connect(close_action)
+	header.add_child(close_button)
+	var summary := Label.new()
+	layout.add_child(summary)
+	return {"layout": layout, "summary": summary}
+
+
 func _setup_ring_rack_window() -> void:
 	_ring_rack_window = Window.new()
 	_style_interface_window(_ring_rack_window)
 	_ring_rack_window.title = "Equipped Rings"
-	_ring_rack_window.min_size = Vector2i(570, 210)
-	_ring_rack_window.size = Vector2i(570, 210)
+	_ring_rack_window.min_size = Vector2i(470, 210)
+	_ring_rack_window.size = Vector2i(470, 210)
 	_ring_rack_window.visible = false
 	_ring_rack_window.close_requested.connect(_close_ring_rack)
+	_ring_rack_window.window_input.connect(_on_ring_rack_window_input)
 	add_child(_ring_rack_window)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	_ring_rack_window.add_child(margin)
-	var layout := VBoxContainer.new()
-	margin.add_child(layout)
-	var header := HBoxContainer.new()
-	layout.add_child(header)
-	_ring_rack_summary = Label.new()
-	_ring_rack_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(_ring_rack_summary)
-	var close_button := Button.new()
-	_style_interface_close_button(close_button)
-	close_button.pressed.connect(_close_ring_rack)
-	header.add_child(close_button)
+	var shell := _build_container_window_shell(
+		_ring_rack_window, "Equipped Rings", _close_ring_rack,
+	)
+	var layout := shell["layout"] as VBoxContainer
+	_ring_rack_summary = shell["summary"] as Label
 	_ring_rack_grid = GridContainer.new()
-	_ring_rack_grid.columns = 5
+	_ring_rack_grid.columns = 4
 	_ring_rack_grid.add_theme_constant_override("h_separation", 8)
 	layout.add_child(_ring_rack_grid)
 	_update_ring_rack_window()
@@ -6046,6 +6232,14 @@ func _toggle_ring_rack() -> void:
 
 func _close_ring_rack() -> void:
 	_ring_rack_window.hide()
+
+
+func _on_ring_rack_window_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			_close_ring_rack()
+			_ring_rack_window.set_input_as_handled()
 
 
 func _request_ring_deposit(item_id: String, instance_id: String) -> void:
@@ -6124,19 +6318,11 @@ func _setup_rune_pouch_window() -> void:
 	_rune_pouch_window.close_requested.connect(_close_rune_pouch)
 	_rune_pouch_window.window_input.connect(_on_rune_pouch_window_input)
 	add_child(_rune_pouch_window)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	_rune_pouch_window.add_child(margin)
-	var layout := VBoxContainer.new()
-	margin.add_child(layout)
-	var header := HBoxContainer.new()
-	layout.add_child(header)
-	_rune_pouch_summary = Label.new()
-	_rune_pouch_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(_rune_pouch_summary)
+	var shell := _build_container_window_shell(
+		_rune_pouch_window, "Rune Pouch", _close_rune_pouch,
+	)
+	var layout := shell["layout"] as VBoxContainer
+	_rune_pouch_summary = shell["summary"] as Label
 	_rune_pouch_grid = GridContainer.new()
 	_rune_pouch_grid.columns = 3
 	_rune_pouch_grid.add_theme_constant_override("h_separation", 8)

@@ -11,6 +11,7 @@ signal session_action_requested
 
 
 func _ready() -> void:
+	InterfaceStyle.configure_window(self)
 	close_requested.connect(hide)
 	close_button.pressed.connect(hide)
 	session_action_button.pressed.connect(session_action_requested.emit)

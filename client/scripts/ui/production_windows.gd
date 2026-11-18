@@ -328,9 +328,7 @@ func _request_default(station: String, recipe_id: String, instance_id: String) -
 func _setup_batch_controls() -> void:
 	_action_menu = PopupMenu.new()
 	_action_menu.name = "ProductionActionMenu"
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.055, 0.06, 0.075, 1.0)
-	_action_menu.add_theme_stylebox_override("panel", panel_style)
+	InterfaceStyle.configure_popup_menu(_action_menu)
 	_action_menu.add_item("Make 1", 0)
 	_action_menu.add_item("Make X", 1)
 	_action_menu.add_item("Make All", 2)

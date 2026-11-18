@@ -3,7 +3,6 @@ extends Window
 
 signal buy_requested(item_id: String, instance_id: String, quantity: int)
 
-const CLOSE_ICON: Texture2D = preload("res://assets/icons/navigation/close_window.svg")
 const EMPTY_ICON: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const BUY_ONE := 0
 const BUY_X := 1
@@ -21,13 +20,13 @@ var _selected_quantity: int = 0
 
 
 func _ready() -> void:
-	close_button.icon = CLOSE_ICON
-	close_button.expand_icon = true
-	close_button.add_theme_constant_override("icon_max_width", 28)
+	InterfaceStyle.configure_window(self)
+	InterfaceStyle.configure_close_button(close_button)
 	close_button.pressed.connect(hide)
 	close_requested.connect(hide)
 	window_input.connect(_on_window_input)
 	_context_menu = PopupMenu.new()
+	InterfaceStyle.configure_popup_menu(_context_menu)
 	_context_menu.min_size = Vector2i(190, 0)
 	_context_menu.add_theme_font_size_override("font_size", 18)
 	_context_menu.add_theme_constant_override("item_start_padding", 18)

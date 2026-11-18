@@ -81,7 +81,6 @@ func main() {
 		{itemID: simulation.ItemAmuletFerocity, quantity: 1},
 		{itemID: simulation.ItemAmuletFury, quantity: 1},
 		{itemID: simulation.ItemVanguardCape, quantity: 1},
-		{itemID: simulation.ItemTyrantsRing, quantity: 1},
 	}
 	rangedSupplies := []testSupply{
 		{string(simulation.WeaponBow), 1}, {string(simulation.WeaponOakShortbow), 1},
@@ -100,7 +99,6 @@ func main() {
 		{simulation.ItemMarksmanHood, 1}, {simulation.ItemMarksmanBody, 1}, {simulation.ItemMarksmanGloves, 1}, {simulation.ItemMarksmanLegs, 1}, {simulation.ItemMarksmanBoots, 1},
 		{simulation.ItemAmuletHawk, 1},
 		{simulation.ItemWayfarerCape, 1},
-		{simulation.ItemRangedTyrantsRing, 1},
 	}
 	magicSupplies := []testSupply{
 		{string(simulation.WeaponWand), 1}, {string(simulation.WeaponMoonspunWand), 1},
@@ -120,7 +118,6 @@ func main() {
 		{simulation.ItemStardewHood, 1}, {simulation.ItemStardewTop, 1}, {simulation.ItemStardewGloves, 1}, {simulation.ItemStardewBottoms, 1}, {simulation.ItemStardewBoots, 1},
 		{simulation.ItemAmuletEmbers, 1},
 		{simulation.ItemArcanistCape, 1},
-		{simulation.ItemMageTyrantsRing, 1},
 	}
 	oresSupplies := []testSupply{
 		{simulation.ItemCopperOre, 20}, {simulation.ItemTinOre, 20}, {simulation.ItemIronOre, 20},
@@ -169,6 +166,14 @@ func main() {
 		{simulation.ItemRawTuna, 10}, {simulation.ItemCookedTuna, 10},
 		{simulation.ItemRawLobster, 10}, {simulation.ItemCookedLobster, 10},
 	}
+	bossRewardSupplies := []testSupply{
+		{simulation.ItemRingOfMight, 1},
+		{simulation.ItemRingOfMarksmanship, 1},
+		{simulation.ItemRingOfSorcery, 1},
+		{simulation.ItemTyrantsRing, 1},
+		{simulation.ItemRangedTyrantsRing, 1},
+		{simulation.ItemMageTyrantsRing, 1},
+	}
 	debugSupplyGroups := []struct {
 		position simulation.Position
 		items    []testSupply
@@ -182,6 +187,7 @@ func main() {
 		{simulation.TestHerbsChestPosition, herbsSupplies},
 		{simulation.TestCraftingChestPosition, craftingSupplies},
 		{simulation.TestFoodChestPosition, foodSupplies},
+		{simulation.TestBossRewardsPosition, bossRewardSupplies},
 	}
 	if config.TestSupplyChestsEnabled {
 		for _, group := range debugSupplyGroups {

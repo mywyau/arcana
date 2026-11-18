@@ -5,14 +5,14 @@ import (
 	"time"
 )
 
-func TestRingRackEquipsFiveDistinctRingInstances(t *testing.T) {
+func TestRingRackEquipsFourDistinctRingInstances(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {
 		t.Fatal(err)
 	}
 	player := world.players["player-one"]
 	initialRackRevision := player.ringRack.revision
-	for _, itemID := range []string{ItemRubyRing, ItemEmeraldRing, ItemSapphireRing, ItemDiamondRing, ItemRubyRing} {
+	for _, itemID := range []string{ItemRubyRing, ItemEmeraldRing, ItemSapphireRing, ItemDiamondRing} {
 		if !player.inventory.add(itemID, 1) {
 			t.Fatalf("could not add %q", itemID)
 		}
@@ -37,13 +37,13 @@ func TestRingRackEquipsFiveDistinctRingInstances(t *testing.T) {
 	depositRevision := snapshot.RingRackRevision
 
 	if err := world.QueueRingTransfer(RingTransferCommand{
-		PlayerID: "player-one", Sequence: 6, RackSlot: 0,
+		PlayerID: "player-one", Sequence: uint64(RingRackCapacity + 1), RackSlot: 0,
 	}); err != nil {
 		t.Fatalf("withdraw ring: %v", err)
 	}
 	world.Step(time.Millisecond)
 	snapshot = mustPlayer(t, world, "player-one")
-	if len(snapshot.RingRack.Items) != 4 || len(snapshot.Inventory.Items) != 1 || snapshot.LastRingSequence != 6 {
+	if len(snapshot.RingRack.Items) != RingRackCapacity-1 || len(snapshot.Inventory.Items) != 1 || snapshot.LastRingSequence != uint64(RingRackCapacity+1) {
 		t.Fatalf("state after withdrawal = %+v", snapshot)
 	}
 	if snapshot.RingRackRevision <= depositRevision {
@@ -75,6 +75,32 @@ func TestTyrantsRingGrantsOneHundredMeleeStrength(t *testing.T) {
 	accuracy, strength := equipmentOffenceForWeapon(player, WeaponDefinition{MeleeStrength: 1})
 	if accuracy != 0 || strength != 100 {
 		t.Fatalf("Tyrant's Ring bonuses = accuracy %d, strength %d; want 0, 100", accuracy, strength)
+	}
+}
+
+func TestStyleRingsGrantModestMatchingAccuracyAndStrength(t *testing.T) {
+	tests := []struct {
+		name   string
+		itemID string
+		weapon WeaponDefinition
+	}{
+		{name: "melee", itemID: ItemRingOfMight, weapon: WeaponDefinition{MeleeStrength: 1}},
+		{name: "ranged", itemID: ItemRingOfMarksmanship, weapon: WeaponDefinition{RangedStrength: 1}},
+		{name: "magic", itemID: ItemRingOfSorcery, weapon: WeaponDefinition{MagicStrength: 1}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			player := &playerState{
+				equippedArmour: make(map[ArmourSlot]string),
+				ringRack: inventoryState{capacity: RingRackCapacity, items: []InventoryItem{
+					{Slot: 0, ItemID: test.itemID, Quantity: 1, InstanceID: test.name},
+				}},
+			}
+			accuracy, strength := equipmentOffenceForWeapon(player, test.weapon)
+			if accuracy != 5 || strength != 5 {
+				t.Fatalf("bonuses = accuracy %d, strength %d; want 5 and 5", accuracy, strength)
+			}
+		})
 	}
 }
 

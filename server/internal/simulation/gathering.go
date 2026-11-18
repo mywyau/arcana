@@ -153,15 +153,17 @@ func agilityBeamEndpoints(center Position) (Position, Position) {
 
 func newGatheringSpots() map[string]gatheringSpotDefinition {
 	return map[string]gatheringSpotDefinition{
-		starterFishingSpotID: fishingSpot(starterFishingSpotID, "Minnow Pond", Position{X: -14, Z: 14}, ItemRawMinnow),
-		starterTroutSpotID:   fishingSpot(starterTroutSpotID, "Trout Pond", Position{X: -23, Z: 18}, ItemRawTrout),
-		starterSalmonSpotID:  fishingSpot(starterSalmonSpotID, "Salmon Pond", Position{X: -25, Z: 8}, ItemRawSalmon),
-		starterTunaSpotID:    fishingSpot(starterTunaSpotID, "Tuna Fishing Spot", Position{X: -24, Z: -3}, ItemRawTuna),
-		starterLobsterSpotID: fishingSpot(starterLobsterSpotID, "Lobster Fishing Spot", Position{X: -24, Z: -14}, ItemRawLobster),
+		// Fishing grounds: spaced far enough apart that each pond reads as its
+		// own resource while still forming one obvious testing area.
+		starterFishingSpotID: fishingSpot(starterFishingSpotID, "Minnow Pond", Position{X: -55, Z: 22}, ItemRawMinnow),
+		starterTroutSpotID:   fishingSpot(starterTroutSpotID, "Trout Pond", Position{X: -43, Z: 22}, ItemRawTrout),
+		starterSalmonSpotID:  fishingSpot(starterSalmonSpotID, "Salmon Pond", Position{X: -31, Z: 22}, ItemRawSalmon),
+		starterTunaSpotID:    fishingSpot(starterTunaSpotID, "Tuna Fishing Spot", Position{X: -49, Z: 10}, ItemRawTuna),
+		starterLobsterSpotID: fishingSpot(starterLobsterSpotID, "Lobster Fishing Spot", Position{X: -37, Z: 10}, ItemRawLobster),
 		starterCookingRangeID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCookingRangeID, Name: "Cooking Range", Skill: SkillCooking,
-				Position: Position{X: -10, Z: -21}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: -24, Z: -20}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationCooking,
 			},
 			ActionKind:   timedActionProduction,
@@ -170,7 +172,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterFurnaceID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterFurnaceID, Name: "Furnace", Skill: SkillSmithing,
-				Position: Position{X: 10, Z: 12}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 31, Z: -2}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationSmelting,
 			},
 			ActionKind:   timedActionProduction,
@@ -179,7 +181,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterAnvilID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterAnvilID, Name: "Anvil", Skill: SkillSmithing,
-				Position: Position{X: 7, Z: 11}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 41, Z: -2}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationForging,
 			},
 			ActionKind:   timedActionProduction,
@@ -188,7 +190,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterCopperVeinID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterCopperVeinID, Name: "Copper Vein", Skill: SkillMining,
-				Position: Position{X: 19, Z: 12}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 31, Z: 9}, Range: gatheringRange, RequiredLevel: 1,
 				CurrentAmount: copperVeinCapacity, MaximumAmount: copperVeinCapacity,
 			},
 			ActionKind: timedActionGathering,
@@ -199,22 +201,23 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "mining_unsuccessful",
 			RechargePulses: copperRechargePulses,
 		},
-		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 22, Z: 15}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
-		starterIronVeinID:    miningVein(starterIronVeinID, "Iron Vein", Position{X: 25, Z: 11}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
-		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 20, Z: 18}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
-		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 25, Z: 18}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
-		starterGoldVeinID:    miningVein(starterGoldVeinID, "Gold Vein", Position{X: 22, Z: 22}, 4, ItemGoldOre, 32, goldVeinCapacity, 20, 5),
-		starterSilverVeinID:  miningVein(starterSilverVeinID, "Silver Vein", Position{X: 28, Z: 14}, 4, ItemSilverOre, 28, silverVeinCapacity, 18, 5),
-		starterClayDepositID: miningVein(starterClayDepositID, "Clay Deposit", Position{X: 16, Z: 18}, 1, ItemClay, 8, clayDepositCapacity, 8, 4),
+		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 41, Z: 9}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
+		starterIronVeinID:    miningVein(starterIronVeinID, "Iron Vein", Position{X: 51, Z: 9}, 2, ItemIronOre, 16, ironVeinCapacity, 12, 4),
+		starterCoalVeinID:    miningVein(starterCoalVeinID, "Coal Vein", Position{X: 31, Z: 19}, 3, ItemCoal, 24, coalVeinCapacity, 16, 5),
+		starterMithrilVeinID: miningVein(starterMithrilVeinID, "Mithril Vein", Position{X: 41, Z: 19}, 5, ItemMithrilOre, 40, mithrilVeinCapacity, 24, 6),
+		starterGoldVeinID:    miningVein(starterGoldVeinID, "Gold Vein", Position{X: 51, Z: 19}, 4, ItemGoldOre, 32, goldVeinCapacity, 20, 5),
+		starterSilverVeinID:  miningVein(starterSilverVeinID, "Silver Vein", Position{X: 31, Z: 29}, 4, ItemSilverOre, 28, silverVeinCapacity, 18, 5),
+		starterClayDepositID: miningVein(starterClayDepositID, "Clay Deposit", Position{X: 41, Z: 29}, 1, ItemClay, 8, clayDepositCapacity, 8, 4),
 		starterAdamantiteVeinID: miningVein(
-			starterAdamantiteVeinID, "Adamantite Vein", Position{X: 29, Z: 21}, 8,
+			starterAdamantiteVeinID, "Adamantite Vein", Position{X: 51, Z: 29}, 8,
 			ItemAdamantiteOre, 60, adamantiteVeinCapacity, 28, 8,
 		),
-		starterNormalTreeID: woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -16, Z: -2}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
-		starterOakTreeID:    woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -7, Z: 24}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
-		starterWillowTreeID: woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -24, Z: 7}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
-		starterMapleTreeID:  woodcuttingTree(starterMapleTreeID, "Maple Tree", Position{X: 25, Z: 8}, 5, ItemMapleLogs, 34, mapleTreeCapacity, 18, 6),
-		starterYewTreeID:    woodcuttingTree(starterYewTreeID, "Yew Tree", Position{X: 18, Z: -24}, 8, ItemYewLogs, 52, yewTreeCapacity, 24, 7),
+		// Woodcutting grove: two loose rows immediately south of the ponds.
+		starterNormalTreeID: woodcuttingTree(starterNormalTreeID, "Tree", Position{X: -55, Z: -5}, 1, ItemNormalLogs, 10, normalTreeCapacity, 8, 4),
+		starterOakTreeID:    woodcuttingTree(starterOakTreeID, "Oak Tree", Position{X: -43, Z: -5}, 2, ItemOakLogs, 16, oakTreeCapacity, 12, 5),
+		starterWillowTreeID: woodcuttingTree(starterWillowTreeID, "Willow Tree", Position{X: -31, Z: -5}, 3, ItemWillowLogs, 22, willowTreeCapacity, 14, 5),
+		starterMapleTreeID:  woodcuttingTree(starterMapleTreeID, "Maple Tree", Position{X: -49, Z: -17}, 5, ItemMapleLogs, 34, mapleTreeCapacity, 18, 6),
+		starterYewTreeID:    woodcuttingTree(starterYewTreeID, "Yew Tree", Position{X: -37, Z: -17}, 8, ItemYewLogs, 52, yewTreeCapacity, 24, 7),
 		starterAgilityObstacleID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterAgilityObstacleID, Name: "Balance Beam", Skill: SkillAgility,
@@ -227,7 +230,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterPrayerAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterPrayerAltarID, Name: "Prayer Altar", Skill: SkillPrayer,
-				Position: Position{X: -8, Z: -14}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 28, Z: -22}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationPrayer, RecipeID: prayerAdoptCommonID,
 			},
 			ActionKind: timedActionWorldInteraction,
@@ -236,7 +239,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		warPrayerAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: warPrayerAltarID, Name: "War Altar", Skill: SkillPrayer,
-				Position: Position{X: 13, Z: -20}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 40, Z: -22}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationPrayer, RecipeID: prayerAdoptWarID,
 			},
 			ActionKind: timedActionWorldInteraction,
@@ -245,7 +248,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		starterAirRuneAltarID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: starterAirRuneAltarID, Name: "Air Rune Altar", Skill: SkillRunecrafting,
-				Position: Position{X: 32, Z: -12}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 52, Z: -22}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationRunecrafting,
 			},
 			ActionKind: timedActionProduction,
@@ -257,7 +260,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 		debugSkillShrineID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: debugSkillShrineID, Name: "Test Skill Shrine", Skill: SkillAttack,
-				Position: Position{X: -3, Z: -20}, Range: gatheringRange, RequiredLevel: 1,
+				Position: Position{X: 40, Z: -34}, Range: gatheringRange, RequiredLevel: 1,
 				Station: craftingStationDebugSkills,
 			},
 			ActionKind: timedActionWorldInteraction,

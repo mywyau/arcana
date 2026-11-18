@@ -419,15 +419,17 @@ func newRoamingTarget(
 
 func newCombatState() *combatState {
 	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
-	wildFowlHome := Position{X: -20, Z: -5}
-	cowHome := Position{X: -16, Z: -10}
-	dustWraithHome := Position{X: -8, Z: 34}
-	cinderImpHome := Position{X: 36, Z: 4}
-	tideWispHome := Position{X: -36, Z: 4}
-	thornlingHome := Position{X: 8, Z: 34}
-	riftTyrantHome := Position{X: 38, Z: 34}
-	rangedTyrantHome := Position{X: -40, Z: -35}
-	mageTyrantHome := Position{X: 38, Z: -34}
+	// Ground monsters form a north-side testing field. The bosses sit on a
+	// second, widely spaced row so their large detection areas do not overlap.
+	wildFowlHome := Position{X: -25, Z: 42}
+	cowHome := Position{X: -15, Z: 42}
+	dustWraithHome := Position{X: -5, Z: 42}
+	cinderImpHome := Position{X: 5, Z: 42}
+	tideWispHome := Position{X: 15, Z: 42}
+	thornlingHome := Position{X: 25, Z: 42}
+	riftTyrantHome := Position{X: -40, Z: 64}
+	rangedTyrantHome := Position{X: 0, Z: 64}
+	mageTyrantHome := Position{X: 40, Z: 64}
 	hillWardenProfile := combatProfileForEnemy(hillWardenTargetID)
 	hillWarden := &TargetSnapshot{
 		ID:            hillWardenTargetID,

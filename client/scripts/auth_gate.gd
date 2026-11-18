@@ -1,8 +1,8 @@
 class_name AuthGate
 extends Control
 
-signal login_requested(email: String, password: String)
-signal registration_requested(email: String, password: String, link_guest: bool)
+signal login_requested(identifier: String, password: String)
+signal registration_requested(character_name: String, email: String, password: String, link_guest: bool)
 signal guest_requested
 signal retry_connection_requested
 signal reconnect_session_requested
@@ -11,6 +11,7 @@ signal reconnect_session_requested
 @onready var login_mode_button: Button = $Backdrop/Center/Card/Margin/Content/Modes/Login
 @onready var register_mode_button: Button = $Backdrop/Center/Card/Margin/Content/Modes/Register
 @onready var email_input: LineEdit = $Backdrop/Center/Card/Margin/Content/Email
+@onready var character_name_input: LineEdit = $Backdrop/Center/Card/Margin/Content/CharacterName
 @onready var password_input: LineEdit = $Backdrop/Center/Card/Margin/Content/Password
 @onready var confirmation_input: LineEdit = $Backdrop/Center/Card/Margin/Content/Confirmation
 @onready var link_guest_checkbox: CheckBox = $Backdrop/Center/Card/Margin/Content/LinkGuest
@@ -35,6 +36,7 @@ func _ready() -> void:
 	guest_button.pressed.connect(_request_guest)
 	retry_button.pressed.connect(_request_connection_retry)
 	email_input.text_submitted.connect(_submit_from_text)
+	character_name_input.text_submitted.connect(_submit_from_text)
 	password_input.text_submitted.connect(_submit_from_text)
 	confirmation_input.text_submitted.connect(_submit_from_text)
 	_set_registering(false)
@@ -161,6 +163,8 @@ func _set_registering(registering: bool) -> void:
 	register_mode_button.button_pressed = registering
 	title_label.text = "Create your account" if registering else "Welcome back"
 	confirmation_input.visible = registering
+	character_name_input.visible = registering
+	email_input.placeholder_text = "Email address" if registering else "Email address or character name"
 	link_guest_checkbox.visible = registering and _has_existing_guest
 	submit_button.text = "Create account" if registering else "Log in"
 	show_feedback(
@@ -177,10 +181,17 @@ func _submit_from_text(_text: String) -> void:
 func _submit() -> void:
 	if _busy:
 		return
-	var email: String = email_input.text.strip_edges()
+	var identifier: String = email_input.text.strip_edges()
+	var character_name: String = character_name_input.text.strip_edges()
 	var password: String = password_input.text
-	if email.is_empty() or not email.contains("@"):
+	if identifier.is_empty():
+		show_error("Enter your email address or character name.")
+		return
+	if _registering and not identifier.contains("@"):
 		show_error("Enter a valid email address.")
+		return
+	if _registering and not _character_name_is_valid(character_name):
+		show_error("Character names must be 3–20 letters, numbers, spaces, hyphens or underscores.")
 		return
 	if password.length() < 8:
 		show_error("Password must be at least 8 characters.")
@@ -192,9 +203,31 @@ func _submit() -> void:
 	_set_controls_enabled(false)
 	show_feedback("Creating account…" if _registering else "Logging in…")
 	if _registering:
-		registration_requested.emit(email, password, link_guest_checkbox.button_pressed)
+		registration_requested.emit(character_name, identifier, password, link_guest_checkbox.button_pressed)
 	else:
-		login_requested.emit(email, password)
+		login_requested.emit(identifier, password)
+
+
+func _character_name_is_valid(character_name: String) -> bool:
+	if character_name.length() < 3 or character_name.length() > 20:
+		return false
+	if not _character_name_character_is_alphanumeric(character_name.substr(0, 1)):
+		return false
+	if not _character_name_character_is_alphanumeric(character_name.substr(character_name.length() - 1, 1)):
+		return false
+	for index: int in range(character_name.length()):
+		var character: String = character_name.substr(index, 1)
+		if not _character_name_character_is_alphanumeric(character) and character not in [" ", "-", "_"]:
+			return false
+	return true
+
+
+func _character_name_character_is_alphanumeric(character: String) -> bool:
+	return (
+		character >= "A" and character <= "Z"
+		or character >= "a" and character <= "z"
+		or character >= "0" and character <= "9"
+	)
 
 
 func _request_guest() -> void:
@@ -224,6 +257,7 @@ func _set_controls_enabled(enabled: bool) -> void:
 	login_mode_button.disabled = not enabled
 	register_mode_button.disabled = not enabled
 	email_input.editable = enabled
+	character_name_input.editable = enabled
 	password_input.editable = enabled
 	confirmation_input.editable = enabled
 	link_guest_checkbox.disabled = not enabled
