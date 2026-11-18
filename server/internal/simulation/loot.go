@@ -192,6 +192,9 @@ func (w *World) QueuePickup(command PickupCommand) error {
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
+	if err := statusActionError(player, statusActionMove, w.combat.pulse); err != nil {
+		return err
+	}
 	if command.Sequence <= player.lastPickupSequence {
 		return fmt.Errorf("pickup sequence %d is not newer than %d", command.Sequence, player.lastPickupSequence)
 	}

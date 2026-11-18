@@ -45,11 +45,16 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	changed := deltaTestSnapshot()
 	changed.Players[1].Position.X = 9
 	changed.Players[1].CombatTarget = ""
+	changed.Players[1].ActiveStatuses = []protocol.ActiveStatus{{
+		EffectID: "stun", SourceID: "target", AppliedAtPulse: 10, ExpiresAtPulse: 13,
+	}}
+	changed.Players[1].StatusesRevision = 1
 	changed.Targets[0].Health = 0
 	changed.Targets[0].TelegraphType = "heavy_strike"
 	changed.Targets[0].TelegraphPosition = protocol.Position{X: 4, Z: 5}
-	changed.Targets[0].TelegraphRadius = 2.75
-	changed.Targets[0].TelegraphImpactPulse = 12
+	changed.Targets[0].TelegraphRadius = 5
+	changed.Targets[0].TelegraphImpactPulse = 14
+	changed.Targets[0].VulnerableUntilPulse = 15
 	stats = tracker.apply(changed, "local", now.Add(2*time.Second))
 	if stats.PlayerUpdates != 1 || stats.TargetUpdates != 1 {
 		t.Fatalf("delta stats = %#v", stats)
@@ -57,6 +62,10 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	player := changed.PlayerUpdates[0]
 	if player.Position == nil || player.Position.X != 9 || player.CombatTarget == nil || *player.CombatTarget != "" {
 		t.Fatalf("player delta = %#v", player)
+	}
+	if player.ActiveStatuses == nil || len(*player.ActiveStatuses) != 1 || (*player.ActiveStatuses)[0].EffectID != "stun" ||
+		player.StatusesRevision == nil || *player.StatusesRevision != 1 {
+		t.Fatalf("player status delta = %#v", player)
 	}
 	if player.Health != nil || player.EquippedWeapon != nil || player.EquippedArmour != nil {
 		t.Fatalf("unchanged player fields were sent: %#v", player)
@@ -67,12 +76,21 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	}
 	if target.TelegraphType == nil || *target.TelegraphType != "heavy_strike" ||
 		target.TelegraphPosition == nil || *target.TelegraphPosition != (protocol.Position{X: 4, Z: 5}) ||
-		target.TelegraphRadius == nil || *target.TelegraphRadius != 2.75 ||
-		target.TelegraphImpactPulse == nil || *target.TelegraphImpactPulse != 12 {
+		target.TelegraphRadius == nil || *target.TelegraphRadius != 5 ||
+		target.TelegraphImpactPulse == nil || *target.TelegraphImpactPulse != 14 ||
+		target.VulnerableUntilPulse == nil || *target.VulnerableUntilPulse != 15 {
 		t.Fatalf("target telegraph delta = %#v", target)
 	}
 	if target.Name != nil || target.Position != nil {
 		t.Fatalf("unchanged target fields were sent: %#v", target)
+	}
+
+	cleared := deltaTestSnapshot()
+	cleared.Players[1].StatusesRevision = 2
+	stats = tracker.apply(cleared, "local", now.Add(3*time.Second))
+	if stats.PlayerUpdates != 1 || cleared.PlayerUpdates[0].ActiveStatuses == nil ||
+		*cleared.PlayerUpdates[0].ActiveStatuses == nil || len(*cleared.PlayerUpdates[0].ActiveStatuses) != 0 {
+		t.Fatalf("cleared player statuses were not sent as an explicit empty list: %#v", cleared.PlayerUpdates)
 	}
 }
 

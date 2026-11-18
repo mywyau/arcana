@@ -153,6 +153,9 @@ func (w *World) QueueFletch(command FletchCommand) error {
 	if !exists || player.defeated {
 		return fmt.Errorf("player %q cannot fletch", command.PlayerID)
 	}
+	if err := statusActionError(player, statusActionProduction, w.combat.pulse); err != nil {
+		return err
+	}
 	if command.Sequence <= player.lastFletchSequence || player.fletchRemaining > 0 {
 		return fmt.Errorf("fletching command is not available")
 	}

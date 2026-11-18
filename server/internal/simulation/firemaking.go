@@ -38,6 +38,9 @@ func (w *World) LightFire(playerID PlayerID, sequence uint64, logItem string) er
 	if !exists || player.defeated {
 		return fmt.Errorf("player %q cannot light a fire", playerID)
 	}
+	if err := statusActionError(player, statusActionProduction, w.combat.pulse); err != nil {
+		return err
+	}
 	if sequence <= player.lastFireSequence {
 		return fmt.Errorf("firemaking sequence %d is not newer than %d", sequence, player.lastFireSequence)
 	}

@@ -351,6 +351,7 @@ type TargetSnapshot struct {
 	TelegraphPosition    Position
 	TelegraphRadius      float64
 	TelegraphImpactPulse uint64
+	VulnerableUntilPulse uint64
 	Defence              DefenceBonuses
 	Elements             ElementalResistances
 	InfiniteHealth       bool
@@ -832,6 +833,11 @@ func (w *World) QueueTarget(command TargetCommand) error {
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
+	if command.TargetID != "" {
+		if err := statusActionError(player, statusActionAttack, w.combat.pulse); err != nil {
+			return err
+		}
+	}
 	if command.Sequence <= player.lastActionSequence {
 		return fmt.Errorf("action sequence %d is not newer than %d", command.Sequence, player.lastActionSequence)
 	}
@@ -854,9 +860,11 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 	for w.combat.elapsed >= actionPulseInterval {
 		w.combat.elapsed -= actionPulseInterval
 		w.combat.pulse++
+		w.expireStatuses()
 		w.applyPendingBrews()
 		w.applyPendingFletches()
 		w.respawnDefeatedEntities()
+		w.expireTargetVulnerabilities()
 		w.applyEquipmentCommands()
 		w.applyCombatStyleCommands()
 		w.applyPrayerCommands()
@@ -867,6 +875,14 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.resolveDummyAttack()
 		w.drainActivePrayers()
 		w.regeneratePlayersOutOfCombat()
+	}
+}
+
+func (w *World) expireTargetVulnerabilities() {
+	for _, target := range w.combat.dummyTargets() {
+		if target.dummy.VulnerableUntilPulse != 0 && w.combat.pulse > target.dummy.VulnerableUntilPulse {
+			target.dummy.VulnerableUntilPulse = 0
+		}
 	}
 }
 
@@ -1189,6 +1205,9 @@ func (w *World) resolveAutoAttacks() {
 		if player.defeated || player.combatTarget == "" {
 			continue
 		}
+		if _, blocked := statusBlockingAction(player, statusActionAttack, w.combat.pulse); blocked {
+			continue
+		}
 		target, exists := w.combat.dummyByID(player.combatTarget)
 		if !exists {
 			w.clearPlayerTarget(player, "target_missing")
@@ -1286,6 +1305,7 @@ func (w *World) resolveAutoAttacks() {
 			damageType = DamageTypeMagic
 		}
 		poweredDamage *= 1 - targetDamageReduction(target, damageType)
+		poweredDamage *= targetVulnerabilityMultiplier(target, w.combat.pulse)
 		// Defence mitigation happens before variance so the weapon's damage feel
 		// remains the final stage before overkill clamping.
 		rolledDamage := rollDamageWithVariance(poweredDamage, damageVariance, w.rollSource.Float64())
@@ -1555,6 +1575,7 @@ func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profil
 	damageType := dummy.AttackType
 	clearTargetTelegraph(dummy)
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
+	dummy.VulnerableUntilPulse = w.combat.pulse + profile.HeavyStrike.VulnerabilityPulses
 
 	playerIDs := make([]PlayerID, 0, len(w.players))
 	for id := range w.players {
@@ -1569,6 +1590,7 @@ func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profil
 		damage := int(math.Round(float64(profile.AttackDamage) * profile.HeavyStrike.DamageMultiplier))
 		damageDealt := reduceIncomingDamage(player, damage, damageType)
 		player.health = max(0, player.health-damageDealt)
+		w.applyStatus(player, StatusStun, dummyID, profile.HeavyStrike.VulnerabilityPulses)
 		triggerEmergencyPrayer(player)
 		w.combat.recordEvent(CombatEvent{
 			Pulse: w.combat.pulse, Type: CombatEventDamage,
@@ -1580,8 +1602,17 @@ func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profil
 	}
 }
 
+func targetVulnerabilityMultiplier(target *TargetSnapshot, pulse uint64) float64 {
+	if target == nil || target.VulnerableUntilPulse == 0 || pulse > target.VulnerableUntilPulse {
+		return 1
+	}
+	profile := combatProfileForEnemy(target.ID)
+	return max(1, profile.HeavyStrike.VulnerabilityDamageMultiplier)
+}
+
 func (w *World) defeatPlayer(player *playerState) {
 	player.defeated = true
+	clearStatuses(player)
 	w.triggerWrath(player)
 	player.respawnAtPulse = w.combat.pulse + respawnDelayPulses
 	player.lastActionPulse = w.combat.pulse
@@ -1606,6 +1637,7 @@ func (w *World) defeatPlayer(player *playerState) {
 func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
 	dummy.Defeated = true
 	dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
+	dummy.VulnerableUntilPulse = 0
 	clearDummyTarget(dummy)
 	if enemy, roaming := w.combat.roamingEnemies[dummyID]; roaming {
 		enemy.path = nil

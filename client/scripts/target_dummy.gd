@@ -33,6 +33,8 @@ var _rest_attack_scale: Vector3 = Vector3.ONE
 var _telegraph_mesh: MeshInstance3D
 var _telegraph_material: StandardMaterial3D
 var _telegraph_time: float = 0.0
+var _vulnerable_until_pulse: int = 0
+var _vulnerability_time_remaining: float = 0.0
 
 
 func _ready() -> void:
@@ -48,6 +50,15 @@ func _process(delta: float) -> void:
 		_telegraph_time += delta
 		var pulse: float = 0.58 + sin(_telegraph_time * 8.0) * 0.18
 		_telegraph_material.albedo_color = Color(1.0, 0.12, 0.08, pulse)
+	if _vulnerability_time_remaining > 0.0:
+		_vulnerability_time_remaining = maxf(0.0, _vulnerability_time_remaining - delta)
+		if _material != null:
+			var glow: float = 0.48 + sin(Time.get_ticks_msec() * 0.012) * 0.16
+			_material.albedo_color = _rest_color.lerp(Color(1.0, 0.72, 0.18, 1.0), glow)
+	elif _vulnerable_until_pulse != 0:
+		_vulnerable_until_pulse = 0
+		if _material != null and not _defeated:
+			_material.albedo_color = _rest_color
 	if not _mobile or not _has_position:
 		return
 	var weight: float = 1.0 - exp(-14.0 * delta)
@@ -88,6 +99,17 @@ func set_attack_telegraph(
 		return
 	_telegraph_mesh.global_position = telegraph_position + Vector3(0.0, 0.05, 0.0)
 	_telegraph_mesh.scale = Vector3(radius, 1.0, radius)
+
+
+func set_vulnerable_until(until_pulse: int, current_pulse: int) -> void:
+	if until_pulse == _vulnerable_until_pulse:
+		return
+	_vulnerable_until_pulse = until_pulse
+	_vulnerability_time_remaining = (
+		float(maxi(0, until_pulse - current_pulse)) * 0.6
+	)
+	if _vulnerability_time_remaining <= 0.0 and _material != null and not _defeated:
+		_material.albedo_color = _rest_color
 
 
 func set_target_id(target_id: String) -> void:

@@ -1394,15 +1394,23 @@ func publicPlayerMessage(player simulation.PlayerSnapshot) protocol.PlayerSnapsh
 			Y: player.Position.Y,
 			Z: player.Position.Z,
 		},
-		Speed:          player.Speed,
-		CombatTarget:   player.CombatTarget,
-		Health:         player.Health,
-		MaximumHealth:  player.MaximumHealth,
-		Defeated:       player.Defeated,
-		RespawnAtPulse: player.RespawnAtPulse,
-		EquippedWeapon: string(player.EquippedWeapon),
-		EquippedArmour: make(map[string]string, len(player.EquippedArmour)),
-		CombatLevel:    player.CombatLevel,
+		Speed:            player.Speed,
+		CombatTarget:     player.CombatTarget,
+		Health:           player.Health,
+		MaximumHealth:    player.MaximumHealth,
+		Defeated:         player.Defeated,
+		RespawnAtPulse:   player.RespawnAtPulse,
+		EquippedWeapon:   string(player.EquippedWeapon),
+		EquippedArmour:   make(map[string]string, len(player.EquippedArmour)),
+		CombatLevel:      player.CombatLevel,
+		ActiveStatuses:   make([]protocol.ActiveStatus, 0, len(player.ActiveStatuses)),
+		StatusesRevision: player.StatusesRevision,
+	}
+	for _, status := range player.ActiveStatuses {
+		message.ActiveStatuses = append(message.ActiveStatuses, protocol.ActiveStatus{
+			EffectID: string(status.EffectID), SourceID: status.SourceID,
+			AppliedAtPulse: status.AppliedAtPulse, ExpiresAtPulse: status.ExpiresAtPulse,
+		})
 	}
 	for slot, itemID := range player.EquippedArmour {
 		message.EquippedArmour[string(slot)] = itemID
@@ -1612,5 +1620,6 @@ func targetSnapshotMessage(target simulation.TargetSnapshot) protocol.TargetSnap
 		},
 		TelegraphRadius:      target.TelegraphRadius,
 		TelegraphImpactPulse: target.TelegraphImpactPulse,
+		VulnerableUntilPulse: target.VulnerableUntilPulse,
 	}
 }

@@ -698,6 +698,7 @@ var _next_spell_sequence: int = 1
 var _queued_spell: String = ""
 var _spell_selection_pending: bool = false
 var _player_defeated: bool = false
+var _local_player_stunned: bool = false
 var _player_respawn_at_pulse: int = 0
 var _player_dodge_rate: float = 0.1
 var _equipped_weapon: String = "unarmed"
@@ -1368,6 +1369,9 @@ func _physics_process(_delta: float) -> void:
 
 	var clicked_body := result.get("collider") as CollisionObject3D
 	var destination: Vector3 = result["position"]
+	if _local_player_stunned:
+		_show_stunned_feedback()
+		return
 	if bank_hud.visible or not _pending_bank_chest_id.is_empty() or not _active_bank_chest_id.is_empty():
 		_close_bank()
 	var sequence: int = _next_sequence
@@ -1389,6 +1393,9 @@ func _physics_process(_delta: float) -> void:
 func _request_engage_target(target_id: String, _target_position: Vector3) -> bool:
 	if target_id.is_empty() or _player_defeated:
 		return false
+	if _local_player_stunned:
+		_show_stunned_feedback()
+		return false
 	if network.send_engage_target(_next_action_sequence, target_id):
 		_pending_crafting_station_id = ""
 		_next_action_sequence += 1
@@ -1402,6 +1409,9 @@ func _request_engage_target(target_id: String, _target_position: Vector3) -> boo
 
 func _request_pickup_drop(drop_id: String, _drop_position: Vector3) -> bool:
 	if drop_id.is_empty() or _player_defeated:
+		return false
+	if _local_player_stunned:
+		_show_stunned_feedback()
 		return false
 	if network.send_pickup_item(_next_pickup_sequence, drop_id):
 		_pending_crafting_station_id = ""
@@ -1417,6 +1427,9 @@ func _request_pickup_drop(drop_id: String, _drop_position: Vector3) -> bool:
 
 func _request_gather(spot_id: String, _spot_position: Vector3, recipe_id: String = "", instance_id: String = "", quantity: int = 0) -> bool:
 	if spot_id.is_empty() or _player_defeated:
+		return false
+	if _local_player_stunned:
+		_show_stunned_feedback()
 		return false
 	if network.send_gather(_next_gather_sequence, spot_id, recipe_id, instance_id, quantity):
 		_pending_crafting_station_id = ""
@@ -3008,7 +3021,13 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		if typeof(world_armour_data) == TYPE_DICTIONARY:
 			view.set_armour(world_armour_data as Dictionary)
 		view.set_defeated(bool(player_data.get("defeated", false)))
+		var active_statuses: Array = []
+		var active_statuses_data: Variant = player_data.get("active_statuses", [])
+		if typeof(active_statuses_data) == TYPE_ARRAY:
+			active_statuses = active_statuses_data as Array
+		view.set_active_statuses(active_statuses, _action_pulse)
 		if id == _local_player_id:
+			_local_player_stunned = _has_active_status(active_statuses, "stun", _action_pulse)
 			var inventory_selection_changed: bool = false
 			var combat_style_changed: bool = false
 			var prayer_changed: bool = false
@@ -3423,6 +3442,22 @@ func _materialize_player_payloads(snapshot: Dictionary, full_reconciliation: boo
 	return payloads
 
 
+func _has_active_status(statuses: Array, effect_id: String, current_pulse: int) -> bool:
+	for value: Variant in statuses:
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var status := value as Dictionary
+		if str(status.get("effect_id", "")) == effect_id and int(status.get("expires_at_pulse", 0)) >= current_pulse:
+			return true
+	return false
+
+
+func _show_stunned_feedback() -> void:
+	status_label.text = "You are stunned."
+	_append_game_message("You are stunned.", true)
+	sound_effects.play_feedback(&"action_rejected")
+
+
 func _synchronize_command_sequences(player_data: Dictionary) -> void:
 	# A replacement client starts its counters at one while its character can
 	# remain suspended during the reconnect grace period. Continue from the
@@ -3793,6 +3828,10 @@ func _sync_targets(
 			str(target_data.get("telegraph_type", "")),
 			telegraph_position,
 			float(target_data.get("telegraph_radius", 0.0)),
+		)
+		view.set_vulnerable_until(
+			int(target_data.get("vulnerable_until_pulse", 0)),
+			_action_pulse,
 		)
 		_target_states[target_id] = target_data.duplicate(true)
 		active_ids[target_id] = true

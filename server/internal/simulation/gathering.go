@@ -360,6 +360,9 @@ func (w *World) QueueGather(command GatherCommand) error {
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
 	}
+	if err := statusActionError(player, statusActionGather, w.combat.pulse); err != nil {
+		return err
+	}
 	if command.Sequence <= player.lastGatherSequence {
 		return fmt.Errorf("gather sequence %d is not newer than %d", command.Sequence, player.lastGatherSequence)
 	}

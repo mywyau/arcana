@@ -8,6 +8,7 @@ const MITHRIL_COLOUR := Color("2f9fda")
 const ADAMANTITE_COLOUR := Color("276b4b")
 const RUNE_COLOUR := Color("3ca66b")
 const TRAINING_COLOUR := Color("7b8790")
+const ACTION_PULSE_SECONDS := 0.6
 
 @export var interpolation_speed: float = 14.0
 @export var movement_speed: float = 6.0
@@ -64,9 +65,26 @@ var _equipped_armour: Dictionary = {}
 var _walk_time: float = 0.0
 var _equipment_materials: Dictionary = {}
 var _last_movement_direction: Vector3 = Vector3.FORWARD
+var _status_label: Label3D
+var _stun_time_remaining: float = 0.0
+var _stun_expires_at_pulse: int = 0
+
+
+func _ready() -> void:
+	_status_label = Label3D.new()
+	_status_label.name = "StatusLabel"
+	_status_label.position = Vector3(0.0, 2.65, 0.0)
+	_status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_status_label.no_depth_test = true
+	_status_label.font_size = 28
+	_status_label.outline_size = 8
+	_status_label.modulate = Color("8fc7ff")
+	_status_label.visible = false
+	add_child(_status_label)
 
 
 func _process(delta: float) -> void:
+	_update_status_visual(delta)
 	if not _has_position:
 		return
 	var previous_position: Vector3 = global_position
@@ -250,6 +268,42 @@ func cancel_prediction() -> void:
 func stop_prediction() -> void:
 	_predicted_path.clear()
 	_pending_correction = Vector3.ZERO
+
+
+func set_active_statuses(statuses: Array, current_pulse: int) -> void:
+	var stun_expires_at: int = 0
+	for value: Variant in statuses:
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var status := value as Dictionary
+		if str(status.get("effect_id", "")) == "stun":
+			stun_expires_at = maxi(stun_expires_at, int(status.get("expires_at_pulse", 0)))
+	var newly_applied: bool = stun_expires_at > 0 and stun_expires_at != _stun_expires_at_pulse
+	_stun_expires_at_pulse = stun_expires_at
+	if stun_expires_at >= current_pulse and stun_expires_at > 0:
+		_stun_time_remaining = float(stun_expires_at - current_pulse) * ACTION_PULSE_SECONDS
+		stop_prediction()
+		if newly_applied:
+			play_status_feedback("STUNNED", Color("8fc7ff"))
+	else:
+		_stun_time_remaining = 0.0
+		_stun_expires_at_pulse = 0
+	_update_status_label()
+
+
+func _update_status_visual(delta: float) -> void:
+	if _stun_time_remaining <= 0.0:
+		return
+	_stun_time_remaining = maxf(0.0, _stun_time_remaining - delta)
+	_update_status_label()
+
+
+func _update_status_label() -> void:
+	if _status_label == null:
+		return
+	_status_label.visible = _stun_time_remaining > 0.0
+	if _status_label.visible:
+		_status_label.text = "STUNNED  %.1fs" % _stun_time_remaining
 
 
 func play_weapon_attack(target_position: Vector3) -> float:

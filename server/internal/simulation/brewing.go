@@ -52,6 +52,9 @@ func (w *World) QueueBrew(command BrewCommand) error {
 	if !exists || player.defeated {
 		return fmt.Errorf("player %q cannot brew", command.PlayerID)
 	}
+	if err := statusActionError(player, statusActionProduction, w.combat.pulse); err != nil {
+		return err
+	}
 	if command.Sequence <= player.lastBrewSequence {
 		return fmt.Errorf("brew sequence %d is not newer than %d", command.Sequence, player.lastBrewSequence)
 	}

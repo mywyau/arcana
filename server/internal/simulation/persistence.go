@@ -279,6 +279,8 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		skillsRevision:               1,
 		combatBoosts:                 make(map[SkillID]activeCombatBoost),
 		combatBoostsRevision:         1,
+		activeStatuses:               make(map[StatusEffectID]activeStatus),
+		statusesRevision:             1,
 		brewingRevision:              1,
 		fletchingRevision:            1,
 		gatheringRevision:            1,

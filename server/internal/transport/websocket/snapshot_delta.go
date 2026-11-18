@@ -262,6 +262,13 @@ func playerUpdate(
 		update.CombatLevel = pointer(current.CombatLevel)
 		changed = true
 	}
+	if full || previous.StatusesRevision != current.StatusesRevision {
+		statuses := make([]protocol.ActiveStatus, len(current.ActiveStatuses))
+		copy(statuses, current.ActiveStatuses)
+		update.ActiveStatuses = &statuses
+		update.StatusesRevision = pointer(current.StatusesRevision)
+		changed = true
+	}
 	return update, changed
 }
 
@@ -341,6 +348,10 @@ func targetUpdate(
 	}
 	if full || previous.TelegraphImpactPulse != current.TelegraphImpactPulse {
 		update.TelegraphImpactPulse = pointer(current.TelegraphImpactPulse)
+		changed = true
+	}
+	if full || previous.VulnerableUntilPulse != current.VulnerableUntilPulse {
+		update.VulnerableUntilPulse = pointer(current.VulnerableUntilPulse)
 		changed = true
 	}
 	return update, changed

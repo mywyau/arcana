@@ -159,6 +159,8 @@ type PlayerSnapshot struct {
 	SkillsRevision               uint64
 	ActiveCombatBoosts           []ActiveCombatBoostSnapshot
 	CombatBoostsRevision         uint64
+	ActiveStatuses               []ActiveStatusSnapshot
+	StatusesRevision             uint64
 }
 
 // Snapshot is a detached view of the authoritative world at one tick.
@@ -239,6 +241,8 @@ type playerState struct {
 	nextPotionConsumePulse       uint64
 	combatBoosts                 map[SkillID]activeCombatBoost
 	combatBoostsRevision         uint64
+	activeStatuses               map[StatusEffectID]activeStatus
+	statusesRevision             uint64
 	lastBrewSequence             uint64
 	brewRemaining                int
 	nextBrewPulse                uint64
@@ -447,6 +451,7 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
 		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), skillsRevision: 1,
 		combatBoosts: make(map[SkillID]activeCombatBoost), combatBoostsRevision: 1,
+		activeStatuses: make(map[StatusEffectID]activeStatus), statusesRevision: 1,
 		brewingRevision: 1, fletchingRevision: 1, gatheringRevision: 1,
 	}
 	return nil
@@ -487,6 +492,7 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
 		combatStyle:                  defaultCombatStyle(WeaponUnarmed), skills: newDefaultSkills(), skillsRevision: 1,
 		combatBoosts: make(map[SkillID]activeCombatBoost), combatBoostsRevision: 1,
+		activeStatuses: make(map[StatusEffectID]activeStatus), statusesRevision: 1,
 		brewingRevision: 1, fletchingRevision: 1, gatheringRevision: 1,
 	}
 	return nil
@@ -563,6 +569,9 @@ func (w *World) QueueMove(command MoveCommand) error {
 	}
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if err := statusActionError(player, statusActionMove, w.combat.pulse); err != nil {
+		return err
 	}
 	if command.Sequence <= player.lastCommandSequence {
 		return fmt.Errorf("command sequence %d is not newer than %d", command.Sequence, player.lastCommandSequence)
@@ -894,6 +903,8 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		LastCombatStyleSequence:      player.lastCombatStyleSequence,
 		DodgeRate:                    playerDodgeChance(dummyAccuracyScore, player),
 		CombatLevel:                  playerCombatLevel(player),
+		ActiveStatuses:               activeStatusSnapshots(player),
+		StatusesRevision:             player.statusesRevision,
 		ExperienceLocked:             player.experienceLocked,
 		LastExperienceLockSequence:   player.lastExperienceLockSequence,
 		LastAmmunitionSequence:       player.lastAmmunitionSequence,

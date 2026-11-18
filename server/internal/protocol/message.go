@@ -259,6 +259,7 @@ type TargetSnapshot struct {
 	TelegraphPosition    Position `json:"telegraph_position"`
 	TelegraphRadius      float64  `json:"telegraph_radius,omitempty"`
 	TelegraphImpactPulse uint64   `json:"telegraph_impact_pulse,omitempty"`
+	VulnerableUntilPulse uint64   `json:"vulnerable_until_pulse,omitempty"`
 }
 
 // TargetUpdate contains only public target fields which changed since this
@@ -284,6 +285,7 @@ type TargetUpdate struct {
 	TelegraphPosition    *Position `json:"telegraph_position,omitempty"`
 	TelegraphRadius      *float64  `json:"telegraph_radius,omitempty"`
 	TelegraphImpactPulse *uint64   `json:"telegraph_impact_pulse,omitempty"`
+	VulnerableUntilPulse *uint64   `json:"vulnerable_until_pulse,omitempty"`
 }
 
 type DropSnapshot struct {
@@ -437,23 +439,34 @@ type PlayerSnapshot struct {
 	SkillsRevision               uint64                   `json:"skills_revision,omitempty"`
 	ActiveCombatBoosts           *[]ActiveCombatBoost     `json:"active_combat_boosts,omitempty"`
 	CombatBoostsRevision         uint64                   `json:"combat_boosts_revision,omitempty"`
+	ActiveStatuses               []ActiveStatus           `json:"active_statuses"`
+	StatusesRevision             uint64                   `json:"statuses_revision,omitempty"`
 }
 
 // PlayerUpdate is the public, field-level delta for a remote player. Private
 // state continues to be carried only by the receiving player's full entry in
 // WorldSnapshot.Players.
 type PlayerUpdate struct {
-	ID             string             `json:"id"`
-	Position       *Position          `json:"position,omitempty"`
-	Speed          *float64           `json:"speed,omitempty"`
-	CombatTarget   *string            `json:"combat_target,omitempty"`
-	Health         *int               `json:"health,omitempty"`
-	MaximumHealth  *int               `json:"maximum_health,omitempty"`
-	Defeated       *bool              `json:"defeated,omitempty"`
-	RespawnAtPulse *uint64            `json:"respawn_at_pulse,omitempty"`
-	EquippedWeapon *string            `json:"equipped_weapon,omitempty"`
-	EquippedArmour *map[string]string `json:"equipped_armour,omitempty"`
-	CombatLevel    *int               `json:"combat_level,omitempty"`
+	ID               string             `json:"id"`
+	Position         *Position          `json:"position,omitempty"`
+	Speed            *float64           `json:"speed,omitempty"`
+	CombatTarget     *string            `json:"combat_target,omitempty"`
+	Health           *int               `json:"health,omitempty"`
+	MaximumHealth    *int               `json:"maximum_health,omitempty"`
+	Defeated         *bool              `json:"defeated,omitempty"`
+	RespawnAtPulse   *uint64            `json:"respawn_at_pulse,omitempty"`
+	EquippedWeapon   *string            `json:"equipped_weapon,omitempty"`
+	EquippedArmour   *map[string]string `json:"equipped_armour,omitempty"`
+	CombatLevel      *int               `json:"combat_level,omitempty"`
+	ActiveStatuses   *[]ActiveStatus    `json:"active_statuses,omitempty"`
+	StatusesRevision *uint64            `json:"statuses_revision,omitempty"`
+}
+
+type ActiveStatus struct {
+	EffectID       string `json:"effect_id"`
+	SourceID       string `json:"source_id,omitempty"`
+	AppliedAtPulse uint64 `json:"applied_at_pulse"`
+	ExpiresAtPulse uint64 `json:"expires_at_pulse"`
 }
 
 type ActiveCombatBoost struct {

@@ -174,8 +174,10 @@ func TestTyrantsHaveBossTierDefence(t *testing.T) {
 		if got := NewWorld().combat.targets[test.targetID].MaximumHealth; got != test.maximumHealth {
 			t.Errorf("%s maximum health = %d, want %d", test.targetID, got, test.maximumHealth)
 		}
-		if profile.HeavyStrike.EveryAttacks != 4 || profile.HeavyStrike.WindupPulses != 2 ||
-			profile.HeavyStrike.Radius != 2.75 || profile.HeavyStrike.DamageMultiplier != 2 {
+		if profile.HeavyStrike.EveryAttacks != 4 || profile.HeavyStrike.WindupPulses != 4 ||
+			profile.HeavyStrike.Radius != 5 || profile.HeavyStrike.DamageMultiplier != 2 ||
+			profile.HeavyStrike.VulnerabilityPulses != 3 ||
+			profile.HeavyStrike.VulnerabilityDamageMultiplier != 1.25 {
 			t.Errorf("%s heavy strike = %+v", test.targetID, profile.HeavyStrike)
 		}
 	}
@@ -195,7 +197,7 @@ func TestTyrantHeavyStrikeTelegraphsAndCanBeEscaped(t *testing.T) {
 
 	world.resolveOneDummyAttack(riftTyrantTargetID, boss)
 	if player.health != 200 || boss.TelegraphType != "heavy_strike" ||
-		boss.TelegraphPosition != player.position || boss.TelegraphRadius != 2.75 || boss.TelegraphImpactPulse != 12 {
+		boss.TelegraphPosition != player.position || boss.TelegraphRadius != 5 || boss.TelegraphImpactPulse != 14 {
 		t.Fatalf("heavy strike windup: player health=%d boss=%+v", player.health, boss)
 	}
 
@@ -207,6 +209,30 @@ func TestTyrantHeavyStrikeTelegraphsAndCanBeEscaped(t *testing.T) {
 	}
 	if boss.TelegraphType != "" || boss.TelegraphRadius != 0 || boss.TelegraphImpactPulse != 0 {
 		t.Fatalf("resolved telegraph was not cleared: %+v", boss)
+	}
+	if boss.VulnerableUntilPulse != world.combat.pulse+3 {
+		t.Fatalf("vulnerability ends at pulse %d, want %d", boss.VulnerableUntilPulse, world.combat.pulse+3)
+	}
+	if statusActive(player, StatusStun, world.combat.pulse) {
+		t.Fatal("escaped player was stunned by the heavy strike")
+	}
+}
+
+func TestTyrantVulnerabilityIncreasesDamageForItsShortWindow(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.targets[riftTyrantTargetID]
+	boss.VulnerableUntilPulse = 15
+
+	if got := targetVulnerabilityMultiplier(boss, 15); got != 1.25 {
+		t.Fatalf("vulnerability multiplier = %.2f, want 1.25", got)
+	}
+	if got := targetVulnerabilityMultiplier(boss, 16); got != 1 {
+		t.Fatalf("expired vulnerability multiplier = %.2f, want 1", got)
+	}
+	world.combat.pulse = 16
+	world.expireTargetVulnerabilities()
+	if boss.VulnerableUntilPulse != 0 {
+		t.Fatalf("expired vulnerability pulse = %d, want 0", boss.VulnerableUntilPulse)
 	}
 }
 
@@ -227,6 +253,12 @@ func TestTyrantHeavyStrikeDamagesPlayersRemainingInArea(t *testing.T) {
 	world.resolveOneDummyAttack(riftTyrantTargetID, boss)
 	if got, want := player.health, 156; got != want {
 		t.Fatalf("health after heavy strike = %d, want %d", got, want)
+	}
+	if !statusActive(player, StatusStun, world.combat.pulse) {
+		t.Fatal("player hit by heavy strike was not stunned")
+	}
+	if got, want := player.activeStatuses[StatusStun].ExpiresAtPulse, world.combat.pulse+3; got != want {
+		t.Fatalf("stun expires at pulse %d, want %d", got, want)
 	}
 }
 

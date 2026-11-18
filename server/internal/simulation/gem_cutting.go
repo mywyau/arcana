@@ -28,6 +28,9 @@ func (w *World) CutGem(playerID PlayerID, sequence uint64, itemID string) error 
 	if !exists || player.defeated {
 		return fmt.Errorf("player %q cannot cut gems", playerID)
 	}
+	if err := statusActionError(player, statusActionProduction, w.combat.pulse); err != nil {
+		return err
+	}
 	if sequence <= player.lastGemCutSequence {
 		return fmt.Errorf("gem cutting sequence %d is not newer than %d", sequence, player.lastGemCutSequence)
 	}

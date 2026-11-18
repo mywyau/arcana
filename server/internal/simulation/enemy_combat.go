@@ -17,10 +17,12 @@ type enemyCombatProfile struct {
 }
 
 type heavyStrikeProfile struct {
-	EveryAttacks     uint64
-	WindupPulses     uint64
-	Radius           float64
-	DamageMultiplier float64
+	EveryAttacks                  uint64
+	WindupPulses                  uint64
+	Radius                        float64
+	DamageMultiplier              float64
+	VulnerabilityPulses           uint64
+	VulnerabilityDamageMultiplier float64
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
@@ -105,7 +107,8 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Defence:  DefenceBonuses{Stab: 100, Slash: 115, Crush: 90, Ranged: 105, Magic: 95},
 		Elements: ElementalResistances{Air: 10, Water: 10, Earth: 10, Fire: 10, Holy: -10, Dark: 20},
 		HeavyStrike: heavyStrikeProfile{
-			EveryAttacks: 4, WindupPulses: 2, Radius: 2.75, DamageMultiplier: 2,
+			EveryAttacks: 4, WindupPulses: 4, Radius: 5, DamageMultiplier: 2,
+			VulnerabilityPulses: 3, VulnerabilityDamageMultiplier: 1.25,
 		},
 	},
 	rangedTyrantTargetID: {
@@ -119,7 +122,8 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Defence:        DefenceBonuses{Stab: 85, Slash: 90, Crush: 80, Ranged: 120, Magic: 85},
 		Elements:       ElementalResistances{Air: 5, Water: 10, Earth: -10, Fire: 5, Holy: 0, Dark: 10},
 		HeavyStrike: heavyStrikeProfile{
-			EveryAttacks: 4, WindupPulses: 2, Radius: 2.75, DamageMultiplier: 2,
+			EveryAttacks: 4, WindupPulses: 4, Radius: 5, DamageMultiplier: 2,
+			VulnerabilityPulses: 3, VulnerabilityDamageMultiplier: 1.25,
 		},
 	},
 	mageTyrantTargetID: {
@@ -133,7 +137,8 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Defence:        DefenceBonuses{Stab: 80, Slash: 85, Crush: 75, Ranged: 90, Magic: 125},
 		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},
 		HeavyStrike: heavyStrikeProfile{
-			EveryAttacks: 4, WindupPulses: 2, Radius: 2.75, DamageMultiplier: 2,
+			EveryAttacks: 4, WindupPulses: 4, Radius: 5, DamageMultiplier: 2,
+			VulnerabilityPulses: 3, VulnerabilityDamageMultiplier: 1.25,
 		},
 	},
 }
