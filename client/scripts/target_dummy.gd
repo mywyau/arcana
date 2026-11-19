@@ -37,6 +37,7 @@ var _telegraph_line: BoxMesh
 var _arrow_volley_meshes: Array[MeshInstance3D] = []
 var _telegraph_active: bool = false
 var _telegraph_time: float = 0.0
+var _telegraph_color := Color(1.0, 0.12, 0.08, 1.0)
 var _vulnerable_until_pulse: int = 0
 var _vulnerability_time_remaining: float = 0.0
 
@@ -53,7 +54,9 @@ func _process(delta: float) -> void:
 	if _telegraph_active:
 		_telegraph_time += delta
 		var pulse: float = 0.58 + sin(_telegraph_time * 8.0) * 0.18
-		_telegraph_material.albedo_color = Color(1.0, 0.12, 0.08, pulse)
+		_telegraph_material.albedo_color = Color(
+			_telegraph_color.r, _telegraph_color.g, _telegraph_color.b, pulse
+		)
 	if _vulnerability_time_remaining > 0.0:
 		_vulnerability_time_remaining = maxf(0.0, _vulnerability_time_remaining - delta)
 		if _material != null:
@@ -108,18 +111,30 @@ func set_attack_telegraph(
 	if _telegraph_mesh == null:
 		return
 	var arrow_volley: bool = telegraph_type.begins_with("arrow_volley_")
+	var elemental_zone: bool = telegraph_type.begins_with("elemental_zone_")
 	var active: bool = (
-		telegraph_type in ["heavy_strike", "piercing_shot"] or arrow_volley
+		telegraph_type in ["heavy_strike", "piercing_shot"] or arrow_volley or elemental_zone
 	) and radius > 0.0
 	_telegraph_active = active
-	_telegraph_mesh.visible = active and not arrow_volley
+	_telegraph_mesh.visible = active and not arrow_volley and not elemental_zone
 	for circle in _arrow_volley_meshes:
 		circle.visible = false
 	if not active:
 		_telegraph_time = 0.0
 		return
 	_telegraph_mesh.rotation = Vector3.ZERO
-	if arrow_volley:
+	if elemental_zone:
+		var wave := maxi(0, int(telegraph_type.trim_prefix("elemental_zone_")) - 1)
+		var zone_colors := [Color(1.0, 0.24, 0.06), Color(0.1, 0.48, 1.0), Color(0.2, 0.72, 0.3)]
+		_telegraph_color = zone_colors[wave % zone_colors.size()]
+		var offsets := _elemental_zone_offsets(wave)
+		for index in range(mini(offsets.size(), _arrow_volley_meshes.size())):
+			var circle := _arrow_volley_meshes[index]
+			circle.global_position = telegraph_position + offsets[index] + Vector3(0.0, 0.05, 0.0)
+			circle.scale = Vector3(radius, 1.0, radius)
+			circle.visible = true
+	elif arrow_volley:
+		_telegraph_color = Color(1.0, 0.12, 0.08, 1.0)
 		var wave := maxi(0, int(telegraph_type.trim_prefix("arrow_volley_")) - 1)
 		var offsets := _arrow_volley_offsets(wave)
 		for index in range(mini(offsets.size(), _arrow_volley_meshes.size())):
@@ -128,6 +143,7 @@ func set_attack_telegraph(
 			circle.scale = Vector3(radius, 1.0, radius)
 			circle.visible = true
 	elif telegraph_type == "piercing_shot":
+		_telegraph_color = Color(1.0, 0.12, 0.08, 1.0)
 		var start := global_position
 		var offset := telegraph_position - start
 		var length := Vector2(offset.x, offset.z).length()
@@ -140,6 +156,7 @@ func set_attack_telegraph(
 		_telegraph_mesh.rotation.y = atan2(offset.x, offset.z)
 		_telegraph_mesh.scale = Vector3.ONE
 	else:
+		_telegraph_color = Color(1.0, 0.12, 0.08, 1.0)
 		_telegraph_mesh.mesh = _telegraph_disc
 		_telegraph_mesh.global_position = telegraph_position + Vector3(0.0, 0.05, 0.0)
 		_telegraph_mesh.scale = Vector3(radius, 1.0, radius)
@@ -151,6 +168,19 @@ func _arrow_volley_offsets(wave: int) -> Array[Vector3]:
 		[Vector3.ZERO, Vector3(-4.8, 0, -2), Vector3(3.9, 0, -3.4), Vector3(-2.2, 0, 4.6), Vector3(5.2, 0, 2.1), Vector3(-6, 0, 3), Vector3(1.5, 0, 6.2), Vector3(6.5, 0, -0.8), Vector3(-1, 0, -6)],
 		[Vector3.ZERO, Vector3(-5.5, 0, -1), Vector3(2.8, 0, -5), Vector3(-3.8, 0, 4.2), Vector3(5.8, 0, 3.4), Vector3(-6.2, 0, -4), Vector3(0.8, 0, 6.5), Vector3(6, 0, -2.5), Vector3(-1.5, 0, 2.8)],
 		[Vector3.ZERO, Vector3(-4.2, 0, -4.8), Vector3(4.9, 0, -2), Vector3(-5.8, 0, 1.7), Vector3(3.2, 0, 5.5), Vector3(-1.2, 0, 6.7), Vector3(6.5, 0, 1.2), Vector3(1.1, 0, -6.4), Vector3(-2.7, 0, 3.2)],
+	]
+	var offsets: Array[Vector3] = []
+	for offset: Vector3 in patterns[wave % patterns.size()]:
+		offsets.append(offset)
+	return offsets
+
+
+# Mirrors server elementalZonePositions.
+func _elemental_zone_offsets(wave: int) -> Array[Vector3]:
+	var patterns: Array[Array] = [
+		[Vector3(-12, 0, 0), Vector3(-6, 0, 0), Vector3.ZERO, Vector3(6, 0, 0), Vector3(12, 0, 0)],
+		[Vector3(0, 0, -12), Vector3(0, 0, -6), Vector3.ZERO, Vector3(0, 0, 6), Vector3(0, 0, 12)],
+		[Vector3(-10, 0, -10), Vector3(-5, 0, -5), Vector3.ZERO, Vector3(5, 0, 5), Vector3(10, 0, 10)],
 	]
 	var offsets: Array[Vector3] = []
 	for offset: Vector3 in patterns[wave % patterns.size()]:
@@ -225,7 +255,9 @@ func set_target_kind(kind: String) -> void:
 
 func set_authoritative_position(authoritative_position: Vector3) -> void:
 	_authoritative_position = authoritative_position
-	if not _has_position or not _mobile:
+	if not _has_position or not _mobile or (
+		_target_kind == "mage_boss" and global_position.distance_to(authoritative_position) > 6.0
+	):
 		global_position = authoritative_position
 	_has_position = true
 

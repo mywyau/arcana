@@ -18,6 +18,7 @@ type enemyCombatProfile struct {
 	HeavyStrike    heavyStrikeProfile
 	PiercingVolley piercingVolleyProfile
 	ArrowVolley    arrowVolleyProfile
+	ElementalZones elementalZoneProfile
 }
 
 type heavyStrikeProfile struct {
@@ -49,6 +50,18 @@ type arrowVolleyProfile struct {
 	BetweenPulses    uint64
 	Radius           float64
 	DamageMultiplier float64
+}
+
+type elementalZoneProfile struct {
+	CycleAttacks                  uint64
+	TriggerAttack                 uint64
+	Waves                         int
+	WindupPulses                  uint64
+	BetweenPulses                 uint64
+	Radius                        float64
+	DamageMultiplier              float64
+	VulnerabilityPulses           uint64
+	VulnerabilityDamageMultiplier float64
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
@@ -164,15 +177,16 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		CombatLevel:    35,
 		AttackDamage:   24,
 		AttackInterval: 5,
-		AttackRange:    enemyLongRangeAttackRange,
+		AttackRange:    40,
 		DetectionRange: 26,
 		LeashRange:     27,
 		DamageType:     DamageTypeMagic,
-		Defence:        DefenceBonuses{Stab: 80, Slash: 85, Crush: 75, Ranged: 90, Magic: 125},
+		Defence:        DefenceBonuses{Stab: 150, Slash: 155, Crush: 145, Ranged: 70, Magic: 105},
 		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},
-		HeavyStrike: heavyStrikeProfile{
-			EveryAttacks: 4, WindupPulses: 4, Radius: 5, DamageMultiplier: 2,
-			VulnerabilityPulses: 3, VulnerabilityDamageMultiplier: 1.25,
+		ElementalZones: elementalZoneProfile{
+			CycleAttacks: 4, TriggerAttack: 4, Waves: 3,
+			WindupPulses: 4, BetweenPulses: 3, Radius: 4, DamageMultiplier: 1.25,
+			VulnerabilityPulses: 5, VulnerabilityDamageMultiplier: 1.25,
 		},
 	},
 }

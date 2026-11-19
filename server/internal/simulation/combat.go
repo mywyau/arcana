@@ -122,7 +122,7 @@ const (
 	rangedTyrantMaximumHealth            = 5000
 	rangedTyrantAccuracyScore            = 52
 	rangedTyrantEvasionScore             = 42
-	mageTyrantMaximumHealth              = 950
+	mageTyrantMaximumHealth              = 4500
 	mageTyrantAccuracyScore              = 54
 	mageTyrantEvasionScore               = 40
 	combatEventHistoryLimit              = 32
@@ -367,6 +367,9 @@ type TargetSnapshot struct {
 	piercingShotIndex    int
 	arrowVolleyWave      int
 	stunnedUntilPulse    uint64
+	mageZoneWave         int
+	mageBasicAttacks     uint64
+	mageTeleportStep     int
 }
 
 type combatState struct {
@@ -1136,6 +1139,8 @@ func (w *World) respawnDefeatedEntities() {
 				enemy.nextRepathPulse = 0
 			}
 			target.dummy.attackSequence = 0
+			target.dummy.mageBasicAttacks = 0
+			target.dummy.mageTeleportStep = 0
 			target.dummy.stunnedUntilPulse = 0
 			target.dummy.VulnerableUntilPulse = 0
 			profile := combatProfileForEnemy(target.id)
@@ -1497,6 +1502,10 @@ func (w *World) updateRoamingEnemies() {
 				}
 				continue
 			}
+			if id == mageTyrantTargetID {
+				enemy.path = nil
+				continue
+			}
 			if distance(enemy.target.Position, player.position) <= profile.AttackRange {
 				if id == rangedTyrantTargetID && w.combat.pulse < enemy.target.NextAttackPulse {
 					w.setRangedTyrantRepositionPath(enemy, player.position)
@@ -1673,6 +1682,8 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		}
 		if strings.HasPrefix(dummy.TelegraphType, "arrow_volley_") {
 			w.resolveArrowVolleyWave(dummyID, dummy, profile)
+		} else if strings.HasPrefix(dummy.TelegraphType, "elemental_zone_") {
+			w.resolveElementalZoneWave(dummyID, dummy, profile)
 		} else if dummy.TelegraphType == "piercing_shot" {
 			w.resolvePiercingShot(dummyID, dummy, profile)
 		} else {
@@ -1688,6 +1699,10 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	damageType := enemyAttackType(profile, dummy.attackSequence)
 	dummy.attackSequence++
 	dummy.AttackType = damageType
+	if nextAttackMatchesCycle(dummy.attackSequence, profile.ElementalZones.CycleAttacks, profile.ElementalZones.TriggerAttack) {
+		w.startElementalZones(dummy, profile.ElementalZones)
+		return
+	}
 	if nextAttackMatchesCycle(dummy.attackSequence, profile.ArrowVolley.CycleAttacks, profile.ArrowVolley.TriggerAttack) {
 		w.startArrowVolley(dummy, player, profile.ArrowVolley)
 		return
@@ -1704,6 +1719,12 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		dummy.TelegraphImpactPulse = w.combat.pulse + profile.HeavyStrike.WindupPulses
 		dummy.NextAttackPulse = dummy.TelegraphImpactPulse
 		return
+	}
+	if dummyID == mageTyrantTargetID {
+		dummy.mageBasicAttacks++
+		if dummy.mageBasicAttacks%3 == 0 {
+			defer w.teleportMageTyrant(dummy)
+		}
 	}
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 	accuracyChance := calculatedAccuracyChance(dummy.Accuracy)
@@ -1741,6 +1762,99 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	if player.health == 0 {
 		w.defeatPlayer(player)
 	}
+}
+
+func (w *World) teleportMageTyrant(dummy *TargetSnapshot) {
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	const offset = 10.0
+	anchors := [...]Position{
+		{X: arena.Center.X - offset, Z: arena.Center.Z - offset},
+		{X: arena.Center.X + offset, Z: arena.Center.Z - offset},
+		{X: arena.Center.X + offset, Z: arena.Center.Z + offset},
+		{X: arena.Center.X - offset, Z: arena.Center.Z + offset},
+	}
+	dummy.Position = anchors[dummy.mageTeleportStep%len(anchors)]
+	dummy.mageTeleportStep = (dummy.mageTeleportStep + 1) % len(anchors)
+	if enemy := w.combat.roamingEnemies[mageTyrantTargetID]; enemy != nil {
+		enemy.path = nil
+	}
+}
+
+func (w *World) startElementalZones(dummy *TargetSnapshot, zones elementalZoneProfile) {
+	dummy.mageZoneWave = 0
+	w.telegraphElementalZoneWave(dummy, zones, zones.WindupPulses)
+}
+
+func (w *World) telegraphElementalZoneWave(dummy *TargetSnapshot, zones elementalZoneProfile, delay uint64) {
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	dummy.TelegraphType = fmt.Sprintf("elemental_zone_%d", dummy.mageZoneWave+1)
+	dummy.TelegraphPosition = arena.Center
+	dummy.TelegraphRadius = zones.Radius
+	dummy.TelegraphImpactPulse = w.combat.pulse + delay
+	dummy.NextAttackPulse = dummy.TelegraphImpactPulse
+}
+
+// elementalZonePositions is mirrored by TargetDummy._elemental_zone_offsets.
+func elementalZonePositions(center Position, wave int) []Position {
+	patterns := [][]Position{
+		{{X: -12}, {X: -6}, {}, {X: 6}, {X: 12}},
+		{{Z: -12}, {Z: -6}, {}, {Z: 6}, {Z: 12}},
+		{{X: -10, Z: -10}, {X: -5, Z: -5}, {}, {X: 5, Z: 5}, {X: 10, Z: 10}},
+	}
+	pattern := patterns[wave%len(patterns)]
+	positions := make([]Position, 0, len(pattern))
+	for _, offset := range pattern {
+		positions = append(positions, Position{
+			X: center.X + offset.X,
+			Y: center.Y,
+			Z: center.Z + offset.Z,
+		})
+	}
+	return positions
+}
+
+func (w *World) resolveElementalZoneWave(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
+	zones := profile.ElementalZones
+	centers := elementalZonePositions(dummy.TelegraphPosition, dummy.mageZoneWave)
+	for _, player := range w.players {
+		if player.defeated {
+			continue
+		}
+		if arena, enclosed := combatArenaForTarget(dummyID); enclosed && !arena.contains(player.position) {
+			continue
+		}
+		hit := false
+		for _, center := range centers {
+			if distance(player.position, center) <= zones.Radius {
+				hit = true
+				break
+			}
+		}
+		if !hit {
+			continue
+		}
+		damage := int(math.Round(float64(profile.AttackDamage) * zones.DamageMultiplier))
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		player.health = max(0, player.health-damageDealt)
+		triggerEmergencyPrayer(player)
+		w.combat.recordEvent(CombatEvent{
+			Pulse: w.combat.pulse, Type: CombatEventDamage,
+			SourceID: dummyID, TargetID: string(player.id), Amount: damageDealt,
+		})
+		if player.health == 0 {
+			w.defeatPlayer(player)
+		}
+	}
+
+	dummy.mageZoneWave++
+	if dummy.mageZoneWave < zones.Waves && dummy.TargetID != "" {
+		w.telegraphElementalZoneWave(dummy, zones, zones.BetweenPulses)
+		return
+	}
+	clearTargetTelegraph(dummy)
+	dummy.VulnerableUntilPulse = w.combat.pulse + zones.VulnerabilityPulses
+	dummy.stunnedUntilPulse = dummy.VulnerableUntilPulse
+	dummy.NextAttackPulse = dummy.VulnerableUntilPulse + profile.AttackInterval
 }
 
 func (w *World) startArrowVolley(dummy *TargetSnapshot, player *playerState, volley arrowVolleyProfile) {
@@ -1949,6 +2063,9 @@ func targetVulnerabilityMultiplier(target *TargetSnapshot, pulse uint64) float64
 		return 1
 	}
 	profile := combatProfileForEnemy(target.ID)
+	if profile.ElementalZones.VulnerabilityDamageMultiplier > 0 {
+		return max(1, profile.ElementalZones.VulnerabilityDamageMultiplier)
+	}
 	return max(1, profile.HeavyStrike.VulnerabilityDamageMultiplier)
 }
 
@@ -2019,6 +2136,7 @@ func clearTargetTelegraph(dummy *TargetSnapshot) {
 		dummy.piercingDirections = nil
 		dummy.piercingShotIndex = 0
 		dummy.arrowVolleyWave = 0
+		dummy.mageZoneWave = 0
 	}
 }
 

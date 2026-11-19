@@ -81,22 +81,110 @@ func TestSpecialistTyrantsUseTheirOwnCombatStyles(t *testing.T) {
 		wantDamageType DamageType
 		wantDamage     int
 		wantInterval   uint64
+		wantRange      float64
 	}{
-		{targetID: rangedTyrantTargetID, wantDamageType: DamageTypeRanged, wantDamage: 20, wantInterval: 3},
-		{targetID: mageTyrantTargetID, wantDamageType: DamageTypeMagic, wantDamage: 24, wantInterval: 5},
+		{targetID: rangedTyrantTargetID, wantDamageType: DamageTypeRanged, wantDamage: 20, wantInterval: 3, wantRange: enemyLongRangeAttackRange},
+		{targetID: mageTyrantTargetID, wantDamageType: DamageTypeMagic, wantDamage: 24, wantInterval: 5, wantRange: 40},
 	}
 	for _, test := range tests {
 		t.Run(test.targetID, func(t *testing.T) {
 			profile := combatProfileForEnemy(test.targetID)
 			if profile.CombatLevel != 35 || profile.DamageType != test.wantDamageType ||
 				profile.AttackDamage != test.wantDamage || profile.AttackInterval != test.wantInterval ||
-				profile.AttackRange != enemyLongRangeAttackRange || profile.DetectionRange != 26 || profile.LeashRange != 27 {
+				profile.AttackRange != test.wantRange || profile.DetectionRange != 26 || profile.LeashRange != 27 {
 				t.Fatalf("profile = %+v", profile)
 			}
 			if len(profile.AttackTypes) != 0 {
 				t.Fatalf("specialist attack types = %v, want fixed %q", profile.AttackTypes, test.wantDamageType)
 			}
 		})
+	}
+}
+
+func TestMageTyrantTeleportsClockwiseAfterThreeBasicCasts(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	boss := world.combat.targets[mageTyrantTargetID]
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", arena.Center, 4)
+	boss.TargetID = "player-one"
+	profile := combatProfileForEnemy(mageTyrantTargetID)
+
+	for attack := 0; attack < 3; attack++ {
+		world.combat.pulse += profile.AttackInterval
+		boss.NextAttackPulse = world.combat.pulse
+		world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	}
+	want := Position{X: arena.Center.X - 10, Z: arena.Center.Z - 10}
+	if boss.Position != want || boss.mageTeleportStep != 1 {
+		t.Fatalf("Mage Tyrant first teleport = %+v step %d, want %+v step 1", boss.Position, boss.mageTeleportStep, want)
+	}
+
+	for _, next := range []Position{
+		{X: arena.Center.X + 10, Z: arena.Center.Z - 10},
+		{X: arena.Center.X + 10, Z: arena.Center.Z + 10},
+		{X: arena.Center.X - 10, Z: arena.Center.Z + 10},
+	} {
+		world.teleportMageTyrant(boss)
+		if boss.Position != next {
+			t.Fatalf("Mage Tyrant teleport = %+v, want %+v", boss.Position, next)
+		}
+	}
+}
+
+func TestMageTyrantDoesNotChaseBetweenTeleports(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.roamingEnemies[mageTyrantTargetID]
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", Position{X: arena.MaximumX, Z: arena.MaximumZ}, 4)
+	boss.target.TargetID = "player-one"
+	boss.path = []Position{world.players["player-one"].position}
+
+	world.updateRoamingEnemies()
+	if len(boss.path) != 0 {
+		t.Fatalf("Mage Tyrant retained a chase path: %+v", boss.path)
+	}
+}
+
+func TestMageTyrantElementalSequenceCreatesOverloadWindow(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.targets[mageTyrantTargetID]
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", arena.Center, 4)
+	mustAddPlayer(t, world, "player-safe", Position{X: arena.MaximumX - 0.5, Z: arena.MaximumZ - 0.5}, 4)
+	player := world.players["player-one"]
+	player.maximumHealth = 1000
+	player.health = 1000
+	boss.TargetID = player.id
+	boss.attackSequence = 3
+	boss.NextAttackPulse = 10
+	world.combat.pulse = 10
+
+	world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	if boss.TelegraphType != "elemental_zone_1" || boss.TelegraphImpactPulse != 14 {
+		t.Fatalf("elemental sequence opening = %+v", boss)
+	}
+	for wave := 0; wave < 3; wave++ {
+		pattern := elementalZonePositions(arena.Center, wave)
+		player.position = pattern[0]
+		before := player.health
+		world.combat.pulse = boss.TelegraphImpactPulse
+		world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+		if player.health >= before {
+			t.Fatalf("player in elemental wave %d was not hit", wave+1)
+		}
+		if world.players["player-safe"].health != playerMaximumHealth {
+			t.Fatalf("safe player was hit by elemental wave %d", wave+1)
+		}
+		if wave < 2 && boss.TelegraphImpactPulse != world.combat.pulse+3 {
+			t.Fatalf("elemental wave %d delay = %+v", wave+1, boss)
+		}
+	}
+	wantUntil := world.combat.pulse + 5
+	if boss.TelegraphType != "" || boss.VulnerableUntilPulse != wantUntil || boss.stunnedUntilPulse != wantUntil {
+		t.Fatalf("Mage Tyrant overload window = %+v, want until %d", boss, wantUntil)
+	}
+	if got := targetVulnerabilityMultiplier(boss, world.combat.pulse); got != 1.25 {
+		t.Fatalf("Mage Tyrant overload multiplier = %.2f, want 1.25", got)
 	}
 }
 
@@ -369,7 +457,7 @@ func TestTyrantsHaveBossTierDefence(t *testing.T) {
 	}{
 		{targetID: riftTyrantTargetID, type_: DamageTypeSlash, minimum: 110, maximumHealth: 1100},
 		{targetID: rangedTyrantTargetID, type_: DamageTypeRanged, minimum: 115, maximumHealth: 5000},
-		{targetID: mageTyrantTargetID, type_: DamageTypeMagic, minimum: 120, maximumHealth: 950},
+		{targetID: mageTyrantTargetID, type_: DamageTypeSlash, minimum: 155, maximumHealth: 4500},
 	}
 	for _, test := range tests {
 		profile := combatProfileForEnemy(test.targetID)
@@ -396,6 +484,19 @@ func TestTyrantsHaveBossTierDefence(t *testing.T) {
 			if profile.Defence.Ranged != 115 || profile.Defence.Magic != 150 {
 				t.Errorf("%s specialist defences = %+v", test.targetID, profile.Defence)
 			}
+		}
+		if test.targetID == mageTyrantTargetID {
+			zones := profile.ElementalZones
+			if zones.CycleAttacks != 4 || zones.TriggerAttack != 4 || zones.Waves != 3 ||
+				zones.WindupPulses != 4 || zones.BetweenPulses != 3 || zones.Radius != 4 ||
+				zones.VulnerabilityPulses != 5 {
+				t.Errorf("%s elemental zones = %+v", test.targetID, zones)
+			}
+			if profile.Defence.Ranged != 70 || profile.Defence.Magic != 105 ||
+				profile.Defence.Crush != 145 || profile.Defence.Stab != 150 || profile.Defence.Slash != 155 {
+				t.Errorf("%s style defences = %+v", test.targetID, profile.Defence)
+			}
+			continue
 		}
 		wantVulnerabilityPulses := uint64(3)
 		if test.targetID == rangedTyrantTargetID {
