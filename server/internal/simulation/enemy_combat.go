@@ -1,5 +1,7 @@
 package simulation
 
+import "math"
+
 const enemyLongRangeAttackRange = bowRange + longRangeStyleRangeBonus + 1.0
 
 type enemyCombatProfile struct {
@@ -14,6 +16,8 @@ type enemyCombatProfile struct {
 	Defence        DefenceBonuses
 	Elements       ElementalResistances
 	HeavyStrike    heavyStrikeProfile
+	PiercingVolley piercingVolleyProfile
+	ArrowVolley    arrowVolleyProfile
 }
 
 type heavyStrikeProfile struct {
@@ -23,6 +27,28 @@ type heavyStrikeProfile struct {
 	DamageMultiplier              float64
 	VulnerabilityPulses           uint64
 	VulnerabilityDamageMultiplier float64
+}
+
+type piercingVolleyProfile struct {
+	CycleAttacks     uint64
+	TriggerAttack    uint64
+	Shots            int
+	WindupPulses     uint64
+	BetweenPulses    uint64
+	Length           float64
+	Width            float64
+	SpreadRadians    float64
+	DamageMultiplier float64
+}
+
+type arrowVolleyProfile struct {
+	CycleAttacks     uint64
+	TriggerAttack    uint64
+	Waves            int
+	WindupPulses     uint64
+	BetweenPulses    uint64
+	Radius           float64
+	DamageMultiplier float64
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
@@ -98,8 +124,8 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		AttackDamage:   22,
 		AttackInterval: 4,
 		AttackRange:    enemyLongRangeAttackRange,
-		DetectionRange: 18,
-		LeashRange:     24,
+		DetectionRange: 26,
+		LeashRange:     27,
 		DamageType:     DamageTypeStab,
 		AttackTypes: []DamageType{
 			DamageTypeStab, DamageTypeSlash, DamageTypeCrush,
@@ -116,14 +142,22 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		AttackDamage:   20,
 		AttackInterval: 3,
 		AttackRange:    enemyLongRangeAttackRange,
-		DetectionRange: 18,
-		LeashRange:     24,
+		DetectionRange: 26,
+		LeashRange:     27,
 		DamageType:     DamageTypeRanged,
-		Defence:        DefenceBonuses{Stab: 85, Slash: 90, Crush: 80, Ranged: 120, Magic: 85},
+		Defence:        DefenceBonuses{Stab: 85, Slash: 90, Crush: 80, Ranged: 115, Magic: 150},
 		Elements:       ElementalResistances{Air: 5, Water: 10, Earth: -10, Fire: 5, Holy: 0, Dark: 10},
 		HeavyStrike: heavyStrikeProfile{
 			EveryAttacks: 4, WindupPulses: 4, Radius: 5, DamageMultiplier: 2,
-			VulnerabilityPulses: 3, VulnerabilityDamageMultiplier: 1.25,
+			VulnerabilityPulses: 7, VulnerabilityDamageMultiplier: 1.25,
+		},
+		PiercingVolley: piercingVolleyProfile{
+			CycleAttacks: 12, TriggerAttack: 8, Shots: 3, WindupPulses: 3, BetweenPulses: 2,
+			Length: 32, Width: 2, SpreadRadians: 25 * math.Pi / 180, DamageMultiplier: 1.25,
+		},
+		ArrowVolley: arrowVolleyProfile{
+			CycleAttacks: 12, TriggerAttack: 12, Waves: 3,
+			WindupPulses: 3, BetweenPulses: 2, Radius: 1.8, DamageMultiplier: 1,
 		},
 	},
 	mageTyrantTargetID: {
@@ -131,8 +165,8 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		AttackDamage:   24,
 		AttackInterval: 5,
 		AttackRange:    enemyLongRangeAttackRange,
-		DetectionRange: 18,
-		LeashRange:     24,
+		DetectionRange: 26,
+		LeashRange:     27,
 		DamageType:     DamageTypeMagic,
 		Defence:        DefenceBonuses{Stab: 80, Slash: 85, Crush: 75, Ranged: 90, Magic: 125},
 		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},

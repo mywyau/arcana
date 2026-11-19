@@ -15,15 +15,15 @@ type combatArena struct {
 }
 
 const (
-	tyrantArenaCenterZ  = 60.0
-	tyrantArenaHalfSize = 10.5
-	tyrantArenaEntryZ   = 50.0
+	tyrantArenaCenterZ  = 55.0
+	tyrantArenaHalfSize = 17.5
+	tyrantArenaEntryZ   = 38.0
 )
 
 var tyrantCombatArenas = map[string]combatArena{
-	riftTyrantTargetID:   newTyrantCombatArena(-48),
+	riftTyrantTargetID:   newTyrantCombatArena(-52),
 	rangedTyrantTargetID: newTyrantCombatArena(0),
-	mageTyrantTargetID:   newTyrantCombatArena(48),
+	mageTyrantTargetID:   newTyrantCombatArena(52),
 }
 
 func newTyrantCombatArena(centerX float64) combatArena {

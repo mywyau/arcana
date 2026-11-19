@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -58,6 +59,17 @@ func TestWorldMovesThroughPathfinderWaypoints(t *testing.T) {
 	if got, want := len(player.Path), 1; got != want {
 		t.Fatalf("len(Player().Path) = %d, want %d", got, want)
 	}
+}
+
+func TestWorldApproachesBlockedMovementClick(t *testing.T) {
+	pathfinder := blockedClickPathfinder{approach: Position{X: 2.5}}
+	world := NewWorldWithPathfinder(pathfinder)
+	mustAddPlayer(t, world, "player-one", Position{}, 5)
+	mustQueueMove(t, world, "player-one", 1, Position{X: 3})
+
+	world.Step(time.Second)
+	player := mustPlayer(t, world, "player-one")
+	assertPosition(t, player.Position, pathfinder.approach)
 }
 
 func TestWorldUpdatesNavigationLocationWhileMoving(t *testing.T) {
@@ -394,6 +406,25 @@ func assertPosition(t *testing.T, got, want Position) {
 
 type fixedPathfinder struct {
 	path []Position
+}
+
+type blockedClickPathfinder struct {
+	approach Position
+}
+
+func (blockedClickPathfinder) FindPath(_, _ Position) ([]Position, error) {
+	return nil, fmt.Errorf("destination is blocked")
+}
+
+func (f blockedClickPathfinder) FindPathWithinRange(_, _ Position, maximumDistance float64) ([]Position, error) {
+	if maximumDistance != movementClickApproachRange {
+		return nil, fmt.Errorf("maximum distance = %.2f", maximumDistance)
+	}
+	return []Position{f.approach}, nil
+}
+
+func (blockedClickPathfinder) Locate(_ Position) (NavigationLocation, error) {
+	return NavigationLocation{Kind: NavigationLocationUnknown}, nil
 }
 
 func (f fixedPathfinder) FindPath(_, _ Position) ([]Position, error) {

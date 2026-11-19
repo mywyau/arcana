@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -87,6 +88,11 @@ const (
 	roamingEnemySpeed                    = 3.0
 	riftTyrantMovementSpeed              = DefaultPlayerMovementSpeed + 0.5
 	rangedTyrantMovementSpeed            = DefaultPlayerMovementSpeed + 0.75
+	rangedTyrantRepositionOffset         = 10.0
+	rangedTyrantDisengageHealFraction    = 0.10
+	rangedTyrantCenteringDistance        = 1.5
+	rangedTyrantWallEscapeDistance       = 5.0
+	movementClickApproachRange           = 1.25
 	mageTyrantMovementSpeed              = DefaultPlayerMovementSpeed + 0.5
 	roamingRepathPulses                  = 1
 	respawnDelayPulses                   = 5
@@ -113,7 +119,7 @@ const (
 	riftTyrantMaximumHealth              = 1100
 	riftTyrantAccuracyScore              = 48
 	riftTyrantEvasionScore               = 38
-	rangedTyrantMaximumHealth            = 1000
+	rangedTyrantMaximumHealth            = 5000
 	rangedTyrantAccuracyScore            = 52
 	rangedTyrantEvasionScore             = 42
 	mageTyrantMaximumHealth              = 950
@@ -357,6 +363,10 @@ type TargetSnapshot struct {
 	InfiniteHealth       bool
 	NonRetaliating       bool
 	attackSequence       uint64
+	piercingDirections   []Position
+	piercingShotIndex    int
+	arrowVolleyWave      int
+	stunnedUntilPulse    uint64
 }
 
 type combatState struct {
@@ -379,6 +389,7 @@ type roamingEnemyState struct {
 	path            []Position
 	speed           float64
 	nextRepathPulse uint64
+	repositionStep  uint64
 }
 
 type dummyTarget struct {
@@ -425,14 +436,13 @@ func newRoamingTarget(
 
 func newCombatState() *combatState {
 	hillWardenHome := Position{X: -12, Y: 2, Z: 10}
-	// Ground monsters form a north-side testing field. The bosses sit on a
-	// second, widely spaced row so their large detection areas do not overlap.
-	wildFowlHome := Position{X: -25, Z: 42}
-	cowHome := Position{X: -15, Z: 42}
-	dustWraithHome := Position{X: -5, Z: 42}
-	cinderImpHome := Position{X: 5, Z: 42}
-	tideWispHome := Position{X: 15, Z: 42}
-	thornlingHome := Position{X: 25, Z: 42}
+	// Ground monsters form a testing row south of the three boss arenas.
+	wildFowlHome := Position{X: -25, Z: 30}
+	cowHome := Position{X: -15, Z: 30}
+	dustWraithHome := Position{X: -5, Z: 30}
+	cinderImpHome := Position{X: 5, Z: 30}
+	tideWispHome := Position{X: 15, Z: 30}
+	thornlingHome := Position{X: 25, Z: 30}
 	riftTyrantHome := tyrantCombatArenas[riftTyrantTargetID].Center
 	rangedTyrantHome := tyrantCombatArenas[rangedTyrantTargetID].Center
 	mageTyrantHome := tyrantCombatArenas[mageTyrantTargetID].Center
@@ -883,6 +893,9 @@ func (w *World) expireTargetVulnerabilities() {
 		if target.dummy.VulnerableUntilPulse != 0 && w.combat.pulse > target.dummy.VulnerableUntilPulse {
 			target.dummy.VulnerableUntilPulse = 0
 		}
+		if target.dummy.stunnedUntilPulse != 0 && w.combat.pulse > target.dummy.stunnedUntilPulse {
+			target.dummy.stunnedUntilPulse = 0
+		}
 	}
 }
 
@@ -1123,6 +1136,8 @@ func (w *World) respawnDefeatedEntities() {
 				enemy.nextRepathPulse = 0
 			}
 			target.dummy.attackSequence = 0
+			target.dummy.stunnedUntilPulse = 0
+			target.dummy.VulnerableUntilPulse = 0
 			profile := combatProfileForEnemy(target.id)
 			target.dummy.AttackType = enemyAttackType(profile, 0)
 		}
@@ -1436,6 +1451,10 @@ func (w *World) updateRoamingEnemies() {
 		if enemy.target.Defeated {
 			continue
 		}
+		if enemy.target.stunnedUntilPulse >= w.combat.pulse && enemy.target.stunnedUntilPulse != 0 {
+			enemy.path = nil
+			continue
+		}
 
 		hadTarget := enemy.target.TargetID != ""
 		player, hasTarget := w.players[enemy.target.TargetID]
@@ -1446,6 +1465,7 @@ func (w *World) updateRoamingEnemies() {
 		if hadTarget && (!hasTarget || player.defeated || outsideArena || distance(player.position, enemy.home) > profile.LeashRange) {
 			clearDummyTarget(enemy.target)
 			enemy.path = nil
+			enemy.repositionStep = 0
 			hasTarget = false
 		}
 		if !hasTarget {
@@ -1458,7 +1478,30 @@ func (w *World) updateRoamingEnemies() {
 		}
 
 		if hasTarget {
+			if enemy.target.TelegraphType != "" &&
+				!(id == rangedTyrantTargetID && enemy.target.TelegraphType == "heavy_strike") {
+				enemy.path = nil
+				continue
+			}
+			if id == rangedTyrantTargetID && nextAttackIsPiercingVolley(enemy.target, profile) {
+				arena := tyrantCombatArenas[rangedTyrantTargetID]
+				if distance(enemy.target.Position, arena.Center) > rangedTyrantCenteringDistance {
+					if len(enemy.path) == 0 || enemy.path[len(enemy.path)-1] != arena.Center {
+						_ = w.setRoamingPath(enemy, arena.Center)
+					}
+					if w.combat.pulse >= enemy.target.NextAttackPulse {
+						enemy.target.NextAttackPulse = w.combat.pulse + 1
+					}
+				} else {
+					enemy.path = nil
+				}
+				continue
+			}
 			if distance(enemy.target.Position, player.position) <= profile.AttackRange {
+				if id == rangedTyrantTargetID && w.combat.pulse < enemy.target.NextAttackPulse {
+					w.setRangedTyrantRepositionPath(enemy, player.position)
+					continue
+				}
 				enemy.path = nil
 				continue
 			}
@@ -1474,8 +1517,87 @@ func (w *World) updateRoamingEnemies() {
 			continue
 		}
 
+		w.healDisengagedRangedTyrant(id, enemy)
 		w.setRoamingReturnPath(enemy)
 	}
+}
+
+func (w *World) setRangedTyrantRepositionPath(enemy *roamingEnemyState, playerPosition Position) {
+	if len(enemy.path) > 0 {
+		return
+	}
+	arena, exists := combatArenaForTarget(rangedTyrantTargetID)
+	if !exists {
+		return
+	}
+	const orbitPoints = 6
+	orbit := make([]Position, 0, orbitPoints)
+	for index := 0; index < orbitPoints; index++ {
+		angle := float64(index) * 2 * math.Pi / orbitPoints
+		orbit = append(orbit, Position{
+			X: arena.Center.X + math.Sin(angle)*rangedTyrantRepositionOffset,
+			Z: arena.Center.Z + math.Cos(angle)*rangedTyrantRepositionOffset,
+		})
+	}
+	distanceToWall := min(
+		enemy.target.Position.X-arena.MinimumX,
+		arena.MaximumX-enemy.target.Position.X,
+		enemy.target.Position.Z-arena.MinimumZ,
+		arena.MaximumZ-enemy.target.Position.Z,
+	)
+	if distanceToWall < rangedTyrantWallEscapeDistance {
+		_ = w.setRoamingPath(enemy, arena.Center)
+		return
+	}
+
+	startIndex := int(enemy.repositionStep % uint64(len(orbit)))
+	if enemy.repositionStep == 0 {
+		farthestDistance := -1.0
+		for index, candidate := range orbit {
+			candidateDistance := distance(candidate, playerPosition)
+			if candidateDistance > farthestDistance {
+				startIndex = index
+				farthestDistance = candidateDistance
+			}
+		}
+	}
+	for offset := 0; offset < len(orbit); offset++ {
+		index := (startIndex + offset) % len(orbit)
+		destination := orbit[index]
+		if distance(enemy.target.Position, destination) < 1 {
+			continue
+		}
+		if err := w.setRoamingPath(enemy, destination); err == nil {
+			enemy.repositionStep = uint64((index + 1) % len(orbit))
+			if enemy.repositionStep == 0 {
+				enemy.repositionStep = uint64(len(orbit))
+			}
+			return
+		}
+	}
+}
+
+func (w *World) healDisengagedRangedTyrant(id string, enemy *roamingEnemyState) {
+	if id != rangedTyrantTargetID || enemy.target.Health >= enemy.target.MaximumHealth {
+		return
+	}
+	healAmount := int(math.Ceil(float64(enemy.target.MaximumHealth) * rangedTyrantDisengageHealFraction))
+	enemy.target.Health = min(enemy.target.MaximumHealth, enemy.target.Health+healAmount)
+}
+
+func nextAttackIsPiercingVolley(target *TargetSnapshot, profile enemyCombatProfile) bool {
+	return nextAttackMatchesCycle(
+		target.attackSequence+1,
+		profile.PiercingVolley.CycleAttacks,
+		profile.PiercingVolley.TriggerAttack,
+	)
+}
+
+func nextAttackMatchesCycle(attack, cycle, trigger uint64) bool {
+	if attack == 0 || cycle == 0 || trigger == 0 || trigger > cycle {
+		return false
+	}
+	return (attack-1)%cycle+1 == trigger
 }
 
 func (w *World) nearestDetectablePlayer(enemyID string, enemy *roamingEnemyState) *playerState {
@@ -1536,6 +1658,9 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	}
 	distanceToPlayer := distance(dummy.Position, player.position)
 	profile := combatProfileForEnemy(dummyID)
+	if dummy.stunnedUntilPulse >= w.combat.pulse && dummy.stunnedUntilPulse != 0 {
+		return
+	}
 	_, roaming := w.combat.roamingEnemies[dummyID]
 	if (!roaming && distanceToPlayer > profile.LeashRange) ||
 		(roaming && distance(player.position, w.combat.roamingEnemies[dummyID].home) > profile.LeashRange) {
@@ -1546,16 +1671,31 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		if w.combat.pulse < dummy.TelegraphImpactPulse {
 			return
 		}
-		w.resolveHeavyStrike(dummyID, dummy, profile)
+		if strings.HasPrefix(dummy.TelegraphType, "arrow_volley_") {
+			w.resolveArrowVolleyWave(dummyID, dummy, profile)
+		} else if dummy.TelegraphType == "piercing_shot" {
+			w.resolvePiercingShot(dummyID, dummy, profile)
+		} else {
+			w.resolveHeavyStrike(dummyID, dummy, profile)
+		}
 		return
 	}
-	if distanceToPlayer > profile.AttackRange || w.combat.pulse < dummy.NextAttackPulse {
+	piercingVolleyReady := nextAttackIsPiercingVolley(dummy, profile)
+	if (distanceToPlayer > profile.AttackRange && !piercingVolleyReady) || w.combat.pulse < dummy.NextAttackPulse {
 		return
 	}
 
 	damageType := enemyAttackType(profile, dummy.attackSequence)
 	dummy.attackSequence++
 	dummy.AttackType = damageType
+	if nextAttackMatchesCycle(dummy.attackSequence, profile.ArrowVolley.CycleAttacks, profile.ArrowVolley.TriggerAttack) {
+		w.startArrowVolley(dummy, player, profile.ArrowVolley)
+		return
+	}
+	if nextAttackMatchesCycle(dummy.attackSequence, profile.PiercingVolley.CycleAttacks, profile.PiercingVolley.TriggerAttack) {
+		w.startPiercingVolley(dummy, player, profile.PiercingVolley)
+		return
+	}
 	if profile.HeavyStrike.EveryAttacks > 0 &&
 		dummy.attackSequence%profile.HeavyStrike.EveryAttacks == 0 {
 		dummy.TelegraphType = "heavy_strike"
@@ -1603,13 +1743,181 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	}
 }
 
+func (w *World) startArrowVolley(dummy *TargetSnapshot, player *playerState, volley arrowVolleyProfile) {
+	dummy.arrowVolleyWave = 0
+	w.telegraphArrowVolleyWave(dummy, player.position, volley, volley.WindupPulses)
+}
+
+func (w *World) telegraphArrowVolleyWave(
+	dummy *TargetSnapshot,
+	center Position,
+	volley arrowVolleyProfile,
+	delay uint64,
+) {
+	dummy.TelegraphType = fmt.Sprintf("arrow_volley_%d", dummy.arrowVolleyWave+1)
+	dummy.TelegraphPosition = center
+	dummy.TelegraphRadius = volley.Radius
+	dummy.TelegraphImpactPulse = w.combat.pulse + delay
+	dummy.NextAttackPulse = dummy.TelegraphImpactPulse
+}
+
+// arrowVolleyPositions is mirrored by TargetDummy._arrow_volley_offsets.
+func arrowVolleyPositions(center Position, wave int) []Position {
+	patterns := [][]Position{
+		{{}, {X: -4.8, Z: -2}, {X: 3.9, Z: -3.4}, {X: -2.2, Z: 4.6}, {X: 5.2, Z: 2.1}, {X: -6, Z: 3}, {X: 1.5, Z: 6.2}, {X: 6.5, Z: -0.8}, {X: -1, Z: -6}},
+		{{}, {X: -5.5, Z: -1}, {X: 2.8, Z: -5}, {X: -3.8, Z: 4.2}, {X: 5.8, Z: 3.4}, {X: -6.2, Z: -4}, {X: 0.8, Z: 6.5}, {X: 6, Z: -2.5}, {X: -1.5, Z: 2.8}},
+		{{}, {X: -4.2, Z: -4.8}, {X: 4.9, Z: -2}, {X: -5.8, Z: 1.7}, {X: 3.2, Z: 5.5}, {X: -1.2, Z: 6.7}, {X: 6.5, Z: 1.2}, {X: 1.1, Z: -6.4}, {X: -2.7, Z: 3.2}},
+	}
+	pattern := patterns[wave%len(patterns)]
+	positions := make([]Position, 0, len(pattern))
+	for _, offset := range pattern {
+		positions = append(positions, Position{
+			X: center.X + offset.X,
+			Y: center.Y,
+			Z: center.Z + offset.Z,
+		})
+	}
+	return positions
+}
+
+func (w *World) resolveArrowVolleyWave(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
+	volley := profile.ArrowVolley
+	centers := arrowVolleyPositions(dummy.TelegraphPosition, dummy.arrowVolleyWave)
+	for _, player := range w.players {
+		if player.defeated {
+			continue
+		}
+		if arena, enclosed := combatArenaForTarget(dummyID); enclosed && !arena.contains(player.position) {
+			continue
+		}
+		hit := false
+		for _, center := range centers {
+			if distance(player.position, center) <= volley.Radius {
+				hit = true
+				break
+			}
+		}
+		if !hit {
+			continue
+		}
+		damage := int(math.Round(float64(profile.AttackDamage) * volley.DamageMultiplier))
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		player.health = max(0, player.health-damageDealt)
+		triggerEmergencyPrayer(player)
+		w.combat.recordEvent(CombatEvent{
+			Pulse: w.combat.pulse, Type: CombatEventDamage,
+			SourceID: dummyID, TargetID: string(player.id), Amount: damageDealt,
+		})
+		if player.health == 0 {
+			w.defeatPlayer(player)
+		}
+	}
+
+	dummy.arrowVolleyWave++
+	if dummy.arrowVolleyWave < volley.Waves && dummy.TargetID != "" {
+		if target, exists := w.players[dummy.TargetID]; exists && !target.defeated {
+			w.telegraphArrowVolleyWave(dummy, target.position, volley, volley.BetweenPulses)
+			return
+		}
+	}
+	clearTargetTelegraph(dummy)
+	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
+}
+
+func (w *World) startPiercingVolley(dummy *TargetSnapshot, player *playerState, volley piercingVolleyProfile) {
+	deltaX := player.position.X - dummy.Position.X
+	deltaZ := player.position.Z - dummy.Position.Z
+	length := math.Hypot(deltaX, deltaZ)
+	if length < 0.01 {
+		deltaZ = 1
+		length = 1
+	}
+	baseX := deltaX / length
+	baseZ := deltaZ / length
+	dummy.piercingDirections = make([]Position, 0, volley.Shots)
+	for index := 0; index < volley.Shots; index++ {
+		spread := float64(index-(volley.Shots-1)/2) * volley.SpreadRadians
+		cosine, sine := math.Cos(spread), math.Sin(spread)
+		dummy.piercingDirections = append(dummy.piercingDirections, Position{
+			X: baseX*cosine - baseZ*sine,
+			Z: baseX*sine + baseZ*cosine,
+		})
+	}
+	dummy.piercingShotIndex = 0
+	w.telegraphPiercingShot(dummy, volley, volley.WindupPulses)
+}
+
+func (w *World) telegraphPiercingShot(dummy *TargetSnapshot, volley piercingVolleyProfile, delay uint64) {
+	direction := dummy.piercingDirections[dummy.piercingShotIndex]
+	dummy.TelegraphType = "piercing_shot"
+	dummy.TelegraphPosition = Position{
+		X: dummy.Position.X + direction.X*volley.Length,
+		Y: dummy.Position.Y,
+		Z: dummy.Position.Z + direction.Z*volley.Length,
+	}
+	dummy.TelegraphRadius = volley.Width
+	dummy.TelegraphImpactPulse = w.combat.pulse + delay
+	dummy.NextAttackPulse = dummy.TelegraphImpactPulse
+}
+
+func (w *World) resolvePiercingShot(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
+	volley := profile.PiercingVolley
+	direction := dummy.piercingDirections[dummy.piercingShotIndex]
+	for _, player := range w.players {
+		if player.defeated {
+			continue
+		}
+		relativeX := player.position.X - dummy.Position.X
+		relativeZ := player.position.Z - dummy.Position.Z
+		forward := relativeX*direction.X + relativeZ*direction.Z
+		sideways := math.Abs(relativeX*direction.Z - relativeZ*direction.X)
+		if forward < 0 || forward > volley.Length || sideways > volley.Width/2 {
+			continue
+		}
+		if arena, enclosed := combatArenaForTarget(dummyID); enclosed && !arena.contains(player.position) {
+			continue
+		}
+		damage := int(math.Round(float64(profile.AttackDamage) * volley.DamageMultiplier))
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		player.health = max(0, player.health-damageDealt)
+		triggerEmergencyPrayer(player)
+		w.combat.recordEvent(CombatEvent{
+			Pulse: w.combat.pulse, Type: CombatEventDamage,
+			SourceID: dummyID, TargetID: string(player.id), Amount: damageDealt,
+		})
+		if player.health == 0 {
+			w.defeatPlayer(player)
+		}
+	}
+
+	dummy.piercingShotIndex++
+	if dummy.piercingShotIndex < len(dummy.piercingDirections) && dummy.TargetID != "" {
+		w.telegraphPiercingShot(dummy, volley, volley.BetweenPulses)
+		return
+	}
+	dummy.piercingDirections = nil
+	dummy.piercingShotIndex = 0
+	clearTargetTelegraph(dummy)
+	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
+}
+
 func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
 	position := dummy.TelegraphPosition
 	radius := dummy.TelegraphRadius
 	damageType := dummy.AttackType
 	clearTargetTelegraph(dummy)
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
-	dummy.VulnerableUntilPulse = w.combat.pulse + profile.HeavyStrike.VulnerabilityPulses
+	if dummyID == rangedTyrantTargetID {
+		if distance(dummy.Position, position) <= radius {
+			dummy.VulnerableUntilPulse = w.combat.pulse + profile.HeavyStrike.VulnerabilityPulses
+			dummy.stunnedUntilPulse = dummy.VulnerableUntilPulse
+		} else {
+			dummy.VulnerableUntilPulse = 0
+			dummy.stunnedUntilPulse = 0
+		}
+	} else {
+		dummy.VulnerableUntilPulse = w.combat.pulse + profile.HeavyStrike.VulnerabilityPulses
+	}
 
 	playerIDs := make([]PlayerID, 0, len(w.players))
 	for id := range w.players {
@@ -1672,6 +1980,7 @@ func (w *World) defeatDummy(dummyID string, dummy *TargetSnapshot) {
 	dummy.Defeated = true
 	dummy.RespawnAtPulse = w.combat.pulse + respawnDelayPulses
 	dummy.VulnerableUntilPulse = 0
+	dummy.stunnedUntilPulse = 0
 	clearDummyTarget(dummy)
 	if enemy, roaming := w.combat.roamingEnemies[dummyID]; roaming {
 		enemy.path = nil
@@ -1706,6 +2015,11 @@ func clearTargetTelegraph(dummy *TargetSnapshot) {
 	dummy.TelegraphPosition = Position{}
 	dummy.TelegraphRadius = 0
 	dummy.TelegraphImpactPulse = 0
+	if dummy.TelegraphType == "" {
+		dummy.piercingDirections = nil
+		dummy.piercingShotIndex = 0
+		dummy.arrowVolleyWave = 0
+	}
 }
 
 func (combat *combatState) recordEvent(event CombatEvent) {

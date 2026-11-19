@@ -1,6 +1,9 @@
 package simulation
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestTyrantArenaOnlyDetectsPlayersInsideItsBounds(t *testing.T) {
 	world := NewWorld()
@@ -53,10 +56,21 @@ func TestTyrantArenasAreDistinctAndContainTheirHomes(t *testing.T) {
 		if !arena.contains(arena.Center) || !arena.contains(arena.Entrance) {
 			t.Fatalf("arena %q does not contain center or entrance: %+v", targetID, arena)
 		}
+		if arena.MaximumX-arena.MinimumX != 35 || arena.MaximumZ-arena.MinimumZ != 35 {
+			t.Fatalf("arena %q dimensions = %.1fx%.1f, want 35x35", targetID, arena.MaximumX-arena.MinimumX, arena.MaximumZ-arena.MinimumZ)
+		}
 		if centers[arena.Center] {
 			t.Fatalf("arena %q shares center %+v", targetID, arena.Center)
 		}
 		centers[arena.Center] = true
+		profile := combatProfileForEnemy(targetID)
+		cornerDistance := math.Hypot(arena.MaximumX-arena.Center.X, arena.MaximumZ-arena.Center.Z)
+		if profile.DetectionRange < cornerDistance || profile.LeashRange < cornerDistance {
+			t.Fatalf(
+				"arena %q corner distance %.2f exceeds detection %.2f or leash %.2f",
+				targetID, cornerDistance, profile.DetectionRange, profile.LeashRange,
+			)
+		}
 	}
 	if len(centers) != 3 {
 		t.Fatalf("distinct arena centers = %d, want 3", len(centers))

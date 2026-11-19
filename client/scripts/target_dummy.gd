@@ -32,6 +32,10 @@ var _target_kind: String = "dummy"
 var _rest_attack_scale: Vector3 = Vector3.ONE
 var _telegraph_mesh: MeshInstance3D
 var _telegraph_material: StandardMaterial3D
+var _telegraph_disc: CylinderMesh
+var _telegraph_line: BoxMesh
+var _arrow_volley_meshes: Array[MeshInstance3D] = []
+var _telegraph_active: bool = false
 var _telegraph_time: float = 0.0
 var _vulnerable_until_pulse: int = 0
 var _vulnerability_time_remaining: float = 0.0
@@ -46,7 +50,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _telegraph_mesh != null and _telegraph_mesh.visible:
+	if _telegraph_active:
 		_telegraph_time += delta
 		var pulse: float = 0.58 + sin(_telegraph_time * 8.0) * 0.18
 		_telegraph_material.albedo_color = Color(1.0, 0.12, 0.08, pulse)
@@ -68,21 +72,32 @@ func _process(delta: float) -> void:
 func _create_telegraph_visual() -> void:
 	_telegraph_mesh = MeshInstance3D.new()
 	_telegraph_mesh.name = "AttackTelegraph"
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.0
-	disc.bottom_radius = 1.0
-	disc.height = 0.035
-	disc.radial_segments = 64
+	_telegraph_disc = CylinderMesh.new()
+	_telegraph_disc.top_radius = 1.0
+	_telegraph_disc.bottom_radius = 1.0
+	_telegraph_disc.height = 0.035
+	_telegraph_disc.radial_segments = 64
+	_telegraph_line = BoxMesh.new()
 	_telegraph_material = StandardMaterial3D.new()
 	_telegraph_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_telegraph_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_telegraph_material.albedo_color = Color(1.0, 0.12, 0.08, 0.65)
-	disc.material = _telegraph_material
-	_telegraph_mesh.mesh = disc
+	_telegraph_disc.material = _telegraph_material
+	_telegraph_line.material = _telegraph_material
+	_telegraph_mesh.mesh = _telegraph_disc
 	_telegraph_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_telegraph_mesh)
 	_telegraph_mesh.top_level = true
 	_telegraph_mesh.visible = false
+	for index in range(9):
+		var circle := MeshInstance3D.new()
+		circle.name = "ArrowVolleyCircle%d" % index
+		circle.mesh = _telegraph_disc
+		circle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(circle)
+		circle.top_level = true
+		circle.visible = false
+		_arrow_volley_meshes.append(circle)
 
 
 func set_attack_telegraph(
@@ -92,13 +107,55 @@ func set_attack_telegraph(
 ) -> void:
 	if _telegraph_mesh == null:
 		return
-	var active: bool = telegraph_type == "heavy_strike" and radius > 0.0
-	_telegraph_mesh.visible = active
+	var arrow_volley: bool = telegraph_type.begins_with("arrow_volley_")
+	var active: bool = (
+		telegraph_type in ["heavy_strike", "piercing_shot"] or arrow_volley
+	) and radius > 0.0
+	_telegraph_active = active
+	_telegraph_mesh.visible = active and not arrow_volley
+	for circle in _arrow_volley_meshes:
+		circle.visible = false
 	if not active:
 		_telegraph_time = 0.0
 		return
-	_telegraph_mesh.global_position = telegraph_position + Vector3(0.0, 0.05, 0.0)
-	_telegraph_mesh.scale = Vector3(radius, 1.0, radius)
+	_telegraph_mesh.rotation = Vector3.ZERO
+	if arrow_volley:
+		var wave := maxi(0, int(telegraph_type.trim_prefix("arrow_volley_")) - 1)
+		var offsets := _arrow_volley_offsets(wave)
+		for index in range(mini(offsets.size(), _arrow_volley_meshes.size())):
+			var circle := _arrow_volley_meshes[index]
+			circle.global_position = telegraph_position + offsets[index] + Vector3(0.0, 0.05, 0.0)
+			circle.scale = Vector3(radius, 1.0, radius)
+			circle.visible = true
+	elif telegraph_type == "piercing_shot":
+		var start := global_position
+		var offset := telegraph_position - start
+		var length := Vector2(offset.x, offset.z).length()
+		if length <= 0.01:
+			_telegraph_mesh.visible = false
+			return
+		_telegraph_line.size = Vector3(radius, 0.035, length)
+		_telegraph_mesh.mesh = _telegraph_line
+		_telegraph_mesh.global_position = (start + telegraph_position) * 0.5 + Vector3(0.0, 0.05, 0.0)
+		_telegraph_mesh.rotation.y = atan2(offset.x, offset.z)
+		_telegraph_mesh.scale = Vector3.ONE
+	else:
+		_telegraph_mesh.mesh = _telegraph_disc
+		_telegraph_mesh.global_position = telegraph_position + Vector3(0.0, 0.05, 0.0)
+		_telegraph_mesh.scale = Vector3(radius, 1.0, radius)
+
+
+# Mirrors server arrowVolleyPositions so each snapshot only needs the wave ID.
+func _arrow_volley_offsets(wave: int) -> Array[Vector3]:
+	var patterns: Array[Array] = [
+		[Vector3.ZERO, Vector3(-4.8, 0, -2), Vector3(3.9, 0, -3.4), Vector3(-2.2, 0, 4.6), Vector3(5.2, 0, 2.1), Vector3(-6, 0, 3), Vector3(1.5, 0, 6.2), Vector3(6.5, 0, -0.8), Vector3(-1, 0, -6)],
+		[Vector3.ZERO, Vector3(-5.5, 0, -1), Vector3(2.8, 0, -5), Vector3(-3.8, 0, 4.2), Vector3(5.8, 0, 3.4), Vector3(-6.2, 0, -4), Vector3(0.8, 0, 6.5), Vector3(6, 0, -2.5), Vector3(-1.5, 0, 2.8)],
+		[Vector3.ZERO, Vector3(-4.2, 0, -4.8), Vector3(4.9, 0, -2), Vector3(-5.8, 0, 1.7), Vector3(3.2, 0, 5.5), Vector3(-1.2, 0, 6.7), Vector3(6.5, 0, 1.2), Vector3(1.1, 0, -6.4), Vector3(-2.7, 0, 3.2)],
+	]
+	var offsets: Array[Vector3] = []
+	for offset: Vector3 in patterns[wave % patterns.size()]:
+		offsets.append(offset)
+	return offsets
 
 
 func set_vulnerable_until(until_pulse: int, current_pulse: int) -> void:

@@ -100,13 +100,13 @@ func NewPrototypeMap() *LayeredMap {
 // out while bosses remain constrained by their server-side encounter bounds.
 func prototypeTyrantArenaObstacles() []Obstacle {
 	const (
-		centerZ       = 60.0
-		outerHalfSize = 11.5
-		innerHalfSize = 10.5
-		entranceHalf  = 3.0
+		centerZ       = 55.0
+		outerHalfSize = 18.5
+		innerHalfSize = 17.5
+		entranceHalf  = 4.0
 	)
 	obstacles := make([]Obstacle, 0, 15)
-	for _, centerX := range []float64{-48, 0, 48} {
+	for _, centerX := range []float64{-52, 0, 52} {
 		obstacles = append(obstacles,
 			Obstacle{LayerID: "ground", MinimumX: centerX - outerHalfSize, MaximumX: centerX + outerHalfSize, MinimumZ: centerZ + innerHalfSize, MaximumZ: centerZ + outerHalfSize},
 			Obstacle{LayerID: "ground", MinimumX: centerX - outerHalfSize, MaximumX: centerX - innerHalfSize, MinimumZ: centerZ - outerHalfSize, MaximumZ: centerZ + outerHalfSize},
@@ -193,7 +193,11 @@ func (m *LayeredMap) FindPathWithinRange(
 	}
 	targetLayer, err := m.layerAt(target)
 	if err != nil {
-		return nil, fmt.Errorf("target: %w", err)
+		targetLayer, err = m.nearestLayerAtHorizontalPosition(target)
+		if err != nil {
+			return nil, fmt.Errorf("target: %w", err)
+		}
+		target.Y = targetLayer.surfaceHeight(target.X, target.Z)
 	}
 
 	if startLayer, startErr := m.layerAt(start); startErr == nil && startLayer.ID == targetLayer.ID {
@@ -543,6 +547,26 @@ func (m *LayeredMap) layerAt(position simulation.Position) (Layer, error) {
 		}
 	}
 	return Layer{}, fmt.Errorf("position %+v is not on a walkable layer", position)
+}
+
+func (m *LayeredMap) nearestLayerAtHorizontalPosition(position simulation.Position) (Layer, error) {
+	var nearest Layer
+	nearestDistance := math.Inf(1)
+	for _, layer := range m.layers {
+		if position.X < layer.MinimumX || position.X > layer.MaximumX ||
+			position.Z < layer.MinimumZ || position.Z > layer.MaximumZ {
+			continue
+		}
+		distance := math.Abs(position.Y - layer.surfaceHeight(position.X, position.Z))
+		if distance < nearestDistance {
+			nearest = layer
+			nearestDistance = distance
+		}
+	}
+	if math.IsInf(nearestDistance, 1) {
+		return Layer{}, fmt.Errorf("position %+v is outside every navigation layer", position)
+	}
+	return nearest, nil
 }
 
 type gridCell struct {

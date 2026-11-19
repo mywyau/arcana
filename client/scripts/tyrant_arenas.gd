@@ -3,19 +3,20 @@ extends Node3D
 
 # These dimensions mirror prototypeTyrantArenaObstacles in the Go navigation
 # map. Keep both definitions aligned until world geometry becomes data-driven.
-const CENTER_Z := 60.0
+const CENTER_Z := 55.0
 const WALL_HEIGHT := 2.6
 const WALL_THICKNESS := 1.0
-const OUTER_SIZE := 23.0
-const INNER_SIZE := 21.0
-const ENTRANCE_WIDTH := 6.0
+const OUTER_SIZE := 37.0
+const INNER_SIZE := 35.0
+const ENTRANCE_WIDTH := 8.0
 const SOUTH_SEGMENT_LENGTH := (OUTER_SIZE - ENTRANCE_WIDTH) * 0.5
+const WALL_CENTER_OFFSET := INNER_SIZE * 0.5 + WALL_THICKNESS * 0.5
 
 const ARENAS: Array[Dictionary] = [
 	{
 		"name": "RiftTyrantArena",
 		"title": "RIFT TYRANT",
-		"center_x": -48.0,
+		"center_x": -52.0,
 		"wall_color": Color("6f435f"),
 		"floor_color": Color("403345"),
 	},
@@ -29,7 +30,7 @@ const ARENAS: Array[Dictionary] = [
 	{
 		"name": "MageTyrantArena",
 		"title": "MAGE TYRANT",
-		"center_x": 48.0,
+		"center_x": 52.0,
 		"wall_color": Color("4d5279"),
 		"floor_color": Color("343650"),
 	},
@@ -51,26 +52,26 @@ func _build_arena(definition: Dictionary) -> void:
 
 	_add_floor(arena, Vector3(center_x, 0.025, CENTER_Z), floor_material)
 	_add_wall(
-		arena, "NorthWall", Vector3(center_x, WALL_HEIGHT * 0.5, CENTER_Z + INNER_SIZE * 0.5),
+		arena, "NorthWall", Vector3(center_x, WALL_HEIGHT * 0.5, CENTER_Z + WALL_CENTER_OFFSET),
 		Vector3(OUTER_SIZE, WALL_HEIGHT, WALL_THICKNESS), wall_material,
 	)
 	_add_wall(
-		arena, "WestWall", Vector3(center_x - INNER_SIZE * 0.5, WALL_HEIGHT * 0.5, CENTER_Z),
+		arena, "WestWall", Vector3(center_x - WALL_CENTER_OFFSET, WALL_HEIGHT * 0.5, CENTER_Z),
 		Vector3(WALL_THICKNESS, WALL_HEIGHT, OUTER_SIZE), wall_material,
 	)
 	_add_wall(
-		arena, "EastWall", Vector3(center_x + INNER_SIZE * 0.5, WALL_HEIGHT * 0.5, CENTER_Z),
+		arena, "EastWall", Vector3(center_x + WALL_CENTER_OFFSET, WALL_HEIGHT * 0.5, CENTER_Z),
 		Vector3(WALL_THICKNESS, WALL_HEIGHT, OUTER_SIZE), wall_material,
 	)
 	var south_segment_offset := ENTRANCE_WIDTH * 0.5 + SOUTH_SEGMENT_LENGTH * 0.5
 	_add_wall(
 		arena, "SouthWestWall",
-		Vector3(center_x - south_segment_offset, WALL_HEIGHT * 0.5, CENTER_Z - INNER_SIZE * 0.5),
+		Vector3(center_x - south_segment_offset, WALL_HEIGHT * 0.5, CENTER_Z - WALL_CENTER_OFFSET),
 		Vector3(SOUTH_SEGMENT_LENGTH, WALL_HEIGHT, WALL_THICKNESS), wall_material,
 	)
 	_add_wall(
 		arena, "SouthEastWall",
-		Vector3(center_x + south_segment_offset, WALL_HEIGHT * 0.5, CENTER_Z - INNER_SIZE * 0.5),
+		Vector3(center_x + south_segment_offset, WALL_HEIGHT * 0.5, CENTER_Z - WALL_CENTER_OFFSET),
 		Vector3(SOUTH_SEGMENT_LENGTH, WALL_HEIGHT, WALL_THICKNESS), wall_material,
 	)
 	_add_title(arena, str(definition["title"]), Vector3(center_x, 3.15, CENTER_Z - 10.65))

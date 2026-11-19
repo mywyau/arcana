@@ -585,12 +585,22 @@ func (w *World) QueueMove(command MoveCommand) error {
 		var err error
 		path, err = w.pathfinder.FindPath(player.position, command.Destination)
 		if err != nil {
-			return fmt.Errorf("find path: %w", err)
+			path, err = w.pathfinder.FindPathWithinRange(
+				player.position,
+				command.Destination,
+				movementClickApproachRange,
+			)
+			if err != nil {
+				return fmt.Errorf("find path: %w", err)
+			}
 		}
 	}
 	if len(path) == 0 {
 		return fmt.Errorf("find path: empty path")
 	}
+	// A click may land on solid geometry. In that case the range path ends at
+	// the closest reachable point, which becomes the authoritative destination.
+	command.Destination = path[len(path)-1]
 
 	w.pendingMoves[command.PlayerID] = pendingMove{command: command, path: clonePositions(path)}
 	delete(w.pendingPickups, command.PlayerID)
@@ -695,8 +705,13 @@ func (w *World) moveRoamingEnemies(seconds float64) {
 		if enemy.target.Defeated || len(enemy.path) == 0 {
 			continue
 		}
+		if enemy.target.stunnedUntilPulse >= w.combat.pulse && enemy.target.stunnedUntilPulse != 0 {
+			enemy.path = nil
+			continue
+		}
 		if player, exists := w.players[enemy.target.TargetID]; exists &&
-			distance(enemy.target.Position, player.position) <= combatProfileForEnemy(id).AttackRange {
+			distance(enemy.target.Position, player.position) <= combatProfileForEnemy(id).AttackRange &&
+			(id != rangedTyrantTargetID || w.combat.pulse >= enemy.target.NextAttackPulse) {
 			enemy.path = nil
 			continue
 		}

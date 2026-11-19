@@ -301,8 +301,8 @@ func TestPrototypeMapRoutesAroundInflatedObstacle(t *testing.T) {
 
 func TestPrototypeMapTyrantArenaHasWalkableEntranceAndSolidWalls(t *testing.T) {
 	world := NewPrototypeMap()
-	start := simulation.Position{X: -48, Z: 45}
-	center := simulation.Position{X: -48, Z: 60}
+	start := simulation.Position{X: -52, Z: 32}
+	center := simulation.Position{X: -52, Z: 55}
 	path, err := world.FindPath(start, center)
 	if err != nil {
 		t.Fatalf("FindPath() through Tyrant arena entrance returned %v", err)
@@ -312,13 +312,34 @@ func TestPrototypeMapTyrantArenaHasWalkableEntranceAndSolidWalls(t *testing.T) {
 	}
 
 	for _, blocked := range []simulation.Position{
-		{X: -48, Z: 71},
-		{X: -59, Z: 60},
-		{X: -55, Z: 49},
+		{X: -52, Z: 73},
+		{X: -70, Z: 55},
+		{X: -62, Z: 37},
 	} {
 		if _, err := world.FindPath(start, blocked); err == nil {
 			t.Fatalf("FindPath() accepted arena wall destination %+v", blocked)
 		}
+	}
+}
+
+func TestPrototypeMapCanApproachClickedArenaWallWithoutCrossingIt(t *testing.T) {
+	world := NewPrototypeMap()
+	start := simulation.Position{X: -52, Z: 55}
+	// Physics clicks land partway up the wall rather than on the ground plane.
+	clickedWall := simulation.Position{X: -70, Y: 1.3, Z: 55}
+	path, err := world.FindPathWithinRange(start, clickedWall, 1.25)
+	if err != nil {
+		t.Fatalf("FindPathWithinRange() to clicked arena wall returned %v", err)
+	}
+	if len(path) == 0 {
+		t.Fatal("FindPathWithinRange() returned an empty wall-approach path")
+	}
+	destination := path[len(path)-1]
+	if destination.X <= -69.5 {
+		t.Fatalf("wall approach crossed or entered the western wall: %+v", destination)
+	}
+	if distance := math.Hypot(destination.X-clickedWall.X, destination.Z-clickedWall.Z); distance > 1.25 {
+		t.Fatalf("wall approach ended %.2f units from click, want at most 1.25", distance)
 	}
 }
 
