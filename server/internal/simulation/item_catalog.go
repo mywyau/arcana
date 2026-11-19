@@ -172,6 +172,12 @@ const (
 	AmmunitionFamilyArrow = "arrow"
 	AmmunitionFamilyBolt  = "bolt"
 
+	bronzeAmmoStrength     = 1
+	ironAmmoStrength       = 3
+	steelAmmoStrength      = 5
+	mithrilAmmoStrength    = 7
+	adamantiteAmmoStrength = 9
+
 	bronzeEquipmentLevel     = 1
 	ironEquipmentLevel       = 5
 	steelEquipmentLevel      = 10
@@ -607,16 +613,16 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemAmethyst, Name: "Amethyst", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemUncutOnyx, Name: "Uncut Onyx", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemOnyx, Name: "Onyx", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemBronzeArrow, Name: "Bronze Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: -1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
-	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
-	{ID: ItemSteelArrow, Name: "Steel Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
-	{ID: ItemMithrilArrow, Name: "Mithril Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 2, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
-	{ID: ItemAdamantiteArrow, Name: "Adamantite Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 3, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
-	{ID: ItemBronzeBolt, Name: "Bronze Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: -1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
-	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
-	{ID: ItemSteelBolt, Name: "Steel Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
-	{ID: ItemMithrilBolt, Name: "Mithril Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 2, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
-	{ID: ItemAdamantiteBolt, Name: "Adamantite Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: 3, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
+	{ID: ItemBronzeArrow, Name: "Bronze Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: bronzeAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
+	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: ironAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
+	{ID: ItemSteelArrow, Name: "Steel Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: steelAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
+	{ID: ItemMithrilArrow, Name: "Mithril Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: mithrilAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
+	{ID: ItemAdamantiteArrow, Name: "Adamantite Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: adamantiteAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
+	{ID: ItemBronzeBolt, Name: "Bronze Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: bronzeAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
+	{ID: ItemIronBolt, Name: "Iron Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: ironAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
+	{ID: ItemSteelBolt, Name: "Steel Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: steelAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
+	{ID: ItemMithrilBolt, Name: "Mithril Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: mithrilAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: mithrilEquipmentLevel}}},
+	{ID: ItemAdamantiteBolt, Name: "Adamantite Bolt", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyBolt, AmmunitionStrength: adamantiteAmmoStrength, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: adamantiteEquipmentLevel}}},
 	{ID: ItemBones, Name: "Bones", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemCoins, Name: "Coins", Kind: ItemKindResource},
 	{ID: ItemBronzePickaxe, Name: "Bronze Pickaxe", Kind: ItemKindResource, StackLimit: 1, EquipRequirements: []SkillRequirement{{Skill: SkillMining, Level: bronzeEquipmentLevel}}, GatheringTool: GatheringToolDefinition{Family: "pickaxe"}},

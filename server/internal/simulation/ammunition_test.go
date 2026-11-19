@@ -90,7 +90,7 @@ func TestWeaponUsesFirstCompatibleAmmunitionSlotAndTierStrength(t *testing.T) {
 	}
 	beforeConsumption := player.ammunitionPouch.revision
 	cost, strength, available := ammunitionForWeapon(player, bow)
-	if !available || cost.ItemID != ItemBronzeArrow || strength != -1 {
+	if !available || cost.ItemID != ItemBronzeArrow || strength != 1 {
 		t.Fatalf("first ammunition = %+v, strength %d, available %t", cost, strength, available)
 	}
 	if !payItemCosts(&player.ammunitionPouch, []ItemCost{cost}) {
@@ -100,7 +100,7 @@ func TestWeaponUsesFirstCompatibleAmmunitionSlotAndTierStrength(t *testing.T) {
 		t.Fatalf("ammunition consumption revision = %d, want greater than %d", player.ammunitionPouch.revision, beforeConsumption)
 	}
 	cost, strength, available = ammunitionForWeapon(player, bow)
-	if !available || cost.ItemID != ItemMithrilArrow || strength != 2 {
+	if !available || cost.ItemID != ItemMithrilArrow || strength != 7 {
 		t.Fatalf("second ammunition = %+v, strength %d, available %t", cost, strength, available)
 	}
 }

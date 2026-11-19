@@ -12,7 +12,7 @@ type fixedRollSource float64
 const (
 	swordDamage     = swordMeleeStrength
 	daggerDamage    = daggerMeleeStrength
-	bowDamage       = bowRangedStrength - 1 // starter bronze ammunition
+	bowDamage       = bowRangedStrength + bronzeAmmoStrength
 	maceDamage      = maceMeleeStrength
 	battleAxeDamage = battleAxeMeleeStrength
 	staffDamage     = staffMagicStrength
