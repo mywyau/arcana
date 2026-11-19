@@ -156,6 +156,51 @@ func TestMagicArmourProgressionUsesNamedTiersAndImprovesMagicOffence(t *testing.
 	}
 }
 
+func TestMagicDefenceRanksRangedAboveRobesAbovePlate(t *testing.T) {
+	// Each row compares equivalent head, body, hand, leg and foot pieces.
+	for _, tier := range []struct {
+		ranged, mage, melee [5]string
+	}{
+		{
+			[5]string{ItemNoviceRangerHood, ItemNoviceRangerBody, ItemNoviceRangerGloves, ItemNoviceRangerLegs, ItemNoviceRangerBoots},
+			[5]string{ItemNoviceRobeHood, ItemNoviceRobeTop, ItemNoviceRobeGloves, ItemNoviceRobeBottoms, ItemNoviceRobeBoots},
+			[5]string{ItemBronzeHelm, ItemBronzePlate, ItemBronzeGloves, ItemBronzeLegs, ItemBronzeBoots},
+		},
+		{
+			[5]string{ItemScoutHood, ItemScoutBody, ItemScoutGloves, ItemScoutLegs, ItemScoutBoots},
+			[5]string{ItemMageRobeHood, ItemMageRobeTop, ItemMageRobeGloves, ItemMageRobeBottoms, ItemMageRobeBoots},
+			[5]string{ItemIronHelm, ItemIronPlate, ItemIronGloves, ItemIronLegs, ItemIronBoots},
+		},
+		{
+			[5]string{ItemTrackerHood, ItemTrackerBody, ItemTrackerGloves, ItemTrackerLegs, ItemTrackerBoots},
+			[5]string{ItemMoonspunHood, ItemMoonspunTop, ItemMoonspunGloves, ItemMoonspunBottoms, ItemMoonspunBoots},
+			[5]string{ItemSteelHelm, ItemSteelPlate, ItemSteelGloves, ItemSteelLegs, ItemSteelBoots},
+		},
+		{
+			[5]string{ItemHunterHood, ItemHunterBody, ItemHunterGloves, ItemHunterLegs, ItemHunterBoots},
+			[5]string{ItemEnchantedHood, ItemEnchantedTop, ItemEnchantedGloves, ItemEnchantedBottoms, ItemEnchantedBoots},
+			[5]string{ItemMithrilHelm, ItemMithrilPlate, ItemMithrilGloves, ItemMithrilLegs, ItemMithrilBoots},
+		},
+		{
+			[5]string{ItemMarksmanHood, ItemMarksmanBody, ItemMarksmanGloves, ItemMarksmanLegs, ItemMarksmanBoots},
+			[5]string{ItemStardewHood, ItemStardewTop, ItemStardewGloves, ItemStardewBottoms, ItemStardewBoots},
+			[5]string{ItemAdamantiteHelm, ItemAdamantitePlate, ItemAdamantiteGloves, ItemAdamantiteLegs, ItemAdamantiteBoots},
+		},
+	} {
+		for i, id := range tier.ranged {
+			ranged, rOK := armourDefinition(id)
+			mage, mOK := armourDefinition(tier.mage[i])
+			melee, pOK := armourDefinition(tier.melee[i])
+			if !rOK || !mOK || !pOK || ranged.Slot != mage.Slot || mage.Slot != melee.Slot {
+				t.Fatalf("invalid armour comparison: %s, %s, %s", id, tier.mage[i], tier.melee[i])
+			}
+			if ranged.Defence.Magic <= mage.Defence.Magic || mage.Defence.Magic <= melee.Defence.Magic {
+				t.Errorf("magic defence: want %s (%d) > %s (%d) > %s (%d)", id, ranged.Defence.Magic, tier.mage[i], mage.Defence.Magic, tier.melee[i], melee.Defence.Magic)
+			}
+		}
+	}
+}
+
 func TestMetalArmourProgressesMeleeAccuracyAndRangedDefence(t *testing.T) {
 	tiers := []struct {
 		items             []string
