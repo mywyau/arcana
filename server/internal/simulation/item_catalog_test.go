@@ -79,14 +79,31 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemHolyRune, ItemKindResource},
 		{ItemDarkRune, ItemKindResource},
 		{ItemFocusRune, ItemKindResource},
+		{ItemWrathRune, ItemKindResource}, {ItemHexRune, ItemKindResource},
+		{ItemNatureRune, ItemKindResource}, {ItemAetherRune, ItemKindResource},
+		{ItemSpiritRune, ItemKindResource}, {ItemVitalRune, ItemKindResource},
 		{ItemBlankRune, ItemKindResource},
 		{ItemLeather, ItemKindResource},
+		{ItemFlax, ItemKindResource},
+		{ItemGlowcap, ItemKindResource}, {ItemEmberel, ItemKindResource},
+		{ItemGhostInk, ItemKindResource}, {ItemMiremane, ItemKindResource},
+		{ItemIronstalk, ItemKindResource}, {ItemDreamveil, ItemKindResource},
+		{ItemBlackTrumpet, ItemKindResource},
+		{ItemEmberPepper, ItemKindResource},
+		{ItemCinnamonBark, ItemKindResource},
+		{ItemStarAnise, ItemKindResource},
+		{ItemGoldenSaffron, ItemKindResource},
 		{ItemGoldOre, ItemKindResource},
 		{ItemSilverOre, ItemKindResource}, {ItemClay, ItemKindResource}, {ItemAdamantiteOre, ItemKindResource},
 		{ItemUncutSapphire, ItemKindResource}, {ItemSapphire, ItemKindResource},
 		{ItemUncutEmerald, ItemKindResource}, {ItemEmerald, ItemKindResource},
 		{ItemUncutRuby, ItemKindResource}, {ItemRuby, ItemKindResource},
 		{ItemUncutDiamond, ItemKindResource}, {ItemDiamond, ItemKindResource},
+		{ItemUncutOpal, ItemKindResource}, {ItemOpal, ItemKindResource},
+		{ItemUncutTopaz, ItemKindResource}, {ItemTopaz, ItemKindResource},
+		{ItemUncutAquamarine, ItemKindResource}, {ItemAquamarine, ItemKindResource},
+		{ItemUncutAmethyst, ItemKindResource}, {ItemAmethyst, ItemKindResource},
+		{ItemUncutOnyx, ItemKindResource}, {ItemOnyx, ItemKindResource},
 		{ItemIronArrow, ItemKindResource},
 		{ItemBronzeArrow, ItemKindResource}, {ItemSteelArrow, ItemKindResource},
 		{ItemMithrilArrow, ItemKindResource}, {ItemAdamantiteArrow, ItemKindResource},
@@ -112,11 +129,19 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemVialOfWater, ItemKindResource},
 		{ItemSunleaf, ItemKindResource},
 		{ItemMoonleaf, ItemKindResource},
+		{ItemAshmint, ItemKindResource}, {ItemSwiftleaf, ItemKindResource},
+		{ItemBloodfern, ItemKindResource}, {ItemSilverthorn, ItemKindResource},
+		{ItemStormsage, ItemKindResource}, {ItemWitchbloom, ItemKindResource},
+		{ItemStarwort, ItemKindResource}, {ItemWhisperweed, ItemKindResource},
 		{ItemSacredDust, ItemKindResource},
 		{ItemFishOil, ItemKindResource},
+		{ItemPineResin, ItemKindResource}, {ItemPearlscale, ItemKindResource}, {ItemHollowMarrow, ItemKindResource},
 		{ItemMinorHealingPotion, ItemKindConsumable},
 		{ItemMurkyBrew, ItemKindConsumable},
 		{ItemMeleePotion, ItemKindConsumable}, {ItemRangingPotion, ItemKindConsumable}, {ItemMagicPotion, ItemKindConsumable},
+		{ItemGreaterMeleePotion, ItemKindConsumable}, {ItemGreaterRangingPotion, ItemKindConsumable}, {ItemGreaterMagicPotion, ItemKindConsumable},
+		{ItemMendingDraught, ItemKindConsumable}, {ItemSurefootTonic, ItemKindConsumable}, {ItemGatherersTonic, ItemKindConsumable},
+		{ItemBurntFish, ItemKindResource},
 		{ItemArrowShafts, ItemKindResource},
 		{ItemFeathers, ItemKindResource},
 		{ItemIronArrowTips, ItemKindResource},
@@ -201,6 +226,29 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 	}
 	if definition, _ := itemDefinition(ItemPrayerPotion); definition.StackLimit != 5 || definition.Consumable.PrayerRestoration != 25 {
 		t.Errorf("prayer potion definition = %+v, want five-dose stacks restoring 25 prayer", definition)
+	}
+}
+
+func TestRenamedHerbsKeepPersistedItemIDs(t *testing.T) {
+	tests := []struct {
+		id   string
+		name string
+	}{
+		{ItemSunleaf, "Dawnpetal"},
+		{ItemMoonleaf, "Nightbloom"},
+	}
+	for _, test := range tests {
+		definition, exists := itemDefinition(test.id)
+		if !exists || definition.Name != test.name {
+			t.Errorf("itemDefinition(%q) = %+v, %t; want name %q", test.id, definition, exists, test.name)
+		}
+	}
+}
+
+func TestRunestoneKeepsPersistedBlankRuneID(t *testing.T) {
+	definition, exists := itemDefinition(ItemBlankRune)
+	if !exists || definition.ID != "blank_rune" || definition.Name != "Runestone" {
+		t.Fatalf("runestone definition = %+v, %t", definition, exists)
 	}
 }
 

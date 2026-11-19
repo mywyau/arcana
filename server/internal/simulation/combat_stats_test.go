@@ -32,7 +32,7 @@ func TestCombatMatchupUsesAuthoritativeAccuracyDamageAndRanges(t *testing.T) {
 	}
 	weapon, _ := equippedWeaponDefinitionForStyle(player)
 	wantMinimum, wantMaximum := damageRange(weaponPoweredDamage(player, weapon), weapon.DamageVariance)
-	wantTargetDamage := reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush)
+	wantTargetDamage := reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush, "")
 
 	got := combatMatchup(player, target)
 	if got.TargetID != dummyTargetID || got.PlayerMinimumDamage != wantMinimum ||
@@ -65,6 +65,29 @@ func TestPlayerSnapshotIncludesCurrentCombatMatchup(t *testing.T) {
 	if player.CombatMatchup.TargetID != dummyTargetID || player.CombatMatchup.PlayerHitChance <= 0 ||
 		player.CombatMatchup.PlayerMaximumDamage <= 0 {
 		t.Fatalf("Player() combat matchup = %+v", player.CombatMatchup)
+	}
+}
+
+func TestPlayerCombatMatchupUsesOpponentDefences(t *testing.T) {
+	attacker := &playerState{
+		id: "attacker", equippedWeapon: WeaponSword, combatStyle: CombatStyleSlash,
+		equippedArmour: make(map[ArmourSlot]string), skills: newDefaultSkills(),
+	}
+	defender := &playerState{
+		id: "defender", equippedWeapon: WeaponSword, combatStyle: CombatStyleStab,
+		equippedArmour: map[ArmourSlot]string{ArmourSlotBody: ItemTrainingPlate},
+		skills:         newDefaultSkills(),
+	}
+	matchup := combatMatchupBetweenPlayers(attacker, defender)
+	if matchup.TargetID != "defender" || matchup.PlayerHitChance <= 0 ||
+		matchup.PlayerMaximumDamage <= 0 || matchup.TargetHitChance <= 0 ||
+		matchup.TargetMaximumDamage <= 0 {
+		t.Fatalf("player matchup = %+v", matchup)
+	}
+	weapon, _ := equippedWeaponDefinitionForStyle(attacker)
+	_, unmitigatedMaximum := damageRange(weaponPoweredDamage(attacker, weapon), weapon.DamageVariance)
+	if matchup.PlayerMaximumDamage >= unmitigatedMaximum {
+		t.Fatalf("armour did not mitigate matchup damage: got %d, unmitigated %d", matchup.PlayerMaximumDamage, unmitigatedMaximum)
 	}
 }
 
@@ -178,5 +201,62 @@ func TestMagicAmuletBoostsStafflessSpellcasting(t *testing.T) {
 	}
 	if got, want := spellPoweredDamage(player, spell), float64(spell.BasePower+5); got != want {
 		t.Fatalf("spell damage = %.1f, want %.1f", got, want)
+	}
+}
+
+func TestElementalResistanceStacksWithProtectionAndMatchesGear(t *testing.T) {
+	w := NewWorld()
+	mustAddEmptyPlayer(t, w, "defender", Position{})
+	player := w.players["defender"]
+	if got := derivedCombatStats(player).ElementalResistances; got != (ElementalResistances{}) {
+		t.Fatalf("base resistances = %+v", got)
+	}
+	player.ringRack.items = []InventoryItem{{ItemID: ItemRubyRing}, {ItemID: ItemRubyRing}}
+	player.activePrayers = map[PrayerID]bool{PrayerProtectMagic: true}
+	if got := derivedCombatStats(player).ElementalResistances; got != (ElementalResistances{Fire: 20}) {
+		t.Fatalf("equipped resistances = %+v", got)
+	}
+	for _, tc := range []struct {
+		damageType DamageType
+		element    MagicElement
+		want       int
+	}{
+		{DamageTypeMagic, MagicElementFire, 56},
+		{DamageTypeMagic, MagicElementWater, 70},
+		{DamageTypeMagic, "", 70},
+		{DamageTypeSlash, MagicElementFire, 100},
+	} {
+		if got := reduceIncomingDamage(player, 100, tc.damageType, tc.element); got != tc.want {
+			t.Errorf("%s/%s damage = %d, want %d", tc.damageType, tc.element, got, tc.want)
+		}
+	}
+	player.activePrayers = nil
+	imp := TargetSnapshot{ID: cinderImpTargetID}
+	if damage := combatMatchup(player, &imp).TargetMaximumDamage; damage != 6 {
+		t.Errorf("cinder imp hit preview = %d, want 6 with two rings", damage)
+	}
+}
+
+func TestPvPFireBoltResistanceMatchesDamagePreview(t *testing.T) {
+	w := NewWorldWithRollSource(&sequenceRollSource{values: []float64{0.25, 0.999}})
+	mustAddEmptyPlayer(t, w, "attacker", Position{Z: -100})
+	mustAddEmptyPlayer(t, w, "defender", Position{Z: -100, X: 1})
+	attacker, defender := w.players["attacker"], w.players["defender"]
+	attacker.selectedSpell = SpellFireBolt
+	attacker.skills[SkillMagic] = SkillExperienceForLevel(25)
+	spell, _ := spellDefinition(SpellFireBolt)
+	for _, cost := range spell.Costs {
+		attacker.inventory.add(cost.ItemID, cost.Quantity)
+	}
+	_, _, baseMax, _ := playerAttackMatchup(attacker, defender)
+	defender.ringRack.items = []InventoryItem{{ItemID: ItemRubyRing}}
+	_, _, maxDamage, _ := playerAttackMatchup(attacker, defender)
+	if maxDamage >= baseMax {
+		t.Fatalf("maximum fire hit %d with ring, %d without", maxDamage, baseMax)
+	}
+	before := defender.health
+	w.resolvePlayerAutoAttack(attacker, defender)
+	if got := before - defender.health; got != maxDamage {
+		t.Fatalf("maximum fire hit dealt %d, preview %d (%s)", got, maxDamage, attacker.lastActionResult)
 	}
 }

@@ -27,6 +27,9 @@ type brewingRecipe struct {
 }
 
 var brewingIngredientRoles = map[string]string{
+	ItemBloodfern:   "herb",
+	ItemSwiftleaf:   "herb",
+	ItemStormsage:   "herb",
 	ItemVialOfWater: "base",
 	ItemSunleaf:     "herb",
 	ItemMoonleaf:    "herb",
@@ -35,11 +38,14 @@ var brewingIngredientRoles = map[string]string{
 }
 
 var brewingRecipes = map[string]brewingRecipe{
-	brewKey([]string{ItemVialOfWater, ItemSunleaf}):                  {OutputItem: ItemMinorHealingPotion, Experience: 10},
-	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemSacredDust}):  {OutputItem: ItemPrayerPotion, Experience: 20},
-	brewKey([]string{ItemVialOfWater, ItemMoonleaf, ItemSacredDust}): {OutputItem: ItemMeleePotion, Experience: 20},
-	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemFishOil}):     {OutputItem: ItemRangingPotion, Experience: 15},
-	brewKey([]string{ItemVialOfWater, ItemMoonleaf}):                 {OutputItem: ItemMagicPotion, Experience: 10},
+	brewKey([]string{ItemVialOfWater, ItemBloodfern, ItemSacredDust}): {OutputItem: ItemGreaterMeleePotion, Experience: 25},
+	brewKey([]string{ItemVialOfWater, ItemSwiftleaf, ItemFishOil}):    {OutputItem: ItemGreaterRangingPotion, Experience: 25},
+	brewKey([]string{ItemVialOfWater, ItemStormsage, ItemSacredDust}): {OutputItem: ItemGreaterMagicPotion, Experience: 25},
+	brewKey([]string{ItemVialOfWater, ItemSunleaf}):                   {OutputItem: ItemMinorHealingPotion, Experience: 10},
+	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemSacredDust}):   {OutputItem: ItemPrayerPotion, Experience: 20},
+	brewKey([]string{ItemVialOfWater, ItemMoonleaf, ItemSacredDust}):  {OutputItem: ItemMeleePotion, Experience: 20},
+	brewKey([]string{ItemVialOfWater, ItemSunleaf, ItemFishOil}):      {OutputItem: ItemRangingPotion, Experience: 15},
+	brewKey([]string{ItemVialOfWater, ItemMoonleaf}):                  {OutputItem: ItemMagicPotion, Experience: 10},
 }
 
 func (w *World) QueueBrew(command BrewCommand) error {

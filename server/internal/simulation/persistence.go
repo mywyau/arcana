@@ -18,6 +18,7 @@ type PersistentPlayerState struct {
 	EquippedSpellbook            string
 	CombatStyle                  CombatStyleID
 	Inventory                    InventorySnapshot
+	ProtectedInventorySlots      []int
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	RingRack                     RingRackSnapshot
 	RunePouch                    RunePouchSnapshot
@@ -65,6 +66,7 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 			Capacity: snapshot.Inventory.Capacity,
 			Items:    append([]InventoryItem(nil), snapshot.Inventory.Items...),
 		},
+		ProtectedInventorySlots: append([]int(nil), snapshot.ProtectedInventorySlots...),
 		AmmunitionPouch: AmmunitionPouchSnapshot{
 			Capacity: snapshot.AmmunitionPouch.Capacity, UnlockedSlots: snapshot.AmmunitionPouch.UnlockedSlots,
 			Items: append([]InventoryItem(nil), snapshot.AmmunitionPouch.Items...),
@@ -138,6 +140,10 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	inventory, err := inventoryFromSnapshot(state.Inventory)
 	if err != nil {
 		return fmt.Errorf("restore inventory: %w", err)
+	}
+	protectedInventory, err := restoreProtectedInventory(inventory, state.ProtectedInventorySlots)
+	if err != nil {
+		return fmt.Errorf("restore death protection: %w", err)
 	}
 	ammunitionPouch, err := ammunitionPouchFromSnapshot(state.AmmunitionPouch)
 	if err != nil {
@@ -269,7 +275,8 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		equipmentRevision:           1,
 		equippedWeaponReinforcement: state.EquippedWeaponReinforcement, equippedSpellbook: state.EquippedSpellbook,
 		dodgeRate: playerDodgeRate, inventory: inventory, ammunitionPouch: ammunitionPouch,
-		ringRack: ringRack, runePouch: runePouch, bank: bank,
+		protectedInventory: protectedInventory,
+		ringRack:           ringRack, runePouch: runePouch, bank: bank,
 		equippedArmour:               cloneEquippedArmour(state.EquippedArmour),
 		equippedArmourInstances:      cloneEquippedArmourInstances(state.EquippedArmourInstances),
 		equippedArmourReinforcements: cloneEquippedArmourReinforcements(state.EquippedArmourReinforcements),

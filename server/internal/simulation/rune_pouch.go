@@ -26,7 +26,8 @@ type RuneTransferCommand struct {
 
 func isRune(itemID string) bool {
 	switch itemID {
-	case ItemAirRune, ItemWaterRune, ItemEarthRune, ItemFireRune, ItemHolyRune, ItemDarkRune, ItemFocusRune:
+	case ItemAirRune, ItemWaterRune, ItemEarthRune, ItemFireRune, ItemHolyRune, ItemShadowRune, ItemFocusRune,
+		ItemWrathRune, ItemHexRune, ItemNatureRune, ItemAetherRune, ItemSpiritRune, ItemVitalRune:
 		return true
 	default:
 		return false

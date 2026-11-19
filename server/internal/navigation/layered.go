@@ -72,7 +72,7 @@ func NewPrototypeMap() *LayeredMap {
 				ID:           "ground",
 				MinimumX:     -75,
 				MaximumX:     75,
-				MinimumZ:     -75,
+				MinimumZ:     -145,
 				MaximumZ:     75,
 				Elevation:    prototypeGroundHeight,
 				MaximumSlope: 1,

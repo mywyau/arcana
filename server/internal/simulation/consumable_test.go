@@ -167,14 +167,18 @@ func TestConsumableIsRemovedFromSelectedInventoryStack(t *testing.T) {
 	}
 }
 
-func TestCombatPotionsApplyLowLevelBoostsForFiveMinutes(t *testing.T) {
+func TestCombatPotionsApplyTieredBoostsForFiveMinutes(t *testing.T) {
 	tests := []struct {
 		itemID string
+		levels int
 		skills []SkillID
 	}{
-		{ItemMeleePotion, []SkillID{SkillAttack, SkillStrength, SkillDefence}},
-		{ItemRangingPotion, []SkillID{SkillRange}},
-		{ItemMagicPotion, []SkillID{SkillMagic}},
+		{ItemMeleePotion, 4, []SkillID{SkillAttack, SkillStrength, SkillDefence}},
+		{ItemRangingPotion, 4, []SkillID{SkillRange}},
+		{ItemMagicPotion, 4, []SkillID{SkillMagic}},
+		{ItemGreaterMeleePotion, 7, []SkillID{SkillAttack, SkillStrength, SkillDefence}},
+		{ItemGreaterRangingPotion, 7, []SkillID{SkillRange}},
+		{ItemGreaterMagicPotion, 7, []SkillID{SkillMagic}},
 	}
 	for _, test := range tests {
 		world := NewWorld()
@@ -191,8 +195,8 @@ func TestCombatPotionsApplyLowLevelBoostsForFiveMinutes(t *testing.T) {
 			t.Errorf("%s boost revision = %d, want greater than %d", test.itemID, activeBoostRevision, initialBoostRevision)
 		}
 		for _, skill := range test.skills {
-			if got := effectiveCombatSkillLevel(player, skill); got != 1+combatPotionBoostLevels {
-				t.Errorf("%s after %s = %d, want %d", skill, test.itemID, got, 1+combatPotionBoostLevels)
+			if got := effectiveCombatSkillLevel(player, skill); got != 1+test.levels {
+				t.Errorf("%s after %s = %d, want %d", skill, test.itemID, got, 1+test.levels)
 			}
 		}
 		if player.inventory.quantity(test.itemID) != 0 {
@@ -211,6 +215,71 @@ func TestCombatPotionsApplyLowLevelBoostsForFiveMinutes(t *testing.T) {
 		if player.combatBoostsRevision <= activeBoostRevision {
 			t.Errorf("%s expiry revision = %d, want greater than %d", test.itemID, player.combatBoostsRevision, activeBoostRevision)
 		}
+	}
+}
+
+func TestMeleePotionsScaleEachBaseSkillWithoutCompounding(t *testing.T) {
+	world := NewWorld()
+	mustAddEmptyPlayer(t, world, "fighter", Position{})
+	player := world.players["fighter"]
+	player.skills[SkillAttack] = SkillExperienceForLevel(50)
+	player.skills[SkillStrength] = SkillExperienceForLevel(99)
+	player.skills[SkillDefence] = SkillExperienceForLevel(1)
+	player.inventory.add(ItemMeleePotion, 1)
+	player.inventory.add(ItemGreaterMeleePotion, 2)
+	for i, dose := range []struct {
+		item    string
+		slot    int
+		bonuses [3]int
+	}{
+		{ItemMeleePotion, 0, [3]int{9, 13, 4}},
+		{ItemGreaterMeleePotion, 1, [3]int{14, 21, 7}},
+		{ItemGreaterMeleePotion, 1, [3]int{14, 21, 7}},
+	} {
+		wantExpiry := world.combat.pulse + combatPotionDurationPulses
+		if err := world.QueueConsumeItem(ConsumeItemCommand{
+			PlayerID: player.id, Sequence: uint64(i + 1), InventorySlot: dose.slot, ItemID: dose.item,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		world.Step(actionPulseInterval)
+		for j, skill := range []SkillID{SkillAttack, SkillStrength, SkillDefence} {
+			boost := player.combatBoosts[skill]
+			if boost.Levels != dose.bonuses[j] || boost.PotionID != dose.item || boost.ExpiresAtPulse != wantExpiry {
+				t.Fatalf("%s, %s: unexpected boost %+v", dose.item, skill, boost)
+			}
+		}
+		world.Step(2 * actionPulseInterval)
+	}
+}
+
+func TestGreaterPotionReplacesRegularBoostAndRejectsWeakerDose(t *testing.T) {
+	world := NewWorld()
+	mustAddEmptyPlayer(t, world, "mage", Position{})
+	player := world.players["mage"]
+	player.inventory.add(ItemMagicPotion, 2)
+	player.inventory.add(ItemGreaterMagicPotion, 1)
+	for slot, item := range []string{ItemMagicPotion, ItemGreaterMagicPotion} {
+		if err := world.QueueConsumeItem(ConsumeItemCommand{
+			PlayerID: player.id, Sequence: uint64(slot + 1), InventorySlot: slot, ItemID: item,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		world.Step(actionPulseInterval)
+		world.Step(2 * actionPulseInterval)
+	}
+	boost := player.combatBoosts[SkillMagic]
+	if boost.Levels != 7 {
+		t.Fatalf("upgraded boost = %+v", boost)
+	}
+	if err := world.QueueConsumeItem(ConsumeItemCommand{
+		PlayerID: player.id, Sequence: 3, InventorySlot: 0, ItemID: ItemMagicPotion,
+	}); err == nil {
+		t.Fatal("accepted weaker potion while greater boost was active")
+	}
+	world.Step(actionPulseInterval)
+	if player.combatBoosts[SkillMagic] != boost || player.inventory.quantity(ItemMagicPotion) != 1 {
+		t.Fatal("weaker potion changed the boost or consumed a dose")
 	}
 }
 

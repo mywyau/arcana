@@ -58,6 +58,7 @@ const STATUS_COLOURS := {
 @onready var battle_axe_blade: MeshInstance3D = $VisualRoot/WeaponAnchor/BattleAxePivot/Blade
 @onready var staff_pivot: Node3D = $VisualRoot/WeaponAnchor/StaffPivot
 @onready var hit_splat: Node3D = $HitSplat
+@onready var pvp_target_area: Area3D = $PvPTargetArea
 
 var _is_local: bool = false
 var _has_position: bool = false
@@ -751,3 +752,14 @@ func set_local_player(is_local: bool) -> void:
 	mesh.material_override = _body_material
 	left_sleeve.material_override = _body_material
 	right_sleeve.material_override = _body_material
+	if is_local:
+		set_pvp_targetable(false)
+
+
+func set_combat_target_id(target_id: String) -> void:
+	pvp_target_area.set_meta(&"combat_target_id", target_id)
+
+
+func set_pvp_targetable(targetable: bool) -> void:
+	pvp_target_area.collision_layer = 8 if targetable else 0
+	pvp_target_area.monitorable = targetable

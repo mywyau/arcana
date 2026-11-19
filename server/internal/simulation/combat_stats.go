@@ -30,6 +30,7 @@ type CombatStatsSnapshot struct {
 	MinimumDamage           int
 	MaximumDamage           int
 	DefenceLevel            int
+	ElementalResistances    ElementalResistances
 	DefenceBonuses          DefenceBonuses
 	AgilityLevel            int
 	EquipmentEvasionBonus   int
@@ -98,7 +99,7 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	poweredDamage *= 1 - targetDamageReduction(target, damageType)
 	playerMinimum, playerMaximum := damageRange(poweredDamage, variance)
 	profile := combatProfileForEnemy(target.ID)
-	targetDamage := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType)
+	targetDamage := reduceIncomingDamage(player, profile.AttackDamage, profile.DamageType, profile.AttackElement)
 	targetHit := playerHitChance(target.Accuracy, player)
 	targetRange := profile.AttackRange
 	if target.NonRetaliating {
@@ -117,12 +118,63 @@ func combatMatchup(player *playerState, target *TargetSnapshot) CombatMatchupSna
 	}
 }
 
+func playerAttackMatchup(attacker, defender *playerState) (float64, int, int, float64) {
+	weapon, exists := equippedWeaponDefinitionForStyle(attacker)
+	if !exists || defender == nil {
+		return 0, 0, 0, 0
+	}
+	accuracyScore := playerAccuracyScore(attacker, weapon)
+	hitChance := targetAccuracyChance(attacker, weapon) * (1 - playerDodgeChance(accuracyScore, defender))
+	poweredDamage := weaponPoweredDamageWithAmmunition(attacker, weapon, ammunitionStrengthForPlayer(attacker, weapon))
+	variance := weapon.DamageVariance
+	attackRange := weapon.Range
+	var element MagicElement
+	damageType := DamageTypeCrush
+	if styleDamageType, hasDamageType := weaponDamageTypeForStyle(weapon, attacker.combatStyle); hasDamageType {
+		damageType = styleDamageType
+	}
+	if spell, casting := spellDefinition(attacker.selectedSpell); casting &&
+		!statusCurrentlyBlocks(attacker, statusActionCast) {
+		spell = spellDefinitionForStyle(attacker, spell)
+		accuracyScore = spellAccuracyScore(attacker, spell)
+		hitChance = targetSpellAccuracyChance(attacker, spell) * (1 - playerDodgeChance(accuracyScore, defender))
+		poweredDamage = spellPoweredDamage(attacker, spell)
+		variance = spell.DamageVariance
+		attackRange = spell.Range
+		damageType = DamageTypeMagic
+		element = spell.Element
+	}
+	minimumDamage, maximumDamage := damageRange(poweredDamage, variance)
+	return hitChance,
+		reduceIncomingDamage(defender, minimumDamage, damageType, element),
+		reduceIncomingDamage(defender, maximumDamage, damageType, element),
+		attackRange
+}
+
+func combatMatchupBetweenPlayers(attacker, defender *playerState) CombatMatchupSnapshot {
+	if attacker == nil || defender == nil {
+		return CombatMatchupSnapshot{}
+	}
+	playerHit, playerMinimum, playerMaximum, playerRange := playerAttackMatchup(attacker, defender)
+	targetHit, targetMinimum, targetMaximum, targetRange := playerAttackMatchup(defender, attacker)
+	return CombatMatchupSnapshot{
+		TargetID:        string(defender.id),
+		PlayerHitChance: playerHit, PlayerMinimumDamage: playerMinimum,
+		PlayerMaximumDamage: playerMaximum, PlayerAttackRange: playerRange,
+		TargetHitChance: targetHit, TargetMinimumDamage: targetMinimum,
+		TargetMaximumDamage: targetMaximum, TargetAttackRange: targetRange,
+	}
+}
+
 func (w *World) combatMatchupForPlayer(player *playerState) CombatMatchupSnapshot {
 	if player == nil {
 		return CombatMatchupSnapshot{}
 	}
 	if target, exists := w.combat.dummyByID(player.combatTarget); exists {
 		return combatMatchup(player, target)
+	}
+	if target, exists := w.players[PlayerID(player.combatTarget)]; exists && playersMayFight(player, target) {
+		return combatMatchupBetweenPlayers(player, target)
 	}
 	for _, candidate := range w.combat.dummyTargets() {
 		if candidate.dummy.TargetID == player.id {
@@ -181,6 +233,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 			MaximumDamage:          maximumDamage,
 			DefenceLevel:           effectiveCombatSkillLevel(player, SkillDefence),
 			DefenceBonuses:         equippedDefenceBonusesForPlayer(player),
+			ElementalResistances:   playerElementalResistances(player),
 			AgilityLevel:           agilityLevel,
 			EquipmentEvasionBonus:  equippedEvasionBonusForPlayer(player),
 			TotalEvasion:           playerEvasionScore(player),
@@ -233,6 +286,7 @@ func derivedCombatStats(player *playerState) CombatStatsSnapshot {
 		MaximumDamage:           maximumDamage,
 		DefenceLevel:            effectiveCombatSkillLevel(player, SkillDefence),
 		DefenceBonuses:          equippedDefenceBonusesForPlayer(player),
+		ElementalResistances:    playerElementalResistances(player),
 		AgilityLevel:            SkillLevelForExperience(player.skills[SkillAgility]),
 		EquipmentEvasionBonus:   equippedEvasionBonusForPlayer(player),
 		TotalEvasion:            playerEvasionScore(player),

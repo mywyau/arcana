@@ -20,7 +20,26 @@ func (w *World) gatheringAttemptSucceeded(player *playerState, spot gatheringSpo
 	if bonus, found := gatheringToolBonus(player, spot.RequiredTool); found {
 		chance = math.Min(chance+bonus, spot.MaximumSuccessChance)
 	}
+	if _, active := player.timedPotions[ItemGatherersTonic]; active && level >= spot.RequiredLevel {
+		item, _ := itemDefinition(ItemGatherersTonic)
+		chance = math.Min(chance+item.Consumable.GatheringBonus, spot.MaximumSuccessChance)
+	}
 	return w.rollSource.Float64() < chance
+}
+
+func (w *World) rollGatheringBonus(spot gatheringSpotDefinition) string {
+	if len(spot.BonusRewards) == 0 {
+		return ""
+	}
+	roll := w.rollSource.Float64()
+	threshold := 1.0
+	for _, reward := range spot.BonusRewards {
+		threshold -= reward.Chance
+		if roll >= threshold {
+			return reward.ItemID
+		}
+	}
+	return ""
 }
 
 func gatheringToolBonus(player *playerState, requiredTool string) (float64, bool) {
@@ -152,10 +171,14 @@ func (w *World) resolveRenewableGathering(player *playerState, spot gatheringSpo
 		recordUnsuccessfulGatheringAttempt(player, spot, w.combat.pulse, spot.Interval)
 		return
 	}
+	result := spot.RewardResult
+	if bonusItem := w.rollGatheringBonus(spot); bonusItem != "" && candidate.add(bonusItem, 1) {
+		result = "found_" + bonusItem
+	}
 	player.inventory = candidate
 	w.consumeRenewableResource(spot)
 	grantSkillExperience(player, spot.Skill, spot.RewardXP)
-	player.gatheringResult = spot.RewardResult
+	player.gatheringResult = result
 	player.nextGatherPulse = w.combat.pulse + spot.Interval
 	player.gatheringRevision++
 }

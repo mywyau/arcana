@@ -40,7 +40,7 @@ func TestProductionBatchRejectsMoreThanTenLots(t *testing.T) {
 }
 
 func TestCookingFixedBatchStopsAtRequestedQuantity(t *testing.T) {
-	world := NewWorld()
+	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterCookingRangeID]
 	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
@@ -78,7 +78,7 @@ func TestRunecraftingFixedBatchStopsAtRequestedQuantity(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	if !world.players["player-one"].inventory.add(ItemBlankRune, 2) {
-		t.Fatal("failed to add Blank Runes to test inventory")
+		t.Fatal("failed to add Runestones to test inventory")
 	}
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterAirRuneAltarID, Quantity: 1,

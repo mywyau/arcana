@@ -3,10 +3,15 @@ package simulation
 import "fmt"
 
 var cutGemOutputs = map[string]string{
-	ItemUncutSapphire: ItemSapphire,
-	ItemUncutEmerald:  ItemEmerald,
-	ItemUncutRuby:     ItemRuby,
-	ItemUncutDiamond:  ItemDiamond,
+	ItemUncutSapphire:   ItemSapphire,
+	ItemUncutEmerald:    ItemEmerald,
+	ItemUncutRuby:       ItemRuby,
+	ItemUncutDiamond:    ItemDiamond,
+	ItemUncutOpal:       ItemOpal,
+	ItemUncutTopaz:      ItemTopaz,
+	ItemUncutAquamarine: ItemAquamarine,
+	ItemUncutAmethyst:   ItemAmethyst,
+	ItemUncutOnyx:       ItemOnyx,
 }
 
 // CutGem applies a small, server-authoritative crafting action. The chisel is

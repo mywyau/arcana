@@ -326,6 +326,7 @@ func (w *World) applyPendingInventoryMoves() {
 			continue
 		}
 		if player.inventory.swapSlots(command.FromSlot, command.ToSlot) {
+			moveProtectedInventorySlots(player, command.FromSlot, command.ToSlot)
 			player.lastInventoryMoveSequence = command.Sequence
 		}
 	}

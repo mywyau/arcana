@@ -101,8 +101,15 @@ func elementalDamageMultiplier(target *TargetSnapshot, element MagicElement) flo
 	if target == nil {
 		return 1
 	}
-	resistance := elementalResistance(target.Elements, element)
-	return 1 - float64(max(-90, min(resistance, 90)))/100
+	return resistanceMultiplier(target.Elements, element)
+}
+
+func resistanceMultiplier(resistances ElementalResistances, element MagicElement) float64 {
+	return 1 - float64(clampResistance(elementalResistance(resistances, element)))/100
+}
+
+func clampResistance(value int) int {
+	return max(-90, min(value, 90))
 }
 
 func elementalResistance(resistances ElementalResistances, element MagicElement) int {

@@ -1,8 +1,10 @@
 class_name PrototypeTerrain
 extends MeshInstance3D
 
-const MINIMUM_COORDINATE: float = -75.0
-const MAXIMUM_COORDINATE: float = 75.0
+const MINIMUM_X: float = -75.0
+const MAXIMUM_X: float = 75.0
+const MINIMUM_Z: float = -145.0
+const MAXIMUM_Z: float = 75.0
 const CELL_SIZE: float = 1.0
 const HILL_CENTER: Vector2 = Vector2(-12.0, 10.0)
 const HILL_RADIUS: float = 4.0
@@ -52,12 +54,13 @@ func _build_mesh() -> ArrayMesh:
 	if material_override != null:
 		surface.set_material(material_override)
 
-	var cells: int = roundi((MAXIMUM_COORDINATE - MINIMUM_COORDINATE) / CELL_SIZE)
-	for z_index: int in range(cells):
-		var z0: float = MINIMUM_COORDINATE + float(z_index) * CELL_SIZE
+	var x_cells: int = roundi((MAXIMUM_X - MINIMUM_X) / CELL_SIZE)
+	var z_cells: int = roundi((MAXIMUM_Z - MINIMUM_Z) / CELL_SIZE)
+	for z_index: int in range(z_cells):
+		var z0: float = MINIMUM_Z + float(z_index) * CELL_SIZE
 		var z1: float = z0 + CELL_SIZE
-		for x_index: int in range(cells):
-			var x0: float = MINIMUM_COORDINATE + float(x_index) * CELL_SIZE
+		for x_index: int in range(x_cells):
+			var x0: float = MINIMUM_X + float(x_index) * CELL_SIZE
 			var x1: float = x0 + CELL_SIZE
 			var bottom_left := Vector3(x0, height_at(x0, z0), z0)
 			var top_left := Vector3(x0, height_at(x0, z1), z1)

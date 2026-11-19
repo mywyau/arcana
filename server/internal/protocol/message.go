@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CurrentVersion            = 14
+	CurrentVersion            = 15
 	MessageAuthenticate       = "authenticate"
 	MessageRegisterAccount    = "register_account"
 	MessageLogoutAccount      = "logout_account"
@@ -25,6 +25,7 @@ const (
 	MessagePickupItem         = "pickup_item"
 	MessageDropItem           = "drop_item"
 	MessageMoveInventoryItem  = "move_inventory_item"
+	MessageSetDeathProtection = "set_death_protection"
 	MessageConsumeItem        = "consume_item"
 	MessageBrew               = "brew"
 	MessageFletch             = "fletch"
@@ -64,6 +65,7 @@ type ClientMessage struct {
 	TargetID        string    `json:"target_id,omitempty"`
 	ItemID          string    `json:"item_id,omitempty"`
 	ItemIDs         []string  `json:"item_ids,omitempty"`
+	InventorySlots  []int     `json:"inventory_slots,omitempty"`
 	InstanceID      string    `json:"instance_id,omitempty"`
 	DropID          string    `json:"drop_id,omitempty"`
 	DropSlot        *int      `json:"drop_slot,omitempty"`
@@ -363,6 +365,7 @@ type PlayerSnapshot struct {
 	LastActionPulse              uint64                   `json:"last_action_pulse,omitempty"`
 	LastActionResult             string                   `json:"last_action_result,omitempty"`
 	CombatTarget                 string                   `json:"combat_target,omitempty"`
+	InPvPZone                    bool                     `json:"in_pvp_zone,omitempty"`
 	NextAttackPulse              uint64                   `json:"next_attack_pulse,omitempty"`
 	AutoApproaching              bool                     `json:"auto_approaching,omitempty"`
 	AutoPickingUp                bool                     `json:"auto_picking_up,omitempty"`
@@ -414,6 +417,8 @@ type PlayerSnapshot struct {
 	LastPickupSequence           uint64                   `json:"last_pickup_sequence,omitempty"`
 	LastDropSequence             uint64                   `json:"last_drop_sequence,omitempty"`
 	LastInventoryMoveSequence    uint64                   `json:"last_inventory_move_sequence,omitempty"`
+	ProtectedInventorySlots      []int                    `json:"protected_inventory_slots,omitempty"`
+	LastDeathProtectionSequence  uint64                   `json:"last_death_protection_sequence,omitempty"`
 	LastConsumeSequence          uint64                   `json:"last_consume_sequence,omitempty"`
 	NextFoodConsumePulse         uint64                   `json:"next_food_consume_pulse,omitempty"`
 	NextPotionConsumePulse       uint64                   `json:"next_potion_consume_pulse,omitempty"`
@@ -451,6 +456,7 @@ type PlayerUpdate struct {
 	Position         *Position          `json:"position,omitempty"`
 	Speed            *float64           `json:"speed,omitempty"`
 	CombatTarget     *string            `json:"combat_target,omitempty"`
+	InPvPZone        *bool              `json:"in_pvp_zone,omitempty"`
 	Health           *int               `json:"health,omitempty"`
 	MaximumHealth    *int               `json:"maximum_health,omitempty"`
 	Defeated         *bool              `json:"defeated,omitempty"`
@@ -470,45 +476,47 @@ type ActiveStatus struct {
 }
 
 type ActiveCombatBoost struct {
+	PotionID       string `json:"potion_id,omitempty"`
 	Skill          string `json:"skill"`
 	Levels         int    `json:"levels"`
 	ExpiresAtPulse uint64 `json:"expires_at_pulse"`
 }
 
 type CombatStatsSnapshot struct {
-	Weapon                  string         `json:"weapon"`
-	Style                   string         `json:"style"`
-	Spell                   string         `json:"spell"`
-	AccuracySkill           string         `json:"accuracy_skill"`
-	AccuracyLevel           int            `json:"accuracy_level"`
-	WeaponAccuracyBonus     int            `json:"weapon_accuracy_bonus"`
-	EquipmentAccuracyBonus  int            `json:"equipment_accuracy_bonus"`
-	EquipmentOffence        OffenceBonuses `json:"equipment_offence"`
-	StyleAccuracyBonus      int            `json:"style_accuracy_bonus"`
-	SpellAccuracyBonus      int            `json:"spell_accuracy_bonus"`
-	PrayerHitChanceBonus    float64        `json:"prayer_hit_chance_bonus"`
-	TotalAccuracy           int            `json:"total_accuracy"`
-	DamageSkill             string         `json:"damage_skill"`
-	DamageLevel             int            `json:"damage_level"`
-	StrengthBonus           int            `json:"strength_bonus"`
-	EquipmentStrengthBonus  int            `json:"equipment_strength_bonus"`
-	AmmunitionStrengthBonus int            `json:"ammunition_strength_bonus"`
-	SpellPower              int            `json:"spell_power"`
-	SkillDamageBonus        float64        `json:"skill_damage_bonus"`
-	PrayerDamageBonus       float64        `json:"prayer_damage_bonus"`
-	PrayerDamageReduction   float64        `json:"prayer_damage_reduction"`
-	BaseAttackInterval      uint64         `json:"base_attack_interval"`
-	AttackInterval          uint64         `json:"attack_interval"`
-	AttackIntervalModifier  int            `json:"attack_interval_modifier"`
-	MinimumDamage           int            `json:"minimum_damage"`
-	MaximumDamage           int            `json:"maximum_damage"`
-	DefenceLevel            int            `json:"defence_level"`
-	DefenceBonuses          DefenceBonuses `json:"defence_bonuses"`
-	AgilityLevel            int            `json:"agility_level"`
-	EquipmentEvasionBonus   int            `json:"equipment_evasion_bonus"`
-	TotalEvasion            int            `json:"total_evasion"`
-	ArmourDamageReduction   float64        `json:"armour_damage_reduction"`
-	MaximumHealthBonus      int            `json:"maximum_health_bonus"`
+	Weapon                  string               `json:"weapon"`
+	Style                   string               `json:"style"`
+	Spell                   string               `json:"spell"`
+	AccuracySkill           string               `json:"accuracy_skill"`
+	AccuracyLevel           int                  `json:"accuracy_level"`
+	WeaponAccuracyBonus     int                  `json:"weapon_accuracy_bonus"`
+	EquipmentAccuracyBonus  int                  `json:"equipment_accuracy_bonus"`
+	EquipmentOffence        OffenceBonuses       `json:"equipment_offence"`
+	StyleAccuracyBonus      int                  `json:"style_accuracy_bonus"`
+	SpellAccuracyBonus      int                  `json:"spell_accuracy_bonus"`
+	PrayerHitChanceBonus    float64              `json:"prayer_hit_chance_bonus"`
+	TotalAccuracy           int                  `json:"total_accuracy"`
+	DamageSkill             string               `json:"damage_skill"`
+	DamageLevel             int                  `json:"damage_level"`
+	StrengthBonus           int                  `json:"strength_bonus"`
+	EquipmentStrengthBonus  int                  `json:"equipment_strength_bonus"`
+	AmmunitionStrengthBonus int                  `json:"ammunition_strength_bonus"`
+	SpellPower              int                  `json:"spell_power"`
+	SkillDamageBonus        float64              `json:"skill_damage_bonus"`
+	PrayerDamageBonus       float64              `json:"prayer_damage_bonus"`
+	PrayerDamageReduction   float64              `json:"prayer_damage_reduction"`
+	BaseAttackInterval      uint64               `json:"base_attack_interval"`
+	AttackInterval          uint64               `json:"attack_interval"`
+	AttackIntervalModifier  int                  `json:"attack_interval_modifier"`
+	MinimumDamage           int                  `json:"minimum_damage"`
+	MaximumDamage           int                  `json:"maximum_damage"`
+	DefenceLevel            int                  `json:"defence_level"`
+	ElementalResistances    ElementalResistances `json:"elemental_resistances"`
+	DefenceBonuses          DefenceBonuses       `json:"defence_bonuses"`
+	AgilityLevel            int                  `json:"agility_level"`
+	EquipmentEvasionBonus   int                  `json:"equipment_evasion_bonus"`
+	TotalEvasion            int                  `json:"total_evasion"`
+	ArmourDamageReduction   float64              `json:"armour_damage_reduction"`
+	MaximumHealthBonus      int                  `json:"maximum_health_bonus"`
 }
 
 type CombatMatchupSnapshot struct {
@@ -521,6 +529,15 @@ type CombatMatchupSnapshot struct {
 	TargetMinimumDamage int     `json:"target_minimum_damage"`
 	TargetMaximumDamage int     `json:"target_maximum_damage"`
 	TargetAttackRange   float64 `json:"target_attack_range"`
+}
+
+type ElementalResistances struct {
+	Air   int `json:"air"`
+	Water int `json:"water"`
+	Earth int `json:"earth"`
+	Fire  int `json:"fire"`
+	Holy  int `json:"holy"`
+	Dark  int `json:"dark"`
 }
 
 type DefenceBonuses struct {
@@ -605,7 +622,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 	if message.Type != MessageAuthenticate && message.Type != MessageRegisterAccount && message.Type != MessageLogoutAccount && message.Type != MessageMoveTo && message.Type != MessageEngageTarget &&
 		message.Type != MessageDisengage && message.Type != MessageEquipItem && message.Type != MessageUnequipItem &&
 		message.Type != MessagePickupItem && message.Type != MessageDropItem &&
-		message.Type != MessageMoveInventoryItem && message.Type != MessageCombatStyle &&
+		message.Type != MessageMoveInventoryItem && message.Type != MessageSetDeathProtection && message.Type != MessageCombatStyle &&
 		message.Type != MessageExperienceLock && message.Type != MessageDebugSetSkill &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
 		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&

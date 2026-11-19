@@ -8,8 +8,10 @@ const WORLD_FIRE_SCRIPT: Script = preload("res://scripts/world_fire.gd")
 const BANK_CHEST_SCENE: PackedScene = preload("res://scenes/bank_chest.tscn")
 const MERCHANT_SCENE: PackedScene = preload("res://scenes/merchant_view.tscn")
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
+const DEATH_PROTECTION_WINDOW_SCRIPT: Script = preload("res://scripts/death_protection_window.gd")
 const SPELL_SLOT_SCRIPT: Script = preload("res://scripts/spell_slot.gd")
 const CLOSE_WINDOW_ICON: Texture2D = preload("res://assets/icons/navigation/close_window.svg")
+const DEATH_PROTECTION_ICON: Texture2D = preload("res://assets/icons/prayers/02_protection.png")
 const RAY_LENGTH: float = 1000.0
 const GROUND_COLLISION_MASK: int = 1
 const UPPER_COLLISION_MASK: int = 2
@@ -52,27 +54,15 @@ const TEST_SUPPLY_CHEST_PREFIX: String = "test_"
 const UNCUT_GEMS: Dictionary = {
 	"uncut_sapphire": "Sapphire", "uncut_emerald": "Emerald",
 	"uncut_ruby": "Ruby", "uncut_diamond": "Diamond",
+	"uncut_opal": "Opal", "uncut_topaz": "Topaz",
+	"uncut_aquamarine": "Aquamarine",
+	"uncut_amethyst": "Amethyst", "uncut_onyx": "Onyx",
 }
 const FIREMAKING_LOGS: Dictionary = {
 	"normal_logs": true, "oak_logs": true, "willow_logs": true,
 	"maple_logs": true, "yew_logs": true,
 }
-const ITEM_DISPLAY_NAMES: Dictionary = {
-	"amulet_ferocity": "Ruby Amulet", "amulet_hawk": "Emerald Amulet",
-	"amulet_embers": "Sapphire Amulet", "amulet_fury": "Amulet of Fury",
-	"diamond_amulet": "Diamond Amulet",
-	"skin_bible": "Skin Bible", "holy_book": "Holy Book", "clerics_tome": "Cleric's Tome",
-	"ruby_ring": "Ruby Ring", "emerald_ring": "Emerald Ring",
-	"sapphire_ring": "Sapphire Ring", "diamond_ring": "Diamond Ring",
-	"ring_of_might": "Ring of Might", "ring_of_marksmanship": "Ring of Marksmanship",
-	"ring_of_sorcery": "Ring of Sorcery",
-	"tyrants_ring": "Tyrant's Ring",
-	"ranged_tyrants_ring": "Ranged Tyrant's Ring",
-	"mage_tyrants_ring": "Mage Tyrant's Ring",
-	"vanguard_cape": "Vanguard Cape", "wayfarer_cape": "Wayfarer Cape", "arcanist_cape": "Arcanist Cape",
-	"wand": "Apprentice Wand", "moonspun_wand": "Moonspun Wand",
-	"staff": "Mage's Staff", "enchanted_staff": "Enchanted Staff", "stardew_staff": "Stardew Staff",
-}
+const ITEM_DISPLAY_NAMES: Dictionary = IconCatalog.ITEM_DISPLAY_NAMES
 const CRAFTING_RECIPES: Dictionary = {
 	"fishing": [
 		{"id": "raw_minnow", "name": "Minnow", "level": 1, "inputs": "Pond"},
@@ -326,7 +316,9 @@ const AMMUNITION_ITEMS: Dictionary = {
 const RUNE_ITEMS: Dictionary = {
 	"air_rune": true, "water_rune": true, "earth_rune": true,
 	"fire_rune": true, "holy_rune": true, "dark_rune": true,
-	"focus_rune": true,
+	"focus_rune": true, "wrath_rune": true, "hex_rune": true,
+	"nature_rune": true, "aether_rune": true, "spirit_rune": true,
+	"vital_rune": true,
 }
 const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_ferocity": "+5 melee accuracy • +5 melee strength",
@@ -385,6 +377,12 @@ const EQUIPMENT_REQUIREMENTS: Dictionary = {
 	"stardew_hood": "Magic level 20", "stardew_robe_top": "Magic level 20", "stardew_gloves": "Magic level 20", "stardew_bottoms": "Magic level 20", "stardew_boots": "Magic level 20",
 }
 const CONSUMABLE_ITEMS: Dictionary = {
+	"greater_melee_potion": {"boost": "Attack, Strength, and Defence: +7 + 15% of base level for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"greater_ranging_potion": {"boost": "Range: +7 + 15% of base level for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"greater_magic_potion": {"boost": "Magic: +7 + 15% of base level for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"mending_draught": {"effect": "Restores 1% of maximum HP every 6 seconds for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"surefoot_tonic": {"effect": "Halves the movement penalty of your current Slow for its remaining duration", "stack_limit": 5, "cooldown_group": "potion"},
+	"gatherers_tonic": {"effect": "+5 percentage points to gathering success for 3 minutes, up to the resource cap", "stack_limit": 5, "cooldown_group": "potion"},
 	"cooked_minnow": {"healing": 8, "stack_limit": 5, "cooldown_group": "food"},
 	"cooked_trout": {"healing": 12, "stack_limit": 5, "cooldown_group": "food"},
 	"cooked_salmon": {"healing": 16, "stack_limit": 5, "cooldown_group": "food"},
@@ -393,18 +391,24 @@ const CONSUMABLE_ITEMS: Dictionary = {
 	"prayer_potion": {"prayer_restore": 25, "stack_limit": 5, "cooldown_group": "potion"},
 	"minor_healing_potion": {"healing": 15, "stack_limit": 5, "cooldown_group": "potion"},
 	"murky_brew": {"healing": 5, "stack_limit": 5, "cooldown_group": "potion"},
-	"melee_potion": {"boost": "+3 Attack, Strength, and Defence for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
-	"ranging_potion": {"boost": "+3 Range for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
-	"magic_potion": {"boost": "+3 Magic for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"melee_potion": {"boost": "Attack, Strength, and Defence: +4 + 10% of base level for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"ranging_potion": {"boost": "Range: +4 + 10% of base level for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
+	"magic_potion": {"boost": "Magic: +4 + 10% of base level for 5 minutes", "stack_limit": 5, "cooldown_group": "potion"},
 }
 const BREWING_INGREDIENTS: Dictionary = {
+	"bloodfern": {"name": "Bloodfern", "role": "Herb"},
+	"swiftleaf": {"name": "Swiftleaf", "role": "Herb"},
+	"stormsage": {"name": "Stormsage", "role": "Herb"},
 	"vial_of_water": {"name": "Vial of Water", "role": "Base"},
-	"sunleaf": {"name": "Sunleaf", "role": "Herb"},
-	"moonleaf": {"name": "Moonleaf", "role": "Herb"},
+	"sunleaf": {"name": "Dawnpetal", "role": "Herb"},
+	"moonleaf": {"name": "Nightbloom", "role": "Herb"},
 	"sacred_dust": {"name": "Sacred Dust", "role": "Secondary"},
 	"fish_oil": {"name": "Fish Oil", "role": "Secondary"},
 }
 const KNOWN_BREWS: Dictionary = {
+	"bloodfern+sacred_dust+vial_of_water": "Greater Melee Potion",
+	"fish_oil+swiftleaf+vial_of_water": "Greater Ranging Potion",
+	"sacred_dust+stormsage+vial_of_water": "Greater Magic Potion",
 	"sunleaf+vial_of_water": "Minor Healing Potion",
 	"sacred_dust+sunleaf+vial_of_water": "Prayer Potion",
 	"moonleaf+sacred_dust+vial_of_water": "Melee Potion",
@@ -528,7 +532,8 @@ const SKILL_ICONS: Dictionary = IconCatalog.SKILLS
 @onready var equipment_prayer_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Prayer
 @onready var equipment_styles_tab_button: Button = $UI/EquipmentHUD/Margin/VBox/TabRow/Styles
 @onready var equipment_grid: GridContainer = $UI/EquipmentHUD/Margin/VBox/ContentScroll/Center/Grid
-@onready var detailed_stats_button: Button = $UI/EquipmentHUD/Margin/VBox/DetailedStats
+@onready var detailed_stats_button: Button = $UI/EquipmentHUD/Margin/VBox/Actions/DetailedStats
+@onready var death_protection_button: Button = $UI/EquipmentHUD/Margin/VBox/Actions/DeathProtection
 @onready var combat_stats_hud: PanelContainer = $UI/CombatStatsHUD
 @onready var combat_stats_label: RichTextLabel = $UI/CombatStatsHUD/Margin/VBox/Stats
 @onready var combat_stats_close_button: Button = $UI/CombatStatsHUD/Margin/VBox/Header/Close
@@ -599,6 +604,7 @@ var _next_equipment_sequence: int = 1
 var _next_pickup_sequence: int = 1
 var _next_drop_sequence: int = 1
 var _next_inventory_move_sequence: int = 1
+var _next_death_protection_sequence: int = 1
 var _next_consume_sequence: int = 1
 var _next_gather_sequence: int = 1
 var _next_bank_sequence: int = 1
@@ -725,6 +731,8 @@ var _inventory_capacity: int = 16
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
 var _inventory_revision: int = -1
+var _protected_inventory_slots: Array[int] = []
+var _death_protection_window: Node
 var _skill_progress: Dictionary = {
 	"attack": {"experience": 0, "level": 1, "current": 0, "next": 41},
 	"strength": {"experience": 0, "level": 1, "current": 0, "next": 41},
@@ -768,6 +776,8 @@ var _skill_guide_entries: Array[Dictionary] = []
 var _combat_stats: Dictionary = {}
 var _combat_matchup: Dictionary = {}
 var _player_combat_level: int = 1
+var _player_in_pvp_zone: bool = false
+var _pvp_zone_initialized: bool = false
 var _experience_locked: bool = false
 var _last_experience_lock_sequence: int = 0
 var _next_experience_lock_sequence: int = 1
@@ -926,12 +936,18 @@ func _ready() -> void:
 	add_child(_inventory_context_menu)
 	_inventory_context_menu.action_requested.connect(_on_inventory_context_action)
 	_inventory_context_menu.sell_requested.connect(_request_merchant_sale)
+	_death_protection_window = DEATH_PROTECTION_WINDOW_SCRIPT.new()
+	add_child(_death_protection_window)
+	_death_protection_window.configure(ITEM_ICONS, ITEM_DISPLAY_NAMES, EMPTY_SLOT_ICON)
+	_death_protection_window.selection_requested.connect(_request_death_protection)
+	_death_protection_window.feedback_requested.connect(_on_death_protection_feedback)
 	_style_interface_close_button(bank_close_button)
 	bank_close_button.pressed.connect(_close_bank)
 	bank_header.gui_input.connect(_on_bank_header_input)
 	bank_header.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	bank_title.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	merchant_window.buy_requested.connect(_request_merchant_purchase)
+	merchant_window.value_inspected.connect(_on_merchant_value_inspected)
 	merchant_window.visibility_changed.connect(_on_merchant_visibility_changed)
 	account_window.session_action_requested.connect(_request_account_session_action)
 	menu_account_tab.pressed.connect(_toggle_account_tab)
@@ -1012,6 +1028,7 @@ func _ready() -> void:
 	equipment_prayer_tab_button.pressed.connect(_show_prayer_tab)
 	equipment_styles_tab_button.pressed.connect(_show_styles_tab)
 	detailed_stats_button.pressed.connect(_show_detailed_combat_stats)
+	death_protection_button.pressed.connect(_show_death_protection)
 	_style_interface_close_button(combat_stats_close_button)
 	combat_stats_close_button.pressed.connect(_hide_detailed_combat_stats)
 	combat_stats_offence_button.pressed.connect(_show_combat_stats_page.bind("offence"))
@@ -1058,6 +1075,7 @@ func _ready() -> void:
 		settings_button.add_theme_constant_override("icon_max_width", 42)
 	_configure_player_menu()
 	_configure_detailed_stats_button()
+	_configure_death_protection_button()
 	_update_combat_hud()
 	_update_inventory_hud()
 	_setup_skill_details_interface()
@@ -1501,6 +1519,13 @@ func _close_merchant() -> void:
 func _on_merchant_visibility_changed() -> void:
 	if not merchant_window.visible and not _active_merchant_id.is_empty():
 		_close_merchant()
+
+
+func _on_merchant_value_inspected(item_id: String, unit_price: int, stock_quantity: int) -> void:
+	var item_name: String = str(ITEM_DISPLAY_NAMES.get(item_id, item_id.replace("_", " ").capitalize()))
+	var message := "%s • %d coins each • %d in stock" % [item_name, unit_price, stock_quantity]
+	status_label.text = message
+	_append_game_message(message)
 
 
 func _update_merchant_proximity(player_position: Vector3) -> void:
@@ -2021,13 +2046,16 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 		var skill: String = str(gathering_hit.get("skill", ""))
 		var station: String = str(gathering_hit.get("station", ""))
 		if station == "runecrafting":
+			var rune_target: String = spot_name.trim_suffix(" Altar")
+			if rune_target.ends_with(" Rune"):
+				rune_target += "s"
 			var batch_options: Array[Dictionary] = [
 				{"verb": "Craft 1", "quantity": 1},
 				{"verb": "Craft X", "quantity": -1},
 				{"verb": "Craft All", "quantity": 0},
 			]
 			for option: Dictionary in batch_options:
-				_add_world_context_action(str(option["verb"]), "Air Runes", next_menu_id)
+				_add_world_context_action(str(option["verb"]), rune_target, next_menu_id)
 				_context_menu_actions[next_menu_id] = {
 					"type": "production_batch",
 					"station": station,
@@ -2067,7 +2095,9 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 		if next_menu_id > 0:
 			_add_world_context_separator()
 		var target_state: Dictionary = _target_states.get(target_id, {})
-		var target_name: String = str(target_state.get("name", target_id.capitalize()))
+		var target_name: String = str(target_state.get(
+			"name", "Player" if _remote_player_states.has(target_id) else target_id.capitalize(),
+		))
 		_add_world_context_action("Attack", target_name, next_menu_id)
 		_context_menu_actions[next_menu_id] = {"type": "attack", "target_id": target_id}
 		next_menu_id += 1
@@ -2079,7 +2109,7 @@ func _open_world_context_menu(screen_position: Vector2) -> void:
 	for loot_index: int in range(visible_loot_count):
 		var candidate: Dictionary = loot_candidates[loot_index]
 		var quantity: int = int(candidate.get("quantity", 1))
-		var item_name: String = str(candidate.get("item_id", "Item")).capitalize()
+		var item_name: String = IconCatalog.item_display_name(str(candidate.get("item_id", "Item")))
 		var target_label: String = item_name
 		if quantity > 1:
 			target_label += " ×%d" % quantity
@@ -2560,7 +2590,7 @@ func _request_consume_item(item_id: String, inventory_slot: int) -> void:
 		restores_health and _player_health < _player_maximum_health
 	) or (
 		restores_prayer and _player_prayer < _player_maximum_prayer
-	) or applies_boost
+	) or applies_boost or consumable.has("effect")
 	if not can_benefit:
 		status_label.text = "You are already at full %s" % ("prayer" if restores_prayer else "health")
 		return
@@ -3004,6 +3034,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		var position := _snapshot_vector(position_data as Dictionary)
 		var path := _snapshot_path(player_data.get("path", []))
 		var view := _ensure_snapshot_player_view(id)
+		view.set_combat_target_id(id)
 
 		var acknowledged_sequence: int = int(player_data.get("last_command_sequence", 0))
 		if id == _local_player_id:
@@ -3031,6 +3062,8 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 		if typeof(active_statuses_data) == TYPE_ARRAY:
 			active_statuses = active_statuses_data as Array
 		view.set_active_statuses(active_statuses, _action_pulse)
+		if id != _local_player_id:
+			_remote_player_states[id] = player_data.duplicate(true)
 		if id == _local_player_id:
 			_local_player_stunned = _has_active_status(active_statuses, "stun", _action_pulse)
 			_local_player_rooted = _has_active_status(active_statuses, "root", _action_pulse)
@@ -3050,6 +3083,16 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			_player_health_initialized = true
 			_player_maximum_health = int(player_data.get("maximum_health", _player_maximum_health))
 			_player_combat_level = int(player_data.get("combat_level", _player_combat_level))
+			var in_pvp_zone: bool = bool(player_data.get("in_pvp_zone", false))
+			if _pvp_zone_initialized and in_pvp_zone != _player_in_pvp_zone:
+				_append_game_message(
+					"You entered the PvP field. Unprotected items drop on death."
+					if in_pvp_zone
+					else "You left the PvP field.",
+					in_pvp_zone,
+				)
+			_player_in_pvp_zone = in_pvp_zone
+			_pvp_zone_initialized = true
 			_experience_locked = bool(player_data.get("experience_locked", false))
 			_last_experience_lock_sequence = int(player_data.get(
 				"last_experience_lock_sequence", _last_experience_lock_sequence,
@@ -3115,6 +3158,18 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_player_defeated = player_defeated
 				prayer_changed = true
 				_update_magic_hud()
+				if player_defeated:
+					var dropped_count: int = 0
+					if _last_action_result.begins_with("defeated:"):
+						dropped_count = int(_last_action_result.trim_prefix("defeated:"))
+					_append_game_message(
+						"You were defeated. %d unprotected item stack%s dropped." % [
+							dropped_count, "" if dropped_count == 1 else "s",
+						],
+						true,
+					)
+					if _death_protection_window != null:
+						_death_protection_window.close()
 			_player_respawn_at_pulse = int(player_data.get("respawn_at_pulse", 0))
 			_player_dodge_rate = float(player_data.get("dodge_rate", 0.0))
 			var combat_stats_data: Variant = player_data.get("combat_stats", {})
@@ -3195,6 +3250,12 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 							"Cooking batch complete • Cooked a Minnow"
 							if _gathering_spot.is_empty()
 							else "Cooked a Minnow • Cooking continues…"
+						)
+					"burnt_fish":
+						status_label.text = (
+							"Cooking batch complete • Burnt the fish"
+							if _gathering_spot.is_empty()
+							else "Burnt the fish • Cooking continues…"
 						)
 					"missing_raw_minnow":
 						status_label.text = "Cooking stopped: no Raw Minnows"
@@ -3277,15 +3338,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 					"inventory_full":
 						status_label.text = "Gathering stopped: inventory is full"
 					"runecrafting":
-						status_label.text = "Binding air runes…"
-					"crafted_air_runes":
-						status_label.text = (
-							"Runecrafting batch complete • Crafted 5 Air Runes"
-							if _gathering_spot.is_empty()
-							else "Crafted 5 Air Runes • Runecrafting continues…"
-						)
-					"missing_blank_runes":
-						status_label.text = "Runecrafting stopped: no Blank Runes"
+						status_label.text = "Binding runes…"
+					"missing_runestones":
+						status_label.text = "Runecrafting stopped: no Runestones"
 					_:
 						if _gathering_result.begins_with("requires_"):
 							var requirement_parts: PackedStringArray = _gathering_result.trim_prefix("requires_").rsplit("_level_", true, 1)
@@ -3297,6 +3352,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						elif _gathering_result.begins_with("caught_raw_"):
 							var caught_name: String = _gathering_result.trim_prefix("caught_").replace("_", " ").capitalize()
 							status_label.text = "Caught a %s • Fishing continues…" % caught_name
+						elif _gathering_result.begins_with("found_uncut_"):
+							var gem_name: String = _gathering_result.trim_prefix("found_").replace("_", " ").capitalize()
+							status_label.text = "Found an %s while mining • Mining continues…" % gem_name
 						elif _gathering_result.begins_with("cooked_"):
 							var cooked_name: String = _gathering_result.trim_prefix("cooked_").replace("_", " ").capitalize()
 							status_label.text = (
@@ -3307,6 +3365,13 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 						elif _gathering_result.begins_with("missing_raw_"):
 							var missing_name: String = _gathering_result.trim_prefix("missing_").replace("_", " ").capitalize()
 							status_label.text = "Cooking stopped: no %s" % missing_name
+						elif _gathering_result.begins_with("crafted_") and _gathering_result.ends_with("_runes"):
+							var rune_name: String = _gathering_result.trim_prefix("crafted_").trim_suffix("_runes").replace("_", " ").capitalize()
+							status_label.text = (
+								"Runecrafting batch complete • Crafted %s Runes" % rune_name
+								if _gathering_spot.is_empty()
+								else "Crafted %s Runes • Runecrafting continues…" % rune_name
+							)
 						elif _gathering_result.begins_with("smelted_"):
 							var smelted_name: String = _gathering_result.trim_prefix("smelted_").replace("_", " ").capitalize()
 							status_label.text = (
@@ -3332,7 +3397,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				elif _gathering_result.begins_with("smelted_"):
 					status_label.text = "Smelting batch complete"
 					_append_game_message(status_label.text)
-				elif _gathering_result == "crafted_air_runes":
+				elif _gathering_result.begins_with("crafted_") and _gathering_result.ends_with("_runes"):
 					status_label.text = "Runecrafting batch complete"
 					_append_game_message(status_label.text)
 			var equipment_revision: int = int(player_data.get("equipment_revision", _equipment_revision))
@@ -3415,6 +3480,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				player_data, snapshot_tick, acknowledged_sequence, correction,
 			)
 		active_ids[id] = true
+	_refresh_pvp_targetability(player_payloads)
 	_update_combat_hud()
 
 	if full_reconciliation:
@@ -3499,6 +3565,10 @@ func _synchronize_command_sequences(player_data: Dictionary) -> void:
 	_next_inventory_move_sequence = maxi(
 		_next_inventory_move_sequence,
 		int(player_data.get("last_inventory_move_sequence", 0)) + 1,
+	)
+	_next_death_protection_sequence = maxi(
+		_next_death_protection_sequence,
+		int(player_data.get("last_death_protection_sequence", 0)) + 1,
 	)
 	_next_consume_sequence = maxi(
 		_next_consume_sequence, int(player_data.get("last_consume_sequence", 0)) + 1,
@@ -3588,6 +3658,14 @@ func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -
 	var inventory_data: Variant = player_data.get("inventory", null)
 	if player_data.has("inventory") and typeof(inventory_data) == TYPE_DICTIONARY:
 		_apply_inventory_snapshot(inventory_data as Dictionary)
+		_protected_inventory_slots.clear()
+		var protected_data: Variant = player_data.get("protected_inventory_slots", [])
+		if typeof(protected_data) == TYPE_ARRAY:
+			for slot: Variant in protected_data as Array:
+				_protected_inventory_slots.append(int(slot))
+		_protected_inventory_slots.sort()
+		if _death_protection_window != null:
+			_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
 		_inventory_revision = int(player_data.get("inventory_revision", _inventory_revision))
 	var ammunition_data: Variant = player_data.get("ammunition_pouch", null)
 	if player_data.has("ammunition_pouch") and typeof(ammunition_data) == TYPE_DICTIONARY:
@@ -3635,6 +3713,8 @@ func _apply_local_production_progress_snapshot(player_data: Dictionary) -> bool:
 		inventory_selection_changed = true
 		var consumed_definition: Dictionary = CONSUMABLE_ITEMS.get(consumed_item_id, {}) as Dictionary
 		var boost_description: String = str(consumed_definition.get("boost", ""))
+		if consumed_definition.has("effect"):
+			_append_game_message("%s • %s" % [IconCatalog.item_display_name(consumed_item_id), consumed_definition["effect"]])
 		if not boost_description.is_empty():
 			status_label.text = "%s active • %s" % [
 				str(ITEM_DISPLAY_NAMES.get(consumed_item_id, consumed_item_id.replace("_", " ").capitalize())),
@@ -3764,11 +3844,27 @@ func _ensure_snapshot_player_view(player_id: String) -> PlayerView:
 	view = PLAYER_SCENE.instantiate() as PlayerView
 	players.add_child(view)
 	_player_views[player_id] = view
+	view.set_combat_target_id(player_id)
 	view.set_local_player(player_id == _local_player_id)
 	if player_id == _local_player_id:
 		camera_rig.follow(view)
 		_ensure_attack_range_indicator(view)
 	return view
+
+
+func _refresh_pvp_targetability(_player_payloads: Array) -> void:
+	for player_id_value: Variant in _player_views.keys():
+		var player_id := str(player_id_value)
+		var view := _player_views.get(player_id) as PlayerView
+		if view == null:
+			continue
+		var state := _remote_player_states.get(player_id, {}) as Dictionary
+		view.set_pvp_targetable(
+			player_id != _local_player_id
+			and _player_in_pvp_zone
+			and bool(state.get("in_pvp_zone", false))
+			and not bool(state.get("defeated", false))
+		)
 
 
 func _remove_departed_player_views(active_ids: Dictionary) -> void:
@@ -4121,11 +4217,11 @@ func _sync_merchant_stocks(payloads: Variant) -> void:
 func _play_gathering_sound(result: String) -> void:
 	if _gathering_result_is_rejection(result):
 		sound_effects.play_feedback(&"action_rejected")
-	elif result.begins_with("mined_"):
+	elif result.begins_with("mined_") or result.begins_with("found_uncut_"):
 		sound_effects.play_action(&"mining")
 	elif result.begins_with("chopped_"):
 		sound_effects.play_action(&"woodcutting")
-	elif result.begins_with("cooked_"):
+	elif result.begins_with("cooked_") or result == "burnt_fish":
 		sound_effects.play_action(&"cooking")
 
 
@@ -4534,6 +4630,42 @@ func _configure_detailed_stats_button() -> void:
 	var hover_style := normal_style.duplicate() as StyleBoxFlat
 	hover_style.border_color = Color(0.42, 0.7, 0.88, 1.0)
 	detailed_stats_button.add_theme_stylebox_override("hover", hover_style)
+
+
+func _configure_death_protection_button() -> void:
+	death_protection_button.text = ""
+	death_protection_button.icon = DEATH_PROTECTION_ICON
+	death_protection_button.expand_icon = true
+	death_protection_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	death_protection_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	death_protection_button.add_theme_constant_override("icon_max_width", 46)
+	var normal_style := StyleBoxFlat.new()
+	normal_style.bg_color = Color(0.055, 0.07, 0.085, 0.96)
+	normal_style.set_border_width_all(2)
+	normal_style.border_color = Color(0.48, 0.4, 0.22, 0.95)
+	normal_style.set_corner_radius_all(7)
+	death_protection_button.add_theme_stylebox_override("normal", normal_style)
+	var hover_style := normal_style.duplicate() as StyleBoxFlat
+	hover_style.border_color = Color(0.98, 0.78, 0.28, 1.0)
+	death_protection_button.add_theme_stylebox_override("hover", hover_style)
+
+
+func _show_death_protection() -> void:
+	_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
+	_death_protection_window.open()
+
+
+func _request_death_protection(slots: Array[int]) -> void:
+	if _player_defeated:
+		return
+	if network.send_death_protection(_next_death_protection_sequence, slots):
+		_next_death_protection_sequence += 1
+		status_label.text = "Updating items kept on death…"
+
+
+func _on_death_protection_feedback(message: String) -> void:
+	status_label.text = message
+	_append_game_message(message, true)
 
 
 func _toggle_combat_debug_hud() -> void:
@@ -6159,6 +6291,10 @@ func _detailed_offence_text() -> String:
 func _detailed_defence_text() -> String:
 	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
 	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
+	var resistances: Dictionary = _combat_stats.get("elemental_resistances", {})
+	var cells := PackedStringArray()
+	for element: String in ["air", "water", "earth", "fire", "holy", "dark"]:
+		cells.append("[cell]%s  %d%%[/cell]" % [element.capitalize(), int(resistances.get(element, 0))])
 	return (
 		"[table=3]"
 		+"[cell][b]MELEE DEFENCE[/b]\n\n"
@@ -6178,6 +6314,7 @@ func _detailed_defence_text() -> String:
 		+"Crush reduction  %.1f%%[/cell][/table]" % (
 			float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0
 		)
+		+"\n\n[b]ELEMENTAL RESISTANCE[/b]\n[table=3]%s[/table]" % "".join(cells)
 	)
 
 
@@ -6208,6 +6345,8 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_signature = signature
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
+	if _death_protection_window != null:
+		_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
 	_sync_production_windows()
 	_sync_fletching_ui()
 	_sync_brewing_ui()
@@ -6732,7 +6871,7 @@ func _update_inventory_hud() -> void:
 				]
 			else:
 				interaction_text = "left-click to drink (%s, max %d doses/slot) • %s" % [
-					str(consumable.get("boost", "combat boost")), int(consumable.get("stack_limit", 1)), interaction_text,
+					str(consumable.get("effect", consumable.get("boost", ""))), int(consumable.get("stack_limit", 1)), interaction_text,
 				]
 		elif is_brewing_ingredient:
 			interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text
@@ -6961,6 +7100,7 @@ func _update_combat_boost_hud() -> void:
 		if not _combat_boost_widgets.has(potion_id):
 			_combat_boost_widgets[potion_id] = _create_combat_boost_timer(entry)
 		var timer: VBoxContainer = _combat_boost_widgets[potion_id] as VBoxContainer
+		timer.tooltip_text = "%s\n%s" % [IconCatalog.item_display_name(potion_id), "\n".join(entry["bonuses"])]
 		combat_boost_row.move_child(timer, entry_index)
 		var expires_at_pulse: int = int(entry.get("expires_at_pulse", _action_pulse))
 		var remaining_pulses: int = maxi(0, expires_at_pulse - _action_pulse)
@@ -6985,10 +7125,7 @@ func _create_combat_boost_timer(entry: Dictionary) -> VBoxContainer:
 	var timer := VBoxContainer.new()
 	timer.custom_minimum_size = Vector2(48.0, 52.0)
 	timer.alignment = BoxContainer.ALIGNMENT_CENTER
-	timer.tooltip_text = "%s • +%d levels" % [
-		str(entry.get("name", "Combat boost")),
-		int(entry.get("levels", 0)),
-	]
+
 	combat_boost_row.add_child(timer)
 
 	var icon := TextureRect.new()
@@ -7014,51 +7151,36 @@ func _create_combat_boost_timer(entry: Dictionary) -> VBoxContainer:
 
 
 func _combat_boost_display_entries() -> Array[Dictionary]:
-	var melee_expiry: int = 0
-	var melee_levels: int = 0
-	var range_expiry: int = 0
-	var range_levels: int = 0
-	var magic_expiry: int = 0
-	var magic_levels: int = 0
+	var by_potion: Dictionary = {}
+	var entries: Array[Dictionary] = []
 	for boost_data: Variant in _active_combat_boosts:
 		if typeof(boost_data) != TYPE_DICTIONARY:
 			continue
 		var boost: Dictionary = boost_data
-		var skill: String = str(boost.get("skill", ""))
-		var expiry: int = int(boost.get("expires_at_pulse", 0))
-		var levels: int = int(boost.get("levels", 0))
-		if skill in ["attack", "strength", "defence"]:
-			melee_expiry = maxi(melee_expiry, expiry)
-			melee_levels = maxi(melee_levels, levels)
-		elif skill == "range":
-			range_expiry = expiry
-			range_levels = levels
-		elif skill == "magic":
-			magic_expiry = expiry
-			magic_levels = levels
-
-	var entries: Array[Dictionary] = []
-	if melee_expiry > _action_pulse:
-		entries.append({
-			"potion_id": "melee_potion",
-			"name": "Melee potion",
-			"expires_at_pulse": melee_expiry,
-			"levels": melee_levels,
-		})
-	if range_expiry > _action_pulse:
-		entries.append({
-			"potion_id": "ranging_potion",
-			"name": "Ranging potion",
-			"expires_at_pulse": range_expiry,
-			"levels": range_levels,
-		})
-	if magic_expiry > _action_pulse:
-		entries.append({
-			"potion_id": "magic_potion",
-			"name": "Magic potion",
-			"expires_at_pulse": magic_expiry,
-			"levels": magic_levels,
-		})
+		var expiry := int(boost.get("expires_at_pulse", 0))
+		if expiry <= _action_pulse:
+			continue
+		var skill := str(boost.get("skill", ""))
+		var levels := int(boost.get("levels", 0))
+		var potion_id := str(boost.get("potion_id", ""))
+		if potion_id.is_empty():
+			# Older servers sent fixed bonuses without a source item.
+			match skill:
+				"attack", "strength", "defence": potion_id = "melee_potion"
+				"range": potion_id = "ranging_potion"
+				"magic": potion_id = "magic_potion"
+				_: continue
+			if levels == 6:
+				potion_id = "greater_" + potion_id
+		if not by_potion.has(potion_id):
+			var entry := {"potion_id": potion_id, "expires_at_pulse": expiry, "bonuses": []}
+			by_potion[potion_id] = entry
+			entries.append(entry)
+		if skill.is_empty():
+			var definition: Dictionary = CONSUMABLE_ITEMS.get(potion_id, {})
+			by_potion[potion_id]["bonuses"].append(str(definition.get("effect", "")))
+		else:
+			by_potion[potion_id]["bonuses"].append("%s +%d" % [skill.capitalize(), levels])
 	return entries
 
 
@@ -7078,14 +7200,20 @@ func _update_combat_hud() -> void:
 	var target_ids: Array = _target_states.keys()
 	target_ids.sort()
 	var displayed_target_key: String = _combat_target
-	if not _target_states.has(displayed_target_key):
+	var displayed_target: Dictionary = _target_states.get(displayed_target_key, {})
+	if displayed_target.is_empty() and _remote_player_states.has(displayed_target_key):
+		displayed_target = (_remote_player_states.get(displayed_target_key, {}) as Dictionary).duplicate(true)
+		displayed_target["name"] = "Player"
+		displayed_target["target_id"] = str(displayed_target.get("combat_target", ""))
+		displayed_target["attack_type"] = "player"
+	if displayed_target.is_empty():
 		displayed_target_key = ""
 		for target_id: String in target_ids:
 			var candidate: Dictionary = _target_states[target_id]
 			if str(candidate.get("target_id", "")) == _local_player_id:
 				displayed_target_key = target_id
 				break
-	var displayed_target: Dictionary = _target_states.get(displayed_target_key, {})
+		displayed_target = _target_states.get(displayed_target_key, {})
 	_target_hud_active = not displayed_target_key.is_empty() and not displayed_target.is_empty()
 	target_hud.visible = _target_hud_active or _hud_edit_mode
 	player_details_button.disabled = not _target_hud_active and not _hud_edit_mode

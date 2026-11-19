@@ -83,16 +83,31 @@ func set_spot(id: String, display_name: String, skill: String, station: String =
 	altar_holy_mark_horizontal.visible = is_prayer_altar
 	altar_rune_orb.visible = is_runecrafting_altar or is_debug_shrine
 	if is_runecrafting_altar or is_debug_shrine:
+		var rune_colour: Color = {
+			"starter_air_rune_altar": Color(0.82, 0.91, 1.0),
+			"water_rune_altar": Color(0.22, 0.56, 0.94),
+			"earth_rune_altar": Color(0.34, 0.66, 0.31),
+			"fire_rune_altar": Color(0.92, 0.25, 0.16),
+			"focus_rune_altar": Color(0.72, 0.58, 0.94),
+			"nature_rune_altar": Color(0.3, 0.76, 0.4),
+			"spirit_rune_altar": Color(0.58, 0.84, 0.88),
+			"vital_rune_altar": Color(0.92, 0.32, 0.48),
+			"hex_rune_altar": Color(0.55, 0.24, 0.68),
+			"holy_rune_altar": Color(1.0, 0.78, 0.22),
+			"shadow_rune_altar": Color(0.24, 0.17, 0.32),
+			"aether_rune_altar": Color(0.35, 0.38, 0.9),
+			"wrath_rune_altar": Color(0.78, 0.12, 0.22),
+		}.get(id, Color(0.28, 0.72, 1.0))
 		var altar_material := StandardMaterial3D.new()
-		altar_material.albedo_color = Color(0.33, 0.18, 0.48) if is_debug_shrine else Color(0.18, 0.42, 0.62)
+		altar_material.albedo_color = Color(0.33, 0.18, 0.48) if is_debug_shrine else rune_colour.darkened(0.35)
 		altar_material.metallic = 0.25
 		altar_material.roughness = 0.5
 		for altar_surface: MeshInstance3D in altar_surfaces:
 			altar_surface.material_override = altar_material
 		var orb_material := StandardMaterial3D.new()
-		orb_material.albedo_color = Color(0.9, 0.55, 1.0) if is_debug_shrine else Color(0.72, 0.92, 1.0)
+		orb_material.albedo_color = Color(0.9, 0.55, 1.0) if is_debug_shrine else rune_colour
 		orb_material.emission_enabled = true
-		orb_material.emission = Color(0.72, 0.28, 1.0) if is_debug_shrine else Color(0.28, 0.72, 1.0)
+		orb_material.emission = Color(0.72, 0.28, 1.0) if is_debug_shrine else rune_colour
 		orb_material.emission_energy_multiplier = 2.0
 		altar_rune_orb.material_override = orb_material
 	if is_tree:

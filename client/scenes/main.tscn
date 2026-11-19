@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" path="res://scenes/auth_gate.tscn" id="14_auth_gate"]
 [ext_resource type="Script" path="res://scripts/minimap_hud.gd" id="15_minimap"]
 [ext_resource type="Script" path="res://scripts/tyrant_arenas.gd" id="16_tyrant_arenas"]
+[ext_resource type="PackedScene" path="res://scenes/pvp_field.tscn" id="17_pvp_field"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -175,6 +176,8 @@ shape = SubResource("GroundShape")
 
 [node name="TyrantArenas" type="Node3D" parent="."]
 script = ExtResource("16_tyrant_arenas")
+
+[node name="PvPField" parent="." instance=ExtResource("17_pvp_field")]
 
 [node name="UpperLevel" type="Node3D" parent="." unique_id=607603903]
 script = ExtResource("4_floor_visibility")
@@ -1800,12 +1803,22 @@ theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 3
 
-[node name="DetailedStats" type="Button" parent="UI/EquipmentHUD/Margin/VBox"]
-custom_minimum_size = Vector2(64, 64)
+[node name="Actions" type="HBoxContainer" parent="UI/EquipmentHUD/Margin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 4
+theme_override_constants/separation = 12
+
+[node name="DetailedStats" type="Button" parent="UI/EquipmentHUD/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
 text = ""
 tooltip_text = "View equipment details"
+
+[node name="DeathProtection" type="Button" parent="UI/EquipmentHUD/Margin/VBox/Actions"]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+text = "4"
+tooltip_text = "Choose up to four inventory items to keep on death"
 
 [node name="CombatStatsHUD" type="PanelContainer" parent="UI"]
 visible = false

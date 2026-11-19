@@ -20,7 +20,7 @@ signal session_replaced(message: String)
 
 const INITIAL_RECONNECT_DELAY_SECONDS: float = 1.0
 const MAXIMUM_RECONNECT_DELAY_SECONDS: float = 30.0
-const PROTOCOL_VERSION: int = 14
+const PROTOCOL_VERSION: int = 15
 const BETA_BUILD_FEATURE: String = "arcana_beta"
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
@@ -409,6 +409,21 @@ func send_move_inventory_item(sequence: int, from_slot: int, to_slot: int) -> bo
 	var result: Error = _socket.send_text(JSON.stringify(message))
 	if result != OK:
 		status_changed.emit("Could not move inventory item: %s" % error_string(result))
+		return false
+	return true
+
+
+func send_death_protection(sequence: int, inventory_slots: Array[int]) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot update death protection while disconnected")
+		return false
+	var result: Error = _socket.send_text(JSON.stringify({
+		"type": "set_death_protection",
+		"sequence": sequence,
+		"inventory_slots": inventory_slots,
+	}))
+	if result != OK:
+		status_changed.emit("Could not update death protection: %s" % error_string(result))
 		return false
 	return true
 

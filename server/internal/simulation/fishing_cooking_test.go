@@ -26,7 +26,8 @@ func TestFishRecipesProvideLevelledProgression(t *testing.T) {
 			t.Errorf("fishing recipe %q = %+v, %t", test.raw, fishing, fishingExists)
 		}
 		if !cookingExists || cooking.RequiredLevel != test.level || cooking.RewardItem != test.cooked ||
-			len(cooking.Costs) != 1 || cooking.Costs[0].ItemID != test.raw {
+			len(cooking.Costs) != 1 || cooking.Costs[0].ItemID != test.raw ||
+			cooking.BurnItem != ItemBurntFish || cooking.BurnChance <= 0 || cooking.NoBurnLevel <= cooking.RequiredLevel {
 			t.Errorf("cooking recipe %q = %+v, %t", test.cooked, cooking, cookingExists)
 		}
 		if !foodExists || food.Consumable.Healing != test.heal || food.StackLimit != 5 || !food.Consumable.DelaysAttacks {
@@ -62,5 +63,18 @@ func TestFoodRecipeRejectsInsufficientLevelWithoutConsumingFish(t *testing.T) {
 	}
 	if player.inventory.quantity(ItemRawLobster) != 1 {
 		t.Fatalf("failed cooking attempt consumed raw lobster: %+v", player.inventory)
+	}
+}
+
+func TestCookingBurnChanceFallsToZeroWithLevels(t *testing.T) {
+	recipe, _ := foodRecipe(craftingStationCooking, ItemCookedLobster)
+	if chance := cookingBurnChance(recipe, recipe.RequiredLevel); chance != recipe.BurnChance {
+		t.Fatalf("burn chance at unlock = %f, want %f", chance, recipe.BurnChance)
+	}
+	if chance := cookingBurnChance(recipe, recipe.RequiredLevel+5); chance >= recipe.BurnChance || chance <= 0 {
+		t.Fatalf("mid-progression burn chance = %f, want between zero and %f", chance, recipe.BurnChance)
+	}
+	if chance := cookingBurnChance(recipe, recipe.NoBurnLevel); chance != 0 {
+		t.Fatalf("burn chance at no-burn level = %f, want zero", chance)
 	}
 }

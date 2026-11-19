@@ -38,10 +38,11 @@ type statusDefinition struct {
 }
 
 type activeStatus struct {
-	EffectID       StatusEffectID
-	SourceID       string
-	AppliedAtPulse uint64
-	ExpiresAtPulse uint64
+	SlowPenaltyReductionPercent int
+	EffectID                    StatusEffectID
+	SourceID                    string
+	AppliedAtPulse              uint64
+	ExpiresAtPulse              uint64
 }
 
 type ActiveStatusSnapshot struct {
@@ -120,12 +121,13 @@ func effectivePlayerMovementSpeed(player *playerState) float64 {
 		return 0
 	}
 	multiplier := 1.0
-	for id := range player.activeStatuses {
+	for id, status := range player.activeStatuses {
 		definition, known := statusDefinitions[id]
 		if !known || definition.MovementSpeedMultiplier <= 0 {
 			continue
 		}
-		multiplier *= definition.MovementSpeedMultiplier
+		penalty := 1 - definition.MovementSpeedMultiplier
+		multiplier *= 1 - penalty*(1-float64(status.SlowPenaltyReductionPercent)/100)
 	}
 	return player.speed * max(0.1, multiplier)
 }

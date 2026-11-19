@@ -32,8 +32,15 @@ const (
 	ItemEarthRune              = "earth_rune"
 	ItemFireRune               = "fire_rune"
 	ItemHolyRune               = "holy_rune"
-	ItemDarkRune               = "dark_rune"
+	ItemShadowRune             = "dark_rune"
+	ItemDarkRune               = ItemShadowRune // Compatibility alias for persisted content and older call sites.
 	ItemFocusRune              = "focus_rune"
+	ItemWrathRune              = "wrath_rune"
+	ItemHexRune                = "hex_rune"
+	ItemNatureRune             = "nature_rune"
+	ItemAetherRune             = "aether_rune"
+	ItemSpiritRune             = "spirit_rune"
+	ItemVitalRune              = "vital_rune"
 	ItemBlankRune              = "blank_rune"
 	ItemLeather                = "leather"
 	ItemGoldOre                = "gold_ore"
@@ -48,6 +55,16 @@ const (
 	ItemRuby                   = "ruby"
 	ItemUncutDiamond           = "uncut_diamond"
 	ItemDiamond                = "diamond"
+	ItemUncutOpal              = "uncut_opal"
+	ItemOpal                   = "opal"
+	ItemUncutTopaz             = "uncut_topaz"
+	ItemTopaz                  = "topaz"
+	ItemUncutAquamarine        = "uncut_aquamarine"
+	ItemAquamarine             = "aquamarine"
+	ItemUncutAmethyst          = "uncut_amethyst"
+	ItemAmethyst               = "amethyst"
+	ItemUncutOnyx              = "uncut_onyx"
+	ItemOnyx                   = "onyx"
 	ItemGoldBar                = "gold_bar"
 	ItemSilverBar              = "silver_bar"
 	ItemSteelBar               = "steel_bar"
@@ -66,6 +83,14 @@ const (
 	ItemChisel                 = "chisel"
 	ItemSewingNeedle           = "sewing_needle"
 	ItemThread                 = "thread"
+	ItemFlax                   = "flax"
+	ItemGlowcap                = "glowcap"
+	ItemEmberel                = "emberel"
+	ItemGhostInk               = "ghost_ink"
+	ItemMiremane               = "miremane"
+	ItemIronstalk              = "ironstalk"
+	ItemDreamveil              = "dreamveil"
+	ItemBlackTrumpet           = "black_trumpet"
 	ItemTinderbox              = "tinderbox"
 	ItemHammer                 = "hammer"
 	ItemRingMould              = "ring_mould"
@@ -76,13 +101,34 @@ const (
 	ItemVialOfWater            = "vial_of_water"
 	ItemSunleaf                = "sunleaf"
 	ItemMoonleaf               = "moonleaf"
+	ItemAshmint                = "ashmint"
+	ItemEmberPepper            = "ember_pepper"
+	ItemCinnamonBark           = "cinnamon_bark"
+	ItemStarAnise              = "star_anise"
+	ItemGoldenSaffron          = "golden_saffron"
+	ItemSwiftleaf              = "swiftleaf"
+	ItemBloodfern              = "bloodfern"
+	ItemSilverthorn            = "silverthorn"
+	ItemStormsage              = "stormsage"
+	ItemWitchbloom             = "witchbloom"
+	ItemStarwort               = "starwort"
+	ItemWhisperweed            = "whisperweed"
 	ItemSacredDust             = "sacred_dust"
 	ItemFishOil                = "fish_oil"
+	ItemPineResin              = "pine_resin"
+	ItemPearlscale             = "pearlscale"
+	ItemHollowMarrow           = "hollow_marrow"
 	ItemMinorHealingPotion     = "minor_healing_potion"
 	ItemMurkyBrew              = "murky_brew"
 	ItemMeleePotion            = "melee_potion"
 	ItemRangingPotion          = "ranging_potion"
 	ItemMagicPotion            = "magic_potion"
+	ItemGreaterMeleePotion     = "greater_melee_potion"
+	ItemGreaterRangingPotion   = "greater_ranging_potion"
+	ItemGreaterMagicPotion     = "greater_magic_potion"
+	ItemMendingDraught         = "mending_draught"
+	ItemSurefootTonic          = "surefoot_tonic"
+	ItemGatherersTonic         = "gatherers_tonic"
 	ItemArrowShafts            = "arrow_shafts"
 	ItemFeathers               = "feathers"
 	ItemBronzeArrowTips        = "bronze_arrow_tips"
@@ -109,6 +155,7 @@ const (
 	ItemBronzeBar              = "bronze_bar"
 	ItemIronBar                = "iron_bar"
 	ItemMithrilBar             = "mithril_bar"
+	ItemBurntFish              = "burnt_fish"
 	ItemCookedMinnow           = "cooked_minnow"
 	ItemRawMinnow              = "raw_minnow"
 	ItemRawTrout               = "raw_trout"
@@ -141,18 +188,23 @@ const (
 )
 
 type ConsumableDefinition struct {
-	Healing           int
-	PrayerRestoration int
-	CooldownPulses    uint64
-	CooldownGroup     ConsumableCooldownGroup
-	DelaysAttacks     bool
-	SkillBoosts       []SkillBoostDefinition
-	BoostDuration     uint64
+	Healing                     int
+	PrayerRestoration           int
+	CooldownPulses              uint64
+	CooldownGroup               ConsumableCooldownGroup
+	DelaysAttacks               bool
+	SkillBoosts                 []SkillBoostDefinition
+	BoostDuration               uint64
+	SlowPenaltyReductionPercent int
+	MaxHealthPercentPerTick     int
+	HealInterval                uint64
+	GatheringBonus              float64
 }
 
 type SkillBoostDefinition struct {
-	Skill  SkillID
-	Levels int
+	Skill            SkillID
+	FlatLevels       int
+	BaseLevelPercent int
 }
 
 type SkillRequirement struct {
@@ -477,7 +529,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 			MeleeStrength: 2, RangedStrength: 2, MagicStrength: 2,
 		}},
 	},
-	{ID: ItemRubyRing, Name: "Ruby Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{MeleeStrength: 2}}},
+	{ID: ItemRubyRing, Name: "Ruby Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Resistances: ElementalResistances{Fire: 10}, Offence: OffenceBonuses{MeleeStrength: 2}}},
 	{ID: ItemEmeraldRing, Name: "Emerald Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{RangedStrength: 2}}},
 	{ID: ItemSapphireRing, Name: "Sapphire Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{MagicStrength: 2}}},
 	{ID: ItemDiamondRing, Name: "Diamond Ring", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotRing, Offence: OffenceBonuses{
@@ -523,9 +575,15 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemEarthRune, Name: "Earth Rune", Kind: ItemKindResource},
 	{ID: ItemFireRune, Name: "Fire Rune", Kind: ItemKindResource},
 	{ID: ItemHolyRune, Name: "Holy Rune", Kind: ItemKindResource},
-	{ID: ItemDarkRune, Name: "Dark Rune", Kind: ItemKindResource},
+	{ID: ItemShadowRune, Name: "Shadow Rune", Kind: ItemKindResource},
 	{ID: ItemFocusRune, Name: "Focus Rune", Kind: ItemKindResource},
-	{ID: ItemBlankRune, Name: "Blank Rune", Kind: ItemKindResource},
+	{ID: ItemWrathRune, Name: "Wrath Rune", Kind: ItemKindResource},
+	{ID: ItemHexRune, Name: "Hex Rune", Kind: ItemKindResource},
+	{ID: ItemNatureRune, Name: "Nature Rune", Kind: ItemKindResource},
+	{ID: ItemAetherRune, Name: "Aether Rune", Kind: ItemKindResource},
+	{ID: ItemSpiritRune, Name: "Spirit Rune", Kind: ItemKindResource},
+	{ID: ItemVitalRune, Name: "Vital Rune", Kind: ItemKindResource},
+	{ID: ItemBlankRune, Name: "Runestone", Kind: ItemKindResource},
 	{ID: ItemLeather, Name: "Leather", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemGoldOre, Name: "Gold Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemSilverOre, Name: "Silver Ore", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
@@ -539,6 +597,16 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemRuby, Name: "Ruby", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemUncutDiamond, Name: "Uncut Diamond", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemDiamond, Name: "Diamond", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutOpal, Name: "Uncut Opal", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemOpal, Name: "Opal", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutTopaz, Name: "Uncut Topaz", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemTopaz, Name: "Topaz", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutAquamarine, Name: "Uncut Aquamarine", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemAquamarine, Name: "Aquamarine", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutAmethyst, Name: "Uncut Amethyst", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemAmethyst, Name: "Amethyst", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemUncutOnyx, Name: "Uncut Onyx", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemOnyx, Name: "Onyx", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemBronzeArrow, Name: "Bronze Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: -1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: bronzeEquipmentLevel}}},
 	{ID: ItemIronArrow, Name: "Iron Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: ironEquipmentLevel}}},
 	{ID: ItemSteelArrow, Name: "Steel Arrow", Kind: ItemKindResource, Ammunition: true, AmmunitionFamily: AmmunitionFamilyArrow, AmmunitionStrength: 1, EquipRequirements: []SkillRequirement{{Skill: SkillRange, Level: steelEquipmentLevel}}},
@@ -563,6 +631,14 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemChisel, Name: "Chisel", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemSewingNeedle, Name: "Sewing Needle", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemThread, Name: "Thread", Kind: ItemKindResource, StackLimit: 100},
+	{ID: ItemFlax, Name: "Flax", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemGlowcap, Name: "Glowcap", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemEmberel, Name: "Emberel", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemGhostInk, Name: "GhostInk", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemMiremane, Name: "Miremane", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemIronstalk, Name: "Ironstalk", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemDreamveil, Name: "Dreamveil", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemBlackTrumpet, Name: "Black Trumpet", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemTinderbox, Name: "Tinderbox", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemHammer, Name: "Hammer", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemRingMould, Name: "Ring Mould", Kind: ItemKindResource, StackLimit: 1},
@@ -570,10 +646,25 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemFishingRod, Name: "Fishing Rod", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemLobsterCage, Name: "Lobster Cage", Kind: ItemKindResource, StackLimit: 1},
 	{ID: ItemVialOfWater, Name: "Vial of Water", Kind: ItemKindResource, StackLimit: 25},
-	{ID: ItemSunleaf, Name: "Sunleaf", Kind: ItemKindResource, StackLimit: 10},
-	{ID: ItemMoonleaf, Name: "Moonleaf", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemSunleaf, Name: "Dawnpetal", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemMoonleaf, Name: "Nightbloom", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemAshmint, Name: "Ashmint", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemEmberPepper, Name: "Fire Pepper", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemCinnamonBark, Name: "Cinnabark", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemStarAnise, Name: "Star Anise", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemGoldenSaffron, Name: "Golden Saffron", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemSwiftleaf, Name: "Swiftleaf", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemBloodfern, Name: "Bloodfern", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemSilverthorn, Name: "Silverthorn", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemStormsage, Name: "Stormsage", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemWitchbloom, Name: "Witchbloom", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemStarwort, Name: "Starwort", Kind: ItemKindResource, StackLimit: 10},
+	{ID: ItemWhisperweed, Name: "Whisperweed", Kind: ItemKindResource, StackLimit: 10},
 	{ID: ItemSacredDust, Name: "Sacred Dust", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemFishOil, Name: "Fish Oil", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemPineResin, Name: "Pine Resin", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemPearlscale, Name: "Pearlscale", Kind: ItemKindResource, StackLimit: 25},
+	{ID: ItemHollowMarrow, Name: "Hollow Marrow", Kind: ItemKindResource, StackLimit: 25},
 	{ID: ItemArrowShafts, Name: "Arrow Shafts", Kind: ItemKindResource, StackLimit: MaximumItemStackQuantity},
 	{ID: ItemFeathers, Name: "Feathers", Kind: ItemKindResource, StackLimit: 200},
 	{ID: ItemBronzeArrowTips, Name: "Bronze Arrow Tips", Kind: ItemKindResource, StackLimit: 200},
@@ -599,26 +690,15 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		ID: ItemMurkyBrew, Name: "Murky Brew", Kind: ItemKindConsumable, StackLimit: 5,
 		Consumable: ConsumableDefinition{Healing: 5, CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion},
 	},
-	{
-		ID: ItemMeleePotion, Name: "Melee Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
-			{Skill: SkillAttack, Levels: combatPotionBoostLevels},
-			{Skill: SkillStrength, Levels: combatPotionBoostLevels},
-			{Skill: SkillDefence, Levels: combatPotionBoostLevels},
-		}},
-	},
-	{
-		ID: ItemRangingPotion, Name: "Ranging Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
-			{Skill: SkillRange, Levels: combatPotionBoostLevels},
-		}},
-	},
-	{
-		ID: ItemMagicPotion, Name: "Magic Potion", Kind: ItemKindConsumable, StackLimit: 5,
-		Consumable: ConsumableDefinition{CooldownPulses: 2, CooldownGroup: ConsumableCooldownPotion, BoostDuration: combatPotionDurationPulses, SkillBoosts: []SkillBoostDefinition{
-			{Skill: SkillMagic, Levels: combatPotionBoostLevels},
-		}},
-	},
+	combatPotion(ItemMeleePotion, "Melee Potion", 4, 10, SkillAttack, SkillStrength, SkillDefence),
+	combatPotion(ItemRangingPotion, "Ranging Potion", 4, 10, SkillRange),
+	combatPotion(ItemMagicPotion, "Magic Potion", 4, 10, SkillMagic),
+	combatPotion(ItemGreaterMeleePotion, "Greater Melee Potion", 7, 15, SkillAttack, SkillStrength, SkillDefence),
+	combatPotion(ItemGreaterRangingPotion, "Greater Ranging Potion", 7, 15, SkillRange),
+	combatPotion(ItemGreaterMagicPotion, "Greater Magic Potion", 7, 15, SkillMagic),
+	utilityPotion(ItemMendingDraught, "Mending Draught", ConsumableDefinition{MaxHealthPercentPerTick: 1, HealInterval: 10, BoostDuration: 500}),
+	utilityPotion(ItemSurefootTonic, "Surefoot Tonic", ConsumableDefinition{SlowPenaltyReductionPercent: 50}),
+	utilityPotion(ItemGatherersTonic, "Gatherer's Tonic", ConsumableDefinition{GatheringBonus: 0.05, BoostDuration: 300}),
 	{ID: ItemNormalLogs, Name: "Normal Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemOakLogs, Name: "Oak Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemWillowLogs, Name: "Willow Logs", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
@@ -636,6 +716,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{ID: ItemSilverBar, Name: "Silver Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemSteelBar, Name: "Steel Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{ID: ItemAdamantiteBar, Name: "Adamantite Bar", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
+	{ID: ItemBurntFish, Name: "Burnt Fish", Kind: ItemKindResource, StackLimit: bulkyResourceStackLimit},
 	{
 		ID: ItemCookedMinnow, Name: "Cooked Minnow", Kind: ItemKindConsumable,
 		StackLimit: 5,
@@ -739,18 +820,24 @@ func buildItemCatalog(definitions []ItemDefinition) (map[string]ItemDefinition, 
 		case ItemKindConsumable:
 			if definition.StackLimit == 0 || definition.Consumable.CooldownPulses == 0 ||
 				definition.Consumable.Healing < 0 || definition.Consumable.PrayerRestoration < 0 ||
-				(definition.Consumable.Healing == 0 && definition.Consumable.PrayerRestoration == 0 && len(definition.Consumable.SkillBoosts) == 0) {
+				(definition.Consumable.Healing == 0 && definition.Consumable.PrayerRestoration == 0 && len(definition.Consumable.SkillBoosts) == 0 && definition.Consumable.SlowPenaltyReductionPercent == 0 && !definition.Consumable.hasTimedUtility()) {
 				return nil, fmt.Errorf("consumable %q requires a stack limit, positive effect, and cooldown", definition.ID)
 			}
 			if definition.Consumable.CooldownGroup != ConsumableCooldownFood &&
 				definition.Consumable.CooldownGroup != ConsumableCooldownPotion {
 				return nil, fmt.Errorf("consumable %q requires a valid cooldown group", definition.ID)
 			}
-			if len(definition.Consumable.SkillBoosts) > 0 && definition.Consumable.BoostDuration == 0 {
+			if definition.Consumable.SlowPenaltyReductionPercent < 0 || definition.Consumable.SlowPenaltyReductionPercent >= 100 || definition.Consumable.MaxHealthPercentPerTick < 0 || definition.Consumable.MaxHealthPercentPerTick > 100 {
+				return nil, fmt.Errorf("consumable %q has an invalid effect percentage", definition.ID)
+			}
+			if definition.Consumable.MaxHealthPercentPerTick > 0 && definition.Consumable.HealInterval == 0 {
+				return nil, fmt.Errorf("consumable %q requires a healing interval", definition.ID)
+			}
+			if (len(definition.Consumable.SkillBoosts) > 0 || definition.Consumable.hasTimedUtility()) && definition.Consumable.BoostDuration == 0 {
 				return nil, fmt.Errorf("consumable %q has boosts without a duration", definition.ID)
 			}
 			for _, boost := range definition.Consumable.SkillBoosts {
-				if !skillIDValid(boost.Skill) || boost.Levels <= 0 {
+				if !skillIDValid(boost.Skill) || boost.FlatLevels <= 0 || boost.BaseLevelPercent < 0 {
 					return nil, fmt.Errorf("consumable %q has invalid skill boost %+v", definition.ID, boost)
 				}
 			}

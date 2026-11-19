@@ -434,6 +434,7 @@ func (w *World) triggerWrath(source *playerState) {
 	for _, playerID := range playerIDs {
 		target := w.players[playerID]
 		if target == nil || target == source || target.defeated ||
+			!playerInPvPField(source) || !playerInPvPField(target) ||
 			distance(source.position, target.position) > definition.DeathBurstRadius {
 			continue
 		}
@@ -521,7 +522,7 @@ func prayerSpellHitChanceBonus(player *playerState) float64 {
 	return activePrayerBonuses(player).MagicHitChance
 }
 
-func reduceIncomingDamage(player *playerState, damage int, damageType DamageType) int {
+func reduceIncomingDamage(player *playerState, damage int, damageType DamageType, element MagicElement) int {
 	if damage <= 0 {
 		return 0
 	}
@@ -531,6 +532,9 @@ func reduceIncomingDamage(player *playerState, damage int, damageType DamageType
 	prayerReduction := 1 - (1-generalReduction)*(1-styleReduction)
 	armourReduction := armourDamageReduction(player, damageType)
 	mitigated := float64(damage) * (1 - prayerReduction) * (1 - armourReduction)
+	if damageType == DamageTypeMagic && element != "" {
+		mitigated *= resistanceMultiplier(playerElementalResistances(player), element)
+	}
 	return max(0, int(math.Round(mitigated+1e-9)))
 }
 

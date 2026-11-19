@@ -36,7 +36,6 @@ const (
 	starterAgilityObstacleID      = "starter_balance_beam"
 	starterPrayerAltarID          = "starter_prayer_altar"
 	warPrayerAltarID              = "war_prayer_altar"
-	starterAirRuneAltarID         = "starter_air_rune_altar"
 	debugSkillShrineID            = "debug_skill_shrine"
 	miningInterval                = 4
 	miningExperience              = 10
@@ -75,8 +74,6 @@ const (
 	prayerSacrificeBonesID        = "sacrifice_bones"
 	prayerAdoptCommonID           = "adopt_common_litany"
 	prayerAdoptWarID              = "adopt_war_covenant"
-	runecraftingInterval          = 3
-	runecraftingExperience        = 12
 	baseGatheringSuccessChance    = 0.60
 	gatheringChancePerLevel       = 0.04
 	maximumGatheringSuccessChance = 0.95
@@ -133,8 +130,26 @@ type gatheringSpotDefinition struct {
 	SuccessChancePerLevel float64
 	MaximumSuccessChance  float64
 	UnsuccessfulResult    string
+	BonusRewards          []gatheringBonusReward
 	RechargePulses        uint64
 	NextRecharge          uint64
+}
+
+type gatheringBonusReward struct {
+	ItemID string
+	Chance float64
+}
+
+var miningGemRewards = []gatheringBonusReward{
+	{ItemID: ItemUncutSapphire, Chance: 0.04},
+	{ItemID: ItemUncutEmerald, Chance: 0.02},
+	{ItemID: ItemUncutRuby, Chance: 0.01},
+	{ItemID: ItemUncutDiamond, Chance: 0.004},
+	{ItemID: ItemUncutOpal, Chance: 0.025},
+	{ItemID: ItemUncutTopaz, Chance: 0.015},
+	{ItemID: ItemUncutAquamarine, Chance: 0.0125},
+	{ItemID: ItemUncutAmethyst, Chance: 0.005},
+	{ItemID: ItemUncutOnyx, Chance: 0.001},
 }
 
 type GatherCommand struct {
@@ -163,7 +178,7 @@ func agilityBeamEndpoints(center Position) (Position, Position) {
 }
 
 func newGatheringSpots() map[string]gatheringSpotDefinition {
-	return map[string]gatheringSpotDefinition{
+	spots := map[string]gatheringSpotDefinition{
 		// Fishing grounds: spaced far enough apart that each pond reads as its
 		// own resource while still forming one obvious testing area.
 		starterFishingSpotID: fishingSpot(starterFishingSpotID, "Minnow Pond", Position{X: -55, Z: 22}, ItemRawMinnow, minnowSpotCapacity, minnowRechargePulses),
@@ -210,6 +225,7 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			MissingResult: "missing_pickaxe", RequiredTool: ItemBronzePickaxe,
 			BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
 			MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "mining_unsuccessful",
+			BonusRewards:   append([]gatheringBonusReward(nil), miningGemRewards...),
 			RechargePulses: copperRechargePulses,
 		},
 		starterTinVeinID:     miningVein(starterTinVeinID, "Tin Vein", Position{X: 41, Z: 9}, 1, ItemTinOre, 10, tinVeinCapacity, 10, 4),
@@ -256,18 +272,6 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			ActionKind: timedActionWorldInteraction,
 			Interval:   1, ActiveResult: "praying", RewardResult: "prayer_restored",
 		},
-		starterAirRuneAltarID: {
-			GatheringSpotSnapshot: GatheringSpotSnapshot{
-				ID: starterAirRuneAltarID, Name: "Air Rune Altar", Skill: SkillRunecrafting,
-				Position: Position{X: 52, Z: -22}, Range: gatheringRange, RequiredLevel: 1,
-				Station: craftingStationRunecrafting,
-			},
-			ActionKind: timedActionProduction,
-			RewardItem: ItemAirRune, RewardQuantity: 5, RewardXP: runecraftingExperience,
-			Interval: runecraftingInterval, Costs: []ItemCost{{ItemID: ItemBlankRune, Quantity: 1}},
-			ActiveResult: "runecrafting", RewardResult: "crafted_air_runes",
-			MissingResult: "missing_blank_runes",
-		},
 		debugSkillShrineID: {
 			GatheringSpotSnapshot: GatheringSpotSnapshot{
 				ID: debugSkillShrineID, Name: "Test Skill Shrine", Skill: SkillAttack,
@@ -277,6 +281,10 @@ func newGatheringSpots() map[string]gatheringSpotDefinition {
 			ActionKind: timedActionWorldInteraction,
 		},
 	}
+	for _, altar := range runecraftingAltars {
+		spots[altar.ID] = runecraftingAltar(altar)
+	}
+	return spots
 }
 
 func fishingSpot(id, name string, position Position, recipeID string, capacity int, recharge uint64) gatheringSpotDefinition {
@@ -305,6 +313,10 @@ func fishingSpot(id, name string, position Position, recipeID string, capacity i
 }
 
 func miningVein(id, name string, position Position, level int, reward string, xp int64, capacity int, recharge, interval uint64) gatheringSpotDefinition {
+	bonusRewards := []gatheringBonusReward(nil)
+	if reward != ItemClay {
+		bonusRewards = append(bonusRewards, miningGemRewards...)
+	}
 	return gatheringSpotDefinition{
 		GatheringSpotSnapshot: GatheringSpotSnapshot{
 			ID: id, Name: name, Skill: SkillMining, Position: position, Range: gatheringRange,
@@ -317,6 +329,7 @@ func miningVein(id, name string, position Position, level int, reward string, xp
 		RechargePulses:    slowedRenewableRecharge(recharge),
 		BaseSuccessChance: baseGatheringSuccessChance, SuccessChancePerLevel: gatheringChancePerLevel,
 		MaximumSuccessChance: maximumGatheringSuccessChance, UnsuccessfulResult: "mining_unsuccessful",
+		BonusRewards: bonusRewards,
 	}
 }
 

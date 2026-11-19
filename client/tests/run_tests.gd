@@ -4,6 +4,7 @@ const AUTH_GATE_SCENE := preload("res://scenes/auth_gate.tscn")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const XP_TRACKER_SCENE := preload("res://scenes/xp_tracker.tscn")
+const MERCHANT_WINDOW_SCENE := preload("res://scenes/merchant_window.tscn")
 
 var _failures: int = 0
 var _checks: int = 0
@@ -37,6 +38,7 @@ func _run() -> void:
 	await _test_registration_collects_public_character_name()
 	await _test_account_rate_limit_feedback_includes_retry_time()
 	await _test_local_movement_reconciliation_ignores_stale_routes()
+	await _test_player_pvp_targeting_is_toggleable()
 	await _test_equipped_boots_follow_leg_pivots()
 	await _test_equipped_cape_sits_behind_player()
 	await _test_hit_splats_and_minimap_movement_facing()
@@ -48,6 +50,7 @@ func _run() -> void:
 	_test_skill_slot_tooltip_and_hover_style()
 	_test_light_interface_theme_and_chest_slots()
 	_test_inventory_hud_compact_layout()
+	await _test_shopkeeper_uses_icon_led_stock_panel()
 	_test_equipment_details_only_show_equipment_bonuses()
 	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
@@ -625,6 +628,21 @@ func _test_equipped_boots_follow_leg_pivots() -> void:
 	await process_frame
 
 
+func _test_player_pvp_targeting_is_toggleable() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerView
+	root.add_child(player)
+	await process_frame
+	var target_area := player.get_node("PvPTargetArea") as Area3D
+	player.set_combat_target_id("opponent")
+	player.set_pvp_targetable(true)
+	_check(target_area.collision_layer == 8, "PvP opponent enables the combat target collision layer")
+	_check(str(target_area.get_meta(&"combat_target_id")) == "opponent", "PvP target exposes its player ID")
+	player.set_pvp_targetable(false)
+	_check(target_area.collision_layer == 0, "leaving PvP disables player targeting")
+	player.queue_free()
+	await process_frame
+
+
 func _test_equipped_cape_sits_behind_player() -> void:
 	var player := PLAYER_SCENE.instantiate() as PlayerView
 	root.add_child(player)
@@ -726,6 +744,40 @@ func _test_consumable_slot_shows_authoritative_cooldown() -> void:
 	slot.set_consumable_cooldown(0.0)
 	_check(not slot._cooldown_overlay.visible, "consumable cooldown overlay clears when ready")
 	slot.queue_free()
+	await process_frame
+
+
+func _test_shopkeeper_uses_icon_led_stock_panel() -> void:
+	var shop := MERCHANT_WINDOW_SCENE.instantiate() as MerchantWindow
+	root.add_child(shop)
+	await process_frame
+	shop.render_stock([{
+		"item_id": "air_rune", "quantity": 7, "buy_price": 12,
+		"instance_id": "", "reinforcement": 0,
+	}])
+	await process_frame
+	var title := shop.get_node("Panel/Margin/VBox/Header/Title") as Label
+	var grid := shop.get_node("Panel/Margin/VBox/Scroll/Grid") as GridContainer
+	var stock_button := grid.get_child(0) as Button if grid.get_child_count() > 0 else null
+	_check(title.text == "Shopkeeper", "shop window avoids buy-back terminology")
+	_check(not shop.has_node("Panel/Margin/VBox/Hint"), "shop window removes permanent instruction text")
+	_check(grid.columns == 5, "shop stock uses a compact five-column icon grid")
+	_check(stock_button != null and stock_button.get_node("Stock").text == "×7", "shop slot displays its stock quantity")
+	_check(
+		stock_button != null and stock_button.get_theme_stylebox("normal") is StyleBoxEmpty,
+		"shop item slots have no permanent square background",
+	)
+	_check(stock_button != null and not stock_button.tooltip_text.contains("12 coins"), "shop slot hides value until inspection")
+	var inspected: Array = []
+	shop.value_inspected.connect(func(item_id: String, price: int, quantity: int) -> void:
+		inspected.append([item_id, price, quantity])
+	)
+	shop.set("_selected_item_id", "air_rune")
+	shop.set("_selected_price", 12)
+	shop.set("_selected_quantity", 7)
+	shop.call("_on_context_action", 3)
+	_check(inspected == [["air_rune", 12, 7]], "shop right-click inspection exposes value and stock")
+	shop.queue_free()
 	await process_frame
 
 

@@ -45,6 +45,7 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	changed := deltaTestSnapshot()
 	changed.Players[1].Position.X = 9
 	changed.Players[1].CombatTarget = ""
+	changed.Players[1].InPvPZone = true
 	changed.Players[1].ActiveStatuses = []protocol.ActiveStatus{{
 		EffectID: "stun", SourceID: "target", AppliedAtPulse: 10, ExpiresAtPulse: 13,
 	}}
@@ -62,6 +63,9 @@ func TestSnapshotDeltaTrackerSendsOnlyChangedFields(t *testing.T) {
 	player := changed.PlayerUpdates[0]
 	if player.Position == nil || player.Position.X != 9 || player.CombatTarget == nil || *player.CombatTarget != "" {
 		t.Fatalf("player delta = %#v", player)
+	}
+	if player.InPvPZone == nil || !*player.InPvPZone {
+		t.Fatalf("PvP-area delta = %#v", player)
 	}
 	if player.ActiveStatuses == nil || len(*player.ActiveStatuses) != 1 || (*player.ActiveStatuses)[0].EffectID != "stun" ||
 		player.StatusesRevision == nil || *player.StatusesRevision != 1 {

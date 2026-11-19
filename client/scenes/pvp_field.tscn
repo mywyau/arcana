@@ -1,0 +1,59 @@
+[gd_scene load_steps=7 format=3]
+
+[sub_resource type="StandardMaterial3D" id="FieldMaterial"]
+albedo_color = Color(0.105, 0.075, 0.16, 1)
+roughness = 0.96
+
+[sub_resource type="BoxMesh" id="FieldMesh"]
+material = SubResource("FieldMaterial")
+size = Vector3(148, 0.035, 64)
+
+[sub_resource type="StandardMaterial3D" id="BorderMaterial"]
+albedo_color = Color(0.42, 0.08, 0.17, 1)
+emission_enabled = true
+emission = Color(0.28, 0.025, 0.08, 1)
+emission_energy_multiplier = 1.3
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="HorizontalBorderMesh"]
+material = SubResource("BorderMaterial")
+size = Vector3(148, 0.12, 0.35)
+
+[sub_resource type="BoxMesh" id="VerticalBorderMesh"]
+material = SubResource("BorderMaterial")
+size = Vector3(0.35, 0.12, 64)
+
+[sub_resource type="LabelSettings" id="FieldLabelSettings"]
+font_size = 42
+font_color = Color(0.92, 0.72, 0.86, 1)
+outline_size = 12
+outline_color = Color(0.08, 0.025, 0.1, 0.95)
+
+[node name="PvPField" type="Node3D"]
+
+[node name="DarkGround" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.025, -112)
+mesh = SubResource("FieldMesh")
+
+[node name="NorthBorder" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.07, -80)
+mesh = SubResource("HorizontalBorderMesh")
+
+[node name="SouthBorder" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.07, -144)
+mesh = SubResource("HorizontalBorderMesh")
+
+[node name="WestBorder" type="MeshInstance3D" parent="."]
+position = Vector3(-74, 0.07, -112)
+mesh = SubResource("VerticalBorderMesh")
+
+[node name="EastBorder" type="MeshInstance3D" parent="."]
+position = Vector3(74, 0.07, -112)
+mesh = SubResource("VerticalBorderMesh")
+
+[node name="Warning" type="Label3D" parent="."]
+position = Vector3(0, 0.12, -79)
+rotation_degrees = Vector3(-90, 0, 0)
+text = "PVP FIELD — UNPROTECTED ITEMS DROP ON DEATH"
+label_settings = SubResource("FieldLabelSettings")
+billboard = 0

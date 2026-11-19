@@ -273,7 +273,7 @@ func TestArmourReducesMatchingDamageWithDiminishingReturns(t *testing.T) {
 
 	// Bronze armour supplies 7 crush defence, so it reduces 15 damage by
 	// 7 / (100 + 7), rounded only after the complete calculation.
-	if got, want := reduceIncomingDamage(player, 15, DamageTypeCrush), 14; got != want {
+	if got, want := reduceIncomingDamage(player, 15, DamageTypeCrush, ""), 14; got != want {
 		t.Fatalf("incoming crush damage = %d, want %d", got, want)
 	}
 	if got := armourDamageReduction(player, DamageTypeMagic); got != 0 {

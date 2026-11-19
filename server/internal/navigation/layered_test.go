@@ -60,6 +60,17 @@ func TestStarterFishingSpotCanBeApproachedOnPrototypeMap(t *testing.T) {
 	}
 }
 
+func TestPrototypeMapConnectsToSouthernPvPField(t *testing.T) {
+	destination := simulation.Position{Z: -110}
+	path, err := NewPrototypeMap().FindPath(simulation.Position{}, destination)
+	if err != nil {
+		t.Fatalf("FindPath() to PvP field error = %v", err)
+	}
+	if len(path) == 0 || positionDistance(path[len(path)-1], destination) > 0.01 {
+		t.Fatalf("FindPath() to PvP field = %+v", path)
+	}
+}
+
 func TestPrototypeMapFindsMeleeRangePathOnHill(t *testing.T) {
 	world := NewPrototypeMap()
 	start := simulation.Position{X: hillCenterX - 6, Z: hillCenterZ}

@@ -832,12 +832,6 @@ func (w *World) QueueTarget(command TargetCommand) error {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if command.TargetID != "" {
-		if _, exists := w.combat.dummyByID(command.TargetID); !exists {
-			return fmt.Errorf("target %q does not exist", command.TargetID)
-		}
-	}
-
 	if _, leaving := w.pendingLeaves[command.PlayerID]; leaving {
 		return fmt.Errorf("player %q is leaving", command.PlayerID)
 	}
@@ -850,6 +844,18 @@ func (w *World) QueueTarget(command TargetCommand) error {
 	}
 	if player.defeated {
 		return fmt.Errorf("player %q is defeated", command.PlayerID)
+	}
+	if command.TargetID != "" {
+		if targetPlayer, targetsPlayer := w.players[PlayerID(command.TargetID)]; targetsPlayer {
+			if targetPlayer == player {
+				return fmt.Errorf("players cannot attack themselves")
+			}
+			if !playersMayFight(player, targetPlayer) {
+				return fmt.Errorf("both players must be inside the PvP area")
+			}
+		} else if _, exists := w.combat.dummyByID(command.TargetID); !exists {
+			return fmt.Errorf("target %q does not exist", command.TargetID)
+		}
 	}
 	if command.TargetID != "" {
 		if err := statusActionError(player, statusActionAttack, w.combat.pulse); err != nil {
@@ -879,6 +885,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.combat.elapsed -= actionPulseInterval
 		w.combat.pulse++
 		w.expireStatuses()
+		w.advanceTimedPotions()
 		w.applyPendingBrews()
 		w.applyPendingFletches()
 		w.respawnDefeatedEntities()
@@ -1202,7 +1209,28 @@ func (w *World) applyTargetCommands() {
 			stopPlayer(player)
 			player.autoApproaching = false
 			player.lastActionResult = "engaged"
-			if target, targetExists := w.combat.dummyByID(command.TargetID); targetExists && !target.Defeated {
+			if targetPlayer, targetsPlayer := w.players[PlayerID(command.TargetID)]; targetsPlayer {
+				if !playersMayFight(player, targetPlayer) {
+					w.clearPlayerTarget(player, "left_pvp_area")
+				} else {
+					weapon, _ := equippedWeaponDefinitionForStyle(player)
+					attackRange := weapon.Range
+					approachRange := weapon.ApproachRange
+					if spell, castingSpell := spellDefinition(player.selectedSpell); castingSpell &&
+						!statusCurrentlyBlocks(player, statusActionCast) {
+						spell = spellDefinitionForStyle(player, spell)
+						attackRange = spell.Range
+						approachRange = max(0.1, spell.Range-0.75)
+					}
+					if distance(player.position, targetPlayer.position) > attackRange {
+						if err := w.approachDummy(player, targetPlayer.position, approachRange); err != nil {
+							player.lastActionResult = "target_unreachable"
+						} else {
+							player.lastActionResult = "approaching"
+						}
+					}
+				}
+			} else if target, targetExists := w.combat.dummyByID(command.TargetID); targetExists && !target.Defeated {
 				w.readyRangedTyrantMeleePunish(player, command.TargetID, target)
 				if arena, enclosed := combatArenaForTarget(command.TargetID); enclosed && !arena.contains(player.position) {
 					if err := w.approachCombatArena(player, arena); err != nil {
@@ -1264,6 +1292,10 @@ func (w *World) resolveAutoAttacks() {
 			continue
 		}
 		if _, blocked := statusBlockingAction(player, statusActionAttack, w.combat.pulse); blocked {
+			continue
+		}
+		if targetPlayer, targetsPlayer := w.players[PlayerID(player.combatTarget)]; targetsPlayer {
+			w.resolvePlayerAutoAttack(player, targetPlayer)
 			continue
 		}
 		target, exists := w.combat.dummyByID(player.combatTarget)
@@ -1793,7 +1825,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		return
 	}
 
-	damageDealt := reduceIncomingDamage(player, profile.AttackDamage, damageType)
+	damageDealt := reduceIncomingDamage(player, profile.AttackDamage, damageType, profile.AttackElement)
 	player.health = max(0, player.health-damageDealt)
 	triggerEmergencyPrayer(player)
 	w.combat.recordEvent(CombatEvent{
@@ -1918,7 +1950,7 @@ func (w *World) resolveQuadrantBlast(dummyID string, dummy *TargetSnapshot, prof
 			continue
 		}
 		damage := int(math.Round(float64(profile.AttackDamage) * blast.DamageMultiplier))
-		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType, profile.AttackElement)
 		player.health = max(0, player.health-damageDealt)
 		triggerEmergencyPrayer(player)
 		w.combat.recordEvent(CombatEvent{
@@ -1969,6 +2001,9 @@ func elementalZonePositions(center Position, wave int) []Position {
 func (w *World) resolveElementalZoneWave(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
 	zones := profile.ElementalZones
 	centers := elementalZonePositions(dummy.TelegraphPosition, dummy.mageZoneWave)
+	// Matches the red, blue and green wave telegraphs.
+	elements := [...]MagicElement{MagicElementFire, MagicElementWater, MagicElementEarth}
+	element := elements[dummy.mageZoneWave%len(elements)]
 	for _, player := range w.players {
 		if player.defeated {
 			continue
@@ -1987,7 +2022,7 @@ func (w *World) resolveElementalZoneWave(dummyID string, dummy *TargetSnapshot, 
 			continue
 		}
 		damage := int(math.Round(float64(profile.AttackDamage) * zones.DamageMultiplier))
-		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType, element)
 		player.health = max(0, player.health-damageDealt)
 		triggerEmergencyPrayer(player)
 		w.combat.recordEvent(CombatEvent{
@@ -2068,7 +2103,7 @@ func (w *World) resolveArrowVolleyWave(dummyID string, dummy *TargetSnapshot, pr
 			continue
 		}
 		damage := int(math.Round(float64(profile.AttackDamage) * volley.DamageMultiplier))
-		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType, profile.AttackElement)
 		player.health = max(0, player.health-damageDealt)
 		triggerEmergencyPrayer(player)
 		w.combat.recordEvent(CombatEvent{
@@ -2145,7 +2180,7 @@ func (w *World) resolvePiercingShot(dummyID string, dummy *TargetSnapshot, profi
 			continue
 		}
 		damage := int(math.Round(float64(profile.AttackDamage) * volley.DamageMultiplier))
-		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType, profile.AttackElement)
 		player.health = max(0, player.health-damageDealt)
 		triggerEmergencyPrayer(player)
 		w.combat.recordEvent(CombatEvent{
@@ -2198,7 +2233,7 @@ func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profil
 			continue
 		}
 		damage := int(math.Round(float64(profile.AttackDamage) * profile.HeavyStrike.DamageMultiplier))
-		damageDealt := reduceIncomingDamage(player, damage, damageType)
+		damageDealt := reduceIncomingDamage(player, damage, damageType, profile.AttackElement)
 		player.health = max(0, player.health-damageDealt)
 		w.applyStatus(player, StatusStun, dummyID, profile.HeavyStrike.VulnerabilityPulses)
 		triggerEmergencyPrayer(player)
@@ -2225,11 +2260,16 @@ func targetVulnerabilityMultiplier(target *TargetSnapshot, pulse uint64) float64
 
 func (w *World) defeatPlayer(player *playerState) {
 	player.defeated = true
+	if len(player.timedPotions) > 0 {
+		clear(player.timedPotions)
+		player.combatBoostsRevision++
+	}
 	clearStatuses(player)
 	w.triggerWrath(player)
+	droppedItems := w.dropUnprotectedItemsOnDeath(player)
 	player.respawnAtPulse = w.combat.pulse + respawnDelayPulses
 	player.lastActionPulse = w.combat.pulse
-	player.lastActionResult = "defeated"
+	player.lastActionResult = fmt.Sprintf("defeated:%d", droppedItems)
 	player.combatTarget = ""
 	player.nextAttackPulse = 0
 	player.autoApproaching = false
@@ -2243,6 +2283,11 @@ func (w *World) defeatPlayer(player *playerState) {
 	for _, target := range w.combat.dummyTargets() {
 		if target.dummy.TargetID == player.id {
 			clearDummyTarget(target.dummy)
+		}
+	}
+	for _, other := range w.players {
+		if other != player && other.combatTarget == string(player.id) {
+			w.clearPlayerTarget(other, "target_defeated")
 		}
 	}
 }

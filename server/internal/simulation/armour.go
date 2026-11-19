@@ -150,6 +150,7 @@ type OffenceBonuses struct {
 type ArmourDefinition struct {
 	Slot         ArmourSlot
 	Set          ArmourSetID
+	Resistances  ElementalResistances
 	Defence      DefenceBonuses
 	Offence      OffenceBonuses
 	EvasionBonus int
@@ -181,6 +182,37 @@ func armourDefinition(itemID string) (ArmourDefinition, bool) {
 		return ArmourDefinition{}, false
 	}
 	return item.Armour, true
+}
+
+func playerElementalResistances(player *playerState) ElementalResistances {
+	var total ElementalResistances
+	if player == nil {
+		return total
+	}
+	add := func(itemID string) {
+		armour, ok := armourDefinition(itemID)
+		if !ok {
+			return
+		}
+		r := armour.Resistances
+		total.Air += r.Air
+		total.Water += r.Water
+		total.Earth += r.Earth
+		total.Fire += r.Fire
+		total.Holy += r.Holy
+		total.Dark += r.Dark
+	}
+	for _, id := range player.equippedArmour {
+		add(id)
+	}
+	for _, ring := range player.ringRack.items {
+		add(ring.ItemID)
+	}
+	return ElementalResistances{
+		Air: clampResistance(total.Air), Water: clampResistance(total.Water),
+		Earth: clampResistance(total.Earth), Fire: clampResistance(total.Fire),
+		Holy: clampResistance(total.Holy), Dark: clampResistance(total.Dark),
+	}
 }
 
 func equippedDefenceBonuses(equipped map[ArmourSlot]string) DefenceBonuses {

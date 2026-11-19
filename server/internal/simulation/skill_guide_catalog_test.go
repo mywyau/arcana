@@ -56,3 +56,18 @@ func TestSkillGuideCatalogCollapsesEquipmentTiers(t *testing.T) {
 		)
 	}
 }
+
+func TestSkillGuideCatalogIncludesEveryRuneAltar(t *testing.T) {
+	entries := SkillGuideCatalog()
+	found := make(map[string]bool, len(runecraftingAltars))
+	for _, entry := range entries {
+		if entry.Skill == SkillRunecrafting {
+			found[entry.ID] = true
+		}
+	}
+	for altarID := range runecraftingAltars {
+		if !found[altarID] {
+			t.Errorf("Runecrafting guide is missing altar %q", altarID)
+		}
+	}
+}

@@ -2,6 +2,28 @@ package simulation
 
 import "testing"
 
+func TestEveryUncutGemHasACutOutput(t *testing.T) {
+	want := map[string]string{
+		ItemUncutSapphire:   ItemSapphire,
+		ItemUncutEmerald:    ItemEmerald,
+		ItemUncutRuby:       ItemRuby,
+		ItemUncutDiamond:    ItemDiamond,
+		ItemUncutOpal:       ItemOpal,
+		ItemUncutTopaz:      ItemTopaz,
+		ItemUncutAquamarine: ItemAquamarine,
+		ItemUncutAmethyst:   ItemAmethyst,
+		ItemUncutOnyx:       ItemOnyx,
+	}
+	if len(cutGemOutputs) != len(want) {
+		t.Fatalf("cut gem output count = %d, want %d", len(cutGemOutputs), len(want))
+	}
+	for uncut, cut := range want {
+		if got := cutGemOutputs[uncut]; got != cut {
+			t.Errorf("cut output for %q = %q, want %q", uncut, got, cut)
+		}
+	}
+}
+
 func TestCutGemConsumesOneGemAndPreservesChisel(t *testing.T) {
 	world := NewWorld()
 	if err := world.AddPlayer("player-one", Position{}, 4); err != nil {

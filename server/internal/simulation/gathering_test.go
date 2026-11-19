@@ -78,6 +78,70 @@ func TestIronToolCanSucceedWhereBronzeToolFails(t *testing.T) {
 	}
 }
 
+func TestMiningVeinsCanYieldRareUncutGems(t *testing.T) {
+	spots := newGatheringSpots()
+	veinIDs := []string{
+		starterCopperVeinID, starterTinVeinID, starterIronVeinID, starterCoalVeinID,
+		starterMithrilVeinID, starterGoldVeinID, starterSilverVeinID, starterAdamantiteVeinID,
+	}
+	for _, veinID := range veinIDs {
+		spot := spots[veinID]
+		if len(spot.BonusRewards) != 9 {
+			t.Fatalf("vein %q has %d gem rewards, want 9", veinID, len(spot.BonusRewards))
+		}
+	}
+	if len(spots[starterClayDepositID].BonusRewards) != 0 {
+		t.Fatal("clay deposit should not yield gems")
+	}
+}
+
+func TestMiningGemFindChancesRemainTwelvePercentInTotal(t *testing.T) {
+	want := map[string]float64{
+		ItemUncutSapphire:   0.04,
+		ItemUncutEmerald:    0.02,
+		ItemUncutRuby:       0.01,
+		ItemUncutDiamond:    0.004,
+		ItemUncutOpal:       0.025,
+		ItemUncutTopaz:      0.015,
+		ItemUncutAquamarine: 0.0125,
+		ItemUncutAmethyst:   0.005,
+		ItemUncutOnyx:       0.001,
+	}
+	total := 0.0
+	for _, reward := range miningGemRewards {
+		if chance, exists := want[reward.ItemID]; !exists || chance != reward.Chance {
+			t.Errorf("gem reward = %+v, want chance %.3f", reward, chance)
+		}
+		total += reward.Chance
+	}
+	if total < 0.132499 || total > 0.132501 {
+		t.Fatalf("total gem chance = %.6f, want 0.1325", total)
+	}
+}
+
+func TestSuccessfulMiningCanFindAnUncutGemAlongsideOre(t *testing.T) {
+	rolls := &sequenceRollSource{values: []float64{0, 0.929}}
+	world := NewWorldWithRollSource(rolls)
+	spot := world.gatheringSpots[starterCopperVeinID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() error = %v", err)
+	}
+	player := world.players["player-one"]
+	player.inventory.add(ItemBronzePickaxe, 1)
+
+	world.resolveRenewableGathering(player, spot)
+
+	if player.inventory.quantity(ItemCopperOre) != 1 || player.inventory.quantity(ItemUncutDiamond) != 1 {
+		t.Fatalf("mining rewards = %+v, want copper ore and an uncut diamond", player.inventory.items)
+	}
+	if player.gatheringResult != "found_uncut_diamond" {
+		t.Fatalf("gathering result = %q, want found_uncut_diamond", player.gatheringResult)
+	}
+	if mustSkill(t, mustPlayer(t, world, "player-one"), SkillMining).Experience != miningExperience {
+		t.Fatal("finding a gem changed the normal mining XP reward")
+	}
+}
+
 func TestUnsuccessfulMiningAttemptConsumesTimeButNotResources(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.99))
 	spot := world.gatheringSpots[starterCopperVeinID]
@@ -592,6 +656,35 @@ func TestCookingRangeRequiresRawMinnow(t *testing.T) {
 	}
 }
 
+func TestCookingCanBurnFishWithoutGrantingExperience(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.99))
+	spot := world.gatheringSpots[starterCookingRangeID]
+	if err := world.AddPlayer("player-one", spot.Position, 4); err != nil {
+		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
+	}
+	if !world.players["player-one"].inventory.add(ItemRawMinnow, 1) {
+		t.Fatal("failed to add Raw Minnow")
+	}
+	if err := world.QueueGather(GatherCommand{
+		PlayerID: "player-one", Sequence: 1, SpotID: starterCookingRangeID,
+	}); err != nil {
+		t.Fatalf("QueueGather() returned an unexpected error: %v", err)
+	}
+
+	world.Step(50 * time.Millisecond)
+	world.Step(cookingInterval * actionPulseInterval)
+	player := mustPlayer(t, world, "player-one")
+	if player.Inventory.itemsQuantity(ItemRawMinnow) != 0 || player.Inventory.itemsQuantity(ItemBurntFish) != 1 {
+		t.Fatalf("inventory after burning fish = %+v", player.Inventory)
+	}
+	if cooking := mustSkill(t, player, SkillCooking); cooking.Experience != 0 {
+		t.Fatalf("burnt fish granted Cooking XP: %+v", cooking)
+	}
+	if player.GatheringResult != ItemBurntFish {
+		t.Fatalf("burn result = %q, want %q", player.GatheringResult, ItemBurntFish)
+	}
+}
+
 func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAirRuneAltarID]
@@ -599,7 +692,7 @@ func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
 		t.Fatalf("AddPlayer() returned an unexpected error: %v", err)
 	}
 	if !world.players["player-one"].inventory.add(ItemBlankRune, 2) {
-		t.Fatal("failed to add Blank Runes to test inventory")
+		t.Fatal("failed to add Runestones to test inventory")
 	}
 	if err := world.QueueGather(GatherCommand{
 		PlayerID: "player-one", Sequence: 1, SpotID: starterAirRuneAltarID,
@@ -617,7 +710,7 @@ func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
 	if player.Inventory.itemsQuantity(ItemBlankRune) != 1 || player.Inventory.itemsQuantity(ItemAirRune) != 5 {
 		t.Fatalf("inventory after first craft = %+v", player.Inventory)
 	}
-	if skill := mustSkill(t, player, SkillRunecrafting); skill.Experience != runecraftingExperience {
+	if skill := mustSkill(t, player, SkillRunecrafting); skill.Experience != runecraftingAltars[starterAirRuneAltarID].RewardXP {
 		t.Fatalf("Runecrafting after first craft = %+v", skill)
 	}
 	if player.GatheringResult != "crafted_air_runes" {
@@ -627,12 +720,12 @@ func TestAirRuneAltarConsumesBlankRunesAndGrantsRunecraftingXP(t *testing.T) {
 	world.Step(runecraftingInterval * actionPulseInterval)
 	player = mustPlayer(t, world, "player-one")
 	if player.Inventory.itemsQuantity(ItemBlankRune) != 0 || player.Inventory.itemsQuantity(ItemAirRune) != 10 ||
-		mustSkill(t, player, SkillRunecrafting).Experience != 2*runecraftingExperience {
+		mustSkill(t, player, SkillRunecrafting).Experience != 2*runecraftingAltars[starterAirRuneAltarID].RewardXP {
 		t.Fatalf("player after repeated runecrafting = %+v", player)
 	}
 	world.Step(runecraftingInterval * actionPulseInterval)
 	player = mustPlayer(t, world, "player-one")
-	if player.GatheringSpot != "" || player.GatheringResult != "missing_blank_runes" {
+	if player.GatheringSpot != "" || player.GatheringResult != "missing_runestones" {
 		t.Fatalf("runecrafting did not stop after inputs ran out: %+v", player)
 	}
 }

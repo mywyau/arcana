@@ -48,18 +48,13 @@ layout_mode = 2
 [node name="Title" type="Label" parent="Panel/Margin/VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Buy back"
+text = "Shopkeeper"
 theme_override_font_sizes/font_size = 26
 
 [node name="Close" type="Button" parent="Panel/Margin/VBox/Header"]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 flat = true
-
-[node name="Hint" type="Label" parent="Panel/Margin/VBox"]
-layout_mode = 2
-text = "Left-click to trade one • right-click for quantity options. Stock dwindles every two minutes."
-autowrap_mode = 2
 
 [node name="Scroll" type="ScrollContainer" parent="Panel/Margin/VBox"]
 layout_mode = 2
@@ -69,6 +64,6 @@ horizontal_scroll_mode = 0
 [node name="Grid" type="GridContainer" parent="Panel/Margin/VBox/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 10
-columns = 4
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 5

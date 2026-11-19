@@ -200,6 +200,26 @@ func (store *Store) Load(
 	if err := rows.Close(); err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close inventory rows: %w", err)
 	}
+	protectionRows, err := store.database.QueryContext(ctx, `
+		SELECT inventory_slot FROM character_death_protection
+		WHERE player_id = $1 ORDER BY inventory_slot`, playerID)
+	if err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query death protection: %w", err)
+	}
+	defer protectionRows.Close()
+	for protectionRows.Next() {
+		var slot int
+		if err := protectionRows.Scan(&slot); err != nil {
+			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan death protection: %w", err)
+		}
+		state.ProtectedInventorySlots = append(state.ProtectedInventorySlots, slot)
+	}
+	if err := protectionRows.Err(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read death protection: %w", err)
+	}
+	if err := protectionRows.Close(); err != nil {
+		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close death protection rows: %w", err)
+	}
 	state.AmmunitionPouch.Capacity = simulation.AmmunitionPouchCapacity
 	ammunitionRows, err := store.database.QueryContext(ctx, `
 		SELECT slot, item_id, quantity FROM character_ammunition_pouch
@@ -387,6 +407,16 @@ func (store *Store) Save(
 			INSERT INTO character_inventory (player_id, slot, item_id, quantity, instance_id, reinforcement)
 			VALUES ($1, $2, $3, $4, $5, $6)`, playerID, item.Slot, item.ItemID, item.Quantity, nullableString(item.InstanceID), item.Reinforcement); err != nil {
 			return fmt.Errorf("insert inventory item: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM character_death_protection WHERE player_id = $1", playerID); err != nil {
+		return fmt.Errorf("replace death protection: %w", err)
+	}
+	for _, slot := range state.ProtectedInventorySlots {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO character_death_protection (player_id, inventory_slot)
+			VALUES ($1, $2)`, playerID, slot); err != nil {
+			return fmt.Errorf("insert death protection: %w", err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM character_ammunition_pouch WHERE player_id = $1", playerID); err != nil {

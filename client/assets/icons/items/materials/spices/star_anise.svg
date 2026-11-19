@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <g fill="#ac663b" stroke="#613b2c" stroke-width="4">
+  <path transform="rotate(0 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(45 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(90 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(135 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(180 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(225 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(270 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  <path transform="rotate(315 64 64)" d="M64 66Q45 43 61 12q23 28 3 54z"/>
+  </g>
+  <circle cx="64" cy="64" r="9" fill="#ebaf64"/>
+</svg>

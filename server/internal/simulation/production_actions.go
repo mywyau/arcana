@@ -56,6 +56,7 @@ func validateProductionAction(player *playerState, spot gatheringSpotDefinition,
 			return err
 		}
 	case craftingStationRunecrafting:
+		command.RecipeID = spot.RecipeID
 		return nil
 	default:
 		return fmt.Errorf("production station %q is not supported", spot.Station)
@@ -76,7 +77,7 @@ func (w *World) resolveProductionAction(player *playerState, spot gatheringSpotD
 	case craftingStationForging:
 		w.resolveForgingAction(player)
 	case craftingStationRunecrafting:
-		w.resolveIngredientProduction(player, spot)
+		w.resolveRunecraftingAction(player, spot)
 	default:
 		clearGathering(player, "station_missing")
 	}
@@ -86,6 +87,22 @@ func (w *World) resolveCookingAction(player *playerState, spot gatheringSpotDefi
 	recipe, exists := foodRecipe(spot.Station, player.gatheringRecipe)
 	if !exists {
 		clearGathering(player, "recipe_missing")
+		return
+	}
+	cookingLevel := SkillLevelForExperience(player.skills[SkillCooking])
+	burnChance := cookingBurnChance(recipe, cookingLevel)
+	if burnChance > 0 && w.rollSource.Float64() >= 1-burnChance {
+		candidate, err := foodInventoryAfterReward(player.inventory, recipe, recipe.BurnItem, 1)
+		if err != nil {
+			if errors.Is(err, errFoodInventoryFull) {
+				clearGathering(player, "inventory_full")
+			} else {
+				clearGathering(player, "missing_"+recipe.Costs[0].ItemID)
+			}
+			return
+		}
+		player.inventory = candidate
+		w.finishProductionStep(player, ItemBurntFish, recipe.Interval)
 		return
 	}
 	if err := applyFoodRecipe(player, spot.Skill, recipe); err != nil {
@@ -146,18 +163,20 @@ func (w *World) resolveForgingAction(player *playerState) {
 	w.finishProductionStep(player, "forged_"+recipe.RewardItem, recipe.Interval)
 }
 
-func (w *World) resolveIngredientProduction(player *playerState, spot gatheringSpotDefinition) {
+func (w *World) resolveRunecraftingAction(player *playerState, spot gatheringSpotDefinition) {
 	candidate := cloneInventory(player.inventory)
 	if !payItemCosts(&candidate, spot.Costs) {
 		clearGathering(player, spot.MissingResult)
 		return
 	}
-	if !candidate.add(spot.RewardItem, spot.RewardQuantity) {
+	level := SkillLevelForExperience(player.skills[SkillRunecrafting])
+	multiplier := runecraftingMultiplier(spot.RequiredLevel, level)
+	if !candidate.add(spot.RewardItem, spot.RewardQuantity*multiplier) {
 		clearGathering(player, "inventory_full")
 		return
 	}
 	player.inventory = candidate
-	grantSkillExperience(player, spot.Skill, spot.RewardXP)
+	grantSkillExperience(player, SkillRunecrafting, spot.RewardXP)
 	w.finishProductionStep(player, spot.RewardResult, spot.Interval)
 }
 

@@ -56,6 +56,8 @@ func (t *snapshotDeltaTracker) applyPrivateState(
 			player.InventoryRevision != t.lastInventoryRevision
 		if !inventoryChanged {
 			player.Inventory = nil
+			player.ProtectedInventorySlots = nil
+			player.LastDeathProtectionSequence = 0
 		}
 
 		equipmentChanged := full || !t.privateStateInitialized ||
@@ -231,6 +233,10 @@ func playerUpdate(
 	}
 	if full || previous.CombatTarget != current.CombatTarget {
 		update.CombatTarget = pointer(current.CombatTarget)
+		changed = true
+	}
+	if full || previous.InPvPZone != current.InPvPZone {
+		update.InPvPZone = pointer(current.InPvPZone)
 		changed = true
 	}
 	if full || previous.Health != current.Health {

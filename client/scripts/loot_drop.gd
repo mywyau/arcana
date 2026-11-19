@@ -59,9 +59,9 @@ func set_item_id(item_id: String, quantity: int = 1) -> void:
 
 func _update_item_label() -> void:
 	item_label.text = (
-		"%s ×%d" % [_item_id.capitalize(), _quantity]
+		"%s ×%d" % [IconCatalog.item_display_name(_item_id), _quantity]
 		if _quantity > 1
-		else _item_id.capitalize()
+		else IconCatalog.item_display_name(_item_id)
 	)
 
 

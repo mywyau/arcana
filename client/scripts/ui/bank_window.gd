@@ -141,7 +141,7 @@ func _create_slot(slot: int, item: Dictionary) -> Button:
 	slot_button.set_stack_quantity(quantity)
 	slot_button.set_reinforcement(reinforcement)
 	slot_button.tooltip_text = "%s%s ×%d • left-click: take 1 • right-click: options" % [
-		item_id.capitalize(),
+		IconCatalog.item_display_name(item_id),
 		" +%d" % reinforcement if reinforcement > 0 else "",
 		quantity,
 	]
@@ -164,7 +164,7 @@ func _create_supply_slot(supply: Dictionary) -> Button:
 	slot_button.icon = _item_icons.get(item_id, _empty_slot_icon) as Texture2D
 	slot_button.expand_icon = true
 	slot_button.set_stack_quantity(quantity)
-	slot_button.tooltip_text = "%s ×%d • click to take the stack" % [item_id.capitalize(), quantity]
+	slot_button.tooltip_text = "%s ×%d • click to take the stack" % [IconCatalog.item_display_name(item_id), quantity]
 	slot_button.pressed.connect(_on_supply_pressed.bind(drop_id))
 	return slot_button
 

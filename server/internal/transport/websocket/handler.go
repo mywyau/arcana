@@ -975,6 +975,13 @@ func (h *Handler) readCommands(
 				FromSlot: message.FromSlot,
 				ToSlot:   message.ToSlot,
 			})
+		case protocol.MessageSetDeathProtection:
+			rejectionCode = "death_protection_rejected"
+			err = h.world.QueueSetDeathProtection(simulation.SetDeathProtectionCommand{
+				PlayerID: playerID,
+				Sequence: message.Sequence,
+				Slots:    message.InventorySlots,
+			})
 		case protocol.MessageConsumeItem:
 			rejectionCode = "consume_rejected"
 			err = h.world.QueueConsumeItem(simulation.ConsumeItemCommand{
@@ -1329,6 +1336,8 @@ func snapshotMessageWithPrivateEnvironmentOptions(
 			populatePrivatePlayerMessage(&playerMessage, privateState)
 			playerMessage.LastDropSequence = privateState.LastDropSequence
 			playerMessage.LastInventoryMoveSequence = privateState.LastInventoryMoveSequence
+			playerMessage.ProtectedInventorySlots = append([]int(nil), privateState.ProtectedInventorySlots...)
+			playerMessage.LastDeathProtectionSequence = privateState.LastDeathProtectionSequence
 			playerMessage.LastGemCutSequence = privateState.LastGemCutSequence
 			playerMessage.LastFireSequence = privateState.LastFireSequence
 			playerMessage.LastDebugSkillSequence = privateState.LastDebugSkillSequence
@@ -1396,6 +1405,7 @@ func publicPlayerMessage(player simulation.PlayerSnapshot) protocol.PlayerSnapsh
 		},
 		Speed:            player.Speed,
 		CombatTarget:     player.CombatTarget,
+		InPvPZone:        player.InPvPZone,
 		Health:           player.Health,
 		MaximumHealth:    player.MaximumHealth,
 		Defeated:         player.Defeated,
@@ -1551,6 +1561,7 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 		DefenceLevel:            player.CombatStats.DefenceLevel,
 		ArmourDamageReduction:   player.CombatStats.ArmourDamageReduction,
 		MaximumHealthBonus:      player.CombatStats.MaximumHealthBonus,
+		ElementalResistances:    protocol.ElementalResistances(player.CombatStats.ElementalResistances),
 		DefenceBonuses: protocol.DefenceBonuses{
 			Stab: player.CombatStats.DefenceBonuses.Stab, Slash: player.CombatStats.DefenceBonuses.Slash,
 			Crush: player.CombatStats.DefenceBonuses.Crush, Ranged: player.CombatStats.DefenceBonuses.Ranged,
@@ -1565,6 +1576,8 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 		Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 	}
 	message.InventoryRevision = player.InventoryRevision
+	message.ProtectedInventorySlots = append([]int(nil), player.ProtectedInventorySlots...)
+	message.LastDeathProtectionSequence = player.LastDeathProtectionSequence
 	for _, item := range player.Inventory.Items {
 		message.Inventory.Items = append(message.Inventory.Items, protocol.InventoryItem{
 			Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
@@ -1576,7 +1589,7 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 	message.CombatBoostsRevision = player.CombatBoostsRevision
 	for _, boost := range player.ActiveCombatBoosts {
 		combatBoosts = append(combatBoosts, protocol.ActiveCombatBoost{
-			Skill: string(boost.Skill), Levels: boost.Levels, ExpiresAtPulse: boost.ExpiresAtPulse,
+			PotionID: boost.PotionID, Skill: string(boost.Skill), Levels: boost.Levels, ExpiresAtPulse: boost.ExpiresAtPulse,
 		})
 	}
 	message.ActiveCombatBoosts = &combatBoosts

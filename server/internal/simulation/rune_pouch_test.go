@@ -80,3 +80,15 @@ func TestRunePouchAcceptsFocusRunes(t *testing.T) {
 		t.Fatalf("Focus Runes in pouch = %d, want 25", got)
 	}
 }
+
+func TestRunePouchRecognisesConceptRunes(t *testing.T) {
+	runes := []string{
+		ItemWrathRune, ItemHexRune, ItemNatureRune,
+		ItemAetherRune, ItemSpiritRune, ItemVitalRune,
+	}
+	for _, runeID := range runes {
+		if !isRune(runeID) {
+			t.Errorf("isRune(%q) = false", runeID)
+		}
+	}
+}

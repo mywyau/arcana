@@ -130,7 +130,7 @@ var configuredSpellCatalog = mustBuildSpellCatalog(
 		basicBolt(SpellbookStandard, SpellEarthBolt, "Earth Bolt", "earth_bolt", MagicElementEarth, 3, ItemEarthRune, 6),
 		basicBolt(SpellbookStandard, SpellFireBolt, "Fire Bolt", "fire_bolt", MagicElementFire, 4, ItemFireRune, 7),
 		basicBolt(SpellbookHoly, SpellHolyBolt, "Holy Bolt", "holy_bolt", MagicElementHoly, 5, ItemHolyRune, 8),
-		basicBolt(SpellbookDark, SpellDarkBolt, "Dark Bolt", "dark_bolt", MagicElementDark, 6, ItemDarkRune, 8),
+		basicBolt(SpellbookDark, SpellDarkBolt, "Dark Bolt", "dark_bolt", MagicElementDark, 6, ItemShadowRune, 8),
 	},
 )
 

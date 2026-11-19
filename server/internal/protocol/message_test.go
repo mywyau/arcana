@@ -7,7 +7,7 @@ import (
 )
 
 func TestDecodeAuthenticateMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":14,"client_version":"0.1.0-beta"}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"authenticate","guest_token":"token","protocol_version":15,"client_version":"0.1.0-beta"}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
@@ -294,6 +294,17 @@ func TestDecodeDropItemMessagePreservesClickedSlot(t *testing.T) {
 	}
 	if message.Type != MessageDropItem || message.Sequence != 6 || message.ItemID != "prayer_potion" ||
 		message.DropSlot == nil || *message.DropSlot != 3 {
+		t.Fatalf("DecodeClientMessage() = %+v", message)
+	}
+}
+
+func TestDecodeDeathProtectionMessage(t *testing.T) {
+	message, err := DecodeClientMessage([]byte(`{"type":"set_death_protection","sequence":7,"inventory_slots":[1,4,8,12]}`))
+	if err != nil {
+		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
+	}
+	if message.Type != MessageSetDeathProtection || message.Sequence != 7 ||
+		len(message.InventorySlots) != 4 || message.InventorySlots[2] != 8 {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
 	}
 }

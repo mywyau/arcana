@@ -246,7 +246,7 @@ func TestDefencePrayerReducesIncomingDamageWithoutChangingDodge(t *testing.T) {
 
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	reducedDamage := reduceIncomingDamage(world.players["player-one"], dummyAttackDamage, DamageTypeCrush)
+	reducedDamage := reduceIncomingDamage(world.players["player-one"], dummyAttackDamage, DamageTypeCrush, "")
 	if got, want := player.Health, playerMaximumHealth-reducedDamage; got != want {
 		t.Fatalf("health after Defence prayer hit = %d, want %d", got, want)
 	}
@@ -288,12 +288,12 @@ func TestProtectionPrayersOnlyReduceTheirMatchingDamageStyle(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			player := &playerState{activePrayers: map[PrayerID]bool{test.prayer: true}}
 			for _, damageType := range test.matching {
-				if got := reduceIncomingDamage(player, 100, damageType); got != 70 {
+				if got := reduceIncomingDamage(player, 100, damageType, ""); got != 70 {
 					t.Errorf("matching %s damage = %d, want 70", damageType, got)
 				}
 			}
 			for _, damageType := range test.nonMatching {
-				if got := reduceIncomingDamage(player, 100, damageType); got != 100 {
+				if got := reduceIncomingDamage(player, 100, damageType, ""); got != 100 {
 					t.Errorf("non-matching %s damage = %d, want 100", damageType, got)
 				}
 			}
@@ -306,7 +306,7 @@ func TestProtectionAndDefencePrayersCombineMultiplicatively(t *testing.T) {
 		PrayerProtectMelee: true,
 		PrayerDefence:      true,
 	}}
-	if got := reduceIncomingDamage(player, 100, DamageTypeSlash); got != 67 {
+	if got := reduceIncomingDamage(player, 100, DamageTypeSlash, ""); got != 67 {
 		t.Fatalf("combined protection damage = %d, want 67", got)
 	}
 }
@@ -443,7 +443,7 @@ func TestMercyHealsAtLowHealthWithoutDrainingAllPrayer(t *testing.T) {
 
 	world.Step(actionPulseInterval)
 	got := mustPlayer(t, world, "player-one")
-	wantHealth := 25 - reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush) + 20
+	wantHealth := 25 - reduceIncomingDamage(player, dummyAttackDamage, DamageTypeCrush, "") + 20
 	if got.Health != wantHealth {
 		t.Fatalf("health after Mercy = %d, want %d", got.Health, wantHealth)
 	}
@@ -506,6 +506,7 @@ func TestMercyRemainsArmedUntilDamageLeavesHealthBelowThreshold(t *testing.T) {
 func TestWrathExplosionCanDefeatNearbyPlayersAndMonsters(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	dummy := world.combat.targets[dummyTargetID]
+	dummy.Position = Position{Z: -100}
 	mustAddPlayer(t, world, "source", dummy.Position, 4)
 	mustAddPlayer(t, world, "nearby", Position{X: dummy.Position.X + 1, Z: dummy.Position.Z}, 4)
 	mustAddPlayer(t, world, "far", Position{X: dummy.Position.X + wrathRadius + 1, Z: dummy.Position.Z}, 4)

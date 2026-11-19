@@ -119,6 +119,9 @@ func TestKnownCombatPotionRecipesUseExistingIngredients(t *testing.T) {
 		{[]string{ItemVialOfWater, ItemMoonleaf, ItemSacredDust}, ItemMeleePotion},
 		{[]string{ItemVialOfWater, ItemSunleaf, ItemFishOil}, ItemRangingPotion},
 		{[]string{ItemVialOfWater, ItemMoonleaf}, ItemMagicPotion},
+		{[]string{ItemVialOfWater, ItemBloodfern, ItemSacredDust}, ItemGreaterMeleePotion},
+		{[]string{ItemVialOfWater, ItemSwiftleaf, ItemFishOil}, ItemGreaterRangingPotion},
+		{[]string{ItemVialOfWater, ItemStormsage, ItemSacredDust}, ItemGreaterMagicPotion},
 	}
 	for _, test := range tests {
 		recipe, exists := brewingRecipes[brewKey(test.items)]

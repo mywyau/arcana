@@ -865,7 +865,7 @@ func TestHillWardenUsesSlashDamageAgainstArmour(t *testing.T) {
 	warden.NextAttackPulse = uint64(combatProfileForEnemy(hillWardenTargetID).AttackInterval)
 
 	profile := combatProfileForEnemy(hillWardenTargetID)
-	wantDamage := reduceIncomingDamage(player, profile.AttackDamage, DamageTypeSlash)
+	wantDamage := reduceIncomingDamage(player, profile.AttackDamage, DamageTypeSlash, "")
 	if wantDamage >= profile.AttackDamage {
 		t.Fatalf("iron armour did not reduce Slash damage: got %d from %d", wantDamage, profile.AttackDamage)
 	}

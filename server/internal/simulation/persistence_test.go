@@ -52,6 +52,7 @@ func TestPersistentPlayerStateRoundTripsEveryDurableSubsystem(t *testing.T) {
 		{Slot: 0, ItemID: ItemCoins, Quantity: 12_345},
 		{Slot: 7, ItemID: string(WeaponDagger), Quantity: 1, InstanceID: "inventory-dagger", Reinforcement: 2},
 	}}
+	state.ProtectedInventorySlots = []int{0, 7}
 	state.AmmunitionPouch = AmmunitionPouchSnapshot{
 		Capacity: AmmunitionPouchCapacity, UnlockedSlots: 4,
 		Items: []InventoryItem{

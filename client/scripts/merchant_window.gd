@@ -2,11 +2,13 @@ class_name MerchantWindow
 extends Window
 
 signal buy_requested(item_id: String, instance_id: String, quantity: int)
+signal value_inspected(item_id: String, unit_price: int, stock_quantity: int)
 
 const EMPTY_ICON: Texture2D = preload("res://assets/icons/items/empty_slot.svg")
 const BUY_ONE := 0
 const BUY_X := 1
 const BUY_ALL := 2
+const INSPECT_VALUE := 3
 
 @onready var close_button: Button = $Panel/Margin/VBox/Header/Close
 @onready var grid: GridContainer = $Panel/Margin/VBox/Scroll/Grid
@@ -17,6 +19,7 @@ var _quantity_input: SpinBox
 var _selected_item_id: String = ""
 var _selected_instance_id: String = ""
 var _selected_quantity: int = 0
+var _selected_price: int = 0
 
 
 func _ready() -> void:
@@ -62,11 +65,6 @@ func render_stock(items: Array) -> void:
 		grid.remove_child(child)
 		child.queue_free()
 	if items.is_empty():
-		var empty_label := Label.new()
-		empty_label.text = "Nothing is available to buy back yet."
-		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.custom_minimum_size = Vector2(420, 72)
-		grid.add_child(empty_label)
 		return
 	for payload: Variant in items:
 		if typeof(payload) != TYPE_DICTIONARY:
@@ -80,16 +78,17 @@ func render_stock(items: Array) -> void:
 		var instance_id: String = str(item.get("instance_id", ""))
 		var reinforcement: int = int(item.get("reinforcement", 0))
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(132, 112)
+		button.custom_minimum_size = Vector2(100, 100)
 		button.focus_mode = Control.FOCUS_NONE
-		button.tooltip_text = "%s%s • buy one for %d coins • %d available" % [
-			item_id.replace("_", " ").capitalize(),
+		button.flat = true
+		button.tooltip_text = "%s%s • ×%d in stock • left-click to buy one • right-click for options" % [
+			IconCatalog.item_display_name(item_id),
 			" +%d" % reinforcement if reinforcement > 0 else "",
-			price,
 			quantity,
 		]
 		button.pressed.connect(buy_requested.emit.bind(item_id, instance_id, 1))
-		button.gui_input.connect(_on_stock_input.bind(item_id, instance_id, quantity))
+		button.gui_input.connect(_on_stock_input.bind(item_id, instance_id, quantity, price))
+		_style_stock_button(button)
 		grid.add_child(button)
 
 		var icon := TextureRect.new()
@@ -97,32 +96,30 @@ func render_stock(items: Array) -> void:
 			IconCatalog.ITEMS.get(item_id, EMPTY_ICON) as Texture2D
 		)
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		icon.offset_left = 20
-		icon.offset_top = 8
-		icon.offset_right = -20
-		icon.offset_bottom = -28
+		icon.offset_left = 12
+		icon.offset_top = 10
+		icon.offset_right = -12
+		icon.offset_bottom = -10
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(icon)
 
-		var price_label := Label.new()
-		price_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-		price_label.offset_top = -28
-		price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		price_label.text = "%d coins" % price
-		price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.add_child(price_label)
-
-		if quantity > 1:
-			var quantity_label := Label.new()
-			quantity_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-			quantity_label.offset_left = -52
-			quantity_label.offset_bottom = 26
-			quantity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			quantity_label.text = "×%d" % quantity
-			quantity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			button.add_child(quantity_label)
+		var quantity_label := Label.new()
+		quantity_label.name = "Stock"
+		quantity_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		quantity_label.offset_left = -58
+		quantity_label.offset_top = -28
+		quantity_label.offset_right = -6
+		quantity_label.offset_bottom = -4
+		quantity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		quantity_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		quantity_label.text = "×%d" % quantity
+		quantity_label.add_theme_color_override("font_color", InterfaceStyle.TEXT_COLOR)
+		quantity_label.add_theme_color_override("font_outline_color", Color(0.94, 0.94, 1.0, 0.9))
+		quantity_label.add_theme_constant_override("outline_size", 3)
+		quantity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(quantity_label)
 		if reinforcement > 0:
 			var reinforcement_label := Label.new()
 			reinforcement_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
@@ -131,6 +128,21 @@ func render_stock(items: Array) -> void:
 			reinforcement_label.text = "+%d" % reinforcement
 			reinforcement_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			button.add_child(reinforcement_label)
+
+
+func _style_stock_button(button: Button) -> void:
+	var empty := StyleBoxEmpty.new()
+	button.add_theme_stylebox_override("normal", empty)
+	button.add_theme_stylebox_override("focus", empty)
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(InterfaceStyle.SURFACE_HOVER_COLOR, 0.58)
+	hover.border_color = Color(InterfaceStyle.BORDER_COLOR, 0.78)
+	hover.set_border_width_all(2)
+	hover.set_corner_radius_all(8)
+	button.add_theme_stylebox_override("hover", hover)
+	var pressed := hover.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(InterfaceStyle.SURFACE_PRESSED_COLOR, 0.72)
+	button.add_theme_stylebox_override("pressed", pressed)
 
 
 func _on_window_input(event: InputEvent) -> void:
@@ -154,6 +166,7 @@ func _on_stock_input(
 		item_id: String,
 		instance_id: String,
 		available_quantity: int,
+		unit_price: int,
 ) -> void:
 	var mouse_button := event as InputEventMouseButton
 	if mouse_button == null or not mouse_button.pressed or mouse_button.button_index != MOUSE_BUTTON_RIGHT:
@@ -161,10 +174,13 @@ func _on_stock_input(
 	_selected_item_id = item_id
 	_selected_instance_id = instance_id
 	_selected_quantity = available_quantity
+	_selected_price = unit_price
 	_context_menu.clear()
 	_context_menu.add_item("Buy 1", BUY_ONE)
 	_context_menu.add_item("Buy X", BUY_X)
 	_context_menu.add_item("Buy All", BUY_ALL)
+	_context_menu.add_separator()
+	_context_menu.add_item("Inspect value", INSPECT_VALUE)
 	_context_menu.position = Vector2i(mouse_button.global_position)
 	_context_menu.popup()
 	get_viewport().set_input_as_handled()
@@ -184,6 +200,8 @@ func _on_context_action(action: int) -> void:
 			_quantity_input.get_line_edit().select_all()
 		BUY_ALL:
 			buy_requested.emit(_selected_item_id, _selected_instance_id, _selected_quantity)
+		INSPECT_VALUE:
+			value_inspected.emit(_selected_item_id, _selected_price, _selected_quantity)
 
 
 func _confirm_buy_quantity() -> void:

@@ -19,6 +19,9 @@ type foodRecipeDefinition struct {
 	RewardQuantity int
 	RewardXP       int64
 	Interval       uint64
+	BurnItem       string
+	BurnChance     float64
+	NoBurnLevel    int
 }
 
 var fishingRecipes = mustBuildFoodRecipes(SkillFishing, []foodRecipeDefinition{
@@ -30,11 +33,11 @@ var fishingRecipes = mustBuildFoodRecipes(SkillFishing, []foodRecipeDefinition{
 })
 
 var cookingRecipes = mustBuildFoodRecipes(SkillCooking, []foodRecipeDefinition{
-	{ID: ItemCookedMinnow, Name: "Minnow", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemRawMinnow, Quantity: 1}}, RewardItem: ItemCookedMinnow, RewardQuantity: 1, RewardXP: 10, Interval: 4},
-	{ID: ItemCookedTrout, Name: "Trout", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemRawTrout, Quantity: 1}}, RewardItem: ItemCookedTrout, RewardQuantity: 1, RewardXP: 16, Interval: 4},
-	{ID: ItemCookedSalmon, Name: "Salmon", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemRawSalmon, Quantity: 1}}, RewardItem: ItemCookedSalmon, RewardQuantity: 1, RewardXP: 24, Interval: 5},
-	{ID: ItemCookedTuna, Name: "Tuna", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemRawTuna, Quantity: 1}}, RewardItem: ItemCookedTuna, RewardQuantity: 1, RewardXP: 34, Interval: 6},
-	{ID: ItemCookedLobster, Name: "Lobster", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemRawLobster, Quantity: 1}}, RewardItem: ItemCookedLobster, RewardQuantity: 1, RewardXP: 46, Interval: 7},
+	{ID: ItemCookedMinnow, Name: "Minnow", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemRawMinnow, Quantity: 1}}, RewardItem: ItemCookedMinnow, RewardQuantity: 1, RewardXP: 10, Interval: 4, BurnItem: ItemBurntFish, BurnChance: 0.25, NoBurnLevel: 6},
+	{ID: ItemCookedTrout, Name: "Trout", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemRawTrout, Quantity: 1}}, RewardItem: ItemCookedTrout, RewardQuantity: 1, RewardXP: 16, Interval: 4, BurnItem: ItemBurntFish, BurnChance: 0.30, NoBurnLevel: 8},
+	{ID: ItemCookedSalmon, Name: "Salmon", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemRawSalmon, Quantity: 1}}, RewardItem: ItemCookedSalmon, RewardQuantity: 1, RewardXP: 24, Interval: 5, BurnItem: ItemBurntFish, BurnChance: 0.35, NoBurnLevel: 10},
+	{ID: ItemCookedTuna, Name: "Tuna", RequiredLevel: 4, Costs: []ItemCost{{ItemID: ItemRawTuna, Quantity: 1}}, RewardItem: ItemCookedTuna, RewardQuantity: 1, RewardXP: 34, Interval: 6, BurnItem: ItemBurntFish, BurnChance: 0.40, NoBurnLevel: 12},
+	{ID: ItemCookedLobster, Name: "Lobster", RequiredLevel: 5, Costs: []ItemCost{{ItemID: ItemRawLobster, Quantity: 1}}, RewardItem: ItemCookedLobster, RewardQuantity: 1, RewardXP: 46, Interval: 7, BurnItem: ItemBurntFish, BurnChance: 0.45, NoBurnLevel: 15},
 })
 
 func buildFoodRecipes(skill SkillID, definitions []foodRecipeDefinition) (map[string]foodRecipeDefinition, error) {
@@ -57,6 +60,13 @@ func buildFoodRecipes(skill SkillID, definitions []foodRecipeDefinition) (map[st
 		}
 		if skill == SkillCooking && len(definition.Costs) == 0 {
 			return nil, fmt.Errorf("cooking recipe %q requires an input", definition.ID)
+		}
+		if skill == SkillCooking {
+			burntItem, burntItemExists := itemDefinition(definition.BurnItem)
+			if !burntItemExists || burntItem.Kind != ItemKindResource || definition.BurnChance <= 0 ||
+				definition.BurnChance >= 1 || definition.NoBurnLevel <= definition.RequiredLevel {
+				return nil, fmt.Errorf("cooking recipe %q has invalid burn rules", definition.ID)
+			}
 		}
 		for _, cost := range definition.Costs {
 			input, inputExists := itemDefinition(cost.ItemID)
@@ -98,14 +108,30 @@ func foodRecipe(station craftingStationID, id string) (foodRecipeDefinition, boo
 }
 
 func foodInventoryAfter(inventory inventoryState, recipe foodRecipeDefinition) (inventoryState, error) {
+	return foodInventoryAfterReward(inventory, recipe, recipe.RewardItem, recipe.RewardQuantity)
+}
+
+func foodInventoryAfterReward(inventory inventoryState, recipe foodRecipeDefinition, rewardItem string, rewardQuantity int) (inventoryState, error) {
 	candidate := cloneInventory(inventory)
 	if !payItemCosts(&candidate, recipe.Costs) {
 		return inventoryState{}, errMissingFoodInputs
 	}
-	if !candidate.add(recipe.RewardItem, recipe.RewardQuantity) {
+	if !candidate.add(rewardItem, rewardQuantity) {
 		return inventoryState{}, errFoodInventoryFull
 	}
 	return candidate, nil
+}
+
+func cookingBurnChance(recipe foodRecipeDefinition, cookingLevel int) float64 {
+	if recipe.BurnChance <= 0 || cookingLevel >= recipe.NoBurnLevel {
+		return 0
+	}
+	if cookingLevel <= recipe.RequiredLevel {
+		return recipe.BurnChance
+	}
+	levelSpan := recipe.NoBurnLevel - recipe.RequiredLevel
+	levelsGained := cookingLevel - recipe.RequiredLevel
+	return recipe.BurnChance * (1 - float64(levelsGained)/float64(levelSpan))
 }
 
 func applyFoodRecipe(player *playerState, skill SkillID, recipe foodRecipeDefinition) error {

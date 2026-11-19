@@ -113,11 +113,14 @@ type PlayerSnapshot struct {
 	DodgeRate                    float64
 	CombatStats                  CombatStatsSnapshot
 	CombatLevel                  int
+	InPvPZone                    bool
 	CombatMatchup                CombatMatchupSnapshot
 	ExperienceLocked             bool
 	LastExperienceLockSequence   uint64
 	Inventory                    InventorySnapshot
 	InventoryRevision            uint64
+	ProtectedInventorySlots      []int
+	LastDeathProtectionSequence  uint64
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	AmmunitionPouchRevision      uint64
 	LastAmmunitionSequence       uint64
@@ -236,10 +239,13 @@ type playerState struct {
 	lastPickupSequence           uint64
 	lastDropSequence             uint64
 	lastInventoryMoveSequence    uint64
+	protectedInventory           map[int]protectedInventoryEntry
+	lastDeathProtectionSequence  uint64
 	lastConsumeSequence          uint64
 	nextFoodConsumePulse         uint64
 	nextPotionConsumePulse       uint64
 	combatBoosts                 map[SkillID]activeCombatBoost
+	timedPotions                 map[string]timedPotion
 	combatBoostsRevision         uint64
 	activeStatuses               map[StatusEffectID]activeStatus
 	statusesRevision             uint64
@@ -283,6 +289,7 @@ type World struct {
 	pendingPickups              map[PlayerID]pendingPickup
 	pendingItemDrops            map[PlayerID]DropItemCommand
 	pendingInventoryMoves       map[PlayerID]MoveInventoryItemCommand
+	pendingDeathProtections     map[PlayerID]SetDeathProtectionCommand
 	pendingConsumables          map[PlayerID]ConsumeItemCommand
 	pendingBrews                map[PlayerID]pendingBrew
 	pendingFletches             map[PlayerID]pendingFletch
@@ -340,6 +347,7 @@ func NewWorldWithRollSource(rollSource RollSource) *World {
 		pendingPickups:              make(map[PlayerID]pendingPickup),
 		pendingItemDrops:            make(map[PlayerID]DropItemCommand),
 		pendingInventoryMoves:       make(map[PlayerID]MoveInventoryItemCommand),
+		pendingDeathProtections:     make(map[PlayerID]SetDeathProtectionCommand),
 		pendingConsumables:          make(map[PlayerID]ConsumeItemCommand),
 		pendingBrews:                make(map[PlayerID]pendingBrew),
 		pendingFletches:             make(map[PlayerID]pendingFletch),
@@ -445,7 +453,8 @@ func (w *World) AddPlayer(id PlayerID, position Position, speed float64) error {
 		equippedWeapon:    WeaponUnarmed,
 		equipmentRevision: 1,
 		dodgeRate:         playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
-		ringRack: newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
+		protectedInventory: make(map[int]protectedInventoryEntry),
+		ringRack:           newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
@@ -486,7 +495,8 @@ func (w *World) QueueJoin(id PlayerID, position Position, speed float64) error {
 		equippedWeapon:    WeaponUnarmed,
 		equipmentRevision: 1,
 		dodgeRate:         playerDodgeRate, inventory: newEmptyInventory(), ammunitionPouch: newAmmunitionPouch(),
-		ringRack: newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
+		protectedInventory: make(map[int]protectedInventoryEntry),
+		ringRack:           newRingRack(), runePouch: newRunePouch(), bank: newEmptyBank(),
 		equippedArmour:               make(map[ArmourSlot]string),
 		equippedArmourInstances:      make(map[ArmourSlot]string),
 		equippedArmourReinforcements: make(map[ArmourSlot]int),
@@ -525,6 +535,7 @@ func (w *World) cancelPendingPlayerCommands(id PlayerID) {
 	delete(w.pendingPickups, id)
 	delete(w.pendingItemDrops, id)
 	delete(w.pendingInventoryMoves, id)
+	delete(w.pendingDeathProtections, id)
 	delete(w.pendingConsumables, id)
 	delete(w.pendingBrews, id)
 	delete(w.pendingFletches, id)
@@ -654,6 +665,7 @@ func (w *World) Step(elapsed time.Duration) {
 	}
 	w.moveRoamingEnemies(seconds)
 	w.applyPendingInventoryMoves()
+	w.applyPendingDeathProtections()
 	w.applyPendingAmmunitionTransfers()
 	w.applyPendingRingTransfers()
 	w.applyPendingRuneTransfers()
@@ -664,6 +676,11 @@ func (w *World) Step(elapsed time.Duration) {
 	w.expireCombatBoosts()
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
+	for _, player := range w.players {
+		if pruneProtectedInventory(player) {
+			player.inventory.revision++
+		}
+	}
 
 	for id := range w.pendingLeaves {
 		delete(w.players, id)
@@ -921,6 +938,7 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		LastCombatStyleSequence:      player.lastCombatStyleSequence,
 		DodgeRate:                    playerDodgeChance(dummyAccuracyScore, player),
 		CombatLevel:                  playerCombatLevel(player),
+		InPvPZone:                    playerInPvPField(player),
 		ActiveStatuses:               activeStatusSnapshots(player),
 		StatusesRevision:             player.statusesRevision,
 		ExperienceLocked:             player.experienceLocked,
@@ -933,6 +951,8 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		LastPickupSequence:           player.lastPickupSequence,
 		LastDropSequence:             player.lastDropSequence,
 		LastInventoryMoveSequence:    player.lastInventoryMoveSequence,
+		ProtectedInventorySlots:      protectedInventorySlots(player),
+		LastDeathProtectionSequence:  player.lastDeathProtectionSequence,
 		LastConsumeSequence:          player.lastConsumeSequence,
 		NextFoodConsumePulse:         player.nextFoodConsumePulse,
 		NextPotionConsumePulse:       player.nextPotionConsumePulse,
