@@ -491,6 +491,89 @@ func TestRangedTyrantSelfHitCreatesLongStunWindow(t *testing.T) {
 	}
 }
 
+func TestRangedTyrantMeleePressureOverloadsHeavyStrike(t *testing.T) {
+	world := NewWorld()
+	bossState := world.combat.roamingEnemies[rangedTyrantTargetID]
+	boss := bossState.target
+	mustAddPlayer(t, world, "player-one", Position{X: boss.Position.X + 4, Z: boss.Position.Z}, 4)
+	player := world.players["player-one"]
+	player.combatTarget = rangedTyrantTargetID
+	boss.TargetID = player.id
+	boss.attackSequence = 3
+	boss.NextAttackPulse = 10
+	world.combat.pulse = 10
+
+	world.resolveOneDummyAttack(rangedTyrantTargetID, boss)
+	if boss.TelegraphType != "heavy_strike_overload" || boss.TelegraphPosition != boss.Position {
+		t.Fatalf("melee pressure did not overload the heavy strike: %+v", boss)
+	}
+	bossState.path = []Position{{X: boss.Position.X + 2, Z: boss.Position.Z}}
+	world.moveRoamingEnemies(0.1)
+	if boss.TelegraphPosition != boss.Position {
+		t.Fatalf("overloaded warning did not follow boss: warning=%+v boss=%+v", boss.TelegraphPosition, boss.Position)
+	}
+
+	player.position = Position{X: boss.Position.X + 8, Z: boss.Position.Z}
+	world.combat.pulse = boss.TelegraphImpactPulse
+	world.resolveOneDummyAttack(rangedTyrantTargetID, boss)
+	wantUntil := world.combat.pulse + 7
+	if boss.VulnerableUntilPulse != wantUntil || boss.stunnedUntilPulse != wantUntil {
+		t.Fatalf("overload window = vulnerable %d stunned %d, want %d",
+			boss.VulnerableUntilPulse, boss.stunnedUntilPulse, wantUntil)
+	}
+}
+
+func TestRangedTyrantHeavyStrikeIsNotOverloadedByRangedPressure(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.targets[rangedTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", Position{X: boss.Position.X + 4, Z: boss.Position.Z}, 4)
+	player := world.players["player-one"]
+	player.equippedWeapon = WeaponBow
+	player.combatStyle = CombatStyleAccurate
+	player.combatTarget = rangedTyrantTargetID
+	boss.TargetID = player.id
+	boss.attackSequence = 3
+	boss.NextAttackPulse = 10
+	world.combat.pulse = 10
+
+	world.resolveOneDummyAttack(rangedTyrantTargetID, boss)
+	if boss.TelegraphType != "heavy_strike" || boss.TelegraphPosition != player.position {
+		t.Fatalf("ranged pressure incorrectly overloaded the heavy strike: %+v", boss)
+	}
+}
+
+func TestRangedTyrantPunishClicksReadyOneMeleeAttackPerPulse(t *testing.T) {
+	world := NewWorldWithRollSource(fixedRollSource(0.5))
+	boss := world.combat.targets[rangedTyrantTargetID]
+	mustAddPlayer(t, world, "player-one", boss.Position, 4)
+	player := world.players["player-one"]
+	boss.VulnerableUntilPulse = 20
+	boss.stunnedUntilPulse = 20
+	player.nextAttackPulse = 20
+	world.combat.pulse = 10
+
+	if err := world.QueueTarget(TargetCommand{PlayerID: player.id, Sequence: 1, TargetID: rangedTyrantTargetID}); err != nil {
+		t.Fatalf("QueueTarget() error = %v", err)
+	}
+	world.applyTargetCommands()
+	if player.nextAttackPulse != 11 {
+		t.Fatalf("first punish click readied pulse %d, want 11", player.nextAttackPulse)
+	}
+
+	world.combat.pulse = 11
+	world.resolveAutoAttacks()
+	if player.nextAttackPulse <= 12 {
+		t.Fatalf("normal melee cooldown was not applied after punish attack: %d", player.nextAttackPulse)
+	}
+	if err := world.QueueTarget(TargetCommand{PlayerID: player.id, Sequence: 2, TargetID: rangedTyrantTargetID}); err != nil {
+		t.Fatalf("second QueueTarget() error = %v", err)
+	}
+	world.applyTargetCommands()
+	if player.nextAttackPulse != 12 {
+		t.Fatalf("second punish click readied pulse %d, want 12", player.nextAttackPulse)
+	}
+}
+
 func TestRiftTyrantCyclesAttackStyleOnEachAttack(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	boss := world.combat.targets[riftTyrantTargetID]
@@ -547,6 +630,9 @@ func TestTyrantsHaveBossTierDefence(t *testing.T) {
 			}
 			if profile.Defence.Ranged != 115 || profile.Defence.Magic != 150 {
 				t.Errorf("%s specialist defences = %+v", test.targetID, profile.Defence)
+			}
+			if profile.HeavyStrike.MeleeOverloadRange != 6 {
+				t.Errorf("%s melee overload range = %.1f, want 6", test.targetID, profile.HeavyStrike.MeleeOverloadRange)
 			}
 		}
 		if test.targetID == mageTyrantTargetID {

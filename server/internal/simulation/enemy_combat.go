@@ -29,6 +29,7 @@ type heavyStrikeProfile struct {
 	DamageMultiplier              float64
 	VulnerabilityPulses           uint64
 	VulnerabilityDamageMultiplier float64
+	MeleeOverloadRange            float64
 }
 
 type piercingVolleyProfile struct {
@@ -172,6 +173,7 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		HeavyStrike: heavyStrikeProfile{
 			EveryAttacks: 4, WindupPulses: 4, Radius: 5, DamageMultiplier: 2,
 			VulnerabilityPulses: 7, VulnerabilityDamageMultiplier: 1.25,
+			MeleeOverloadRange: 6,
 		},
 		PiercingVolley: piercingVolleyProfile{
 			CycleAttacks: 12, TriggerAttack: 8, Shots: 3, WindupPulses: 3, BetweenPulses: 2,

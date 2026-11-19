@@ -126,8 +126,9 @@ func set_attack_telegraph(
 	var arrow_volley: bool = telegraph_type.begins_with("arrow_volley_")
 	var elemental_zone: bool = telegraph_type.begins_with("elemental_zone_")
 	var quadrant_blast: bool = telegraph_type.begins_with("quadrant_blast_")
+	var heavy_strike: bool = telegraph_type.begins_with("heavy_strike")
 	var active: bool = (
-		telegraph_type in ["heavy_strike", "piercing_shot"] or arrow_volley or elemental_zone or quadrant_blast
+		heavy_strike or telegraph_type == "piercing_shot" or arrow_volley or elemental_zone or quadrant_blast
 	) and radius > 0.0
 	_telegraph_active = active
 	_telegraph_mesh.visible = active and not arrow_volley and not elemental_zone and not quadrant_blast
@@ -187,7 +188,11 @@ func set_attack_telegraph(
 		_telegraph_mesh.rotation.y = atan2(offset.x, offset.z)
 		_telegraph_mesh.scale = Vector3.ONE
 	else:
-		_telegraph_color = Color(1.0, 0.12, 0.08, 1.0)
+		_telegraph_color = (
+			Color(1.0, 0.72, 0.12, 1.0)
+			if telegraph_type == "heavy_strike_overload"
+			else Color(1.0, 0.12, 0.08, 1.0)
+		)
 		_telegraph_mesh.mesh = _telegraph_disc
 		_telegraph_mesh.global_position = telegraph_position + Vector3(0.0, 0.05, 0.0)
 		_telegraph_mesh.scale = Vector3(radius, 1.0, radius)

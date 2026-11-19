@@ -1203,6 +1203,7 @@ func (w *World) applyTargetCommands() {
 			player.autoApproaching = false
 			player.lastActionResult = "engaged"
 			if target, targetExists := w.combat.dummyByID(command.TargetID); targetExists && !target.Defeated {
+				w.readyRangedTyrantMeleePunish(player, command.TargetID, target)
 				if arena, enclosed := combatArenaForTarget(command.TargetID); enclosed && !arena.contains(player.position) {
 					if err := w.approachCombatArena(player, arena); err != nil {
 						player.lastActionResult = "target_unreachable"
@@ -1231,6 +1232,22 @@ func (w *World) applyTargetCommands() {
 			}
 		}
 		delete(w.combat.pendingTargets, id)
+	}
+}
+
+func (w *World) readyRangedTyrantMeleePunish(player *playerState, targetID string, target *TargetSnapshot) {
+	if targetID != rangedTyrantTargetID || target == nil ||
+		target.VulnerableUntilPulse <= w.combat.pulse || target.stunnedUntilPulse <= w.combat.pulse ||
+		!playerUsesMeleeAttack(player) {
+		return
+	}
+	weapon, exists := equippedWeaponDefinitionForStyle(player)
+	if !exists || distance(player.position, target.Position) > weapon.Range {
+		return
+	}
+	nextPulse := w.combat.pulse + 1
+	if player.nextAttackPulse > nextPulse {
+		player.nextAttackPulse = nextPulse
 	}
 }
 
@@ -1495,7 +1512,7 @@ func (w *World) updateRoamingEnemies() {
 
 		if hasTarget {
 			if enemy.target.TelegraphType != "" &&
-				!(id == rangedTyrantTargetID && enemy.target.TelegraphType == "heavy_strike") {
+				!(id == rangedTyrantTargetID && strings.HasPrefix(enemy.target.TelegraphType, "heavy_strike")) {
 				enemy.path = nil
 				continue
 			}
@@ -1733,8 +1750,15 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	}
 	if profile.HeavyStrike.EveryAttacks > 0 &&
 		dummy.attackSequence%profile.HeavyStrike.EveryAttacks == 0 {
-		dummy.TelegraphType = "heavy_strike"
-		dummy.TelegraphPosition = player.position
+		overloaded := dummyID == rangedTyrantTargetID &&
+			w.rangedTyrantMeleeOverloadReady(dummy, profile.HeavyStrike.MeleeOverloadRange)
+		if overloaded {
+			dummy.TelegraphType = "heavy_strike_overload"
+			dummy.TelegraphPosition = dummy.Position
+		} else {
+			dummy.TelegraphType = "heavy_strike"
+			dummy.TelegraphPosition = player.position
+		}
 		dummy.TelegraphRadius = profile.HeavyStrike.Radius
 		dummy.TelegraphImpactPulse = w.combat.pulse + profile.HeavyStrike.WindupPulses
 		dummy.NextAttackPulse = dummy.TelegraphImpactPulse
@@ -1782,6 +1806,31 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	if player.health == 0 {
 		w.defeatPlayer(player)
 	}
+}
+
+func (w *World) rangedTyrantMeleeOverloadReady(dummy *TargetSnapshot, triggerRange float64) bool {
+	if triggerRange <= 0 {
+		return false
+	}
+	for _, player := range w.players {
+		if player.defeated || player.combatTarget != rangedTyrantTargetID ||
+			distance(player.position, dummy.Position) > triggerRange || !playerUsesMeleeAttack(player) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func playerUsesMeleeAttack(player *playerState) bool {
+	if player == nil {
+		return false
+	}
+	if _, castingSpell := spellDefinition(player.selectedSpell); castingSpell {
+		return false
+	}
+	weapon, exists := equippedWeaponDefinitionForStyle(player)
+	return exists && weapon.RangedStrength == 0 && weapon.MagicStrength == 0
 }
 
 func (w *World) teleportMageTyrant(dummy *TargetSnapshot) {
@@ -2123,10 +2172,11 @@ func (w *World) resolveHeavyStrike(dummyID string, dummy *TargetSnapshot, profil
 	position := dummy.TelegraphPosition
 	radius := dummy.TelegraphRadius
 	damageType := dummy.AttackType
+	overloaded := dummy.TelegraphType == "heavy_strike_overload"
 	clearTargetTelegraph(dummy)
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 	if dummyID == rangedTyrantTargetID {
-		if distance(dummy.Position, position) <= radius {
+		if overloaded || distance(dummy.Position, position) <= radius {
 			dummy.VulnerableUntilPulse = w.combat.pulse + profile.HeavyStrike.VulnerabilityPulses
 			dummy.stunnedUntilPulse = dummy.VulnerableUntilPulse
 		} else {

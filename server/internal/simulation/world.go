@@ -732,6 +732,9 @@ func (w *World) moveRoamingEnemies(seconds float64) {
 			enemy.target.Position.Z += (waypoint.Z - enemy.target.Position.Z) * weight
 			remainingMovement = 0
 		}
+		if id == rangedTyrantTargetID && enemy.target.TelegraphType == "heavy_strike_overload" {
+			enemy.target.TelegraphPosition = enemy.target.Position
+		}
 	}
 }
 
