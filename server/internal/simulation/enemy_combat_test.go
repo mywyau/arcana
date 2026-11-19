@@ -115,19 +115,24 @@ func TestMageTyrantTeleportsClockwiseAfterThreeBasicCasts(t *testing.T) {
 		world.resolveOneDummyAttack(mageTyrantTargetID, boss)
 	}
 	want := Position{X: arena.Center.X - 10, Z: arena.Center.Z - 10}
-	if boss.Position != want || boss.mageTeleportStep != 1 {
-		t.Fatalf("Mage Tyrant first teleport = %+v step %d, want %+v step 1", boss.Position, boss.mageTeleportStep, want)
+	if boss.Position != want || boss.mageTeleportStep != 1 || boss.mageTeleportsLeft != 1 {
+		t.Fatalf("Mage Tyrant first teleport = %+v step %d left %d, want %+v step 1 left 1",
+			boss.Position, boss.mageTeleportStep, boss.mageTeleportsLeft, want)
+	}
+	world.combat.pulse = boss.mageNextTeleportPulse
+	world.advanceMageTeleportChain()
+	second := Position{X: arena.Center.X + 10, Z: arena.Center.Z - 10}
+	if boss.Position != second || boss.mageTeleportsLeft != 0 {
+		t.Fatalf("two-hop chain ended at %+v with %d left, want %+v", boss.Position, boss.mageTeleportsLeft, second)
 	}
 
-	for _, next := range []Position{
-		{X: arena.Center.X + 10, Z: arena.Center.Z - 10},
-		{X: arena.Center.X + 10, Z: arena.Center.Z + 10},
-		{X: arena.Center.X - 10, Z: arena.Center.Z + 10},
-	} {
-		world.teleportMageTyrant(boss)
-		if boss.Position != next {
-			t.Fatalf("Mage Tyrant teleport = %+v, want %+v", boss.Position, next)
-		}
+	world.beginMageTeleportChain(boss)
+	if boss.mageTeleportsLeft != 2 {
+		t.Fatalf("second chain has %d follow-up teleports, want 2", boss.mageTeleportsLeft)
+	}
+	world.beginMageTeleportChain(boss)
+	if boss.mageTeleportsLeft != 3 {
+		t.Fatalf("third chain has %d follow-up teleports, want 3", boss.mageTeleportsLeft)
 	}
 }
 
@@ -185,6 +190,65 @@ func TestMageTyrantElementalSequenceCreatesOverloadWindow(t *testing.T) {
 	}
 	if got := targetVulnerabilityMultiplier(boss, world.combat.pulse); got != 1.25 {
 		t.Fatalf("Mage Tyrant overload multiplier = %.2f, want 1.25", got)
+	}
+}
+
+func TestMageTyrantQuadrantBlastCoversHalfArenaAndRotates(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.targets[mageTyrantTargetID]
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	mustAddPlayer(t, world, "north-west", Position{X: arena.Center.X - 8, Z: arena.Center.Z - 8}, 4)
+	mustAddPlayer(t, world, "south-west", Position{X: arena.Center.X - 8, Z: arena.Center.Z + 8}, 4)
+	boss.TargetID = "north-west"
+	boss.attackSequence = 7
+	boss.NextAttackPulse = 10
+	world.combat.pulse = 10
+
+	world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	if boss.TelegraphType != "quadrant_blast_3" || boss.mageQuadrantMask != 3 || boss.TelegraphImpactPulse != 15 {
+		t.Fatalf("first half-arena blast = %+v", boss)
+	}
+	world.combat.pulse = boss.TelegraphImpactPulse
+	world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	if world.players["north-west"].health >= playerMaximumHealth {
+		t.Fatal("player in dangerous northern half was not hit")
+	}
+	if world.players["south-west"].health != playerMaximumHealth {
+		t.Fatal("player in safe southern half was hit")
+	}
+
+	boss.TargetID = "north-west"
+	boss.attackSequence = 15
+	boss.NextAttackPulse = world.combat.pulse
+	world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	if boss.TelegraphType != "quadrant_blast_6" {
+		t.Fatalf("rotated half-arena blast type = %q, want quadrant_blast_6", boss.TelegraphType)
+	}
+}
+
+func TestMageTyrantEnrageBlastLeavesOneSafeQuadrant(t *testing.T) {
+	world := NewWorld()
+	boss := world.combat.targets[mageTyrantTargetID]
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	mustAddPlayer(t, world, "safe", Position{X: arena.Center.X - 8, Z: arena.Center.Z - 8}, 4)
+	mustAddPlayer(t, world, "danger", Position{X: arena.Center.X + 8, Z: arena.Center.Z - 8}, 4)
+	boss.Health = boss.MaximumHealth / 3
+	boss.TargetID = "safe"
+	boss.attackSequence = 7
+	boss.NextAttackPulse = 20
+	world.combat.pulse = 20
+
+	world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	if boss.TelegraphType != "quadrant_blast_14" || boss.mageQuadrantMask != 14 {
+		t.Fatalf("enrage quadrant blast = %+v, want mask 14", boss)
+	}
+	world.combat.pulse = boss.TelegraphImpactPulse
+	world.resolveOneDummyAttack(mageTyrantTargetID, boss)
+	if world.players["safe"].health != playerMaximumHealth {
+		t.Fatal("player in enrage safe quadrant was hit")
+	}
+	if world.players["danger"].health >= playerMaximumHealth {
+		t.Fatal("player in enrage danger quadrant was not hit")
 	}
 }
 
@@ -487,10 +551,15 @@ func TestTyrantsHaveBossTierDefence(t *testing.T) {
 		}
 		if test.targetID == mageTyrantTargetID {
 			zones := profile.ElementalZones
-			if zones.CycleAttacks != 4 || zones.TriggerAttack != 4 || zones.Waves != 3 ||
+			if zones.CycleAttacks != 8 || zones.TriggerAttack != 4 || zones.Waves != 3 ||
 				zones.WindupPulses != 4 || zones.BetweenPulses != 3 || zones.Radius != 4 ||
 				zones.VulnerabilityPulses != 5 {
 				t.Errorf("%s elemental zones = %+v", test.targetID, zones)
+			}
+			blast := profile.QuadrantBlast
+			if blast.CycleAttacks != 8 || blast.TriggerAttack != 8 || blast.WindupPulses != 5 ||
+				blast.DamageMultiplier != 1.5 || blast.EnrageHealth != 1.0/3.0 {
+				t.Errorf("%s quadrant blast = %+v", test.targetID, blast)
 			}
 			if profile.Defence.Ranged != 70 || profile.Defence.Magic != 105 ||
 				profile.Defence.Crush != 145 || profile.Defence.Stab != 150 || profile.Defence.Slash != 155 {

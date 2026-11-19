@@ -338,38 +338,43 @@ type CombatStyleCommand struct {
 }
 
 type TargetSnapshot struct {
-	ID                   string
-	Name                 string
-	Kind                 string
-	Position             Position
-	Health               int
-	MaximumHealth        int
-	TargetID             PlayerID
-	NextAttackPulse      uint64
-	Defeated             bool
-	RespawnAtPulse       uint64
-	DodgeRate            float64
-	Accuracy             int
-	Evasion              int
-	AttackType           DamageType
-	CombatLevel          int
-	TelegraphType        string
-	TelegraphPosition    Position
-	TelegraphRadius      float64
-	TelegraphImpactPulse uint64
-	VulnerableUntilPulse uint64
-	Defence              DefenceBonuses
-	Elements             ElementalResistances
-	InfiniteHealth       bool
-	NonRetaliating       bool
-	attackSequence       uint64
-	piercingDirections   []Position
-	piercingShotIndex    int
-	arrowVolleyWave      int
-	stunnedUntilPulse    uint64
-	mageZoneWave         int
-	mageBasicAttacks     uint64
-	mageTeleportStep     int
+	ID                    string
+	Name                  string
+	Kind                  string
+	Position              Position
+	Health                int
+	MaximumHealth         int
+	TargetID              PlayerID
+	NextAttackPulse       uint64
+	Defeated              bool
+	RespawnAtPulse        uint64
+	DodgeRate             float64
+	Accuracy              int
+	Evasion               int
+	AttackType            DamageType
+	CombatLevel           int
+	TelegraphType         string
+	TelegraphPosition     Position
+	TelegraphRadius       float64
+	TelegraphImpactPulse  uint64
+	VulnerableUntilPulse  uint64
+	Defence               DefenceBonuses
+	Elements              ElementalResistances
+	InfiniteHealth        bool
+	NonRetaliating        bool
+	attackSequence        uint64
+	piercingDirections    []Position
+	piercingShotIndex     int
+	arrowVolleyWave       int
+	stunnedUntilPulse     uint64
+	mageZoneWave          int
+	mageBasicAttacks      uint64
+	mageTeleportStep      int
+	mageTeleportCycles    int
+	mageTeleportsLeft     int
+	mageNextTeleportPulse uint64
+	mageQuadrantStep      int
+	mageQuadrantMask      int
 }
 
 type combatState struct {
@@ -878,6 +883,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.applyPendingFletches()
 		w.respawnDefeatedEntities()
 		w.expireTargetVulnerabilities()
+		w.advanceMageTeleportChain()
 		w.applyEquipmentCommands()
 		w.applyCombatStyleCommands()
 		w.applyPrayerCommands()
@@ -1141,6 +1147,11 @@ func (w *World) respawnDefeatedEntities() {
 			target.dummy.attackSequence = 0
 			target.dummy.mageBasicAttacks = 0
 			target.dummy.mageTeleportStep = 0
+			target.dummy.mageTeleportCycles = 0
+			target.dummy.mageTeleportsLeft = 0
+			target.dummy.mageNextTeleportPulse = 0
+			target.dummy.mageQuadrantStep = 0
+			target.dummy.mageQuadrantMask = 0
 			target.dummy.stunnedUntilPulse = 0
 			target.dummy.VulnerableUntilPulse = 0
 			profile := combatProfileForEnemy(target.id)
@@ -1667,6 +1678,9 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	}
 	distanceToPlayer := distance(dummy.Position, player.position)
 	profile := combatProfileForEnemy(dummyID)
+	if dummyID == mageTyrantTargetID && dummy.mageTeleportsLeft > 0 {
+		return
+	}
 	if dummy.stunnedUntilPulse >= w.combat.pulse && dummy.stunnedUntilPulse != 0 {
 		return
 	}
@@ -1682,6 +1696,8 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 		}
 		if strings.HasPrefix(dummy.TelegraphType, "arrow_volley_") {
 			w.resolveArrowVolleyWave(dummyID, dummy, profile)
+		} else if strings.HasPrefix(dummy.TelegraphType, "quadrant_blast_") {
+			w.resolveQuadrantBlast(dummyID, dummy, profile)
 		} else if strings.HasPrefix(dummy.TelegraphType, "elemental_zone_") {
 			w.resolveElementalZoneWave(dummyID, dummy, profile)
 		} else if dummy.TelegraphType == "piercing_shot" {
@@ -1699,6 +1715,10 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	damageType := enemyAttackType(profile, dummy.attackSequence)
 	dummy.attackSequence++
 	dummy.AttackType = damageType
+	if nextAttackMatchesCycle(dummy.attackSequence, profile.QuadrantBlast.CycleAttacks, profile.QuadrantBlast.TriggerAttack) {
+		w.startQuadrantBlast(dummy, profile.QuadrantBlast)
+		return
+	}
 	if nextAttackMatchesCycle(dummy.attackSequence, profile.ElementalZones.CycleAttacks, profile.ElementalZones.TriggerAttack) {
 		w.startElementalZones(dummy, profile.ElementalZones)
 		return
@@ -1723,7 +1743,7 @@ func (w *World) resolveOneDummyAttack(dummyID string, dummy *TargetSnapshot) {
 	if dummyID == mageTyrantTargetID {
 		dummy.mageBasicAttacks++
 		if dummy.mageBasicAttacks%3 == 0 {
-			defer w.teleportMageTyrant(dummy)
+			defer w.beginMageTeleportChain(dummy)
 		}
 	}
 	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
@@ -1778,6 +1798,90 @@ func (w *World) teleportMageTyrant(dummy *TargetSnapshot) {
 	if enemy := w.combat.roamingEnemies[mageTyrantTargetID]; enemy != nil {
 		enemy.path = nil
 	}
+}
+
+func (w *World) beginMageTeleportChain(dummy *TargetSnapshot) {
+	dummy.mageTeleportsLeft = 2 + dummy.mageTeleportCycles%3
+	dummy.mageTeleportCycles++
+	w.teleportMageTyrant(dummy)
+	dummy.mageTeleportsLeft--
+	dummy.mageNextTeleportPulse = w.combat.pulse + 1
+}
+
+func (w *World) advanceMageTeleportChain() {
+	dummy := w.combat.targets[mageTyrantTargetID]
+	if dummy == nil || dummy.Defeated || dummy.mageTeleportsLeft <= 0 ||
+		w.combat.pulse < dummy.mageNextTeleportPulse {
+		return
+	}
+	w.teleportMageTyrant(dummy)
+	dummy.mageTeleportsLeft--
+	if dummy.mageTeleportsLeft > 0 {
+		dummy.mageNextTeleportPulse = w.combat.pulse + 1
+	} else {
+		dummy.mageNextTeleportPulse = 0
+	}
+}
+
+func (w *World) startQuadrantBlast(dummy *TargetSnapshot, blast quadrantBlastProfile) {
+	enraged := dummy.MaximumHealth > 0 &&
+		float64(dummy.Health)/float64(dummy.MaximumHealth) <= blast.EnrageHealth
+	if enraged {
+		safeQuadrant := dummy.mageQuadrantStep % 4
+		dummy.mageQuadrantMask = 15 &^ (1 << safeQuadrant)
+	} else {
+		halfMasks := [...]int{3, 6, 12, 9}
+		dummy.mageQuadrantMask = halfMasks[dummy.mageQuadrantStep%len(halfMasks)]
+	}
+	dummy.mageQuadrantStep = (dummy.mageQuadrantStep + 1) % 4
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	dummy.TelegraphType = fmt.Sprintf("quadrant_blast_%d", dummy.mageQuadrantMask)
+	dummy.TelegraphPosition = arena.Center
+	dummy.TelegraphRadius = 1
+	dummy.TelegraphImpactPulse = w.combat.pulse + blast.WindupPulses
+	dummy.NextAttackPulse = dummy.TelegraphImpactPulse
+}
+
+func arenaQuadrant(center, position Position) int {
+	east := position.X >= center.X
+	south := position.Z >= center.Z
+	switch {
+	case !east && !south:
+		return 0
+	case east && !south:
+		return 1
+	case east && south:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func (w *World) resolveQuadrantBlast(dummyID string, dummy *TargetSnapshot, profile enemyCombatProfile) {
+	blast := profile.QuadrantBlast
+	arena := tyrantCombatArenas[mageTyrantTargetID]
+	for _, player := range w.players {
+		if player.defeated || !arena.contains(player.position) {
+			continue
+		}
+		quadrant := arenaQuadrant(arena.Center, player.position)
+		if dummy.mageQuadrantMask&(1<<quadrant) == 0 {
+			continue
+		}
+		damage := int(math.Round(float64(profile.AttackDamage) * blast.DamageMultiplier))
+		damageDealt := reduceIncomingDamage(player, damage, profile.DamageType)
+		player.health = max(0, player.health-damageDealt)
+		triggerEmergencyPrayer(player)
+		w.combat.recordEvent(CombatEvent{
+			Pulse: w.combat.pulse, Type: CombatEventDamage,
+			SourceID: dummyID, TargetID: string(player.id), Amount: damageDealt,
+		})
+		if player.health == 0 {
+			w.defeatPlayer(player)
+		}
+	}
+	clearTargetTelegraph(dummy)
+	dummy.NextAttackPulse = w.combat.pulse + profile.AttackInterval
 }
 
 func (w *World) startElementalZones(dummy *TargetSnapshot, zones elementalZoneProfile) {
@@ -2137,6 +2241,7 @@ func clearTargetTelegraph(dummy *TargetSnapshot) {
 		dummy.piercingShotIndex = 0
 		dummy.arrowVolleyWave = 0
 		dummy.mageZoneWave = 0
+		dummy.mageQuadrantMask = 0
 	}
 }
 

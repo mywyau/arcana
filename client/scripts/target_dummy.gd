@@ -35,6 +35,7 @@ var _telegraph_material: StandardMaterial3D
 var _telegraph_disc: CylinderMesh
 var _telegraph_line: BoxMesh
 var _arrow_volley_meshes: Array[MeshInstance3D] = []
+var _quadrant_meshes: Array[MeshInstance3D] = []
 var _telegraph_active: bool = false
 var _telegraph_time: float = 0.0
 var _telegraph_color := Color(1.0, 0.12, 0.08, 1.0)
@@ -101,6 +102,18 @@ func _create_telegraph_visual() -> void:
 		circle.top_level = true
 		circle.visible = false
 		_arrow_volley_meshes.append(circle)
+	var quadrant_mesh := BoxMesh.new()
+	quadrant_mesh.size = Vector3(17.5, 0.035, 17.5)
+	quadrant_mesh.material = _telegraph_material
+	for index in range(4):
+		var quadrant := MeshInstance3D.new()
+		quadrant.name = "QuadrantBlast%d" % index
+		quadrant.mesh = quadrant_mesh
+		quadrant.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(quadrant)
+		quadrant.top_level = true
+		quadrant.visible = false
+		_quadrant_meshes.append(quadrant)
 
 
 func set_attack_telegraph(
@@ -112,18 +125,36 @@ func set_attack_telegraph(
 		return
 	var arrow_volley: bool = telegraph_type.begins_with("arrow_volley_")
 	var elemental_zone: bool = telegraph_type.begins_with("elemental_zone_")
+	var quadrant_blast: bool = telegraph_type.begins_with("quadrant_blast_")
 	var active: bool = (
-		telegraph_type in ["heavy_strike", "piercing_shot"] or arrow_volley or elemental_zone
+		telegraph_type in ["heavy_strike", "piercing_shot"] or arrow_volley or elemental_zone or quadrant_blast
 	) and radius > 0.0
 	_telegraph_active = active
-	_telegraph_mesh.visible = active and not arrow_volley and not elemental_zone
+	_telegraph_mesh.visible = active and not arrow_volley and not elemental_zone and not quadrant_blast
 	for circle in _arrow_volley_meshes:
 		circle.visible = false
+	for quadrant in _quadrant_meshes:
+		quadrant.visible = false
 	if not active:
 		_telegraph_time = 0.0
 		return
 	_telegraph_mesh.rotation = Vector3.ZERO
-	if elemental_zone:
+	if quadrant_blast:
+		_telegraph_color = Color(0.64, 0.2, 1.0, 1.0)
+		var mask := int(telegraph_type.trim_prefix("quadrant_blast_"))
+		var offsets := [
+			Vector3(-8.75, 0.05, -8.75),
+			Vector3(8.75, 0.05, -8.75),
+			Vector3(8.75, 0.05, 8.75),
+			Vector3(-8.75, 0.05, 8.75),
+		]
+		for index in range(_quadrant_meshes.size()):
+			if mask & (1 << index) == 0:
+				continue
+			var quadrant := _quadrant_meshes[index]
+			quadrant.global_position = telegraph_position + offsets[index]
+			quadrant.visible = true
+	elif elemental_zone:
 		var wave := maxi(0, int(telegraph_type.trim_prefix("elemental_zone_")) - 1)
 		var zone_colors := [Color(1.0, 0.24, 0.06), Color(0.1, 0.48, 1.0), Color(0.2, 0.72, 0.3)]
 		_telegraph_color = zone_colors[wave % zone_colors.size()]

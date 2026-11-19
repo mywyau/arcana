@@ -19,6 +19,7 @@ type enemyCombatProfile struct {
 	PiercingVolley piercingVolleyProfile
 	ArrowVolley    arrowVolleyProfile
 	ElementalZones elementalZoneProfile
+	QuadrantBlast  quadrantBlastProfile
 }
 
 type heavyStrikeProfile struct {
@@ -62,6 +63,14 @@ type elementalZoneProfile struct {
 	DamageMultiplier              float64
 	VulnerabilityPulses           uint64
 	VulnerabilityDamageMultiplier float64
+}
+
+type quadrantBlastProfile struct {
+	CycleAttacks     uint64
+	TriggerAttack    uint64
+	WindupPulses     uint64
+	DamageMultiplier float64
+	EnrageHealth     float64
 }
 
 var defaultEnemyCombatProfile = enemyCombatProfile{
@@ -184,9 +193,13 @@ var enemyCombatProfiles = map[string]enemyCombatProfile{
 		Defence:        DefenceBonuses{Stab: 150, Slash: 155, Crush: 145, Ranged: 70, Magic: 105},
 		Elements:       ElementalResistances{Air: 15, Water: 15, Earth: 15, Fire: 15, Holy: -20, Dark: 30},
 		ElementalZones: elementalZoneProfile{
-			CycleAttacks: 4, TriggerAttack: 4, Waves: 3,
+			CycleAttacks: 8, TriggerAttack: 4, Waves: 3,
 			WindupPulses: 4, BetweenPulses: 3, Radius: 4, DamageMultiplier: 1.25,
 			VulnerabilityPulses: 5, VulnerabilityDamageMultiplier: 1.25,
+		},
+		QuadrantBlast: quadrantBlastProfile{
+			CycleAttacks: 8, TriggerAttack: 8, WindupPulses: 5,
+			DamageMultiplier: 1.5, EnrageHealth: 1.0 / 3.0,
 		},
 	},
 }
