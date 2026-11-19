@@ -107,8 +107,8 @@ func TestDerivedCombatStatsUseAuthoritativeCombatRules(t *testing.T) {
 		stats.WeaponAccuracyBonus != 10 || stats.StyleAccuracyBonus != 2 || stats.TotalAccuracy != 13 {
 		t.Fatalf("accuracy stats = %+v", stats)
 	}
-	if stats.DamageSkill != SkillStrength || stats.DamageLevel != 1 || stats.StrengthBonus != 10 ||
-		stats.MinimumDamage != 8 || stats.MaximumDamage != 12 {
+	if stats.DamageSkill != SkillStrength || stats.DamageLevel != 1 || stats.StrengthBonus != 21 ||
+		stats.MinimumDamage != 17 || stats.MaximumDamage != 25 {
 		t.Fatalf("damage stats = %+v", stats)
 	}
 	if stats.DefenceLevel != 1 {
@@ -258,5 +258,43 @@ func TestPvPFireBoltResistanceMatchesDamagePreview(t *testing.T) {
 	w.resolvePlayerAutoAttack(attacker, defender)
 	if got := before - defender.health; got != maxDamage {
 		t.Fatalf("maximum fire hit dealt %d, preview %d (%s)", got, maxDamage, attacker.lastActionResult)
+	}
+}
+
+func TestMeleeSwordLeadsSustainedDamageWhileInReach(t *testing.T) {
+	// Compare neutral targets, equal offensive levels, and continuous attacks.
+	// Attack range, pursuit, and enemy-specific weaknesses matter in encounters.
+	for _, tier := range []struct {
+		level            int
+		sword, bow, wand WeaponID
+		arrow            string
+		spell            SpellID
+	}{
+		{1, WeaponBronzeSword, WeaponBow, WeaponWand, ItemBronzeArrow, SpellWindBolt},
+		{5, WeaponSword, WeaponOakShortbow, WeaponWand, ItemIronArrow, SpellHolyBolt},
+		{10, WeaponSteelSword, WeaponWillowShortbow, WeaponMoonspunWand, ItemSteelArrow, SpellHolyBolt},
+		{15, WeaponMithrilSword, WeaponMapleShortbow, WeaponMoonspunWand, ItemMithrilArrow, SpellHolyBolt},
+		{20, WeaponMithrilSword, WeaponYewShortbow, WeaponMoonspunWand, ItemAdamantiteArrow, SpellHolyBolt},
+		{25, WeaponRuneSword, WeaponYewShortbow, WeaponMoonspunWand, ItemAdamantiteArrow, SpellHolyBolt},
+	} {
+		player := &playerState{skills: newDefaultSkills(), ammunitionPouch: newAmmunitionPouch()}
+		for _, skill := range []SkillID{SkillAttack, SkillStrength, SkillRange, SkillMagic} {
+			player.skills[skill] = SkillExperienceForLevel(tier.level)
+		}
+		player.ammunitionPouch.add(tier.arrow, 1)
+		dps := func(weapon WeaponID, style CombatStyleID, spell SpellID) float64 {
+			player.equippedWeapon, player.combatStyle, player.selectedSpell = weapon, style, spell
+			matchup := combatMatchup(player, &TargetSnapshot{})
+			average := float64(matchup.PlayerMinimumDamage+matchup.PlayerMaximumDamage) / 2
+			interval := float64(derivedCombatStats(player).AttackInterval) * actionPulseInterval.Seconds()
+			return matchup.PlayerHitChance * average / interval
+		}
+		melee := dps(tier.sword, CombatStyleSlash, "")
+		bow := dps(tier.bow, CombatStyleRapid, "")
+		magic := dps(tier.wand, CombatStyleRapid, tier.spell)
+		t.Logf("level %d: melee %.2f, bow %.2f, wand %.2f DPS", tier.level, melee, bow, magic)
+		if melee <= max(bow, magic) {
+			t.Errorf("level %d sword should lead while continuously in reach", tier.level)
+		}
 	}
 }

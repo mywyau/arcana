@@ -120,16 +120,17 @@ func TestTrainingDummiesAreProgressiveEndlessAndNonRetaliating(t *testing.T) {
 	if target.TargetID != "" || target.NextAttackPulse != 0 {
 		t.Fatalf("training dummy retaliated after hit: %+v", target)
 	}
+	const mitigatedDamage = 20 // Low-level dummy has +5 stab defence.
 	player := mustPlayer(t, world, "player-one")
-	if attack := mustSkill(t, player, SkillAttack); attack.Experience != swordDamage {
-		t.Fatalf("Attack after training hit = %+v, want %d XP", attack, swordDamage)
+	if attack := mustSkill(t, player, SkillAttack); attack.Experience != mitigatedDamage {
+		t.Fatalf("Attack after training hit = %+v, want %d XP", attack, mitigatedDamage)
 	}
-	if vitality := mustSkill(t, player, SkillVitality); vitality.Experience != swordDamage {
-		t.Fatalf("Vitality after training hit = %+v, want %d XP", vitality, swordDamage)
+	if vitality := mustSkill(t, player, SkillVitality); vitality.Experience != mitigatedDamage {
+		t.Fatalf("Vitality after training hit = %+v, want %d XP", vitality, mitigatedDamage)
 	}
 	events := world.Snapshot().CombatEvents
 	if len(events) != 1 || events[0].Type != CombatEventDamage ||
-		events[0].TargetID != lowTrainingDummyTargetID || events[0].Amount != swordDamage {
+		events[0].TargetID != lowTrainingDummyTargetID || events[0].Amount != mitigatedDamage {
 		t.Fatalf("training dummy combat events = %+v", events)
 	}
 }
@@ -250,11 +251,11 @@ func TestEnemyDefenceMitigatesSuccessfulPlayerHit(t *testing.T) {
 	}
 
 	world.Step(actionPulseInterval)
-	if got, want := target.Health, dummyMaximumHealth-5; got != want {
+	if got, want := target.Health, dummyMaximumHealth-11; got != want {
 		t.Fatalf("target health after 50%% mitigation = %d, want %d", got, want)
 	}
 	events := world.Snapshot().CombatEvents
-	if len(events) != 1 || events[0].Type != CombatEventDamage || events[0].Amount != 5 {
+	if len(events) != 1 || events[0].Type != CombatEventDamage || events[0].Amount != 11 {
 		t.Fatalf("mitigated combat events = %+v", events)
 	}
 }
@@ -304,10 +305,10 @@ func TestConsecutiveSwordHitsCanRollDifferentDamage(t *testing.T) {
 	world.Step(actionPulseInterval)
 	world.Step(4 * actionPulseInterval)
 	events := world.Snapshot().CombatEvents
-	if len(events) < 2 || events[0].Amount != 8 || events[1].Amount != 12 {
-		t.Fatalf("sword damage events = %+v, want consecutive amounts 8 and 12", events)
+	if len(events) < 2 || events[0].Amount != 17 || events[1].Amount != 25 {
+		t.Fatalf("sword damage events = %+v, want consecutive amounts 17 and 25", events)
 	}
-	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, 80; got != want {
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, 58; got != want {
 		t.Fatalf("dummy health after varied hits = %d, want %d", got, want)
 	}
 }
@@ -1155,7 +1156,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 	}{
 		{id: WeaponMace, strength: maceMeleeStrength, interval: maceAttackIntervalPulses, range_: maceRange},
 		{id: WeaponSteelSword, strength: steelSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
-		{id: WeaponMithrilSword, strength: 18, interval: swordAttackIntervalPulses, range_: swordRange},
+		{id: WeaponMithrilSword, strength: 36, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponRuneSword, strength: runeSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponBattleAxe, strength: battleAxeMeleeStrength, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
 		{id: WeaponWand, strength: 2, interval: wandAttackIntervalPulses, range_: wandRange},
@@ -1191,15 +1192,15 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 		maximum  int
 		variance float64
 	}{
-		{id: WeaponSword, minimum: 8, average: 10, maximum: 12, variance: swordDamageVariance},
-		{id: WeaponSteelSword, minimum: 11, average: 14, maximum: 17, variance: swordDamageVariance},
+		{id: WeaponSword, minimum: 17, average: 21, maximum: 25, variance: swordDamageVariance},
+		{id: WeaponSteelSword, minimum: 21, average: 26, maximum: 31, variance: swordDamageVariance},
 		{id: WeaponRuneSword, minimum: 32, average: 40, maximum: 48, variance: swordDamageVariance},
-		{id: WeaponDagger, minimum: 5, average: 7, maximum: 9, variance: daggerDamageVariance},
+		{id: WeaponDagger, minimum: 6, average: 9, maximum: 12, variance: daggerDamageVariance},
 		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: bowDamageVariance},
-		{id: WeaponMace, minimum: 9, average: 12, maximum: 15, variance: maceDamageVariance},
-		{id: WeaponBattleAxe, minimum: 11, average: 15, maximum: 19, variance: battleAxeDamageVariance},
-		{id: WeaponSpear, minimum: 7, average: 11, maximum: 15, variance: spearDamageVariance},
-		{id: WeaponHalberd, minimum: 15, average: 18, maximum: 21, variance: halberdDamageVariance},
+		{id: WeaponMace, minimum: 20, average: 27, maximum: 34, variance: maceDamageVariance},
+		{id: WeaponBattleAxe, minimum: 29, average: 40, maximum: 51, variance: battleAxeDamageVariance},
+		{id: WeaponSpear, minimum: 9, average: 13, maximum: 17, variance: spearDamageVariance},
+		{id: WeaponHalberd, minimum: 16, average: 19, maximum: 22, variance: halberdDamageVariance},
 		{id: WeaponStaff, minimum: 6, average: 7, maximum: 8, variance: staffDamageVariance},
 	}
 	for _, test := range tests {
@@ -1232,7 +1233,7 @@ func TestWeaponStrengthUsesRelevantPowerSkill(t *testing.T) {
 		skill  SkillID
 		want   float64
 	}{
-		{name: "melee uses Strength", weapon: WeaponSword, skill: SkillStrength, want: 34.5},
+		{name: "melee uses Strength", weapon: WeaponSword, skill: SkillStrength, want: 45.5},
 		{name: "ranged uses Range", weapon: WeaponBow, skill: SkillRange, want: 28.5},
 		{name: "magic uses Magic", weapon: WeaponStaff, skill: SkillMagic, want: 31.5},
 	}

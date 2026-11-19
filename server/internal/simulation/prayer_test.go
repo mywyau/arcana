@@ -155,11 +155,11 @@ func TestStrengthPrayerBoostsMeleeDamageBeforeVariance(t *testing.T) {
 
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-11; got != want {
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-22; got != want {
 		t.Fatalf("dummy health after Strength hit = %d, want %d", got, want)
 	}
 	if player.CombatStats.PrayerDamageBonus != strengthPrayerMeleeDamageBonus ||
-		player.CombatStats.MinimumDamage != 8 || player.CombatStats.MaximumDamage != 13 {
+		player.CombatStats.MinimumDamage != 18 || player.CombatStats.MaximumDamage != 26 {
 		t.Fatalf("Strength combat stats = %+v", player.CombatStats)
 	}
 	bow, _ := weaponDefinition(WeaponBow)

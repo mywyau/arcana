@@ -257,7 +257,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{
 		ID: string(WeaponBronzeSword), Name: "Bronze Sword", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: bronzeEquipmentLevel}},
-		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 7, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponBronzeSword, AccuracyBonus: 8, MeleeStrength: 11, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponSteelSword), Name: "Steel Sword", Kind: ItemKindWeapon,
@@ -267,7 +267,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 	{
 		ID: string(WeaponMithrilSword), Name: "Mithril Sword", Kind: ItemKindWeapon,
 		EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: mithrilEquipmentLevel}},
-		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 18, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
+		Weapon:            swordWeapon(WeaponDefinition{ID: WeaponMithrilSword, AccuracyBonus: 18, MeleeStrength: 36, DamageVariance: swordDamageVariance, AttackInterval: swordAttackIntervalPulses, Range: swordRange, ApproachRange: swordApproachRange}),
 	},
 	{
 		ID: string(WeaponRuneSword), Name: "Rune Sword", Kind: ItemKindWeapon,
