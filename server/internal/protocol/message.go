@@ -29,6 +29,7 @@ const (
 	MessageConsumeItem        = "consume_item"
 	MessageBrew               = "brew"
 	MessageFletch             = "fletch"
+	MessageAlchemy            = "alchemy"
 	MessageCutGem             = "cut_gem"
 	MessageLightFire          = "light_fire"
 	MessageGather             = "gather"
@@ -428,6 +429,9 @@ type PlayerSnapshot struct {
 	BrewingResult                string                   `json:"brewing_result,omitempty"`
 	BrewingRevision              uint64                   `json:"brewing_revision,omitempty"`
 	LastFletchSequence           uint64                   `json:"last_fletch_sequence,omitempty"`
+	LastAlchemySequence          uint64                   `json:"last_alchemy_sequence,omitempty"`
+	AlchemyRemaining             int                      `json:"alchemy_remaining,omitempty"`
+	AlchemyResult                string                   `json:"alchemy_result,omitempty"`
 	LastGemCutSequence           uint64                   `json:"last_gem_cut_sequence,omitempty"`
 	LastFireSequence             uint64                   `json:"last_fire_sequence,omitempty"`
 	LastDebugSkillSequence       uint64                   `json:"last_debug_skill_sequence,omitempty"`
@@ -594,6 +598,7 @@ type InventoryItem struct {
 	Quantity      int    `json:"quantity"`
 	InstanceID    string `json:"instance_id,omitempty"`
 	Reinforcement int    `json:"reinforcement,omitempty"`
+	AlchemyCoins  int    `json:"alchemy_coins,omitempty"`
 	SellPrice     int    `json:"sell_price,omitempty"`
 }
 
@@ -625,7 +630,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageMoveInventoryItem && message.Type != MessageSetDeathProtection && message.Type != MessageCombatStyle &&
 		message.Type != MessageExperienceLock && message.Type != MessageDebugSetSkill &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
-		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
+		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageAlchemy && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
 		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand &&
 		message.Type != MessageMerchantSell && message.Type != MessageMerchantBuy &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw &&
@@ -697,6 +702,12 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 			if itemID == "" {
 				return ClientMessage{}, fmt.Errorf("brewing item IDs cannot be empty")
 			}
+		}
+	}
+	if message.Type == MessageAlchemy {
+		cancel := message.Quantity == 0 && message.ItemID == "" && !message.Active
+		if !cancel && (message.ItemID == "" || message.InventorySlot < 0 || message.Quantity < 1 || message.Quantity > 20 || (!message.Active && message.Quantity != 1)) {
+			return ClientMessage{}, fmt.Errorf("invalid Alchemy selection")
 		}
 	}
 	if message.Type == MessageFletch {

@@ -5,6 +5,7 @@ signal action_requested(inventory_slot: int, action_kind: String)
 signal sell_requested(inventory_slot: int, quantity: int)
 
 const ACTION_PRIMARY := "primary"
+const ACTION_USE := "use"
 const ACTION_DROP := "drop"
 const ACTION_SELL_ONE := "sell_one"
 const ACTION_SELL_X := "sell_x"
@@ -60,8 +61,9 @@ func open_menu(
 		item_name: String,
 		quantity: int,
 		primary_action: String,
-		consumable_heals: bool,
+		is_food: bool,
 		sell_price: int = 0,
+		can_alch: bool = false,
 ) -> void:
 	_inventory_slot = inventory_slot
 	_available_quantity = quantity
@@ -70,11 +72,14 @@ func open_menu(
 		_add_action("Sell 1", item_name, ACTION_SELL_ONE)
 		_add_action("Sell X", item_name, ACTION_SELL_X)
 		_add_action("Sell All", "%s • %d coins" % [item_name, sell_price], ACTION_SELL_ALL)
-	elif not primary_action.is_empty():
+	elif primary_action != "use" and not primary_action.is_empty():
 		_add_action(
-			_primary_verb(primary_action, consumable_heals), item_name, ACTION_PRIMARY,
+			_primary_verb(primary_action, is_food), item_name, ACTION_PRIMARY,
 		)
 	if sell_price <= 0:
+		_add_action("Use", item_name, ACTION_USE)
+		if can_alch:
+			_add_action("Alchemy", item_name, "alchemy")
 		_add_action("Drop All" if quantity > 1 else "Drop", item_name, ACTION_DROP)
 	var menu_height: int = 24 + maxi(0, _rows.get_child_count() - 1) * 6
 	menu_height += _rows.get_child_count() * 48
@@ -91,11 +96,14 @@ func close_overlay() -> bool:
 	return true
 
 
-func _primary_verb(primary_action: String, consumable_heals: bool) -> String:
+func _primary_verb(primary_action: String, is_food: bool) -> String:
 	match primary_action:
 		"equip", "ring": return "Equip"
-		"ammunition": return "Load"
-		"consume": return "Eat" if consumable_heals else "Drink"
+		"ammunition", "rune": return "Load"
+		"brew": return "Brew"
+		"fletch": return "Fletch"
+		"cut_gem": return "Cut"
+		"consume": return "Eat" if is_food else "Drink"
 		_: return "Use"
 
 

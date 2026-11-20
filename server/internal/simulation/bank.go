@@ -17,6 +17,10 @@ const (
 	TestCraftingChestID      = "test_crafting_chest"
 	TestFoodChestID          = "test_food_chest"
 	TestBossRewardsChestID   = "test_boss_rewards_chest"
+	TestSpicesChestID        = "test_spices_chest"
+	TestSecondariesChestID   = "test_secondaries_chest"
+	TestMushroomsChestID     = "test_mushrooms_chest"
+	TestPotionsChestID       = "test_potions_chest"
 	BankCapacity             = 100
 	MaximumBankCapacity      = 1000
 	BankExpansionSize        = 50
@@ -43,19 +47,27 @@ var testSupplyChests = []BankChestSnapshot{
 	{ID: TestCraftingChestID, Name: "Crafting Test Chest", Position: Position{X: 0, Z: -47}, Range: bankInteractionRange},
 	{ID: TestFoodChestID, Name: "Food Test Chest", Position: Position{X: 6, Z: -47}, Range: bankInteractionRange},
 	{ID: TestBossRewardsChestID, Name: "Boss Rewards Test Chest", Position: Position{X: 12, Z: -35}, Range: bankInteractionRange},
+	{ID: TestSpicesChestID, Name: "Spices Test Chest", Position: Position{X: -12, Z: -53}, Range: bankInteractionRange},
+	{ID: TestSecondariesChestID, Name: "Secondaries Test Chest", Position: Position{X: -6, Z: -53}, Range: bankInteractionRange},
+	{ID: TestMushroomsChestID, Name: "Mushrooms Test Chest", Position: Position{X: 0, Z: -53}, Range: bankInteractionRange},
+	{ID: TestPotionsChestID, Name: "Potions Test Chest", Position: Position{X: 6, Z: -53}, Range: bankInteractionRange},
 }
 
 var (
-	TestMeleeChestPosition    = testSupplyChests[0].Position
-	TestRangedChestPosition   = testSupplyChests[1].Position
-	TestMagicChestPosition    = testSupplyChests[2].Position
-	TestOresChestPosition     = testSupplyChests[3].Position
-	TestBarsChestPosition     = testSupplyChests[4].Position
-	TestToolsChestPosition    = testSupplyChests[5].Position
-	TestHerbsChestPosition    = testSupplyChests[6].Position
-	TestCraftingChestPosition = testSupplyChests[7].Position
-	TestFoodChestPosition     = testSupplyChests[8].Position
-	TestBossRewardsPosition   = testSupplyChests[9].Position
+	TestMeleeChestPosition       = testSupplyChests[0].Position
+	TestRangedChestPosition      = testSupplyChests[1].Position
+	TestMagicChestPosition       = testSupplyChests[2].Position
+	TestOresChestPosition        = testSupplyChests[3].Position
+	TestBarsChestPosition        = testSupplyChests[4].Position
+	TestToolsChestPosition       = testSupplyChests[5].Position
+	TestHerbsChestPosition       = testSupplyChests[6].Position
+	TestCraftingChestPosition    = testSupplyChests[7].Position
+	TestFoodChestPosition        = testSupplyChests[8].Position
+	TestBossRewardsPosition      = testSupplyChests[9].Position
+	TestSpicesChestPosition      = testSupplyChests[10].Position
+	TestSecondariesChestPosition = testSupplyChests[11].Position
+	TestMushroomsChestPosition   = testSupplyChests[12].Position
+	TestPotionsChestPosition     = testSupplyChests[13].Position
 )
 
 type BankChestSnapshot struct {

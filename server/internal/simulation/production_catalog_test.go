@@ -14,6 +14,8 @@ func TestProductionRecipeCatalogIsOrderedAndDetached(t *testing.T) {
 		}
 	}
 	wantGroups := map[string]string{
+		string(ForgingHideBuckler):    "bronze",
+		string(ForgingSilverFocus):    "silver",
 		string(ForgingBronzeSword):    "bronze",
 		string(ForgingIronSword):      "iron",
 		string(ForgingMithrilSword):   "mithril",

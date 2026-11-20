@@ -1158,6 +1158,49 @@ func TestAnvilRepeatedlyForgesSelectedRecipe(t *testing.T) {
 	}
 }
 
+func TestCraftAndEquipOffHands(t *testing.T) {
+	for _, tc := range []struct {
+		item, bar, material                 string
+		level, rangedDefence, magicAccuracy int
+	}{
+		{ItemHideBuckler, ItemBronzeBar, ItemLeather, 1, 4, 0},
+		{ItemSilverFocus, ItemSilverBar, ItemSapphire, 5, 0, 4},
+	} {
+		t.Run(tc.item, func(t *testing.T) {
+			world := NewWorld()
+			mustAddEmptyPlayer(t, world, "smith", world.gatheringSpots[starterAnvilID].Position)
+			player := world.players["smith"]
+			player.skills[SkillSmithing] = SkillExperienceForLevel(tc.level)
+			player.inventory.add(tc.bar, 1)
+			command := GatherCommand{PlayerID: "smith", Sequence: 1, SpotID: starterAnvilID, RecipeID: tc.item, Quantity: 1}
+			if err := world.QueueGather(command); err == nil {
+				t.Fatal("forging without the second ingredient succeeded")
+			}
+			player.inventory.add(tc.material, 1)
+			command.Sequence++
+			if err := world.QueueGather(command); err != nil {
+				t.Fatal(err)
+			}
+			world.Step(50 * time.Millisecond)
+			recipe, _ := forgingRecipe(ForgingRecipeID(tc.item))
+			world.Step(time.Duration(recipe.Interval) * actionPulseInterval)
+			if player.inventory.contains(tc.bar) || player.inventory.contains(tc.material) || player.inventory.quantity(tc.item) != 1 {
+				t.Fatalf("unexpected inventory after forging: %+v", player.inventory)
+			}
+			instance := resolveOwnedInstanceID(player.inventory, tc.item, "")
+			if err := world.QueueEquip(EquipCommand{PlayerID: "smith", Sequence: 3, ItemID: WeaponID(tc.item), InstanceID: instance}); err != nil {
+				t.Fatal(err)
+			}
+			world.Step(actionPulseInterval)
+			stats := derivedCombatStats(player)
+			if player.equippedArmour[ArmourSlotLeftHand] != tc.item || stats.DefenceBonuses.Ranged != tc.rangedDefence ||
+				stats.EquipmentOffence != (OffenceBonuses{MagicAccuracy: tc.magicAccuracy}) {
+				t.Fatalf("unexpected equipped stats: %+v", stats)
+			}
+		})
+	}
+}
+
 func TestAnvilRequiresAValidAffordableRecipe(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0))
 	spot := world.gatheringSpots[starterAnvilID]

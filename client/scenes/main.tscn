@@ -1155,7 +1155,7 @@ text = "1  Sword"
 custom_minimum_size = Vector2(100, 38)
 layout_mode = 2
 toggle_mode = true
-text = "2  Dagger"
+text = "2  Bronze Dagger"
 
 [node name="Bow" type="Button" parent="UI/CombatHUD/Margin/VBox/WeaponRow"]
 custom_minimum_size = Vector2(100, 38)

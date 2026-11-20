@@ -72,7 +72,7 @@ func TestNoviceCombatSetsProvideFocusedOffence(t *testing.T) {
 		ArmourSlotHead: ItemNoviceRangerHood, ArmourSlotBody: ItemNoviceRangerBody,
 		ArmourSlotHands: ItemNoviceRangerGloves, ArmourSlotLegs: ItemNoviceRangerLegs, ArmourSlotFeet: ItemNoviceRangerBoots,
 	})
-	if ranged.RangedAccuracy != 9 || ranged.RangedStrength != 5 || ranged.MagicAccuracy != 0 {
+	if ranged.RangedAccuracy != 9 || ranged.RangedStrength != 0 || ranged.MagicAccuracy != 0 {
 		t.Fatalf("novice ranged set offence = %+v", ranged)
 	}
 }
@@ -82,12 +82,11 @@ func TestRangedArmourProgressionRequiresRangeAndImprovesRangedOffence(t *testing
 		level        int
 		items        []string
 		wantAccuracy int
-		wantStrength int
 	}{
-		{level: 5, items: []string{ItemScoutHood, ItemScoutBody, ItemScoutGloves, ItemScoutLegs, ItemScoutBoots}, wantAccuracy: 12, wantStrength: 7},
-		{level: 10, items: []string{ItemTrackerHood, ItemTrackerBody, ItemTrackerGloves, ItemTrackerLegs, ItemTrackerBoots}, wantAccuracy: 15, wantStrength: 9},
-		{level: 15, items: []string{ItemHunterHood, ItemHunterBody, ItemHunterGloves, ItemHunterLegs, ItemHunterBoots}, wantAccuracy: 18, wantStrength: 11},
-		{level: 20, items: []string{ItemMarksmanHood, ItemMarksmanBody, ItemMarksmanGloves, ItemMarksmanLegs, ItemMarksmanBoots}, wantAccuracy: 22, wantStrength: 14},
+		{level: 5, items: []string{ItemScoutHood, ItemScoutBody, ItemScoutGloves, ItemScoutLegs, ItemScoutBoots}, wantAccuracy: 12},
+		{level: 10, items: []string{ItemTrackerHood, ItemTrackerBody, ItemTrackerGloves, ItemTrackerLegs, ItemTrackerBoots}, wantAccuracy: 15},
+		{level: 15, items: []string{ItemHunterHood, ItemHunterBody, ItemHunterGloves, ItemHunterLegs, ItemHunterBoots}, wantAccuracy: 18},
+		{level: 20, items: []string{ItemMarksmanHood, ItemMarksmanBody, ItemMarksmanGloves, ItemMarksmanLegs, ItemMarksmanBoots}, wantAccuracy: 22},
 	}
 	bow, _ := weaponDefinition(WeaponBow)
 	sword, _ := weaponDefinition(WeaponSword)
@@ -103,7 +102,7 @@ func TestRangedArmourProgressionRequiresRangeAndImprovesRangedOffence(t *testing
 		}
 		player := &playerState{equippedArmour: equipped}
 		bonuses := equippedOffenceBonuses(equipped)
-		if bonuses.RangedAccuracy != tier.wantAccuracy || bonuses.RangedStrength != tier.wantStrength ||
+		if bonuses.RangedAccuracy != tier.wantAccuracy || bonuses.RangedStrength != 0 ||
 			bonuses.MeleeAccuracy != 0 || bonuses.MagicAccuracy != 0 {
 			t.Errorf("level %d ranged bonuses = %+v", tier.level, bonuses)
 		}
@@ -240,7 +239,7 @@ func TestCombatCapesUseCapeSlotAndFocusedBonuses(t *testing.T) {
 		offence OffenceBonuses
 	}{
 		{ItemVanguardCape, OffenceBonuses{MeleeAccuracy: 3, MeleeStrength: 2}},
-		{ItemWayfarerCape, OffenceBonuses{RangedAccuracy: 3, RangedStrength: 2}},
+		{ItemWayfarerCape, OffenceBonuses{RangedAccuracy: 3}},
 		{ItemArcanistCape, OffenceBonuses{MagicAccuracy: 3, MagicStrength: 2}},
 	}
 	for _, test := range tests {

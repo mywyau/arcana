@@ -30,8 +30,13 @@ var mithrilReinforcement = reinforcementTier{Bar: ItemMithrilBar, RequiredLevel:
 var adamantiteReinforcement = reinforcementTier{Bar: ItemAdamantiteBar, RequiredLevel: 11, XPPerBar: 65}
 
 var reinforcementTiers = map[string]reinforcementTier{
-	string(WeaponBronzeSword): bronzeReinforcement,
-	ItemBronzeHelm:            bronzeReinforcement, ItemBronzePlate: bronzeReinforcement,
+	string(WeaponBronzeDagger):     bronzeReinforcement,
+	string(WeaponIronDagger):       ironReinforcement,
+	string(WeaponSteelDagger):      steelReinforcement,
+	string(WeaponMithrilDagger):    mithrilReinforcement,
+	string(WeaponAdamantiteDagger): adamantiteReinforcement,
+	string(WeaponBronzeSword):      bronzeReinforcement,
+	ItemBronzeHelm:                 bronzeReinforcement, ItemBronzePlate: bronzeReinforcement,
 	ItemBronzeShield: bronzeReinforcement, ItemBronzeLegs: bronzeReinforcement,
 	ItemBronzeGloves: bronzeReinforcement, ItemBronzeBoots: bronzeReinforcement,
 	string(WeaponSword): ironReinforcement,

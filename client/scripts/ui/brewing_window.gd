@@ -72,11 +72,13 @@ func update_data(inventory_items: Array, pending: bool, remaining: int) -> void:
 	_refresh_if_changed()
 
 
-func show_for_item(item_id: String = "") -> void:
-	if not _window.visible:
+func show_for_item(item_id: String = "", second_item: String = "") -> void:
+	if not _window.visible or not second_item.is_empty():
 		_selection.clear()
 	if not item_id.is_empty():
 		_add_ingredient(item_id)
+	if not second_item.is_empty():
+		_add_ingredient(second_item)
 	_display_signature = ""
 	_refresh_if_changed()
 	_window.popup_centered()

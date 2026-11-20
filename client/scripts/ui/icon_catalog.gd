@@ -2,6 +2,7 @@ class_name IconCatalog
 extends RefCounted
 
 const ITEM_DISPLAY_NAMES: Dictionary = {
+	"dagger": "Bronze Dagger",
 	"gatherers_tonic": "Gatherer's Tonic",
 	"ember_pepper": "Fire Pepper", "cinnamon_bark": "Cinnabark",
 	"dark_rune": "Shadow Rune",
@@ -68,8 +69,12 @@ const SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/iron_swor
 const BRONZE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/bronze_sword.png")
 const STEEL_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/steel_sword.png")
 const MITHRIL_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/mithril_sword.png")
-const RUNE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/sword.svg")
-const DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/dagger.svg")
+const ADAMANTITE_SWORD: Texture2D = preload("res://assets/icons/equipment/weapons/sword.svg")
+const BRONZE_DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/bronze_dagger.svg")
+const IRON_DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/iron_dagger.svg")
+const STEEL_DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/steel_dagger.svg")
+const MITHRIL_DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/mithril_dagger.svg")
+const ADAMANTITE_DAGGER: Texture2D = preload("res://assets/icons/equipment/weapons/adamantite_dagger.svg")
 const BOW: Texture2D = preload("res://assets/icons/equipment/weapons/bow.svg")
 const OAK_SHORTBOW: Texture2D = preload("res://assets/icons/generated/placeholders/oak_shortbow.svg")
 const WILLOW_SHORTBOW: Texture2D = preload("res://assets/icons/generated/placeholders/willow_shortbow.svg")
@@ -161,6 +166,7 @@ const TAB_SETTINGS: Texture2D = preload("res://assets/icons/navigation/tab_setti
 const TAB_ACCOUNT: Texture2D = preload("res://assets/icons/navigation/tab_account.svg")
 
 const SPELL_ICONS: Dictionary = {
+	"alchemy": preload("res://assets/icons/items/coins.png"),
 	"wind_bolt": preload("res://assets/icons/spells/wind_blade.svg"),
 	"water_bolt": preload("res://assets/icons/spells/frost_shard.svg"),
 	"earth_bolt": preload("res://assets/icons/spells/pebble.svg"),
@@ -218,8 +224,12 @@ const WEAPONS: Dictionary = {
 	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": STEEL_SWORD,
 	"mithril_sword": MITHRIL_SWORD,
-	"rune_sword": RUNE_SWORD,
-	"dagger": DAGGER,
+	"adamantite_sword": ADAMANTITE_SWORD,
+	"dagger": BRONZE_DAGGER,
+	"iron_dagger": IRON_DAGGER,
+	"steel_dagger": STEEL_DAGGER,
+	"mithril_dagger": MITHRIL_DAGGER,
+	"adamantite_dagger": ADAMANTITE_DAGGER,
 	"bow": BOW,
 	"oak_shortbow": OAK_SHORTBOW,
 	"willow_shortbow": WILLOW_SHORTBOW,
@@ -242,8 +252,12 @@ const ITEMS: Dictionary = {
 	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": STEEL_SWORD,
 	"mithril_sword": MITHRIL_SWORD,
-	"rune_sword": RUNE_SWORD,
-	"dagger": DAGGER,
+	"adamantite_sword": ADAMANTITE_SWORD,
+	"dagger": BRONZE_DAGGER,
+	"iron_dagger": IRON_DAGGER,
+	"steel_dagger": STEEL_DAGGER,
+	"mithril_dagger": MITHRIL_DAGGER,
+	"adamantite_dagger": ADAMANTITE_DAGGER,
 	"bow": BOW,
 	"oak_shortbow": OAK_SHORTBOW,
 	"willow_shortbow": WILLOW_SHORTBOW,
@@ -298,6 +312,16 @@ const ITEMS: Dictionary = {
 	"unstrung_willow_shortbow": preload("res://assets/icons/generated/placeholders/unstrung_willow_shortbow.svg"),
 	"unstrung_maple_shortbow": preload("res://assets/icons/generated/placeholders/unstrung_maple_shortbow.svg"),
 	"unstrung_yew_shortbow": preload("res://assets/icons/generated/placeholders/unstrung_yew_shortbow.svg"),
+	"hide_buckler": preload("res://assets/icons/items/hide_buckler.svg"),
+	"silver_focus": preload("res://assets/icons/items/silver_focus.svg"),
+	"emberhorn_carrot": preload("res://assets/icons/items/ingredients/emberhorn_carrot.svg"),
+	"frostveil_cabbage": preload("res://assets/icons/items/ingredients/frostveil_cabbage.svg"),
+	"lantern_squash": preload("res://assets/icons/items/ingredients/lantern_squash.svg"),
+	"dawncrisp_apple": preload("res://assets/icons/items/ingredients/dawncrisp_apple.svg"),
+	"moondrop_pear": preload("res://assets/icons/items/ingredients/moondrop_pear.svg"),
+	"duskplum": preload("res://assets/icons/items/ingredients/duskplum.svg"),
+	"raw_chicken": preload("res://assets/icons/items/raw_chicken.svg"),
+	"raw_beef": preload("res://assets/icons/items/raw_beef.svg"),
 	"raw_minnow": preload("res://assets/icons/items/fish/raw_minnow.svg"),
 	"cooked_minnow": preload("res://assets/icons/items/fish/cooked_minnow.svg"),
 	"raw_trout": preload("res://assets/icons/items/fish/raw_trout.png"),

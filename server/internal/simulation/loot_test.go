@@ -142,33 +142,33 @@ func TestWorldSteelSwordCanBePickedUpAndEquipped(t *testing.T) {
 	}
 }
 
-func TestWorldRuneSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
+func TestWorldAdamantiteSwordCanBePickedUpEquippedAndUsed(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.5))
 	playerPosition := Position{X: -4, Z: -1}
-	if err := world.AddWorldDrop(playerPosition, string(WeaponRuneSword), 1); err != nil {
+	if err := world.AddWorldDrop(playerPosition, string(WeaponAdamantiteSword), 1); err != nil {
 		t.Fatalf("AddWorldDrop() returned an unexpected error: %v", err)
 	}
 	mustAddPlayer(t, world, "player-one", playerPosition, 4)
-	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(runeEquipmentLevel)
+	world.players["player-one"].skills[SkillAttack] = SkillExperienceForLevel(adamantiteEquipmentLevel)
 	if err := world.QueuePickup(PickupCommand{PlayerID: "player-one", Sequence: 1, DropID: "drop-1"}); err != nil {
 		t.Fatalf("QueuePickup() returned an unexpected error: %v", err)
 	}
 	world.Step(50 * time.Millisecond)
-	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponRuneSword}); err != nil {
+	if err := world.QueueEquip(EquipCommand{PlayerID: "player-one", Sequence: 1, ItemID: WeaponAdamantiteSword}); err != nil {
 		t.Fatalf("QueueEquip() returned an unexpected error: %v", err)
 	}
 	world.Step(actionPulseInterval)
 	player := mustPlayer(t, world, "player-one")
-	if player.EquippedWeapon != WeaponRuneSword || player.CombatStyle != CombatStyleStab {
-		t.Fatalf("equipped rune sword state = %+v", player)
+	if player.EquippedWeapon != WeaponAdamantiteSword || player.CombatStyle != CombatStyleStab {
+		t.Fatalf("equipped adamantite sword state = %+v", player)
 	}
 
 	if err := world.QueueTarget(TargetCommand{PlayerID: "player-one", Sequence: 1, TargetID: dummyTargetID}); err != nil {
 		t.Fatalf("QueueTarget() returned an unexpected error: %v", err)
 	}
 	world.Step(actionPulseInterval)
-	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-runeSwordMeleeStrength; got != want {
-		t.Fatalf("dummy health after rune sword hit = %d, want %d", got, want)
+	if got, want := mustTarget(t, world.Snapshot(), dummyTargetID).Health, dummyMaximumHealth-adamantiteSwordMeleeStrength; got != want {
+		t.Fatalf("dummy health after adamantite sword hit = %d, want %d", got, want)
 	}
 }
 
@@ -463,13 +463,13 @@ func TestUpperDummySpawnsTrainingHelm(t *testing.T) {
 	}
 }
 
-func TestUpperDummyCanAlsoDropRuneSword(t *testing.T) {
+func TestUpperDummyCanAlsoDropAdamantiteSword(t *testing.T) {
 	world := NewWorldWithRollSource(fixedRollSource(0.1))
 	target := world.combat.targets[upperDummyTargetID]
 	world.defeatDummy(upperDummyTargetID, target)
 	drops := world.Snapshot().Drops
 	if len(drops) != 2 || drops[0].ItemID != ItemTrainingHelm || drops[0].Quantity != 1 ||
-		drops[1].ItemID != string(WeaponRuneSword) || drops[1].Quantity != 1 {
+		drops[1].ItemID != string(WeaponAdamantiteSword) || drops[1].Quantity != 1 {
 		t.Fatalf("upper dummy rare drops = %+v", drops)
 	}
 }
@@ -548,14 +548,27 @@ func TestTyrantRareRingDropRatesAndLoot(t *testing.T) {
 	}
 }
 
-func TestWildFowlDropsFeathersInConfiguredRange(t *testing.T) {
-	world := NewWorldWithRollSource(fixedRollSource(0.5))
-	target := world.combat.targets[wildFowlTargetID]
-	world.defeatDummy(wildFowlTargetID, target)
-	drops := world.Snapshot().Drops
-	if len(drops) != 2 || drops[0].ItemID != ItemBones || drops[0].Quantity != 1 ||
-		drops[1].ItemID != ItemFeathers || drops[1].Quantity != 13 || drops[1].Position != target.Position {
-		t.Fatalf("Wild Fowl drops = %+v, want 13 feathers", drops)
+func TestLivestockDropsMeatAlongsideExistingLoot(t *testing.T) {
+	for _, tc := range []struct {
+		target, material, meat string
+		materialQuantity       int
+	}{
+		{wildFowlTargetID, ItemFeathers, ItemRawChicken, 13},
+		{cowTargetID, ItemLeather, ItemRawBeef, 2},
+	} {
+		world := NewWorldWithRollSource(fixedRollSource(0.5))
+		target := world.combat.targets[tc.target]
+		world.defeatDummy(tc.target, target)
+		want := map[string]int{ItemBones: 1, tc.material: tc.materialQuantity, tc.meat: 1}
+		for _, drop := range world.Snapshot().Drops {
+			if drop.Position != target.Position || drop.Quantity != want[drop.ItemID] {
+				t.Errorf("%s unexpected drop %+v", tc.target, drop)
+			}
+			delete(want, drop.ItemID)
+		}
+		if len(want) > 0 {
+			t.Errorf("%s missing drops %v", tc.target, want)
+		}
 	}
 }
 

@@ -49,7 +49,7 @@ func TestWandsAndStavesApplyDistinctCastingProfiles(t *testing.T) {
 	wand := spellDefinitionForStyle(&playerState{equippedWeapon: WeaponWand}, base)
 	staff := spellDefinitionForStyle(&playerState{equippedWeapon: WeaponStaff}, base)
 
-	if wand.AttackInterval != 4 || wand.Range != 7 || math.Abs(wand.DamageVariance-0.40) > 0.000_001 {
+	if wand.AttackInterval != 4 || wand.Range != 7 || math.Abs(wand.DamageVariance-0.60) > 0.000_001 {
 		t.Fatalf("wand spell profile = %+v", wand)
 	}
 	if staff.AttackInterval != 6 || staff.Range != 13 || math.Abs(staff.DamageVariance-0.10) > 0.000_001 {
@@ -60,13 +60,30 @@ func TestWandsAndStavesApplyDistinctCastingProfiles(t *testing.T) {
 	}
 }
 
+func TestWandDamageIncludesPowerPenaltyForWeaponHitsAndSpells(t *testing.T) {
+	for _, id := range []WeaponID{WeaponWand, WeaponMoonspunWand} {
+		player := &playerState{equippedWeapon: id, skills: newDefaultSkills()}
+		player.skills[SkillMagic] = SkillExperienceForLevel(21)
+		weapon, _ := weaponDefinition(id)
+		spell, _ := spellDefinition(SpellWindBolt)
+		// Twenty gained levels contribute ten flat damage before the wand modifier.
+		base := float64(weapon.MagicStrength + 10)
+		if got, want := weaponPoweredDamage(player, weapon), base*0.85; math.Abs(got-want) > 0.000001 {
+			t.Errorf("%s weapon damage = %v, want %v", id, got, want)
+		}
+		if got, want := spellPoweredDamage(player, spell), (base+float64(spell.BasePower))*0.85; math.Abs(got-want) > 0.000001 {
+			t.Errorf("%s spell damage = %v, want %v", id, got, want)
+		}
+	}
+}
+
 func TestStandardSpellbookContainsWindBolt(t *testing.T) {
 	book, exists := spellbookDefinition(SpellbookStandard)
 	if !exists || book.Name != "Standard" || book.EquipmentItemID != ItemStandardSpellbook {
 		t.Fatalf("Standard spellbook = %+v, exists %t", book, exists)
 	}
 	spells := spellDefinitionsForBook(SpellbookStandard)
-	wantIDs := []SpellID{SpellWindBolt, SpellWaterBolt, SpellEarthBolt, SpellFireBolt}
+	wantIDs := []SpellID{SpellWindBolt, SpellWaterBolt, SpellEarthBolt, SpellFireBolt, alchemySpell.ID}
 	if len(spells) != len(wantIDs) {
 		t.Fatalf("Standard spells = %+v", spells)
 	}
@@ -95,8 +112,8 @@ func TestSpellCatalogSnapshotsAreOrderedAndDetached(t *testing.T) {
 	}
 
 	spells := SpellCatalog()
-	if len(spells) != 6 {
-		t.Fatalf("spell catalogue count = %d, want 6", len(spells))
+	if len(spells) != 7 {
+		t.Fatalf("spell catalogue count = %d, want 7", len(spells))
 	}
 	for index, spell := range spells {
 		if spell.ID == "" || spell.BookID == "" || spell.IconID == "" || spell.RequiredMagicLevel < 1 || len(spell.Costs) == 0 {

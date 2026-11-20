@@ -23,6 +23,7 @@ var _pending: bool = false
 var _remaining: int = 0
 var _selected_recipe: String = "arrow_shafts"
 var _context_item_id: String = ""
+var _second_item_id: String = ""
 var _recipe_signature: String = ""
 var _visible_recipe_signature: String = ""
 var _display_signature: String = ""
@@ -76,8 +77,9 @@ func update_data(
 	_refresh_if_changed()
 
 
-func show_for_item(item_id: String = "") -> void:
+func show_for_item(item_id: String = "", second_item: String = "") -> void:
 	_context_item_id = item_id
+	_second_item_id = second_item
 	var matching_recipe := recipe_for_item(item_id)
 	if not matching_recipe.is_empty():
 		_selected_recipe = matching_recipe
@@ -149,11 +151,12 @@ func _rebuild_visible_recipes_if_changed() -> void:
 	_visible_recipe_signature = signature
 	_recipe_buttons.clear()
 	_clear_children(_recipe_grid)
-	var visible_recipe_ids := available_recipe_ids_for_item(_context_item_id)
+	var visible_recipe_ids := available_recipe_ids_for_item(_context_item_id, _second_item_id)
 	if (
 		_pending
 		and _recipes.has(_selected_recipe)
 		and not visible_recipe_ids.has(_selected_recipe)
+		and (_second_item_id.is_empty() or _recipe_uses_item(_recipes[_selected_recipe], _second_item_id))
 		and (
 			_context_item_id.is_empty()
 			or _recipe_uses_item(_recipes[_selected_recipe] as Dictionary, _context_item_id)
@@ -192,12 +195,14 @@ func _recipe_is_makeable(recipe: Dictionary) -> bool:
 	return _maximum_batches_for_recipe(recipe) > 0
 
 
-func available_recipe_ids_for_item(item_id: String = "") -> Array[String]:
+func available_recipe_ids_for_item(item_id: String = "", second_item: String = "") -> Array[String]:
 	var available: Array[String] = []
 	for recipe_id_value: Variant in _recipes:
 		var recipe_id := str(recipe_id_value)
 		var recipe := _recipes[recipe_id] as Dictionary
 		if not item_id.is_empty() and not _recipe_uses_item(recipe, item_id):
+			continue
+		if not second_item.is_empty() and not _recipe_uses_item(recipe, second_item):
 			continue
 		if _recipe_is_makeable(recipe):
 			available.append(recipe_id)

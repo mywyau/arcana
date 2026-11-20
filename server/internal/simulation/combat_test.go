@@ -1157,13 +1157,13 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		{id: WeaponMace, strength: maceMeleeStrength, interval: maceAttackIntervalPulses, range_: maceRange},
 		{id: WeaponSteelSword, strength: steelSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponMithrilSword, strength: 36, interval: swordAttackIntervalPulses, range_: swordRange},
-		{id: WeaponRuneSword, strength: runeSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
+		{id: WeaponAdamantiteSword, strength: adamantiteSwordMeleeStrength, interval: swordAttackIntervalPulses, range_: swordRange},
 		{id: WeaponBattleAxe, strength: battleAxeMeleeStrength, interval: battleAxeAttackIntervalPulses, range_: battleAxeRange},
 		{id: WeaponWand, strength: 2, interval: wandAttackIntervalPulses, range_: wandRange},
 		{id: WeaponMoonspunWand, strength: 6, interval: wandAttackIntervalPulses, range_: wandRange},
 		{id: WeaponStaff, strength: staffMagicStrength, interval: staffAttackIntervalPulses, range_: staffRange},
-		{id: WeaponEnchantedStaff, strength: 12, interval: staffAttackIntervalPulses, range_: staffRange},
-		{id: WeaponStardewStaff, strength: 15, interval: staffAttackIntervalPulses, range_: staffRange},
+		{id: WeaponEnchantedStaff, strength: 19, interval: staffAttackIntervalPulses, range_: staffRange},
+		{id: WeaponStardewStaff, strength: 23, interval: staffAttackIntervalPulses, range_: staffRange},
 	}
 	for _, test := range tests {
 		weapon, exists := weaponDefinition(test.id)
@@ -1179,7 +1179,7 @@ func TestAdditionalWeaponDefinitions(t *testing.T) {
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponSteelSword) ||
 		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponMithrilSword) ||
-		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponRuneSword) {
+		!combatStyleValidForWeapon(CombatStyleDefensive, WeaponAdamantiteSword) {
 		t.Fatal("additional weapon combat styles are not valid")
 	}
 }
@@ -1194,14 +1194,14 @@ func TestWeaponsUseConfiguredDamageVariance(t *testing.T) {
 	}{
 		{id: WeaponSword, minimum: 17, average: 21, maximum: 25, variance: swordDamageVariance},
 		{id: WeaponSteelSword, minimum: 21, average: 26, maximum: 31, variance: swordDamageVariance},
-		{id: WeaponRuneSword, minimum: 32, average: 40, maximum: 48, variance: swordDamageVariance},
-		{id: WeaponDagger, minimum: 6, average: 9, maximum: 12, variance: daggerDamageVariance},
+		{id: WeaponAdamantiteSword, minimum: 32, average: 40, maximum: 48, variance: swordDamageVariance},
+		{id: WeaponDagger, minimum: 9, average: 9, maximum: 9, variance: daggerDamageVariance},
 		{id: WeaponBow, minimum: 3, average: 4, maximum: 5, variance: bowDamageVariance},
 		{id: WeaponMace, minimum: 20, average: 27, maximum: 34, variance: maceDamageVariance},
 		{id: WeaponBattleAxe, minimum: 29, average: 40, maximum: 51, variance: battleAxeDamageVariance},
 		{id: WeaponSpear, minimum: 9, average: 13, maximum: 17, variance: spearDamageVariance},
 		{id: WeaponHalberd, minimum: 16, average: 19, maximum: 22, variance: halberdDamageVariance},
-		{id: WeaponStaff, minimum: 6, average: 7, maximum: 8, variance: staffDamageVariance},
+		{id: WeaponStaff, minimum: 11, average: 12, maximum: 13, variance: staffDamageVariance},
 	}
 	for _, test := range tests {
 		t.Run(string(test.id), func(t *testing.T) {
@@ -1235,7 +1235,7 @@ func TestWeaponStrengthUsesRelevantPowerSkill(t *testing.T) {
 	}{
 		{name: "melee uses Strength", weapon: WeaponSword, skill: SkillStrength, want: 45.5},
 		{name: "ranged uses Range", weapon: WeaponBow, skill: SkillRange, want: 28.5},
-		{name: "magic uses Magic", weapon: WeaponStaff, skill: SkillMagic, want: 31.5},
+		{name: "magic uses Magic", weapon: WeaponStaff, skill: SkillMagic, want: 36.5},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

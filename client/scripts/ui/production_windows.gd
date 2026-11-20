@@ -273,7 +273,7 @@ func _add_upgrade_tab() -> void:
 		var button := _recipe_button(item_id, 48)
 		button.custom_minimum_size = Vector2(0, 72)
 		button.text = "Upgrade %s to +%d\n%d %s  •  Lv %d  •  slot %d" % [
-			item_id.capitalize(), reinforcement + 1, int(data.get("cost", 0)),
+			str(_item_names.get(item_id, item_id.capitalize())), reinforcement + 1, int(data.get("cost", 0)),
 			data.get("bar_name", "Bars"), required_level, int(item.get("slot", 0)) + 1,
 		]
 		button.disabled = int(_skill_levels.get("smithing", 1)) < required_level

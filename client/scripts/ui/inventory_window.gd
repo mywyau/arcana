@@ -137,6 +137,9 @@ func _apply_highlight(slot_button: Button, highlight: String) -> void:
 	selection_style.corner_radius_top_right = 6
 	selection_style.corner_radius_bottom_left = 6
 	selection_style.corner_radius_bottom_right = 6
+	if highlight == "selected":
+		for state: String in ["normal", "hover"]:
+			slot_button.add_theme_stylebox_override(state, selection_style)
 	slot_button.add_theme_stylebox_override("pressed", selection_style)
 	slot_button.add_theme_stylebox_override("hover_pressed", selection_style)
 

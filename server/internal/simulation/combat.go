@@ -17,11 +17,11 @@ const (
 	swordMeleeStrength                   = 21
 	swordDamageVariance                  = 0.20
 	steelSwordMeleeStrength              = 26
-	runeSwordMeleeStrength               = 40
+	adamantiteSwordMeleeStrength         = 40
 	daggerRange                          = 1.3
 	daggerApproachRange                  = 1.05
 	daggerMeleeStrength                  = 9
-	daggerDamageVariance                 = 2.0 / 7.0
+	daggerDamageVariance                 = 0.05
 	daggerAttackIntervalPulses           = 3
 	bowRange                             = 12.0
 	bowApproachRange                     = 11.25
@@ -40,11 +40,12 @@ const (
 	battleAxeAttackIntervalPulses        = 6
 	wandRange                            = 7.0
 	wandApproachRange                    = 6.25
-	wandDamageVariance                   = 0.40
+	wandDamageVariance                   = 0.60
+	wandDamagePenalty                    = 0.15
 	wandAttackIntervalPulses             = 4
 	staffRange                           = 13.0
 	staffApproachRange                   = 12.25
-	staffMagicStrength                   = 7
+	staffMagicStrength                   = 12
 	staffDamageVariance                  = 0.10
 	staffAttackIntervalPulses            = 6
 	spearRange                           = 3.4
@@ -145,28 +146,33 @@ const (
 type WeaponID string
 
 const (
-	WeaponSword          WeaponID = "sword"
-	WeaponBronzeSword    WeaponID = "bronze_sword"
-	WeaponMithrilSword   WeaponID = "mithril_sword"
-	WeaponUnarmed        WeaponID = "unarmed"
-	WeaponSteelSword     WeaponID = "steel_sword"
-	WeaponRuneSword      WeaponID = "rune_sword"
-	WeaponDagger         WeaponID = "dagger"
-	WeaponBow            WeaponID = "bow"
-	WeaponOakShortbow    WeaponID = "oak_shortbow"
-	WeaponWillowShortbow WeaponID = "willow_shortbow"
-	WeaponMapleShortbow  WeaponID = "maple_shortbow"
-	WeaponYewShortbow    WeaponID = "yew_shortbow"
-	WeaponMace           WeaponID = "mace"
-	WeaponBattleAxe      WeaponID = "battle_axe"
-	WeaponWand           WeaponID = "wand"
-	WeaponMoonspunWand   WeaponID = "moonspun_wand"
-	WeaponStaff          WeaponID = "staff"
-	WeaponEnchantedStaff WeaponID = "enchanted_staff"
-	WeaponStardewStaff   WeaponID = "stardew_staff"
-	WeaponSpear          WeaponID = "spear"
-	WeaponHalberd        WeaponID = "halberd"
-	WeaponCrossbow       WeaponID = "crossbow"
+	WeaponSword            WeaponID = "sword"
+	WeaponBronzeSword      WeaponID = "bronze_sword"
+	WeaponMithrilSword     WeaponID = "mithril_sword"
+	WeaponUnarmed          WeaponID = "unarmed"
+	WeaponSteelSword       WeaponID = "steel_sword"
+	WeaponAdamantiteSword  WeaponID = "adamantite_sword"
+	WeaponBronzeDagger     WeaponID = "dagger" // Stable ID for existing characters.
+	WeaponDagger                    = WeaponBronzeDagger
+	WeaponIronDagger       WeaponID = "iron_dagger"
+	WeaponSteelDagger      WeaponID = "steel_dagger"
+	WeaponMithrilDagger    WeaponID = "mithril_dagger"
+	WeaponAdamantiteDagger WeaponID = "adamantite_dagger"
+	WeaponBow              WeaponID = "bow"
+	WeaponOakShortbow      WeaponID = "oak_shortbow"
+	WeaponWillowShortbow   WeaponID = "willow_shortbow"
+	WeaponMapleShortbow    WeaponID = "maple_shortbow"
+	WeaponYewShortbow      WeaponID = "yew_shortbow"
+	WeaponMace             WeaponID = "mace"
+	WeaponBattleAxe        WeaponID = "battle_axe"
+	WeaponWand             WeaponID = "wand"
+	WeaponMoonspunWand     WeaponID = "moonspun_wand"
+	WeaponStaff            WeaponID = "staff"
+	WeaponEnchantedStaff   WeaponID = "enchanted_staff"
+	WeaponStardewStaff     WeaponID = "stardew_staff"
+	WeaponSpear            WeaponID = "spear"
+	WeaponHalberd          WeaponID = "halberd"
+	WeaponCrossbow         WeaponID = "crossbow"
 )
 
 type CombatStyleID string
@@ -215,6 +221,7 @@ type WeaponDefinition struct {
 	RangedStrength       int
 	MagicStrength        int
 	DamageVariance       float64
+	DamagePenalty        float64 // Fraction removed from base damage before rolling weapon hits or spells.
 	AttackInterval       uint64
 	Range                float64
 	ApproachRange        float64
@@ -900,6 +907,7 @@ func (w *World) advanceCombat(elapsed time.Duration) {
 		w.updateRoamingEnemies()
 		w.resolveDummyAttack()
 		w.drainActivePrayers()
+		w.advanceAlchemy()
 		w.regeneratePlayersOutOfCombat()
 	}
 }
@@ -1479,7 +1487,7 @@ func weaponPoweredDamageWithAmmunition(player *playerState, weapon WeaponDefinit
 			damage *= 1 + bonuses.MeleeDamage
 		}
 	}
-	return damage
+	return damage * (1 - weapon.DamagePenalty)
 }
 
 func rollDamageWithVariance(poweredDamage, variance, roll float64) int {

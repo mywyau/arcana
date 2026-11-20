@@ -945,6 +945,9 @@ func (h *Handler) readCommands(
 				Sequence: message.Sequence,
 				SpellID:  simulation.SpellID(message.SpellID),
 			})
+		case protocol.MessageAlchemy:
+			rejectionCode = "alchemy_rejected"
+			err = h.world.QueueAlchemy(playerID, message.Sequence, message.InventorySlot, message.ItemID, message.InstanceID, message.Quantity, message.Active)
 		case protocol.MessageCutGem:
 			rejectionCode = "gem_cut_rejected"
 			err = h.world.CutGem(playerID, message.Sequence, message.ItemID)
@@ -1338,6 +1341,9 @@ func snapshotMessageWithPrivateEnvironmentOptions(
 			playerMessage.LastInventoryMoveSequence = privateState.LastInventoryMoveSequence
 			playerMessage.ProtectedInventorySlots = append([]int(nil), privateState.ProtectedInventorySlots...)
 			playerMessage.LastDeathProtectionSequence = privateState.LastDeathProtectionSequence
+			playerMessage.LastAlchemySequence = privateState.LastAlchemySequence
+			playerMessage.AlchemyRemaining = privateState.AlchemyRemaining
+			playerMessage.AlchemyResult = privateState.AlchemyResult
 			playerMessage.LastGemCutSequence = privateState.LastGemCutSequence
 			playerMessage.LastFireSequence = privateState.LastFireSequence
 			playerMessage.LastDebugSkillSequence = privateState.LastDebugSkillSequence
@@ -1582,7 +1588,8 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 		message.Inventory.Items = append(message.Inventory.Items, protocol.InventoryItem{
 			Slot: item.Slot, ItemID: item.ItemID, Quantity: item.Quantity,
 			InstanceID: item.InstanceID, Reinforcement: item.Reinforcement,
-			SellPrice: simulation.MerchantSellPrice(item),
+			AlchemyCoins: simulation.AlchemyValue(item),
+			SellPrice:    simulation.MerchantSellPrice(item),
 		})
 	}
 	combatBoosts := make([]protocol.ActiveCombatBoost, 0, len(player.ActiveCombatBoosts))

@@ -42,10 +42,12 @@ const (
 	SpellTargetEnemy  SpellTargetType = "enemy"
 	SpellTargetSelf   SpellTargetType = "self"
 	SpellTargetAlly   SpellTargetType = "ally"
+	SpellTargetItem   SpellTargetType = "item"
 	SpellTargetGround SpellTargetType = "ground"
 
 	SpellEffectDirectDamage   SpellEffectType = "direct_damage"
 	SpellEffectDamageOverTime SpellEffectType = "damage_over_time"
+	SpellEffectAlchemy        SpellEffectType = "alchemy"
 	SpellEffectHeal           SpellEffectType = "heal"
 )
 
@@ -106,6 +108,12 @@ type spellCatalog struct {
 	spellsByBook map[SpellbookID][]SpellID
 }
 
+var alchemySpell = SpellDefinition{
+	ID: "alchemy", BookID: SpellbookStandard, Name: "Alchemy", IconID: "alchemy",
+	CastMode: SpellCastInstant, TargetType: SpellTargetItem, EffectType: SpellEffectAlchemy,
+	RequiredMagicLevel: 1, Costs: []ItemCost{{ItemID: ItemFocusRune, Quantity: 1}},
+}
+
 var configuredSpellCatalog = mustBuildSpellCatalog(
 	[]SpellbookDefinition{
 		{ID: SpellbookStandard, Name: "Standard", EquipmentItemID: ItemStandardSpellbook},
@@ -129,6 +137,7 @@ var configuredSpellCatalog = mustBuildSpellCatalog(
 		basicBolt(SpellbookStandard, SpellWaterBolt, "Water Bolt", "water_bolt", MagicElementWater, 2, ItemWaterRune, 5),
 		basicBolt(SpellbookStandard, SpellEarthBolt, "Earth Bolt", "earth_bolt", MagicElementEarth, 3, ItemEarthRune, 6),
 		basicBolt(SpellbookStandard, SpellFireBolt, "Fire Bolt", "fire_bolt", MagicElementFire, 4, ItemFireRune, 7),
+		alchemySpell,
 		basicBolt(SpellbookHoly, SpellHolyBolt, "Holy Bolt", "holy_bolt", MagicElementHoly, 5, ItemHolyRune, 8),
 		basicBolt(SpellbookDark, SpellDarkBolt, "Dark Bolt", "dark_bolt", MagicElementDark, 6, ItemShadowRune, 8),
 	},
@@ -214,20 +223,24 @@ func validateSpellDefinition(
 	if !knownSpellEffectType(spell.EffectType) {
 		return fmt.Errorf("spell %q has unknown effect type %q", spell.ID, spell.EffectType)
 	}
-	if !knownMagicElement(spell.Element) {
+	if spell.EffectType == SpellEffectAlchemy {
+		if spell.CastMode != SpellCastInstant || spell.TargetType != SpellTargetItem {
+			return fmt.Errorf("Alchemy requires an inventory target")
+		}
+	} else if !knownMagicElement(spell.Element) {
 		return fmt.Errorf("spell %q has unknown magic element %q", spell.ID, spell.Element)
 	}
 	if spell.RequiredMagicLevel < 1 {
 		return fmt.Errorf("spell %q requires a positive Magic level", spell.ID)
 	}
-	if spell.Range < 0 || (spell.TargetType != SpellTargetSelf && spell.Range == 0) ||
+	if spell.Range < 0 || (spell.TargetType != SpellTargetSelf && spell.TargetType != SpellTargetItem && spell.Range == 0) ||
 		spell.DamageVariance < 0 || spell.DamageVariance > 1 {
 		return fmt.Errorf("spell %q has invalid range or damage variance", spell.ID)
 	}
 	if spell.CastMode == SpellCastAutocast && spell.AttackInterval == 0 {
 		return fmt.Errorf("spell %q requires an attack interval", spell.ID)
 	}
-	if spell.BasePower <= 0 {
+	if spell.EffectType != SpellEffectAlchemy && spell.BasePower <= 0 {
 		return fmt.Errorf("spell %q requires positive power", spell.ID)
 	}
 	if len(spell.Costs) == 0 {
@@ -270,7 +283,7 @@ func knownSpellCastMode(mode SpellCastMode) bool {
 
 func knownSpellTargetType(targetType SpellTargetType) bool {
 	switch targetType {
-	case SpellTargetEnemy, SpellTargetSelf, SpellTargetAlly, SpellTargetGround:
+	case SpellTargetEnemy, SpellTargetSelf, SpellTargetAlly, SpellTargetGround, SpellTargetItem:
 		return true
 	default:
 		return false
@@ -279,7 +292,7 @@ func knownSpellTargetType(targetType SpellTargetType) bool {
 
 func knownSpellEffectType(effectType SpellEffectType) bool {
 	switch effectType {
-	case SpellEffectDirectDamage, SpellEffectDamageOverTime, SpellEffectHeal:
+	case SpellEffectDirectDamage, SpellEffectDamageOverTime, SpellEffectHeal, SpellEffectAlchemy:
 		return true
 	default:
 		return false

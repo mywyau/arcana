@@ -8,6 +8,7 @@ const WORLD_FIRE_SCRIPT: Script = preload("res://scripts/world_fire.gd")
 const BANK_CHEST_SCENE: PackedScene = preload("res://scenes/bank_chest.tscn")
 const MERCHANT_SCENE: PackedScene = preload("res://scenes/merchant_view.tscn")
 const INVENTORY_SLOT_SCRIPT: Script = preload("res://scripts/inventory_slot.gd")
+const ALCHEMY_WINDOW := preload("res://scripts/ui/alchemy_window.gd")
 const DEATH_PROTECTION_WINDOW_SCRIPT: Script = preload("res://scripts/death_protection_window.gd")
 const SPELL_SLOT_SCRIPT: Script = preload("res://scripts/spell_slot.gd")
 const CLOSE_WINDOW_ICON: Texture2D = preload("res://assets/icons/navigation/close_window.svg")
@@ -147,7 +148,6 @@ const HUD_TAB_HOTKEYS: Dictionary = {
 }
 
 const SWORD_ICON: Texture2D = IconCatalog.SWORD
-const DAGGER_ICON: Texture2D = IconCatalog.DAGGER
 const BOW_ICON: Texture2D = IconCatalog.BOW
 const MACE_ICON: Texture2D = IconCatalog.MACE
 const BATTLE_AXE_ICON: Texture2D = IconCatalog.BATTLE_AXE
@@ -189,15 +189,15 @@ const COMBAT_STYLES: Dictionary = {
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
 	],
-	"rune_sword": [
+	"adamantite_sword": [
 		{"id": "stab", "name": "Stab", "training": "Attack"},
 		{"id": "slash", "name": "Slash", "training": "Strength"},
 		{"id": "defensive", "name": "Defensive", "training": "Defence"},
 	],
 	"dagger": [
-		{"id": "stab", "name": "Stab", "training": "Attack"},
-		{"id": "slash", "name": "Slash", "training": "Strength"},
-		{"id": "defensive", "name": "Defensive", "training": "Defence"},
+		{"id": "stab", "name": "Quick Stab", "training": "Attack"},
+		{"id": "heavy_stab", "name": "Forceful Stab", "training": "Strength"},
+		{"id": "defensive", "name": "Defensive Stab", "training": "Defence"},
 	],
 	"mace": [
 		{"id": "crush", "name": "Crush", "training": "Attack"},
@@ -259,6 +259,7 @@ const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
 	"bronze_helm": "head",
 	"bronze_platebody": "body",
+	"hide_buckler": "left_hand", "silver_focus": "left_hand",
 	"bronze_shield": "left_hand", "bronze_legs": "legs", "bronze_gloves": "hands", "bronze_boots": "feet",
 	"iron_helm": "head",
 	"iron_platebody": "body",
@@ -300,11 +301,11 @@ const ARMOUR_SLOTS: Dictionary = {
 	"ranged_tyrants_ring": "ring", "mage_tyrants_ring": "ring",
 }
 const REINFORCEMENT_TIERS: Dictionary = {
-	"bronze": {"bar": "bronze_bar", "bar_name": "Bronze Bars", "level": 2, "items": ["bronze_sword", "bronze_helm", "bronze_platebody", "bronze_shield", "bronze_legs", "bronze_gloves", "bronze_boots"]},
-	"iron": {"bar": "iron_bar", "bar_name": "Iron Bars", "level": 5, "items": ["sword", "iron_helm", "iron_platebody", "iron_shield", "iron_legs", "iron_gloves", "iron_boots"]},
-	"steel": {"bar": "steel_bar", "bar_name": "Steel Bars", "level": 7, "items": ["steel_helm", "steel_platebody", "steel_shield", "steel_legs", "steel_gloves", "steel_boots"]},
-	"mithril": {"bar": "mithril_bar", "bar_name": "Mithril Bars", "level": 8, "items": ["mithril_sword", "mithril_helm", "mithril_platebody", "mithril_shield", "mithril_legs", "mithril_gloves", "mithril_boots"]},
-	"adamantite": {"bar": "adamantite_bar", "bar_name": "Adamantite Bars", "level": 11, "items": ["adamantite_helm", "adamantite_platebody", "adamantite_shield", "adamantite_legs", "adamantite_gloves", "adamantite_boots"]},
+	"bronze": {"bar": "bronze_bar", "bar_name": "Bronze Bars", "level": 2, "items": ["dagger", "bronze_sword", "bronze_helm", "bronze_platebody", "bronze_shield", "bronze_legs", "bronze_gloves", "bronze_boots"]},
+	"iron": {"bar": "iron_bar", "bar_name": "Iron Bars", "level": 5, "items": ["iron_dagger", "sword", "iron_helm", "iron_platebody", "iron_shield", "iron_legs", "iron_gloves", "iron_boots"]},
+	"steel": {"bar": "steel_bar", "bar_name": "Steel Bars", "level": 7, "items": ["steel_dagger", "steel_helm", "steel_platebody", "steel_shield", "steel_legs", "steel_gloves", "steel_boots"]},
+	"mithril": {"bar": "mithril_bar", "bar_name": "Mithril Bars", "level": 8, "items": ["mithril_dagger", "mithril_sword", "mithril_helm", "mithril_platebody", "mithril_shield", "mithril_legs", "mithril_gloves", "mithril_boots"]},
+	"adamantite": {"bar": "adamantite_bar", "bar_name": "Adamantite Bars", "level": 11, "items": ["adamantite_dagger", "adamantite_helm", "adamantite_platebody", "adamantite_shield", "adamantite_legs", "adamantite_gloves", "adamantite_boots"]},
 }
 const MAXIMUM_REINFORCEMENT: int = 5
 const AMMUNITION_ITEMS: Dictionary = {
@@ -322,6 +323,7 @@ const RUNE_ITEMS: Dictionary = {
 }
 const ITEM_COMBAT_BONUSES: Dictionary = {
 	"amulet_ferocity": "+5 melee accuracy • +5 melee strength",
+	"hide_buckler": "+4 ranged defence", "silver_focus": "+4 magic accuracy",
 	"amulet_hawk": "+5 ranged accuracy • +5 ranged strength",
 	"amulet_embers": "+5 magic accuracy • +5 magic strength",
 	"amulet_fury": "+2 accuracy • +2 strength for melee, ranged, and magic",
@@ -335,14 +337,15 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"ranged_tyrants_ring": "+100 ranged strength",
 	"mage_tyrants_ring": "+100 magic strength",
 	"vanguard_cape": "+3 melee accuracy • +2 melee strength",
-	"wayfarer_cape": "+3 ranged accuracy • +2 ranged strength",
+	"wayfarer_cape": "+3 ranged accuracy",
 	"arcanist_cape": "+3 magic accuracy • +2 magic strength",
 }
 const EQUIPMENT_REQUIREMENTS: Dictionary = {
+	"dagger": "Attack level 1", "iron_dagger": "Attack level 5", "steel_dagger": "Attack level 10", "mithril_dagger": "Attack level 15", "adamantite_dagger": "Attack level 20",
 	"bronze_sword": "Attack level 1", "sword": "Attack level 5",
 	"steel_sword": "Attack level 10",
 	"mithril_sword": "Attack level 15",
-	"rune_sword": "Attack level 25",
+	"adamantite_sword": "Attack level 20",
 	"mace": "Attack level 5",
 	"battle_axe": "Attack level 10",
 	"bow": "Range level 1", "oak_shortbow": "Range level 5", "willow_shortbow": "Range level 10",
@@ -680,7 +683,9 @@ var _drop_views: Dictionary = {}
 var _drop_states: Dictionary = {}
 var _fire_views: Dictionary = {}
 var _next_fire_sequence: int = 1
-var _firemaking_mode: bool = false
+var _use_slot: int = -1
+var _use_item_id: String = ""
+var _use_instance_id: String = ""
 var _player_health: int = 100
 var _player_maximum_health: int = 100
 var _player_health_initialized: bool = false
@@ -697,6 +702,11 @@ var _last_prayer_sequence: int = 0
 var _next_prayer_sequence: int = 1
 var _queued_prayer_id: String = ""
 var _queued_prayer_active: bool = false
+var _alchemy_window: ALCHEMY_WINDOW
+var _next_alchemy_sequence := 1
+var _alchemy_awaiting := 0
+var _alchemy_remaining := 0
+var _alchemy_result := ""
 var _next_gem_cut_sequence: int = 1
 var _selected_spell: String = ""
 var _last_spell_sequence: int = 0
@@ -929,6 +939,9 @@ func _ready() -> void:
 		inventory_next_page_button, inventory_grid, EMPTY_SLOT_ICON,
 		INVENTORY_TOTAL_SLOTS, INVENTORY_PAGE_SIZE,
 	)
+	_alchemy_window = ALCHEMY_WINDOW.new()
+	add_child(_alchemy_window)
+	_alchemy_window.cast_requested.connect(_request_alchemy)
 	_inventory_window.item_pressed.connect(_on_inventory_slot_pressed)
 	_inventory_window.swap_requested.connect(_request_inventory_swap)
 	_inventory_window.context_requested.connect(_open_inventory_context_menu)
@@ -1137,6 +1150,10 @@ func _unhandled_input(event: InputEvent) -> void:
 						_set_hud_edit_mode(false)
 						get_viewport().set_input_as_handled()
 						return
+					if _use_slot >= 0:
+						_clear_item_use()
+						get_viewport().set_input_as_handled()
+						return
 					if _debug_skill_window != null and _debug_skill_window.visible:
 						_debug_skill_window.hide()
 						get_viewport().set_input_as_handled()
@@ -1306,6 +1323,10 @@ func _physics_process(_delta: float) -> void:
 	if not _has_pending_click:
 		return
 	_has_pending_click = false
+
+	if _use_slot >= 0:
+		_use_item_on_world(_pending_click)
+		return
 
 	var ray_origin: Vector3 = camera.project_ray_origin(_pending_click)
 	var ray_end: Vector3 = ray_origin + camera.project_ray_normal(_pending_click) * RAY_LENGTH
@@ -1497,6 +1518,7 @@ func _request_open_merchant(merchant_id: String, merchant_position: Vector3, int
 
 
 func _open_merchant(merchant_id: String) -> void:
+	_clear_item_use()
 	_active_merchant_id = merchant_id
 	_pending_merchant_id = ""
 	camera_rig.set_zoom_blocked(true)
@@ -1567,6 +1589,7 @@ func _request_merchant_purchase(item_id: String, instance_id: String, quantity: 
 
 
 func _open_bank(chest_id: String) -> void:
+	_clear_item_use()
 	_active_bank_chest_id = chest_id
 	_pending_bank_chest_id = ""
 	camera_rig.set_zoom_blocked(true)
@@ -1984,6 +2007,7 @@ func _on_crafting_recipe_selected(menu_id: int) -> void:
 
 
 func _open_world_context_menu(screen_position: Vector2) -> void:
+	_clear_item_use()
 	for child: Node in _world_context_rows.get_children():
 		_world_context_rows.remove_child(child)
 		child.queue_free()
@@ -2362,7 +2386,8 @@ func _open_inventory_context_menu(slot: int, screen_position: Vector2) -> void:
 	var sell_price: int = int(item.get("sell_price", 0)) if not _active_merchant_id.is_empty() else 0
 	_inventory_context_menu.open_menu(
 		slot, screen_position, item_name, quantity, inventory_action,
-		int(consumable.get("healing", 0)) > 0, sell_price,
+		consumable.get("cooldown_group", "") == "food", sell_price,
+		_active_spellbook == "standard" and int(item.get("alchemy_coins", 0)) > 0 and not _protected_inventory_slots.has(slot),
 	)
 
 
@@ -2372,6 +2397,14 @@ func _on_inventory_context_action(inventory_slot: int, action_kind: String) -> v
 		return
 	var item_id: String = str(item.get("item_id", ""))
 	var instance_id: String = str(item.get("instance_id", ""))
+	_clear_item_use()
+	if action_kind == "alchemy":
+		_open_alchemy()
+		_alchemy_window.select_slot(inventory_slot)
+		return
+	if action_kind == InventoryContextMenu.ACTION_USE:
+		_select_item_for_use(item_id, instance_id, inventory_slot)
+		return
 	if action_kind == InventoryContextMenu.ACTION_DROP:
 		_request_drop_item(item_id, instance_id, inventory_slot)
 		return
@@ -2501,7 +2534,7 @@ func _inventory_action_for_item(item_id: String) -> String:
 	if RUNE_ITEMS.has(item_id):
 		return "rune"
 	if item_id == "tinderbox":
-		return "firemaking"
+		return "use"
 	if str(ARMOUR_SLOTS.get(item_id, "")) == "ring":
 		return "ring"
 	if EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id):
@@ -2514,7 +2547,7 @@ func _inventory_action_for_item(item_id: String) -> String:
 		return "fletch"
 	if UNCUT_GEMS.has(item_id):
 		return "cut_gem"
-	return ""
+	return "use"
 
 
 func _on_inventory_item_pressed(
@@ -2528,6 +2561,7 @@ func _on_inventory_item_pressed(
 	if bank_hud.visible:
 		return
 	if Input.is_key_pressed(KEY_SHIFT):
+		_clear_item_use()
 		var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 		if equipment_pending and _queued_item == item_id:
 			return
@@ -2539,8 +2573,13 @@ func _on_inventory_item_pressed(
 		else:
 			_request_drop_item(item_id, instance_id, inventory_slot)
 		return
-	if _firemaking_mode and FIREMAKING_LOGS.has(item_id):
-		_request_light_fire(item_id)
+	if _use_slot >= 0:
+		var source := _use_item_id
+		var same_slot := _use_slot == inventory_slot
+		_clear_item_use()
+		if not same_slot:
+			_use_inventory_pair(source, item_id)
+		return
 		return
 	match action:
 		"ammunition":
@@ -2555,15 +2594,70 @@ func _on_inventory_item_pressed(
 		"brew": _open_brewing_window(item_id)
 		"fletch": _open_fletching_window(item_id)
 		"cut_gem": _request_cut_gem(item_id)
-		"firemaking":
-			_firemaking_mode = not _firemaking_mode
-			status_label.text = "Select a log to light" if _firemaking_mode else "Firemaking cancelled"
+		"use": _select_item_for_use(item_id, instance_id, inventory_slot)
+
+
+func _select_item_for_use(item_id: String, instance_id: String, slot: int) -> void:
+	_use_item_id = item_id
+	_use_instance_id = instance_id
+	_use_slot = slot
+	status_label.text = "Use %s on…" % IconCatalog.item_display_name(item_id)
+	_update_inventory_hud()
+
+
+func _clear_item_use() -> void:
+	if _use_slot < 0:
+		return
+	_use_slot = -1
+	_use_item_id = ""
+	_use_instance_id = ""
+	if status_label.text.begins_with("Use ") and status_label.text.ends_with(" on…"):
+		status_label.text = ""
+	_update_inventory_hud()
+
+
+func _use_inventory_pair(source: String, target: String) -> void:
+	if source == "tinderbox" or target == "tinderbox":
+		var log_id := target if source == "tinderbox" else source
+		if FIREMAKING_LOGS.has(log_id):
+			_request_light_fire(log_id)
+			return
+	if source == "chisel" or target == "chisel":
+		var gem_id := target if source == "chisel" else source
+		if UNCUT_GEMS.has(gem_id):
+			_request_cut_gem(gem_id)
+			return
+	if BREWING_INGREDIENTS.has(source) and BREWING_INGREDIENTS.has(target):
+		_sync_brewing_ui()
+		_brewing_ui.show_for_item(source, target)
+	elif source != target and not _fletching_ui.available_recipe_ids_for_item(source, target).is_empty():
+		_fletching_ui.show_for_item(source, target)
+	else:
+		_append_game_message("You can't use those items together.")
+
+
+func _use_item_on_world(screen_position: Vector2) -> void:
+	var source := _use_item_id
+	_clear_item_use()
+	var hit := _gathering_at_screen_position(screen_position)
+	var station := str(hit.get("station", ""))
+	if station == "prayer_altar" and source == "bones":
+		if _request_gather(str(hit.spot_id), hit.position, "sacrifice_bones"):
+			_play_interaction_click_feedback(screen_position)
+		return
+	if station in ["cooking", "smelting", "forging"]:
+		for recipe: Dictionary in _recipes_for_station(station):
+			for cost: Dictionary in recipe.get("costs", []):
+				if str(cost.get("item_id", "")) == source:
+					_open_crafting_menu(str(hit.spot_id), hit.position, station, screen_position)
+					_play_interaction_click_feedback(screen_position)
+					return
+	_append_game_message("You can't use that item there.")
 
 
 func _request_light_fire(log_item: String) -> void:
 	if network.send_light_fire(_next_fire_sequence, log_item):
 		_next_fire_sequence += 1
-		_firemaking_mode = false
 		status_label.text = "Lighting a fire…"
 
 
@@ -2619,6 +2713,7 @@ func _request_inventory_swap(from_slot: int, to_slot: int) -> void:
 	if _player_defeated or from_slot == to_slot:
 		return
 	if network.send_move_inventory_item(_next_inventory_move_sequence, from_slot, to_slot):
+		_clear_item_use()
 		_next_inventory_move_sequence += 1
 
 
@@ -2652,6 +2747,23 @@ func _request_prayer(prayer_id: String) -> void:
 		_queued_prayer_active = desired_active
 		_next_prayer_sequence += 1
 		_update_prayer_hud()
+
+
+func _open_alchemy() -> void:
+	_alchemy_window.popup_centered()
+	_refresh_alchemy()
+
+
+func _refresh_alchemy() -> void:
+	if _alchemy_window.visible:
+		_alchemy_window.refresh(_inventory_items, _protected_inventory_slots, _available_rune_quantity("focus_rune"), _alchemy_remaining, _alchemy_awaiting > 0)
+
+
+func _request_alchemy(item: Dictionary, quantity: int, automatic: bool) -> void:
+	if network.send_alchemy(_next_alchemy_sequence, item, quantity, automatic):
+		_alchemy_awaiting = _next_alchemy_sequence
+		_next_alchemy_sequence += 1
+		_refresh_alchemy()
 
 
 func _request_cut_gem(item_id: String) -> void:
@@ -2811,6 +2923,8 @@ func _on_status_changed(status: String) -> void:
 				true,
 			)
 	if normalized_status.contains("disconnected") or normalized_status.contains("failed"):
+		_alchemy_window.hide()
+		_clear_item_use()
 		_append_game_message(status, true)
 
 
@@ -2909,6 +3023,7 @@ func _on_client_update_required(message: String) -> void:
 
 
 func _on_session_replaced(message: String) -> void:
+	_clear_item_use()
 	auth_gate.show_session_replaced(message)
 	account_window.hide()
 
@@ -2999,6 +3114,10 @@ func _on_skill_guide_received(entries: Array) -> void:
 
 
 func _on_welcome_received(player_id: String) -> void:
+	_alchemy_window.hide()
+	_alchemy_awaiting = 0
+	_alchemy_result = ""
+	_clear_item_use()
 	_local_player_id = player_id
 	_remote_player_states.clear()
 	auth_gate.dismiss()
@@ -3159,6 +3278,7 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				prayer_changed = true
 				_update_magic_hud()
 				if player_defeated:
+					_clear_item_use()
 					var dropped_count: int = 0
 					if _last_action_result.begins_with("defeated:"):
 						dropped_count = int(_last_action_result.trim_prefix("defeated:"))
@@ -3476,6 +3596,19 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 				_update_combat_styles_hud()
 			if prayer_changed:
 				_update_prayer_hud()
+			var alchemy_sequence := int(player_data.get("last_alchemy_sequence", 0))
+			_next_alchemy_sequence = maxi(_next_alchemy_sequence, alchemy_sequence + 1)
+			if alchemy_sequence >= _alchemy_awaiting:
+				_alchemy_awaiting = 0
+			_alchemy_remaining = int(player_data.get("alchemy_remaining", 0))
+			var result := str(player_data.get("alchemy_result", ""))
+			if result != _alchemy_result and not result.is_empty():
+				_append_game_message(result, true)
+			_alchemy_result = result
+			if _player_defeated or _active_spellbook != "standard":
+				_alchemy_window.hide()
+			elif _alchemy_window.visible:
+				_refresh_alchemy()
 			_apply_local_navigation_snapshot(
 				player_data, snapshot_tick, acknowledged_sequence, correction,
 			)
@@ -4409,6 +4542,9 @@ func _on_server_error(code: String, message: String) -> void:
 		_spell_selection_pending = false
 		_queued_spell = ""
 		_update_magic_hud()
+	if code == "alchemy_rejected":
+		_alchemy_awaiting = 0
+		_refresh_alchemy()
 	if code == "equipment_rejected":
 		_next_equipment_sequence = _last_equipment_sequence + 1
 		if _queued_drop_after_unequip == _queued_item:
@@ -5887,7 +6023,10 @@ func _update_magic_hud() -> void:
 			spell_button.configure_spell_tooltip(
 				str(spell.get("name", "Spell")), required_level, tooltip_costs, false,
 			)
-			spell_button.pressed.connect(_request_spell.bind(spell_id))
+			if spell_id == "alchemy":
+				spell_button.pressed.connect(_open_alchemy)
+			else:
+				spell_button.pressed.connect(_request_spell.bind(spell_id))
 		magic_grid.add_child(spell_button)
 
 
@@ -6047,6 +6186,8 @@ func _update_combat_styles_hud() -> void:
 		child.queue_free()
 
 	var style_weapon: String = "bow" if _is_shortbow_weapon(_equipped_weapon) else _equipped_weapon
+	if _equipped_weapon.ends_with("_dagger"):
+		style_weapon = "dagger"
 	var style_options: Array = COMBAT_STYLES.get(style_weapon, []) as Array
 	var selected_style: String = _queued_combat_style if not _queued_combat_style.is_empty() else _combat_style
 	for style_data: Variant in style_options:
@@ -6345,6 +6486,10 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 	_inventory_signature = signature
 	_inventory_capacity = capacity
 	_inventory_items = (items_data as Array).duplicate(true)
+	if _use_slot >= 0:
+		var source := _inventory_item_at_slot(_use_slot)
+		if source.get("item_id", "") != _use_item_id or source.get("instance_id", "") != _use_instance_id:
+			_clear_item_use()
 	if _death_protection_window != null:
 		_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
 	_sync_production_windows()
@@ -6416,6 +6561,7 @@ func _toggle_ammunition_pouch() -> void:
 	if _ammunition_pouch_window.visible:
 		_close_ammunition_pouch()
 	else:
+		_clear_item_use()
 		_ammunition_pouch_window.popup_centered()
 		_update_ammunition_pouch_window()
 		_update_inventory_hud()
@@ -6685,6 +6831,7 @@ func _toggle_rune_pouch() -> void:
 	if _rune_pouch_window.visible:
 		_close_rune_pouch()
 	else:
+		_clear_item_use()
 		_rune_pouch_window.popup_centered()
 		_update_rune_pouch_window()
 		_update_inventory_hud()
@@ -6836,9 +6983,7 @@ func _update_inventory_hud() -> void:
 		var reinforcement: int = int(item.get("reinforcement", 0))
 		var is_equipable: bool = EQUIPMENT_ICONS.has(item_id) or ARMOUR_SLOTS.has(item_id) or _spellbook_items.has(item_id)
 		var is_consumable: bool = CONSUMABLE_ITEMS.has(item_id)
-		var is_brewing_ingredient: bool = BREWING_INGREDIENTS.has(item_id)
-		var is_fletching_input: bool = _is_fletching_input(item_id)
-		var is_uncut_gem: bool = UNCUT_GEMS.has(item_id)
+		var primary_action := _inventory_action_for_item(item_id)
 		var equipment_pending: bool = _last_equipment_sequence < _next_equipment_sequence - 1
 		var is_queued: bool = equipment_pending and _queued_item == item_id and (
 			_queued_instance_id.is_empty() or _queued_instance_id == instance_id
@@ -6861,10 +7006,12 @@ func _update_inventory_hud() -> void:
 			interaction_text = "%s • %s" % [equip_action, interaction_text]
 		elif is_consumable:
 			var consumable: Dictionary = CONSUMABLE_ITEMS[item_id] as Dictionary
-			if int(consumable.get("healing", 0)) > 0:
+			if consumable.get("cooldown_group", "") == "food":
 				interaction_text = "left-click to eat (+%d health, max %d/slot) • %s" % [
 					int(consumable.get("healing", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
 				]
+			elif int(consumable.get("healing", 0)) > 0:
+				interaction_text = "left-click to drink (+%d health) • %s" % [int(consumable.healing), interaction_text]
 			elif int(consumable.get("prayer_restore", 0)) > 0:
 				interaction_text = "left-click to drink one dose (+%d prayer, max %d doses/slot) • %s" % [
 					int(consumable.get("prayer_restore", 0)), int(consumable.get("stack_limit", 1)), interaction_text,
@@ -6873,18 +7020,20 @@ func _update_inventory_hud() -> void:
 				interaction_text = "left-click to drink (%s, max %d doses/slot) • %s" % [
 					str(consumable.get("effect", consumable.get("boost", ""))), int(consumable.get("stack_limit", 1)), interaction_text,
 				]
-		elif is_brewing_ingredient:
+		elif primary_action == "brew":
 			interaction_text = "left-click to open Experimental Brewing • %s" % interaction_text
-		elif is_fletching_input:
+		elif primary_action == "fletch":
 			interaction_text = "left-click to open Fletching • %s" % interaction_text
-		elif is_uncut_gem:
+		elif primary_action == "cut_gem":
 			interaction_text = "left-click to cut with a Chisel • %s" % interaction_text
-		if item_id == "tinderbox":
-			interaction_text = "left-click to select Firemaking • %s" % interaction_text
+		if primary_action == "use":
+			interaction_text = "left-click to use • %s" % interaction_text
 		elif FIREMAKING_LOGS.has(item_id):
 			interaction_text += " • select a Tinderbox first to light"
 		if is_equipped and _spellbook_items.has(item_id):
 			interaction_text = "left-click to unequip • Shift-click to unequip and drop"
+		if _use_slot >= 0:
+			interaction_text = "Click to cancel" if slot == _use_slot else "Use %s on this item" % IconCatalog.item_display_name(_use_item_id)
 		if is_banking:
 			interaction_text = "left-click to deposit whole stack"
 		elif is_trading:
@@ -6917,7 +7066,7 @@ func _update_inventory_hud() -> void:
 			"pressed": not _queued_unequip if is_queued else is_equipped,
 			"tooltip": tooltip,
 			"disabled": _player_defeated and is_equipable,
-			"highlight": "pending" if is_queued or is_consume_queued else "equipped" if is_equipped else "",
+			"highlight": "selected" if slot == _use_slot else "pending" if is_queued or is_consume_queued else "equipped" if is_equipped else "",
 			"cooldown_seconds": (
 				float(maxi(0, _consume_cooldown_pulse(item_id) - _action_pulse)) * ACTION_PULSE_SECONDS
 				if is_consumable else 0.0
@@ -7289,7 +7438,7 @@ func _update_combat_hud() -> void:
 	else:
 		combat_state_label.text = "Out of combat"
 	var weapon_interval: int = int(_combat_stats.get("attack_interval", 4))
-	if _equipped_weapon == "dagger":
+	if _equipped_weapon == "dagger" or _equipped_weapon.ends_with("_dagger"):
 		weapon_interval = int(_combat_stats.get("attack_interval", 3))
 	elif _is_shortbow_weapon(_equipped_weapon):
 		weapon_interval = int(_combat_stats.get("attack_interval", 4 if _combat_style == "rapid" else 5))
@@ -7331,7 +7480,7 @@ func _update_combat_hud() -> void:
 	dagger_button.set_pressed_no_signal(displayed_weapon == "dagger")
 	bow_button.set_pressed_no_signal(_is_shortbow_weapon(displayed_weapon))
 	sword_button.text = "1  Sword%s" % ("  • queued" if equipment_pending and queued_weapon == "sword" else "")
-	dagger_button.text = "2  Dagger%s" % ("  • queued" if equipment_pending and queued_weapon == "dagger" else "")
+	dagger_button.text = "2  Bronze Dagger%s" % ("  • queued" if equipment_pending and queued_weapon == "dagger" else "")
 	bow_button.text = "3  Bow%s" % ("  • queued" if equipment_pending and _is_shortbow_weapon(queued_weapon) else "")
 	sword_button.disabled = _player_defeated
 	dagger_button.disabled = _player_defeated

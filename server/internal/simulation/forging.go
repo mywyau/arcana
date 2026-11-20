@@ -19,6 +19,8 @@ const (
 	ForgingBronzePlate         ForgingRecipeID = "bronze_platebody"
 	ForgingBronzePickaxe       ForgingRecipeID = "bronze_pickaxe"
 	ForgingBronzeAxe           ForgingRecipeID = "bronze_axe"
+	ForgingHideBuckler         ForgingRecipeID = "hide_buckler"
+	ForgingSilverFocus         ForgingRecipeID = "silver_focus"
 	ForgingBronzeShield        ForgingRecipeID = "bronze_shield"
 	ForgingBronzeLegs          ForgingRecipeID = "bronze_legs"
 	ForgingBronzeGloves        ForgingRecipeID = "bronze_gloves"
@@ -87,7 +89,19 @@ type forgingRecipeDefinition struct {
 	Interval       uint64
 }
 
+func forgeDagger(id WeaponID, name, bar string, level int, xp int64) forgingRecipeDefinition {
+	return forgingRecipeDefinition{
+		ID: ForgingRecipeID(id), Name: name, RequiredLevel: level, Costs: []ItemCost{{ItemID: bar, Quantity: 1}},
+		RewardItem: string(id), RewardQuantity: 1, RewardXP: xp, Interval: 3,
+	}
+}
+
 var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
+	forgeDagger(WeaponBronzeDagger, "Bronze Dagger", ItemBronzeBar, 1, 10),
+	forgeDagger(WeaponIronDagger, "Iron Dagger", ItemIronBar, 3, 18),
+	forgeDagger(WeaponSteelDagger, "Steel Dagger", ItemSteelBar, 4, 28),
+	forgeDagger(WeaponMithrilDagger, "Mithril Dagger", ItemMithrilBar, 6, 40),
+	forgeDagger(WeaponAdamantiteDagger, "Adamantite Dagger", ItemAdamantiteBar, 8, 65),
 	{
 		ID: ForgingBronzeSword, Name: "Bronze Sword", RequiredLevel: 1,
 		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}},
@@ -109,6 +123,12 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		RewardItem: ItemBronzePickaxe, RewardQuantity: 1, RewardXP: 30, Interval: 5,
 	},
 	{ID: ForgingBronzeAxe, Name: "Bronze Axe", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}}, RewardItem: ItemBronzeAxe, RewardQuantity: 1, RewardXP: 20, Interval: 4},
+	{ID: ForgingHideBuckler, Name: "Hide Buckler", RequiredLevel: 1,
+		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}, {ItemID: ItemLeather, Quantity: 1}},
+		RewardItem: ItemHideBuckler, RewardQuantity: 1, RewardXP: 12, Interval: 4},
+	{ID: ForgingSilverFocus, Name: "Silver Focus", RequiredLevel: 5,
+		Costs:      []ItemCost{{ItemID: ItemSilverBar, Quantity: 1}, {ItemID: ItemSapphire, Quantity: 1}},
+		RewardItem: ItemSilverFocus, RewardQuantity: 1, RewardXP: 35, Interval: 4},
 	{ID: ForgingBronzeShield, Name: "Bronze Shield", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 3}}, RewardItem: ItemBronzeShield, RewardQuantity: 1, RewardXP: 30, Interval: 5},
 	{ID: ForgingBronzeLegs, Name: "Bronze Legs", RequiredLevel: 2, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 4}}, RewardItem: ItemBronzeLegs, RewardQuantity: 1, RewardXP: 40, Interval: 5},
 	{ID: ForgingBronzeGloves, Name: "Bronze Gloves", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}}, RewardItem: ItemBronzeGloves, RewardQuantity: 1, RewardXP: 10, Interval: 3},

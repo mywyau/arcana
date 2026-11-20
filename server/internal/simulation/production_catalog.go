@@ -84,6 +84,8 @@ func forgingRecipeGroup(recipe forgingRecipeDefinition) string {
 			return "mithril"
 		case ItemAdamantiteBar:
 			return "adamantite"
+		case ItemSilverBar:
+			return "silver"
 		case ItemGoldBar:
 			return "jewellery"
 		}

@@ -706,6 +706,16 @@ func send_prayer(sequence: int, prayer_id: String, active: bool) -> bool:
 	return true
 
 
+func send_alchemy(sequence: int, item: Dictionary, quantity: int, automatic: bool) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return false
+	return _socket.send_text(JSON.stringify({
+		"type": "alchemy", "sequence": sequence, "item_id": item.get("item_id", ""),
+		"inventory_slot": item.get("slot", 0), "instance_id": item.get("instance_id", ""),
+		"quantity": quantity, "active": automatic,
+	})) == OK
+
+
 func send_cut_gem(sequence: int, item_id: String) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot cut a gem while disconnected")

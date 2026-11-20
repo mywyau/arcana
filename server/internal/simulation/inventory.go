@@ -20,6 +20,7 @@ type ItemCost struct {
 
 // InventoryItem is one occupied slot in a player's authoritative inventory.
 type InventoryItem struct {
+	alchemyTag    uint64 // Transient identity of a selected Alchemy stack.
 	Slot          int
 	ItemID        string
 	Quantity      int

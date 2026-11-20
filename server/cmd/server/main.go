@@ -51,7 +51,11 @@ func main() {
 	}
 	meleeSupplies := []testSupply{
 		{itemID: string(simulation.WeaponSword), quantity: 1},
-		{itemID: string(simulation.WeaponDagger), quantity: 1},
+		{itemID: string(simulation.WeaponBronzeDagger), quantity: 1},
+		{itemID: string(simulation.WeaponIronDagger), quantity: 1},
+		{itemID: string(simulation.WeaponSteelDagger), quantity: 1},
+		{itemID: string(simulation.WeaponMithrilDagger), quantity: 1},
+		{itemID: string(simulation.WeaponAdamantiteDagger), quantity: 1},
 		{itemID: string(simulation.WeaponSpear), quantity: 1},
 		{itemID: string(simulation.WeaponHalberd), quantity: 1},
 		{itemID: string(simulation.WeaponMace), quantity: 1},
@@ -88,6 +92,7 @@ func main() {
 		{string(simulation.WeaponYewShortbow), 1},
 		{simulation.ItemBronzeArrow, 100}, {simulation.ItemIronArrow, 100},
 		{simulation.ItemSteelArrow, 100}, {simulation.ItemMithrilArrow, 100}, {simulation.ItemAdamantiteArrow, 100},
+		{simulation.ItemHideBuckler, 1},
 		{string(simulation.WeaponCrossbow), 1},
 		{simulation.ItemBronzeBolt, 100}, {simulation.ItemIronBolt, 100},
 		{simulation.ItemSteelBolt, 100}, {simulation.ItemMithrilBolt, 100}, {simulation.ItemAdamantiteBolt, 100},
@@ -101,6 +106,7 @@ func main() {
 		{simulation.ItemWayfarerCape, 1},
 	}
 	magicSupplies := []testSupply{
+		{simulation.ItemSilverFocus, 1},
 		{string(simulation.WeaponWand), 1}, {string(simulation.WeaponMoonspunWand), 1},
 		{string(simulation.WeaponStaff), 1}, {string(simulation.WeaponEnchantedStaff), 1}, {string(simulation.WeaponStardewStaff), 1},
 		{simulation.ItemStandardSpellbook, 1},
@@ -148,30 +154,39 @@ func main() {
 		{simulation.ItemAmuletMould, 1},
 		{simulation.ItemFishingRod, 1}, {simulation.ItemLobsterCage, 1},
 	}
-	herbsSupplies := []testSupply{
+	spicesSupplies := []testSupply{
 		{simulation.ItemEmberPepper, 25},
 		{simulation.ItemCinnamonBark, 25},
 		{simulation.ItemStarAnise, 25},
 		{simulation.ItemGoldenSaffron, 25},
-		{simulation.ItemVialOfWater, 25}, {simulation.ItemSunleaf, 10}, {simulation.ItemMoonleaf, 10},
+	}
+	herbsSupplies := []testSupply{
+		{simulation.ItemSunleaf, 10}, {simulation.ItemMoonleaf, 10},
 		{simulation.ItemAshmint, 10}, {simulation.ItemSwiftleaf, 10},
 		{simulation.ItemBloodfern, 10}, {simulation.ItemSilverthorn, 10},
 		{simulation.ItemStormsage, 10}, {simulation.ItemWitchbloom, 10},
 		{simulation.ItemStarwort, 10}, {simulation.ItemWhisperweed, 10},
+	}
+	secondariesSupplies := []testSupply{
+		{simulation.ItemVialOfWater, 25},
 		{simulation.ItemSacredDust, 25}, {simulation.ItemFishOil, 25},
 		{simulation.ItemPineResin, 25}, {simulation.ItemPearlscale, 25}, {simulation.ItemHollowMarrow, 25},
+	}
+	potionsSupplies := []testSupply{
 		{simulation.ItemPrayerPotion, 5}, {simulation.ItemMinorHealingPotion, 5}, {simulation.ItemMurkyBrew, 5},
 		{simulation.ItemMeleePotion, 5}, {simulation.ItemRangingPotion, 5}, {simulation.ItemMagicPotion, 5},
 		{simulation.ItemGreaterMeleePotion, 5}, {simulation.ItemGreaterRangingPotion, 5}, {simulation.ItemGreaterMagicPotion, 5},
 		{simulation.ItemMendingDraught, 5}, {simulation.ItemSurefootTonic, 5}, {simulation.ItemGatherersTonic, 5},
 	}
+	mushroomsSupplies := []testSupply{
+		{simulation.ItemGlowcap, 10}, {simulation.ItemEmberel, 10}, {simulation.ItemGhostInk, 10},
+		{simulation.ItemMiremane, 10}, {simulation.ItemIronstalk, 10}, {simulation.ItemDreamveil, 10},
+		{simulation.ItemBlackTrumpet, 10},
+	}
 	craftingSupplies := []testSupply{
 		{simulation.ItemRubyRing, 1}, {simulation.ItemEmeraldRing, 1},
 		{simulation.ItemSapphireRing, 1}, {simulation.ItemDiamondRing, 1},
 		{simulation.ItemThread, 50}, {simulation.ItemFlax, 25}, {simulation.ItemBowstring, 50}, {simulation.ItemFeathers, 200},
-		{simulation.ItemGlowcap, 10}, {simulation.ItemEmberel, 10}, {simulation.ItemGhostInk, 10},
-		{simulation.ItemMiremane, 10}, {simulation.ItemIronstalk, 10}, {simulation.ItemDreamveil, 10},
-		{simulation.ItemBlackTrumpet, 10},
 		{simulation.ItemBronzeArrowTips, 200}, {simulation.ItemIronArrowTips, 200},
 		{simulation.ItemSteelArrowTips, 200}, {simulation.ItemMithrilArrowTips, 200}, {simulation.ItemAdamantiteArrowTips, 200},
 		{simulation.ItemNormalLogs, 10}, {simulation.ItemOakLogs, 10}, {simulation.ItemWillowLogs, 10},
@@ -182,6 +197,12 @@ func main() {
 		{simulation.ItemAquamarine, 10},
 	}
 	foodSupplies := []testSupply{
+		{simulation.ItemEmberhornCarrot, 10},
+		{simulation.ItemFrostveilCabbage, 10},
+		{simulation.ItemLanternSquash, 10},
+		{simulation.ItemDawncrispApple, 10},
+		{simulation.ItemMoondropPear, 10},
+		{simulation.ItemDuskplum, 10},
 		{simulation.ItemRawMinnow, 10}, {simulation.ItemCookedMinnow, 10},
 		{simulation.ItemRawTrout, 10}, {simulation.ItemCookedTrout, 10},
 		{simulation.ItemRawSalmon, 10}, {simulation.ItemCookedSalmon, 10},
@@ -207,6 +228,10 @@ func main() {
 		{simulation.TestBarsChestPosition, barsSupplies},
 		{simulation.TestToolsChestPosition, toolsSupplies},
 		{simulation.TestHerbsChestPosition, herbsSupplies},
+		{simulation.TestSpicesChestPosition, spicesSupplies},
+		{simulation.TestSecondariesChestPosition, secondariesSupplies},
+		{simulation.TestMushroomsChestPosition, mushroomsSupplies},
+		{simulation.TestPotionsChestPosition, potionsSupplies},
 		{simulation.TestCraftingChestPosition, craftingSupplies},
 		{simulation.TestFoodChestPosition, foodSupplies},
 		{simulation.TestBossRewardsPosition, bossRewardSupplies},

@@ -265,17 +265,16 @@ func TestMeleeSwordLeadsSustainedDamageWhileInReach(t *testing.T) {
 	// Compare neutral targets, equal offensive levels, and continuous attacks.
 	// Attack range, pursuit, and enemy-specific weaknesses matter in encounters.
 	for _, tier := range []struct {
-		level            int
-		sword, bow, wand WeaponID
-		arrow            string
-		spell            SpellID
+		level                   int
+		sword, bow, wand, staff WeaponID
+		arrow                   string
+		spell                   SpellID
 	}{
-		{1, WeaponBronzeSword, WeaponBow, WeaponWand, ItemBronzeArrow, SpellWindBolt},
-		{5, WeaponSword, WeaponOakShortbow, WeaponWand, ItemIronArrow, SpellHolyBolt},
-		{10, WeaponSteelSword, WeaponWillowShortbow, WeaponMoonspunWand, ItemSteelArrow, SpellHolyBolt},
-		{15, WeaponMithrilSword, WeaponMapleShortbow, WeaponMoonspunWand, ItemMithrilArrow, SpellHolyBolt},
-		{20, WeaponMithrilSword, WeaponYewShortbow, WeaponMoonspunWand, ItemAdamantiteArrow, SpellHolyBolt},
-		{25, WeaponRuneSword, WeaponYewShortbow, WeaponMoonspunWand, ItemAdamantiteArrow, SpellHolyBolt},
+		{1, WeaponBronzeSword, WeaponBow, WeaponWand, "", ItemBronzeArrow, SpellWindBolt},
+		{5, WeaponSword, WeaponOakShortbow, WeaponWand, WeaponStaff, ItemIronArrow, SpellHolyBolt},
+		{10, WeaponSteelSword, WeaponWillowShortbow, WeaponMoonspunWand, WeaponStaff, ItemSteelArrow, SpellHolyBolt},
+		{15, WeaponMithrilSword, WeaponMapleShortbow, WeaponMoonspunWand, WeaponEnchantedStaff, ItemMithrilArrow, SpellHolyBolt},
+		{20, WeaponAdamantiteSword, WeaponYewShortbow, WeaponMoonspunWand, WeaponStardewStaff, ItemAdamantiteArrow, SpellHolyBolt},
 	} {
 		player := &playerState{skills: newDefaultSkills(), ammunitionPouch: newAmmunitionPouch()}
 		for _, skill := range []SkillID{SkillAttack, SkillStrength, SkillRange, SkillMagic} {
@@ -293,7 +292,12 @@ func TestMeleeSwordLeadsSustainedDamageWhileInReach(t *testing.T) {
 		bow := dps(tier.bow, CombatStyleRapid, "")
 		magic := dps(tier.wand, CombatStyleRapid, tier.spell)
 		t.Logf("level %d: melee %.2f, bow %.2f, wand %.2f DPS", tier.level, melee, bow, magic)
-		if melee <= max(bow, magic) {
+		var staff float64
+		if tier.staff != "" {
+			staff = dps(tier.staff, CombatStyleRapid, tier.spell)
+			t.Logf("level %d: staff %.2f DPS", tier.level, staff)
+		}
+		if melee <= max(bow, magic, staff) {
 			t.Errorf("level %d sword should lead while continuously in reach", tier.level)
 		}
 	}

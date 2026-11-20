@@ -357,10 +357,10 @@ func play_weapon_attack(target_position: Vector3) -> float:
 		_play_melee_attack(battle_axe_pivot, -55.0, 75.0, 0.24, 0.34)
 		return 0.0
 
-	var is_dagger: bool = _equipped_weapon == "dagger" or _equipped_weapon.ends_with("_dagger")
-	var forward_duration: float = 0.11 if is_dagger else 0.16
-	var return_duration: float = 0.14 if is_dagger else 0.22
-	_play_sword_attack(forward_duration, return_duration)
+	if _equipped_weapon == "dagger" or _equipped_weapon.ends_with("_dagger"):
+		_play_dagger_stab()
+	else:
+		_play_sword_attack(0.16, 0.22)
 	return 0.0
 
 
@@ -399,6 +399,19 @@ func _play_melee_attack(
 	_attack_tween.tween_property(pivot, "rotation_degrees:z", attack_angle, forward_duration)
 	_attack_tween.set_ease(Tween.EASE_IN_OUT)
 	_attack_tween.tween_property(pivot, "rotation_degrees:z", rest_angle, return_duration)
+
+
+func _play_dagger_stab() -> void:
+	if _attack_tween != null:
+		_attack_tween.kill()
+	# The weapon anchor faces local +Z toward the target.
+	sword_pivot.position = Vector3.ZERO
+	_attack_tween = create_tween()
+	_attack_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_attack_tween.tween_property(sword_pivot, "rotation_degrees", Vector3(85, 0, 0), 0.07)
+	_attack_tween.tween_property(sword_pivot, "position:z", 0.3, 0.08)
+	_attack_tween.tween_property(sword_pivot, "position:z", 0.0, 0.12)
+	_attack_tween.parallel().tween_property(sword_pivot, "rotation_degrees", Vector3(-10, 0, 135), 0.12)
 
 
 func _play_sword_attack(forward_duration: float, return_duration: float) -> void:
@@ -531,6 +544,10 @@ func _spell_projectile_color(spell_id: String) -> Color:
 
 
 func set_weapon(weapon_id: String) -> void:
+	if weapon_id != _equipped_weapon:
+		if _attack_tween != null:
+			_attack_tween.kill()
+		sword_pivot.position = Vector3.ZERO
 	_equipped_weapon = weapon_id
 	var dagger_equipped: bool = weapon_id == "dagger" or weapon_id.ends_with("_dagger")
 	var spear_equipped: bool = weapon_id == "spear"
@@ -622,7 +639,7 @@ func _is_tiered_item(item_id: String, item_suffix: String) -> bool:
 func _material_for_item(item_id: String) -> StandardMaterial3D:
 	var tier: String = "training"
 	var colour: Color = TRAINING_COLOUR
-	if item_id.begins_with("bronze_"):
+	if item_id.begins_with("bronze_") or item_id == "dagger":
 		tier = "bronze"
 		colour = BRONZE_COLOUR
 	elif item_id.begins_with("steel_"):
@@ -637,7 +654,7 @@ func _material_for_item(item_id: String) -> StandardMaterial3D:
 	elif item_id.begins_with("rune_"):
 		tier = "rune"
 		colour = RUNE_COLOUR
-	elif item_id.begins_with("iron_") or item_id in ["sword", "dagger", "mace", "battle_axe"]:
+	elif item_id.begins_with("iron_") or item_id in ["sword", "mace", "battle_axe"]:
 		tier = "iron"
 		colour = IRON_COLOUR
 	if _equipment_materials.has(tier):

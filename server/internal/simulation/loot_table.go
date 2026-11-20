@@ -16,7 +16,7 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 	case upperDummyTargetID:
 		return []lootTableEntry{
 			{ItemID: ItemTrainingHelm, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
-			{ItemID: string(WeaponRuneSword), MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 0.5},
+			{ItemID: string(WeaponAdamantiteSword), MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 0.5},
 		}
 	case hillWardenTargetID:
 		return []lootTableEntry{
@@ -28,11 +28,13 @@ func lootTableForTarget(targetID string) []lootTableEntry {
 		return []lootTableEntry{
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemFeathers, MinimumQuantity: 10, MaximumQuantity: 15, DropChance: 1},
+			{ItemID: ItemRawChicken, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 		}
 	case cowTargetID:
 		return []lootTableEntry{
 			{ItemID: ItemBones, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 			{ItemID: ItemLeather, MinimumQuantity: 1, MaximumQuantity: 2, DropChance: 1},
+			{ItemID: ItemRawBeef, MinimumQuantity: 1, MaximumQuantity: 1, DropChance: 1},
 		}
 	case dustWraithTargetID:
 		return elementalRuneLoot(ItemAirRune)

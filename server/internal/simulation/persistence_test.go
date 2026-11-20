@@ -34,8 +34,8 @@ func TestPersistentPlayerStateRoundTripsEveryDurableSubsystem(t *testing.T) {
 	state.Health = 91
 	state.Prayer = 37
 	state.ActivePrayerSet = PrayerSetWar
-	state.EquippedWeapon = WeaponRuneSword
-	state.EquippedWeaponInstanceID = "equipped-rune-sword"
+	state.EquippedWeapon = WeaponAdamantiteSword
+	state.EquippedWeaponInstanceID = "equipped-adamantite-sword"
 	state.EquippedWeaponReinforcement = 5
 	state.CombatStyle = CombatStyleSlash
 	state.EquippedArmour = map[ArmourSlot]string{
@@ -159,19 +159,23 @@ func TestQueueJoinWithPersistentStateRestoresCharacter(t *testing.T) {
 	}
 }
 
-func TestQueueJoinMigratesLegacySpearSlashStyle(t *testing.T) {
-	world := NewWorld()
-	state := DefaultPersistentPlayerState()
-	state.EquippedWeapon = WeaponSpear
-	state.CombatStyle = CombatStyleSlash
-	state.Inventory.Items = []InventoryItem{{Slot: 0, ItemID: string(WeaponSpear), Quantity: 1}}
+func TestQueueJoinMigratesLegacySlashToStrengthStab(t *testing.T) {
+	for _, weapon := range []WeaponID{WeaponSpear, WeaponBronzeDagger} {
+		t.Run(string(weapon), func(t *testing.T) {
+			world := NewWorld()
+			state := DefaultPersistentPlayerState()
+			state.EquippedWeapon = weapon
+			state.CombatStyle = CombatStyleSlash
+			state.Inventory.Items = []InventoryItem{{Slot: 0, ItemID: string(weapon), Quantity: 1}}
 
-	if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
-		t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
-	}
-	world.Step(time.Millisecond)
-	if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleHeavyStab {
-		t.Fatalf("restored spear style = %q, want %q", got, CombatStyleHeavyStab)
+			if err := world.QueueJoinWithPersistentState("player-one", state, 4); err != nil {
+				t.Fatalf("QueueJoinWithPersistentState() returned an unexpected error: %v", err)
+			}
+			world.Step(time.Millisecond)
+			if got := mustPlayer(t, world, "player-one").CombatStyle; got != CombatStyleHeavyStab {
+				t.Fatalf("restored style = %q, want %q", got, CombatStyleHeavyStab)
+			}
+		})
 	}
 }
 

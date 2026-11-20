@@ -83,10 +83,12 @@ func targetSpellHitChance(player *playerState, target *TargetSnapshot, spell Spe
 func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
 	level := 1
 	focusStrength := 0
+	damagePenalty := 0.0
 	if player != nil {
 		level = effectiveCombatSkillLevel(player, SkillMagic)
 		if weapon, exists := weaponDefinition(player.equippedWeapon); exists {
 			focusStrength = weapon.MagicStrength
+			damagePenalty = weapon.DamagePenalty
 		}
 		focusStrength += equippedOffenceBonusesForPlayer(player).MagicStrength
 	}
@@ -94,7 +96,7 @@ func spellPoweredDamage(player *playerState, spell SpellDefinition) float64 {
 	if player != nil {
 		damage *= 1 + activePrayerBonuses(player).MagicDamage
 	}
-	return damage
+	return damage * (1 - damagePenalty)
 }
 
 func elementalDamageMultiplier(target *TargetSnapshot, element MagicElement) float64 {

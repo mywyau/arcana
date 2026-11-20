@@ -45,6 +45,9 @@ func _run() -> void:
 	await _test_action_rejection_feedback()
 	await _test_xp_tracker_supports_overlapping_drops()
 	await _test_consumable_slot_shows_authoritative_cooldown()
+	await _test_alchemy_casts_from_one_slot()
+	await _test_inventory_use_menu()
+	_test_inventory_use_selection()
 	_test_fletching_options_follow_clicked_item_and_inventory()
 	_test_skill_guides_show_authoritative_unlock_levels()
 	_test_skill_slot_tooltip_and_hover_style()
@@ -781,6 +784,72 @@ func _test_shopkeeper_uses_icon_led_stock_panel() -> void:
 	await process_frame
 
 
+func _test_alchemy_casts_from_one_slot() -> void:
+	var window := preload("res://scripts/ui/alchemy_window.gd").new()
+	root.add_child(window)
+	var requests: Array = []
+	window.cast_requested.connect(func(item: Dictionary, quantity: int, auto: bool) -> void:
+		requests.append([item.slot, quantity, auto])
+	)
+	var items: Array = [
+		{"slot": 1, "item_id": "bronze_sword", "quantity": 1, "instance_id": "first", "alchemy_coins": 28},
+		{"slot": 2, "item_id": "bronze_sword", "quantity": 1, "instance_id": "second", "alchemy_coins": 28},
+		{"slot": 3, "item_id": "bronze_arrow", "quantity": 35, "alchemy_coins": 2},
+		{"slot": 4, "item_id": "bronze_arrow", "quantity": 15, "alchemy_coins": 2},
+	]
+	window.refresh(items, [1], 25, 0, false)
+	window.select_slot(2)
+	window._cast(true)
+	window.select_slot(3)
+	window._cast(false)
+	window._cast(true)
+	window.refresh(items, [1], 3, 0, false)
+	window.select_slot(4)
+	window._cast(true)
+	_check(requests == [[2, 1, true], [3, 1, false], [3, 20, true], [4, 3, true]], "Alchemy uses one slot and caps auto casts by stack size, runes and 20")
+	_check(not window.slots.has(1), "protected equipment is excluded from Alchemy")
+	window.queue_free()
+	await process_frame
+
+
+func _test_inventory_use_menu() -> void:
+	var menu := InventoryContextMenu.new()
+	root.add_child(menu)
+	for choice: Array in [
+		["consume", true, ["Eat", "Use", "Drop"]],
+		["consume", false, ["Drink", "Use", "Drop"]],
+		["equip", false, ["Equip", "Use", "Drop"]],
+		["use", false, ["Use", "Drop"]],
+	]:
+		menu.open_menu(2, Vector2.ZERO, "Item", 1, choice[0], choice[1])
+		var verbs: Array[String] = []
+		for row: Node in menu._rows.get_children():
+			verbs.append((row.get_child(0).get_child(0) as Label).text)
+		_check(verbs == choice[2], "inventory menu actions in order: %s" % str(choice[2]))
+		menu.close_overlay()
+	menu.queue_free()
+	await process_frame
+
+
+func _test_inventory_use_selection() -> void:
+	var main: Node = MAIN_SCENE.instantiate()
+	main.set("bank_hud", main.get_node("UI/BankHUD"))
+	main.set("status_label", main.get_node("UI/Margin/Status"))
+	main.set("game_message_log", main.get_node("UI/ChatHUD/Margin/VBox/Messages"))
+	var fletching := FletchingWindow.new()
+	main.add_child(fletching)
+	main.set("_fletching_ui", fletching)
+	main.call("_on_inventory_item_pressed", "duskplum", "", "use", 4)
+	_check(main.get("_use_slot") == 4, "Use selects the clicked inventory slot")
+	main.call("_on_inventory_item_pressed", "duskplum", "", "use", 4)
+	_check(main.get("_use_slot") == -1, "clicking the selected stack cancels Use")
+	main.call("_on_inventory_item_pressed", "duskplum", "", "use", 4)
+	main.call("_on_inventory_item_pressed", "cooked_trout", "", "consume", 1)
+	_check(main.get("_use_slot") == -1 and main.get("_queued_consume_item") == "" and main.get("_game_messages").size() == 1,
+		"using produce on food reports the unsupported pair and leaves the food alone")
+	main.free()
+
+
 func _test_fletching_options_follow_clicked_item_and_inventory() -> void:
 	var fletching := FletchingWindow.new()
 	var recipes: Array = [
@@ -817,6 +886,9 @@ func _test_fletching_options_follow_clicked_item_and_inventory() -> void:
 		{"item_id": "normal_logs", "quantity": 2},
 	], 1, false, 0)
 	var log_options := fletching.available_recipe_ids_for_item("normal_logs")
+	_check(fletching.available_recipe_ids_for_item("knife", "normal_logs") == log_options, "using knife on logs offers both log recipes")
+	_check(fletching.available_recipe_ids_for_item("normal_logs", "knife") == log_options, "using logs on knife offers the same recipes")
+	_check(fletching.available_recipe_ids_for_item("knife", "duskplum").is_empty(), "unrelated item pair has no fletching action")
 	_check(
 		log_options.size() == 2 and log_options.has("arrow_shafts") and log_options.has("unstrung_shortbow"),
 		"normal logs show only shafts and their unstrung bow",

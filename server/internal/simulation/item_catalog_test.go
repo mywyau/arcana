@@ -15,8 +15,12 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{string(WeaponBronzeSword), ItemKindWeapon},
 		{string(WeaponSteelSword), ItemKindWeapon},
 		{string(WeaponMithrilSword), ItemKindWeapon},
-		{string(WeaponRuneSword), ItemKindWeapon},
-		{string(WeaponDagger), ItemKindWeapon},
+		{string(WeaponAdamantiteSword), ItemKindWeapon},
+		{string(WeaponBronzeDagger), ItemKindWeapon},
+		{string(WeaponIronDagger), ItemKindWeapon},
+		{string(WeaponSteelDagger), ItemKindWeapon},
+		{string(WeaponMithrilDagger), ItemKindWeapon},
+		{string(WeaponAdamantiteDagger), ItemKindWeapon},
 		{string(WeaponBow), ItemKindWeapon},
 		{string(WeaponOakShortbow), ItemKindWeapon}, {string(WeaponWillowShortbow), ItemKindWeapon},
 		{string(WeaponMapleShortbow), ItemKindWeapon}, {string(WeaponYewShortbow), ItemKindWeapon},
@@ -33,6 +37,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemTrainingHelm, ItemKindArmour},
 		{ItemBronzeHelm, ItemKindArmour},
 		{ItemBronzePlate, ItemKindArmour},
+		{ItemHideBuckler, ItemKindArmour}, {ItemSilverFocus, ItemKindArmour},
 		{ItemBronzeShield, ItemKindArmour}, {ItemBronzeLegs, ItemKindArmour}, {ItemBronzeGloves, ItemKindArmour}, {ItemBronzeBoots, ItemKindArmour},
 		{ItemIronHelm, ItemKindArmour},
 		{ItemIronPlate, ItemKindArmour},
@@ -166,6 +171,13 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemGoldBar, ItemKindResource},
 		{ItemSilverBar, ItemKindResource}, {ItemSteelBar, ItemKindResource}, {ItemAdamantiteBar, ItemKindResource},
 		{ItemCookedMinnow, ItemKindConsumable},
+		{ItemEmberhornCarrot, ItemKindResource},
+		{ItemFrostveilCabbage, ItemKindResource},
+		{ItemLanternSquash, ItemKindResource},
+		{ItemDawncrispApple, ItemKindResource},
+		{ItemMoondropPear, ItemKindResource},
+		{ItemDuskplum, ItemKindResource},
+		{ItemRawChicken, ItemKindResource}, {ItemRawBeef, ItemKindResource},
 		{ItemRawMinnow, ItemKindResource},
 		{ItemRawTrout, ItemKindResource},
 		{ItemCookedTrout, ItemKindConsumable},
@@ -197,6 +209,8 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		ItemCopperOre, ItemTinOre, ItemIronOre, ItemCoal, ItemMithrilOre,
 		ItemGoldOre, ItemSilverOre, ItemAdamantiteOre, ItemClay,
 		ItemBronzeBar, ItemIronBar, ItemSteelBar, ItemMithrilBar,
+		ItemEmberhornCarrot, ItemFrostveilCabbage, ItemLanternSquash,
+		ItemDawncrispApple, ItemMoondropPear, ItemDuskplum,
 		ItemGoldBar, ItemSilverBar, ItemAdamantiteBar, ItemLeather, ItemBones,
 	} {
 		if definition, _ := itemDefinition(itemID); definition.StackLimit != bulkyResourceStackLimit {
@@ -278,7 +292,7 @@ func TestEquipmentProgressionUsesFiveLevelTiers(t *testing.T) {
 		{[]string{string(WeaponSword)}, SkillAttack, 5},
 		{[]string{string(WeaponSteelSword)}, SkillAttack, 10},
 		{[]string{string(WeaponMithrilSword)}, SkillAttack, 15},
-		{[]string{string(WeaponRuneSword)}, SkillAttack, 25},
+		{[]string{string(WeaponAdamantiteSword)}, SkillAttack, 20},
 		{[]string{string(WeaponBow)}, SkillRange, 1},
 		{[]string{string(WeaponOakShortbow)}, SkillRange, 5},
 		{[]string{string(WeaponWillowShortbow)}, SkillRange, 10},
@@ -420,7 +434,7 @@ func TestCatalogWeaponStylesDriveDefaultsAndValidation(t *testing.T) {
 		{WeaponUnarmed, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleStab},
 		{WeaponSteelSword, CombatStyleStab, CombatStyleDefensive, CombatStyleRapid},
 		{WeaponMithrilSword, CombatStyleStab, CombatStyleSlash, CombatStyleAccurate},
-		{WeaponRuneSword, CombatStyleStab, CombatStyleSlash, CombatStyleAccurate},
+		{WeaponAdamantiteSword, CombatStyleStab, CombatStyleSlash, CombatStyleAccurate},
 		{WeaponDagger, CombatStyleStab, CombatStyleDefensive, CombatStyleLongRange},
 		{WeaponBow, CombatStyleAccurate, CombatStyleRapid, CombatStyleSlash},
 		{WeaponMace, CombatStyleCrush, CombatStyleHeavyCrush, CombatStyleStab},
@@ -495,7 +509,7 @@ func TestWeaponFamiliesExposeOnlyTheirDamageTypes(t *testing.T) {
 		{WeaponSword, CombatStyleStab, DamageTypeStab},
 		{WeaponSword, CombatStyleSlash, DamageTypeSlash},
 		{WeaponDagger, CombatStyleStab, DamageTypeStab},
-		{WeaponDagger, CombatStyleSlash, DamageTypeSlash},
+		{WeaponDagger, CombatStyleHeavyStab, DamageTypeStab},
 		{WeaponMace, CombatStyleCrush, DamageTypeCrush},
 		{WeaponMace, CombatStyleHeavyCrush, DamageTypeCrush},
 		{WeaponBattleAxe, CombatStyleSlash, DamageTypeSlash},
@@ -518,5 +532,39 @@ func TestWeaponFamiliesExposeOnlyTheirDamageTypes(t *testing.T) {
 	}
 	if combatStyleValidForWeapon(CombatStyleCrush, WeaponSword) {
 		t.Fatal("sword unexpectedly allows crush")
+	}
+}
+
+func TestDaggerProgression(t *testing.T) {
+	tiers := []struct {
+		id    WeaponID
+		level int
+		bar   string
+	}{
+		{WeaponBronzeDagger, 1, ItemBronzeBar}, {WeaponIronDagger, 5, ItemIronBar},
+		{WeaponSteelDagger, 10, ItemSteelBar}, {WeaponMithrilDagger, 15, ItemMithrilBar},
+		{WeaponAdamantiteDagger, 20, ItemAdamantiteBar},
+	}
+	previousStrength := 0
+	for _, tier := range tiers {
+		item, ok := itemDefinition(string(tier.id))
+		if !ok || len(item.EquipRequirements) != 1 || item.EquipRequirements[0] != (SkillRequirement{Skill: SkillAttack, Level: tier.level}) {
+			t.Fatalf("%s has unexpected equip requirements: %v", tier.id, item.EquipRequirements)
+		}
+		w := item.Weapon
+		if w.AttackInterval != 3 || w.DamageVariance != 0.05 || w.MeleeStrength <= previousStrength || w.DefaultStyle != CombatStyleStab {
+			t.Errorf("%s has unexpected combat stats: %+v", tier.id, w)
+		}
+		previousStrength = w.MeleeStrength
+		for style, xp := range map[CombatStyleID]SkillID{CombatStyleStab: SkillAttack, CombatStyleHeavyStab: SkillStrength, CombatStyleDefensive: SkillDefence} {
+			trained, ok := skillForCombatStyle(tier.id, style)
+			if !ok || trained != xp || w.StyleDamageTypes[style] != DamageTypeStab {
+				t.Errorf("%s/%s: damage type %v, XP skill %v", tier.id, style, w.StyleDamageTypes[style], trained)
+			}
+		}
+		recipe, ok := forgingRecipe(ForgingRecipeID(tier.id))
+		if !ok || recipe.RewardItem != string(tier.id) || recipe.RewardQuantity != 1 || len(recipe.Costs) != 1 || recipe.Costs[0] != (ItemCost{ItemID: tier.bar, Quantity: 1}) {
+			t.Errorf("%s has unexpected forging recipe: %+v", tier.id, recipe)
+		}
 	}
 }

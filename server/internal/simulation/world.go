@@ -146,6 +146,9 @@ type PlayerSnapshot struct {
 	BrewingResult                string
 	BrewingRevision              uint64
 	LastFletchSequence           uint64
+	LastAlchemySequence          uint64
+	AlchemyRemaining             int
+	AlchemyResult                string
 	LastGemCutSequence           uint64
 	LastFireSequence             uint64
 	LastDebugSkillSequence       uint64
@@ -255,6 +258,9 @@ type playerState struct {
 	brewingResult                string
 	brewingRevision              uint64
 	lastFletchSequence           uint64
+	alchemy                      alchemyBatch
+	lastAlchemySequence          uint64
+	alchemyResult                string
 	lastGemCutSequence           uint64
 	lastFireSequence             uint64
 	fletchRemaining              int
@@ -531,6 +537,9 @@ func (w *World) QueueLeave(id PlayerID) error {
 }
 
 func (w *World) cancelPendingPlayerCommands(id PlayerID) {
+	if p := w.players[id]; p != nil {
+		p.alchemy = alchemyBatch{}
+	}
 	delete(w.pendingMoves, id)
 	delete(w.pendingPickups, id)
 	delete(w.pendingItemDrops, id)
@@ -962,6 +971,9 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		BrewingResult:                player.brewingResult,
 		BrewingRevision:              player.brewingRevision,
 		LastFletchSequence:           player.lastFletchSequence,
+		LastAlchemySequence:          player.lastAlchemySequence,
+		AlchemyRemaining:             player.alchemy.remaining,
+		AlchemyResult:                player.alchemyResult,
 		LastGemCutSequence:           player.lastGemCutSequence,
 		LastFireSequence:             player.lastFireSequence,
 		LastDebugSkillSequence:       player.lastDebugSkillSequence,
