@@ -50,6 +50,7 @@ func main() {
 		log.Fatal(err)
 	}
 	meleeSupplies := []testSupply{
+		{simulation.ItemIronDirk, 1},
 		{itemID: string(simulation.WeaponSword), quantity: 1},
 		{itemID: string(simulation.WeaponBronzeDagger), quantity: 1},
 		{itemID: string(simulation.WeaponIronDagger), quantity: 1},

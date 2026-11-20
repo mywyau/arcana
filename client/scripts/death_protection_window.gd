@@ -1,15 +1,19 @@
 class_name DeathProtectionWindow
 extends Node
 
-signal selection_requested(slots: Array[int])
+signal selection_requested(slots: Array[int], keys: Array[String])
 signal feedback_requested(message: String)
 
 const MAXIMUM_PROTECTED_ITEMS: int = 4
 const InventorySlotScript: Script = preload("res://scripts/inventory_slot.gd")
 
 var _window: Window
+var _pending := false
 var _summary: Label
-var _grid: GridContainer
+var _inventory_grid: GridContainer
+var _equipment_grid: GridContainer
+var _equipped: Array = []
+var _selected_keys: Array[String] = []
 var _items: Array = []
 var _selected_slots: Array[int] = []
 var _icons: Dictionary = {}
@@ -24,6 +28,14 @@ func configure(icons: Dictionary, display_names: Dictionary, empty_icon: Texture
 	_build_window()
 
 
+func set_pending(value: bool) -> void:
+	if value == _pending:
+		return
+	_pending = value
+	if is_open():
+		_render()
+
+
 func open() -> void:
 	_render()
 	_window.popup_centered()
@@ -34,7 +46,15 @@ func close() -> void:
 		_window.hide()
 
 
-func update_data(items: Array, selected_slots: Array[int]) -> void:
+func is_open() -> bool:
+	return _window != null and _window.visible
+
+
+func update_data(items: Array, selected_slots: Array[int], equipped: Array, keys: Array[String]) -> void:
+	if _items == items and _selected_slots == selected_slots and _equipped == equipped and _selected_keys == keys:
+		return
+	_equipped = equipped.duplicate(true)
+	_selected_keys = keys.duplicate()
 	_items = items.duplicate(true)
 	_selected_slots = selected_slots.duplicate()
 	_selected_slots.sort()
@@ -87,21 +107,32 @@ func _build_window() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	layout.add_child(scroll)
-	_grid = GridContainer.new()
-	_grid.columns = 4
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_grid.add_theme_constant_override("h_separation", 10)
-	_grid.add_theme_constant_override("v_separation", 10)
-	scroll.add_child(_grid)
+	var sections := VBoxContainer.new()
+	scroll.add_child(sections)
+	_equipment_grid = _add_section(sections, "Equipped")
+	_inventory_grid = _add_section(sections, "Inventory")
+
+
+func _add_section(sections: VBoxContainer, title: String) -> GridContainer:
+	var label := Label.new()
+	label.text = title
+	sections.add_child(label)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	sections.add_child(grid)
+	return grid
 
 
 func _render() -> void:
-	for child: Node in _grid.get_children():
-		_grid.remove_child(child)
-		child.queue_free()
-	_summary.text = "%d/%d protected • select inventory items or stacks to keep" % [
-		_selected_slots.size(), MAXIMUM_PROTECTED_ITEMS,
-	]
+	for grid: GridContainer in [_equipment_grid, _inventory_grid]:
+		for child: Node in grid.get_children():
+			grid.remove_child(child)
+			child.queue_free()
+	_summary.text = "Updating protection…" if _pending else "%d/%d protected" % [_selected_slots.size() + _selected_keys.size(), MAXIMUM_PROTECTED_ITEMS]
+	for item: Dictionary in _equipped:
+		_add_item(_equipment_grid, item)
 	var ordered := _items.duplicate(true)
 	ordered.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return int(left.get("slot", -1)) < int(right.get("slot", -1))
@@ -110,48 +141,59 @@ func _render() -> void:
 		if typeof(payload) != TYPE_DICTIONARY:
 			continue
 		var item := payload as Dictionary
-		var slot: int = int(item.get("slot", -1))
-		var item_id: String = str(item.get("item_id", ""))
-		var quantity: int = int(item.get("quantity", 0))
-		if slot < 0 or item_id.is_empty() or quantity <= 0:
-			continue
-		var selected: bool = slot in _selected_slots
-		var button: Button = InventorySlotScript.new()
-		button.custom_minimum_size = Vector2(108, 92)
-		button.focus_mode = Control.FOCUS_NONE
-		button.configure(slot, true, true)
-		button.icon = _icons.get(item_id, _empty_icon) as Texture2D
-		button.expand_icon = true
-		button.set_stack_quantity(quantity)
-		button.tooltip_text = "%s%s • %s" % [
-			str(_display_names.get(item_id, item_id.capitalize())),
-			" ×%d" % quantity if quantity > 1 else "",
-			"protected" if selected else "click to protect",
-		]
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.22, 0.23, 0.38, 0.62)
-		style.set_corner_radius_all(8)
-		style.set_border_width_all(3 if selected else 1)
-		style.border_color = Color(0.98, 0.78, 0.28, 1.0) if selected else Color(0.5, 0.48, 0.72, 0.65)
-		button.add_theme_stylebox_override("normal", style)
-		var hover := style.duplicate() as StyleBoxFlat
-		hover.bg_color = Color(0.32, 0.3, 0.5, 0.85)
-		button.add_theme_stylebox_override("hover", hover)
-		button.pressed.connect(_toggle_slot.bind(slot))
-		_grid.add_child(button)
+		_add_item(_inventory_grid, item)
 
 
-func _toggle_slot(slot: int) -> void:
-	var proposed := _selected_slots.duplicate()
-	if slot in proposed:
-		proposed.erase(slot)
-	elif proposed.size() >= MAXIMUM_PROTECTED_ITEMS:
-		feedback_requested.emit("You can protect up to four inventory items on death.")
+func _add_item(grid: GridContainer, item: Dictionary) -> void:
+	var slot: int = int(item.get("slot", -1))
+	var item_id: String = str(item.get("item_id", ""))
+	var quantity: int = int(item.get("quantity", 0))
+	var key := str(item.get("key", ""))
+	if (slot < 0 and key.is_empty()) or item_id.is_empty() or quantity <= 0:
 		return
+	var selected: bool = key in _selected_keys if not key.is_empty() else slot in _selected_slots
+	var button: Button = InventorySlotScript.new()
+	button.custom_minimum_size = Vector2(108, 92)
+	button.focus_mode = Control.FOCUS_NONE
+	button.disabled = _pending
+	button.configure(slot, true, true)
+	button.icon = _icons.get(item_id, _empty_icon) as Texture2D
+	button.expand_icon = true
+	button.set_stack_quantity(quantity)
+	button.set_reinforcement(int(item.get("reinforcement", 0)))
+	button.tooltip_text = "%s%s • %s" % [
+		str(_display_names.get(item_id, item_id.capitalize())),
+		" ×%d" % quantity if quantity > 1 else "",
+		"protected" if selected else "click to protect",
+	]
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.22, 0.23, 0.38, 0.62)
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(3 if selected else 1)
+	style.border_color = Color(0.98, 0.78, 0.28, 1.0) if selected else Color(0.5, 0.48, 0.72, 0.65)
+	button.add_theme_stylebox_override("normal", style)
+	var hover := style.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.32, 0.3, 0.5, 0.85)
+	button.add_theme_stylebox_override("hover", hover)
+	button.pressed.connect(_toggle_slot.bind(slot, key))
+	grid.add_child(button)
+
+
+func _toggle_slot(slot: int, key: String) -> void:
+	var slots := _selected_slots.duplicate()
+	var keys := _selected_keys.duplicate()
+	if not key.is_empty() and key in keys:
+		keys.erase(key)
+	elif key.is_empty() and slot in slots:
+		slots.erase(slot)
+	elif slots.size() + keys.size() >= MAXIMUM_PROTECTED_ITEMS:
+		feedback_requested.emit("You can protect up to four items on death.")
+		return
+	elif key.is_empty():
+		slots.append(slot)
 	else:
-		proposed.append(slot)
-	proposed.sort()
-	selection_requested.emit(proposed)
+		keys.append(key)
+	selection_requested.emit(slots, keys)
 
 
 func _on_window_input(event: InputEvent) -> void:

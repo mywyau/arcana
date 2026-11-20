@@ -983,7 +983,7 @@ func (h *Handler) readCommands(
 			err = h.world.QueueSetDeathProtection(simulation.SetDeathProtectionCommand{
 				PlayerID: playerID,
 				Sequence: message.Sequence,
-				Slots:    message.InventorySlots,
+				Slots:    message.InventorySlots, Equipped: message.EquipmentKeys,
 			})
 		case protocol.MessageConsumeItem:
 			rejectionCode = "consume_rejected"
@@ -1030,6 +1030,9 @@ func (h *Handler) readCommands(
 			err = h.world.QueueBankTransfer(simulation.BankTransferCommand{
 				PlayerID: playerID, Sequence: message.Sequence, BankSlot: message.BankSlot, Quantity: message.Quantity,
 			})
+		case protocol.MessageBankDepositInventory, protocol.MessageBankDepositEquipment:
+			rejectionCode = "bank_rejected"
+			err = h.world.DepositAll(playerID, message.Sequence, message.Type == protocol.MessageBankDepositEquipment)
 		case protocol.MessageBankExpand:
 			rejectionCode = "bank_rejected"
 			err = h.world.PurchaseBankExpansion(playerID, message.Sequence)
@@ -1582,6 +1585,7 @@ func populatePrivatePlayerMessage(message *protocol.PlayerSnapshot, player simul
 		Items:    make([]protocol.InventoryItem, 0, len(player.Inventory.Items)),
 	}
 	message.InventoryRevision = player.InventoryRevision
+	message.ProtectedEquipment = append([]string(nil), player.ProtectedEquipment...)
 	message.ProtectedInventorySlots = append([]int(nil), player.ProtectedInventorySlots...)
 	message.LastDeathProtectionSequence = player.LastDeathProtectionSequence
 	for _, item := range player.Inventory.Items {

@@ -413,7 +413,7 @@ func send_move_inventory_item(sequence: int, from_slot: int, to_slot: int) -> bo
 	return true
 
 
-func send_death_protection(sequence: int, inventory_slots: Array[int]) -> bool:
+func send_death_protection(sequence: int, inventory_slots: Array[int], equipment_keys: Array[String]) -> bool:
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		status_changed.emit("Cannot update death protection while disconnected")
 		return false
@@ -421,6 +421,7 @@ func send_death_protection(sequence: int, inventory_slots: Array[int]) -> bool:
 		"type": "set_death_protection",
 		"sequence": sequence,
 		"inventory_slots": inventory_slots,
+		"equipment_keys": equipment_keys,
 	}))
 	if result != OK:
 		status_changed.emit("Could not update death protection: %s" % error_string(result))
@@ -537,6 +538,19 @@ func send_bank_withdraw(sequence: int, bank_slot: int, quantity: int = 1) -> boo
 		status_changed.emit("Could not withdraw item: %s" % error_string(result))
 		return false
 	return true
+
+
+func send_bank_deposit_all(sequence: int, equipment: bool) -> bool:
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		status_changed.emit("Cannot deposit while disconnected")
+		return false
+	var result := _socket.send_text(JSON.stringify({
+		"type": "bank_deposit_equipment" if equipment else "bank_deposit_inventory",
+		"sequence": sequence,
+	}))
+	if result != OK:
+		status_changed.emit("Could not send bank deposit request")
+	return result == OK
 
 
 func send_bank_expand(sequence: int) -> bool:

@@ -1818,7 +1818,7 @@ tooltip_text = "View equipment details"
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 text = "4"
-tooltip_text = "Choose up to four inventory items to keep on death"
+tooltip_text = "Choose up to four carried or equipped items to keep on death"
 
 [node name="CombatStatsHUD" type="PanelContainer" parent="UI"]
 visible = false

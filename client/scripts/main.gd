@@ -259,7 +259,7 @@ const EQUIPMENT_ICONS: Dictionary = IconCatalog.WEAPONS
 const ARMOUR_SLOTS: Dictionary = {
 	"bronze_helm": "head",
 	"bronze_platebody": "body",
-	"hide_buckler": "left_hand", "silver_focus": "left_hand",
+	"iron_dirk": "left_hand", "hide_buckler": "left_hand", "silver_focus": "left_hand",
 	"bronze_shield": "left_hand", "bronze_legs": "legs", "bronze_gloves": "hands", "bronze_boots": "feet",
 	"iron_helm": "head",
 	"iron_platebody": "body",
@@ -322,6 +322,7 @@ const RUNE_ITEMS: Dictionary = {
 	"vital_rune": true,
 }
 const ITEM_COMBAT_BONUSES: Dictionary = {
+	"iron_dirk": "+3 melee accuracy • +2 melee strength",
 	"amulet_ferocity": "+5 melee accuracy • +5 melee strength",
 	"hide_buckler": "+4 ranged defence", "silver_focus": "+4 magic accuracy",
 	"amulet_hawk": "+5 ranged accuracy • +5 ranged strength",
@@ -341,6 +342,7 @@ const ITEM_COMBAT_BONUSES: Dictionary = {
 	"arcanist_cape": "+3 magic accuracy • +2 magic strength",
 }
 const EQUIPMENT_REQUIREMENTS: Dictionary = {
+	"iron_dirk": "Attack level 5",
 	"dagger": "Attack level 1", "iron_dagger": "Attack level 5", "steel_dagger": "Attack level 10", "mithril_dagger": "Attack level 15", "adamantite_dagger": "Attack level 20",
 	"bronze_sword": "Attack level 1", "sword": "Attack level 5",
 	"steel_sword": "Attack level 10",
@@ -614,6 +616,7 @@ var _next_bank_sequence: int = 1
 var _next_chat_sequence: int = 1
 var _last_action_sequence: int = 0
 var _last_action_result: String = "none"
+var _combat_supply_warning: String = ""
 var _combat_target: String = ""
 var _next_attack_pulse: int = 0
 var _auto_approaching: bool = false
@@ -741,6 +744,7 @@ var _inventory_capacity: int = 16
 var _inventory_items: Array = []
 var _inventory_signature: String = ""
 var _inventory_revision: int = -1
+var _protected_equipment: Array[String] = []
 var _protected_inventory_slots: Array[int] = []
 var _death_protection_window: Node
 var _skill_progress: Dictionary = {
@@ -930,6 +934,7 @@ func _ready() -> void:
 	)
 	_bank_window.withdrawal_requested.connect(_request_bank_withdraw)
 	_bank_window.item_context_requested.connect(_bank_withdraw_controls.open_context_menu)
+	_bank_window.deposit_all_requested.connect(_request_bank_deposit_all)
 	_bank_window.expansion_requested.connect(_request_bank_expansion)
 	_bank_window.supply_requested.connect(_take_test_supply)
 	_inventory_window = InventoryWindow.new()
@@ -3114,6 +3119,8 @@ func _on_skill_guide_received(entries: Array) -> void:
 
 
 func _on_welcome_received(player_id: String) -> void:
+	_death_protection_window.set_pending(false)
+	_combat_supply_warning = ""
 	_alchemy_window.hide()
 	_alchemy_awaiting = 0
 	_alchemy_result = ""
@@ -3590,6 +3597,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
 			if _last_combat_style_sequence >= _next_combat_style_sequence - 1 and not _queued_combat_style.is_empty():
 				_queued_combat_style = ""
 				combat_style_changed = true
+			if _death_protection_window.is_open():
+				_refresh_death_protection()
+			_update_combat_supply_warning()
 			if inventory_selection_changed:
 				_update_inventory_hud()
 			if combat_style_changed:
@@ -3797,8 +3807,9 @@ func _apply_local_storage_snapshot(player_data: Dictionary, position: Vector3) -
 			for slot: Variant in protected_data as Array:
 				_protected_inventory_slots.append(int(slot))
 		_protected_inventory_slots.sort()
-		if _death_protection_window != null:
-			_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
+		_protected_equipment.assign(player_data.get("protected_equipment", []))
+		if int(player_data.get("last_death_protection_sequence", 0)) >= _next_death_protection_sequence - 1:
+			_death_protection_window.set_pending(false)
 		_inventory_revision = int(player_data.get("inventory_revision", _inventory_revision))
 	var ammunition_data: Variant = player_data.get("ammunition_pouch", null)
 	if player_data.has("ammunition_pouch") and typeof(ammunition_data) == TYPE_DICTIONARY:
@@ -4532,6 +4543,8 @@ func _on_server_error(code: String, message: String) -> void:
 	status_label.text = _friendly_server_error(code, message)
 	if code.ends_with("_rejected"):
 		sound_effects.play_feedback(&"action_rejected")
+	if code == "death_protection_rejected":
+		_death_protection_window.set_pending(false)
 	if code == "combat_style_rejected":
 		_queued_combat_style = ""
 		_update_combat_styles_hud()
@@ -4786,15 +4799,32 @@ func _configure_death_protection_button() -> void:
 	death_protection_button.add_theme_stylebox_override("hover", hover_style)
 
 
+func _refresh_death_protection() -> void:
+	var equipped: Array[Dictionary] = []
+	for slot: Dictionary in _equipment_slots():
+		var id := str(slot.get("item", ""))
+		if id.is_empty():
+			continue
+		var key := "book:" + id if slot.slot == "spellbook" else "gear:" + str(slot.get("instance", ""))
+		equipped.append({"item_id": id, "quantity": 1, "key": key, "reinforcement": slot.get("reinforcement", 0)})
+	for group: Array in [["gear:", _ring_rack_items], ["ammo:", _ammunition_pouch_items], ["rune:", _rune_pouch_items]]:
+		for entry: Dictionary in group[1]:
+			var item := entry.duplicate()
+			item["key"] = str(group[0]) + str(item.get("instance_id", "") if group[0] == "gear:" else item.item_id)
+			equipped.append(item)
+	_death_protection_window.update_data(_inventory_items, _protected_inventory_slots, equipped, _protected_equipment)
+
+
 func _show_death_protection() -> void:
-	_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
+	_refresh_death_protection()
 	_death_protection_window.open()
 
 
-func _request_death_protection(slots: Array[int]) -> void:
+func _request_death_protection(slots: Array[int], keys: Array[String]) -> void:
 	if _player_defeated:
 		return
-	if network.send_death_protection(_next_death_protection_sequence, slots):
+	if network.send_death_protection(_next_death_protection_sequence, slots, keys):
+		_death_protection_window.set_pending(true)
 		_next_death_protection_sequence += 1
 		status_label.text = "Updating items kept on death…"
 
@@ -5994,26 +6024,7 @@ func _update_magic_hud() -> void:
 		else:
 			var displayed_spell: String = _queued_spell if _spell_selection_pending else _selected_spell
 			var displayed_selected: bool = spell_id == displayed_spell
-			var tooltip_costs: Array[Dictionary] = []
-			var costs_value: Variant = spell.get("costs", [])
-			if typeof(costs_value) == TYPE_ARRAY:
-				for cost_value: Variant in costs_value as Array:
-					if typeof(cost_value) != TYPE_DICTIONARY:
-						continue
-					var cost: Dictionary = cost_value as Dictionary
-					var cost_item_id: String = str(cost.get("item_id", ""))
-					var cost_quantity: int = int(cost.get("quantity", 0))
-					if cost_item_id.is_empty() or cost_quantity <= 0:
-						continue
-					var cost_name: String = cost_item_id.replace("_", " ").capitalize()
-					var available_runes: int = _available_rune_quantity(cost_item_id)
-					tooltip_costs.append({
-						"name": cost_name,
-						"quantity": cost_quantity,
-						"available": available_runes,
-						"missing": available_runes < cost_quantity,
-						"icon": ITEM_ICONS.get(cost_item_id, EMPTY_SLOT_ICON),
-					})
+			var tooltip_costs := _spell_rune_costs(spell)
 			var missing_runes: bool = tooltip_costs.any(func(cost: Dictionary) -> bool: return bool(cost.get("missing", false)))
 			spell_button.set_pressed_no_signal(displayed_selected)
 			if displayed_selected:
@@ -6235,14 +6246,10 @@ func _update_combat_styles_hud() -> void:
 		styles_grid.add_child(style_button)
 
 
-func _update_equipment_hud() -> void:
-	for child: Node in equipment_grid.get_children():
-		equipment_grid.remove_child(child)
-		child.queue_free()
-
+func _equipment_slots() -> Array:
 	# Three columns form a simple paper-doll silhouette. Spacer cells keep the
 	# head, legs, and feet aligned down the centre of the body.
-	var equipment_slots: Array = [
+	return [
 		{"slot": "ammunition", "name": "Ammunition Pouch", "item": ""},
 		{"slot": "head", "name": "Head", "item": str(_equipped_armour.get("head", "")), "instance": str(_equipped_armour_instances.get("head", "")), "reinforcement": int(_equipped_armour_reinforcements.get("head", 0))},
 		{"slot": "rune_pouch", "name": "Rune Pouch", "item": ""},
@@ -6259,7 +6266,14 @@ func _update_equipment_hud() -> void:
 		{"slot": "feet", "name": "Feet", "item": str(_equipped_armour.get("feet", "")), "instance": str(_equipped_armour_instances.get("feet", "")), "reinforcement": int(_equipped_armour_reinforcements.get("feet", 0))},
 		{"spacer": true},
 	]
-	for slot_data: Variant in equipment_slots:
+
+
+func _update_equipment_hud() -> void:
+	for child: Node in equipment_grid.get_children():
+		equipment_grid.remove_child(child)
+		child.queue_free()
+
+	for slot_data: Variant in _equipment_slots():
 		var slot: Dictionary = slot_data
 		if bool(slot.get("spacer", false)):
 			var spacer := Control.new()
@@ -6394,69 +6408,60 @@ func _update_detailed_combat_stats() -> void:
 			combat_stats_label.text = _detailed_offence_text()
 
 
+func _stat_icon(texture: Texture2D) -> String:
+	return "[img=18x18]%s[/img] " % texture.resource_path
+
+
+func _bonus_line(icon: Texture2D, label: String, bonus: int) -> String:
+	return "%s%s  %s" % [_stat_icon(icon), label, _signed_stat(bonus)]
+
+
 func _detailed_offence_text() -> String:
-	var equipment_offence: Dictionary = _combat_stats.get("equipment_offence", {}) as Dictionary
-	var attack_speed_modifier: int = int(_combat_stats.get("attack_interval_modifier", 0))
-	var attack_speed_text: String = "None"
-	if attack_speed_modifier != 0:
-		attack_speed_text = "%s pulse%s" % [
-			_signed_stat(attack_speed_modifier),
-			"" if absi(attack_speed_modifier) == 1 else "s",
-		]
-	return (
-		"[table=3]"
-		+"[cell][b]GEAR ACCURACY[/b]\n\n"
-		+"Melee  %s\n\nRanged  %s\n\nMagic  %s[/cell]" % [
-			_signed_stat(int(equipment_offence.get("melee_accuracy", 0))),
-			_signed_stat(int(equipment_offence.get("ranged_accuracy", 0))),
-			_signed_stat(int(equipment_offence.get("magic_accuracy", 0))),
-		]
-		+"[cell][b]GEAR POWER[/b]\n\n"
-		+"Melee  %s\n\nRanged  %s\n\nMagic  %s[/cell]" % [
-			_signed_stat(int(equipment_offence.get("melee_strength", 0))),
-			_signed_stat(int(equipment_offence.get("ranged_strength", 0))),
-			_signed_stat(int(equipment_offence.get("magic_strength", 0))),
-		]
-		+"[cell][b]WEAPON & AMMO[/b]\n\n"
-		+"%s\n\nAccuracy  %s\nPower  %s\nAmmo power  %s\n\nSpeed modifier  %s[/cell]" % [
-			str(_combat_stats.get("weapon", "unarmed")).replace("_", " ").capitalize(),
-			_signed_stat(int(_combat_stats.get("weapon_accuracy_bonus", 0))),
-			_signed_stat(int(_combat_stats.get("strength_bonus", 0))),
-			_signed_stat(int(_combat_stats.get("ammunition_strength_bonus", 0))),
-			attack_speed_text,
-		]
-		+"[/table]"
-	)
+	var offence: Dictionary = _combat_stats.get("equipment_offence", {})
+	var accuracy := PackedStringArray()
+	var power := PackedStringArray()
+	for style: String in ["Melee", "Ranged", "Magic"]:
+		var icon: Texture2D = {"Melee": IconCatalog.SWORD, "Ranged": IconCatalog.BOW, "Magic": IconCatalog.STAFF}[style]
+		accuracy.append(_bonus_line(icon, style, int(offence.get(style.to_lower() + "_accuracy", 0))))
+		power.append(_bonus_line(icon, style, int(offence.get(style.to_lower() + "_strength", 0))))
+	var weapon := str(_combat_stats.get("weapon", "unarmed"))
+	var weapon_icon: Texture2D = EQUIPMENT_ICONS.get(weapon, IconCatalog.SKILLS["Attack"])
+	var modifier := int(_combat_stats.get("attack_interval_modifier", 0))
+	var speed := "%s pulse%s" % [_signed_stat(modifier), "" if absi(modifier) == 1 else "s"] if modifier != 0 else "None"
+	var details := PackedStringArray([
+		_stat_icon(weapon_icon) + IconCatalog.item_display_name(weapon),
+		_bonus_line(IconCatalog.SKILLS["Attack"], "Accuracy", int(_combat_stats.get("weapon_accuracy_bonus", 0))),
+		_bonus_line(IconCatalog.SKILLS["Strength"], "Power", int(_combat_stats.get("strength_bonus", 0))),
+		_bonus_line(ITEM_ICONS["iron_arrow"], "Ammo power", int(_combat_stats.get("ammunition_strength_bonus", 0))),
+		_stat_icon(IconCatalog.SKILLS["Agility"]) + "Speed modifier  " + speed,
+	])
+	return "[table=3][cell][b]GEAR ACCURACY[/b]\n\n%s[/cell][cell][b]GEAR POWER[/b]\n\n%s[/cell][cell][b]WEAPON & AMMO[/b]\n\n%s[/cell][/table]" % [
+		"\n\n".join(accuracy), "\n\n".join(power), "\n".join(details),
+	]
 
 
 func _detailed_defence_text() -> String:
-	var defence_data: Variant = _combat_stats.get("defence_bonuses", {})
-	var defence: Dictionary = defence_data if typeof(defence_data) == TYPE_DICTIONARY else {}
+	var defence: Dictionary = _combat_stats.get("defence_bonuses", {})
 	var resistances: Dictionary = _combat_stats.get("elemental_resistances", {})
-	var cells := PackedStringArray()
+	var melee := PackedStringArray()
+	for type: String in ["stab", "slash", "crush"]:
+		var icon: Texture2D = {"stab": IconCatalog.IRON_DAGGER, "slash": IconCatalog.SWORD, "crush": IconCatalog.MACE}[type]
+		melee.append(_bonus_line(icon, type.capitalize(), int(defence.get(type, 0))))
+	var other := PackedStringArray([
+		_bonus_line(IconCatalog.BOW, "Ranged", int(defence.get("ranged", 0))),
+		_bonus_line(IconCatalog.STAFF, "Magic", int(defence.get("magic", 0))),
+	])
+	var utility := PackedStringArray([
+		_bonus_line(IconCatalog.SKILLS["Agility"], "Evasion", int(_combat_stats.get("equipment_evasion_bonus", 0))),
+		_bonus_line(IconCatalog.SKILLS["Vitality"], "Bonus health", int(_combat_stats.get("maximum_health_bonus", 0))),
+		"%sCrush reduction  %.1f%%" % [_stat_icon(IconCatalog.SKILLS["Defence"]), float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0],
+	])
+	var elements := PackedStringArray()
 	for element: String in ["air", "water", "earth", "fire", "holy", "dark"]:
-		cells.append("[cell]%s  %d%%[/cell]" % [element.capitalize(), int(resistances.get(element, 0))])
-	return (
-		"[table=3]"
-		+"[cell][b]MELEE DEFENCE[/b]\n\n"
-		+"Stab  %s\n\nSlash  %s\n\nCrush  %s[/cell]" % [
-			_signed_stat(int(defence.get("stab", 0))),
-			_signed_stat(int(defence.get("slash", 0))),
-			_signed_stat(int(defence.get("crush", 0))),
-		]
-		+"[cell][b]OTHER DEFENCE[/b]\n\n"
-		+"Ranged  %s\n\nMagic  %s[/cell]" % [
-			_signed_stat(int(defence.get("ranged", 0))),
-			_signed_stat(int(defence.get("magic", 0))),
-		]
-		+"[cell][b]EQUIPMENT UTILITY[/b]\n\n"
-		+"Evasion  %s\n\n" % _signed_stat(int(_combat_stats.get("equipment_evasion_bonus", 0)))
-		+"Bonus health  %s\n\n" % _signed_stat(int(_combat_stats.get("maximum_health_bonus", 0)))
-		+"Crush reduction  %.1f%%[/cell][/table]" % (
-			float(_combat_stats.get("armour_damage_reduction", 0.0)) * 100.0
-		)
-		+"\n\n[b]ELEMENTAL RESISTANCE[/b]\n[table=3]%s[/table]" % "".join(cells)
-	)
+		elements.append("[cell]%s%s  %d%%[/cell]" % [_stat_icon(ITEM_ICONS[element + "_rune"]), element.capitalize(), int(resistances.get(element, 0))])
+	return "[table=3][cell][b]MELEE DEFENCE[/b]\n\n%s[/cell][cell][b]OTHER DEFENCE[/b]\n\n%s[/cell][cell][b]EQUIPMENT UTILITY[/b]\n\n%s[/cell][/table]\n\n[b]ELEMENTAL RESISTANCE[/b]\n[table=3]%s[/table]" % [
+		"\n\n".join(melee), "\n\n".join(other), "\n\n".join(utility), "".join(elements),
+	]
 
 
 func _detailed_effects_text() -> String:
@@ -6490,8 +6495,6 @@ func _apply_inventory_snapshot(inventory: Dictionary) -> void:
 		var source := _inventory_item_at_slot(_use_slot)
 		if source.get("item_id", "") != _use_item_id or source.get("instance_id", "") != _use_instance_id:
 			_clear_item_use()
-	if _death_protection_window != null:
-		_death_protection_window.update_data(_inventory_items, _protected_inventory_slots)
 	_sync_production_windows()
 	_sync_fletching_ui()
 	_sync_brewing_ui()
@@ -6927,6 +6930,13 @@ func _request_bank_withdraw(bank_slot: int, quantity: int = 1) -> void:
 		status_label.text = "Withdrawing %d item%s…" % [quantity, "" if quantity == 1 else "s"]
 
 
+func _request_bank_deposit_all(equipment: bool) -> void:
+	if not bank_hud.visible or _active_bank_chest_id != "starter_bank_chest" or _player_defeated:
+		return
+	if network.send_bank_deposit_all(_next_bank_sequence, equipment):
+		_next_bank_sequence += 1
+
+
 func _request_bank_expansion() -> void:
 	if not bank_hud.visible or _is_test_supply_chest(_active_bank_chest_id) or _bank_next_expansion_cost <= 0:
 		return
@@ -6952,6 +6962,62 @@ func _inventory_quantity(item_id: String) -> int:
 		if str(item.get("item_id", "")) == item_id:
 			total += int(item.get("quantity", 0))
 	return total
+
+
+func _spell_rune_costs(spell: Dictionary) -> Array[Dictionary]:
+	var tooltip_costs: Array[Dictionary] = []
+	var costs_value: Variant = spell.get("costs", [])
+	if typeof(costs_value) == TYPE_ARRAY:
+		for cost_value: Variant in costs_value as Array:
+			if typeof(cost_value) != TYPE_DICTIONARY:
+				continue
+			var cost: Dictionary = cost_value as Dictionary
+			var cost_item_id: String = str(cost.get("item_id", ""))
+			var cost_quantity: int = int(cost.get("quantity", 0))
+			if cost_item_id.is_empty() or cost_quantity <= 0:
+				continue
+			var cost_name: String = IconCatalog.item_display_name(cost_item_id)
+			var available_runes: int = _available_rune_quantity(cost_item_id)
+			tooltip_costs.append({
+				"name": cost_name,
+				"quantity": cost_quantity,
+				"available": available_runes,
+				"missing": available_runes < cost_quantity,
+				"icon": ITEM_ICONS.get(cost_item_id, EMPTY_SLOT_ICON),
+			})
+	return tooltip_costs
+
+
+func _update_combat_supply_warning() -> void:
+	var warning := ""
+	if not _player_defeated and not _combat_target.is_empty():
+		match _last_action_result:
+			"missing_ammunition":
+				if _equipped_weapon == "crossbow":
+					warning = "Equip usable bolts in your ammo pouch."
+				elif _is_shortbow_weapon(_equipped_weapon):
+					warning = "Equip usable arrows in your ammo pouch."
+			"missing_reagents":
+				if not _selected_spell.is_empty():
+					warning = _missing_spell_rune_message()
+	if warning != _combat_supply_warning:
+		_combat_supply_warning = warning
+		if not warning.is_empty():
+			_append_game_message(warning, true)
+
+
+func _missing_spell_rune_message() -> String:
+	for spell: Dictionary in _spells:
+		if str(spell.get("id", "")) != _selected_spell:
+			continue
+		var missing := PackedStringArray()
+		for cost: Dictionary in _spell_rune_costs(spell):
+			if cost.missing:
+				missing.append("%d × %s" % [int(cost.quantity) - int(cost.available), cost.name])
+		if missing.is_empty():
+			return ""
+		return "%s needs %s." % [spell.get("name", _selected_spell.capitalize()), ", ".join(missing)]
+	return "You need more runes to cast this spell."
 
 
 func _available_rune_quantity(item_id: String) -> int:
@@ -7429,8 +7495,8 @@ func _update_combat_hud() -> void:
 		combat_state_label.text = "Target respawns in %d pulses" % maxi(0, displayed_respawn_pulse - _action_pulse)
 	elif _auto_approaching:
 		combat_state_label.text = "Closing distance to target"
-	elif _last_action_result == "missing_reagents" and not _selected_spell.is_empty():
-		combat_state_label.text = "Cannot cast %s — missing Air Runes" % _selected_spell.capitalize()
+	elif not _combat_supply_warning.is_empty():
+		combat_state_label.text = _combat_supply_warning
 	elif not _combat_target.is_empty():
 		combat_state_label.text = "Auto-attacking %s  •  Last: %s" % [_combat_target, state]
 	elif has_aggro:
@@ -7462,6 +7528,11 @@ func _update_combat_hud() -> void:
 		attack_ready_indicator.text = "●"
 		attack_ready_indicator.add_theme_color_override("font_color", Color(0.5, 0.54, 0.6))
 		attack_ready_indicator.tooltip_text = "Not attacking"
+	elif not _combat_supply_warning.is_empty():
+		cooldown_label.text = _combat_supply_warning
+		attack_ready_indicator.text = "!"
+		attack_ready_indicator.add_theme_color_override("font_color", Color(1.0, 0.45, 0.32))
+		attack_ready_indicator.tooltip_text = _combat_supply_warning
 	elif remaining > 0:
 		cooldown_label.text = "Next attack in %d pulse%s" % [remaining, "" if remaining == 1 else "s"]
 		attack_ready_indicator.text = "◌"

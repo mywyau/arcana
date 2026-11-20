@@ -288,3 +288,54 @@ func TestBankRejectsTransfersDuringCombat(t *testing.T) {
 		t.Fatal("QueueBankTransfer() error = nil during combat")
 	}
 }
+
+func TestBulkBankDepositsAreSeparateAndAtomic(t *testing.T) {
+	w := NewWorld()
+	mustAddEmptyPlayer(t, w, "p", starterBankChest.Position)
+	p := w.players["p"]
+	p.inventory.add(ItemCoins, 99)
+	p.inventory.add(ItemBronzeBar, 2)
+	p.equippedWeapon = WeaponDagger
+	p.equippedWeaponInstanceID = "dagger"
+	p.equippedWeaponReinforcement = 2
+	p.equippedArmour[ArmourSlotLeftHand] = ItemIronDirk
+	p.equippedArmourInstances[ArmourSlotLeftHand] = "dirk"
+	p.equippedSpellbook = ItemStandardSpellbook
+	p.ringRack.add(ItemRubyRing, 1)
+	p.runePouch.add(ItemFocusRune, 10)
+	p.ammunitionPouch.add(ItemBronzeBolt, 5)
+	p.bank.capacity = 1
+	for _, equipment := range []bool{false, true} {
+		if err := w.DepositAll("p", 1, equipment); err == nil {
+			t.Fatal("partial deposit succeeded")
+		}
+		if len(p.bank.items) != 0 || len(equippedItems(p)) != 6 || len(p.inventory.items) != 2 {
+			t.Fatal("failed deposit mutated state")
+		}
+	}
+	p.bank.capacity = BankCapacity
+	if err := w.DepositAll("p", 1, true); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.bank.items) != 6 || len(equippedItems(p)) != 0 || len(p.inventory.items) != 2 {
+		t.Fatal("equipment deposit moved wrong contents")
+	}
+	if err := w.DepositAll("p", 1, false); err == nil {
+		t.Fatal("accepted stale deposit")
+	}
+	if err := w.DepositAll("p", 2, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.inventory.items) != 0 || len(p.bank.items) != 8 {
+		t.Fatal("inventory deposit failed")
+	}
+	for _, item := range p.bank.items {
+		if item.ItemID == string(WeaponDagger) && (item.InstanceID != "dagger" || item.Reinforcement != 2) {
+			t.Fatal("lost instance metadata")
+		}
+	}
+	p.position = Position{}
+	if err := w.DepositAll("p", 3, false); err == nil {
+		t.Fatal("deposit from outside personal bank range")
+	}
+}

@@ -51,6 +51,9 @@ const (
 	MessageSnapshot           = "snapshot"
 	MessageError              = "error"
 	MessageChat               = "chat_message"
+
+	MessageBankDepositInventory = "bank_deposit_inventory"
+	MessageBankDepositEquipment = "bank_deposit_equipment"
 )
 
 type Position struct {
@@ -66,6 +69,7 @@ type ClientMessage struct {
 	TargetID        string    `json:"target_id,omitempty"`
 	ItemID          string    `json:"item_id,omitempty"`
 	ItemIDs         []string  `json:"item_ids,omitempty"`
+	EquipmentKeys   []string  `json:"equipment_keys,omitempty"`
 	InventorySlots  []int     `json:"inventory_slots,omitempty"`
 	InstanceID      string    `json:"instance_id,omitempty"`
 	DropID          string    `json:"drop_id,omitempty"`
@@ -418,6 +422,7 @@ type PlayerSnapshot struct {
 	LastPickupSequence           uint64                   `json:"last_pickup_sequence,omitempty"`
 	LastDropSequence             uint64                   `json:"last_drop_sequence,omitempty"`
 	LastInventoryMoveSequence    uint64                   `json:"last_inventory_move_sequence,omitempty"`
+	ProtectedEquipment           []string                 `json:"protected_equipment,omitempty"`
 	ProtectedInventorySlots      []int                    `json:"protected_inventory_slots,omitempty"`
 	LastDeathProtectionSequence  uint64                   `json:"last_death_protection_sequence,omitempty"`
 	LastConsumeSequence          uint64                   `json:"last_consume_sequence,omitempty"`
@@ -631,7 +636,7 @@ func DecodeClientMessage(data []byte) (ClientMessage, error) {
 		message.Type != MessageExperienceLock && message.Type != MessageDebugSetSkill &&
 		message.Type != MessageSetPrayer && message.Type != MessageSetSpell &&
 		message.Type != MessageConsumeItem && message.Type != MessageBrew && message.Type != MessageFletch && message.Type != MessageAlchemy && message.Type != MessageCutGem && message.Type != MessageLightFire && message.Type != MessageGather &&
-		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand &&
+		message.Type != MessageBankDeposit && message.Type != MessageBankWithdraw && message.Type != MessageBankExpand && message.Type != MessageBankDepositInventory && message.Type != MessageBankDepositEquipment &&
 		message.Type != MessageMerchantSell && message.Type != MessageMerchantBuy &&
 		message.Type != MessageAmmunitionDeposit && message.Type != MessageAmmunitionWithdraw &&
 		message.Type != MessageRingDeposit && message.Type != MessageRingWithdraw &&

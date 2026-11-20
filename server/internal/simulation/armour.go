@@ -19,6 +19,7 @@ const (
 	ItemTrainingHelm       = "training_helm"
 	ItemBronzeHelm         = "bronze_helm"
 	ItemBronzePlate        = "bronze_platebody"
+	ItemIronDirk           = "iron_dirk"
 	ItemHideBuckler        = "hide_buckler"
 	ItemSilverFocus        = "silver_focus"
 	ItemBronzeShield       = "bronze_shield"

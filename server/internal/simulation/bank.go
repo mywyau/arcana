@@ -174,26 +174,11 @@ func BankExpansionCost(capacity int) int {
 }
 
 func (w *World) PurchaseBankExpansion(playerID PlayerID, sequence uint64) error {
-	if sequence == 0 {
-		return fmt.Errorf("bank sequence must be positive")
-	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	player, exists := w.players[playerID]
-	if !exists || player.defeated {
-		return fmt.Errorf("player %q cannot use the bank", playerID)
-	}
-	if distance(player.position, starterBankChest.Position) > starterBankChest.Range {
-		return fmt.Errorf("player is too far from the bank chest")
-	}
-	if w.playerIsInCombat(player) {
-		return fmt.Errorf("player cannot use the bank during combat")
-	}
-	if sequence <= player.lastBankSequence {
-		return fmt.Errorf("bank sequence %d is not newer than %d", sequence, player.lastBankSequence)
-	}
-	if _, pending := w.pendingBankTransfers[playerID]; pending {
-		return fmt.Errorf("finish the pending bank transfer first")
+	player, err := w.bankActionPlayer(playerID, sequence)
+	if err != nil {
+		return err
 	}
 	cost := bankExpansionCost(player.bank.capacity)
 	if cost == 0 {
@@ -456,4 +441,65 @@ func removeInventorySlot(inventory *inventoryState, slot int) (InventoryItem, bo
 		return item, true
 	}
 	return InventoryItem{}, false
+}
+
+func (w *World) bankActionPlayer(playerID PlayerID, sequence uint64) (*playerState, error) {
+	if sequence == 0 {
+		return nil, fmt.Errorf("bank sequence must be positive")
+	}
+	player, exists := w.players[playerID]
+	if !exists || player.defeated {
+		return nil, fmt.Errorf("player %q cannot use the bank", playerID)
+	}
+	if distance(player.position, starterBankChest.Position) > starterBankChest.Range {
+		return nil, fmt.Errorf("player is too far from the bank chest")
+	}
+	if w.playerIsInCombat(player) {
+		return nil, fmt.Errorf("player cannot use the bank during combat")
+	}
+	if sequence <= player.lastBankSequence {
+		return nil, fmt.Errorf("bank sequence %d is not newer than %d", sequence, player.lastBankSequence)
+	}
+	if _, pending := w.pendingBankTransfers[playerID]; pending {
+		return nil, fmt.Errorf("finish the pending bank transfer first")
+	}
+	return player, nil
+}
+
+// DepositAll banks either carried inventory or worn equipment as one transaction.
+func (w *World) DepositAll(playerID PlayerID, sequence uint64, equipment bool) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, err := w.bankActionPlayer(playerID, sequence)
+	if err != nil {
+		return err
+	}
+	bank := cloneBank(p.bank)
+	if equipment {
+		items := equippedItems(p)
+		for _, item := range items {
+			if !bank.add(item.InventoryItem) {
+				return fmt.Errorf("not enough bank space for all equipped items")
+			}
+		}
+		for _, item := range items {
+			item.remove(p)
+		}
+		p.equipmentRevision++
+		refreshPlayerMaximumHealth(p)
+	} else {
+		for _, item := range p.inventory.items {
+			if !bank.add(item) {
+				return fmt.Errorf("not enough bank space for all inventory items")
+			}
+		}
+		p.inventory.items = nil
+		p.inventory.revision++
+	}
+	if reconcileDeathProtection(p) {
+		p.inventory.revision++
+	}
+	p.bank = bank
+	p.lastBankSequence = sequence
+	return nil
 }

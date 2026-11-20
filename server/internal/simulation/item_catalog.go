@@ -385,6 +385,7 @@ var itemCatalog = mustBuildItemCatalog([]ItemDefinition{
 		EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}},
 		Armour:            ArmourDefinition{Slot: ArmourSlotBody, HealthBonus: 6, Defence: DefenceBonuses{Stab: 5, Slash: 6, Crush: 4, Ranged: 5, Magic: -2}},
 	},
+	{ID: ItemIronDirk, Name: "Iron Dirk", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillAttack, Level: ironEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, Offence: OffenceBonuses{MeleeAccuracy: 3, MeleeStrength: 2}}},
 	{ID: ItemHideBuckler, Name: "Hide Buckler", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, Defence: DefenceBonuses{Ranged: 4}}},
 	{ID: ItemSilverFocus, Name: "Silver Focus", Kind: ItemKindArmour, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, Offence: OffenceBonuses{MagicAccuracy: 4}}},
 	{ID: ItemBronzeShield, Name: "Bronze Shield", Kind: ItemKindArmour, EquipRequirements: []SkillRequirement{{Skill: SkillDefence, Level: bronzeEquipmentLevel}}, Armour: ArmourDefinition{Slot: ArmourSlotLeftHand, HealthBonus: 3, Defence: DefenceBonuses{Stab: 4, Slash: 5, Crush: 6, Ranged: 5, Magic: -2}}},

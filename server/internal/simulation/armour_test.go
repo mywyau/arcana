@@ -353,3 +353,18 @@ func TestArmourHealthBonusRaisesMaximumAndUnequipClampsHealth(t *testing.T) {
 		t.Fatalf("health after removing plate = %d, want clamped %d", got, want)
 	}
 }
+
+func TestIronDirkOffhandProgression(t *testing.T) {
+	dir, _ := itemDefinition(ItemIronDirk)
+	player := playerState{skills: newDefaultSkills(), equippedArmour: map[ArmourSlot]string{ArmourSlotLeftHand: ItemIronDirk}}
+	if req, blocked := unmetEquipRequirement(&player, dir); !blocked || req.Skill != SkillAttack || req.Level != 5 {
+		t.Fatal("iron dirk should require Attack level 5")
+	}
+	weapon, _ := weaponDefinition(WeaponBronzeDagger)
+	if accuracy, strength := equipmentOffenceForWeapon(&player, weapon); accuracy != 3 || strength != 2 {
+		t.Fatalf("dirk melee bonuses = %d, %d", accuracy, strength)
+	}
+	if dir.Armour.Slot != ArmourSlotLeftHand || dir.Armour.Defence != (DefenceBonuses{}) {
+		t.Fatal("dirk should be an offensive left-hand item")
+	}
+}

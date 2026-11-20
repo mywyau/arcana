@@ -577,6 +577,7 @@ func set_armour(equipped_armour: Dictionary) -> void:
 	var head_item: String = str(_equipped_armour.get("head", ""))
 	var body_item: String = str(_equipped_armour.get("body", ""))
 	var feet_item: String = str(_equipped_armour.get("feet", ""))
+	get_node("VisualRoot/Humanoid/RightArm/Hand/IronDirk").visible = _equipped_armour.get("left_hand", "") == "iron_dirk"
 	var cape_item: String = str(_equipped_armour.get("cape", ""))
 	training_helm.visible = head_item == "training_helm" or _is_tiered_item(head_item, "helm")
 	swift_helm.visible = head_item == "swift_helm"

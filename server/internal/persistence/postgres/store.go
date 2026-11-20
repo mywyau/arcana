@@ -201,18 +201,25 @@ func (store *Store) Load(
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("close inventory rows: %w", err)
 	}
 	protectionRows, err := store.database.QueryContext(ctx, `
-		SELECT inventory_slot FROM character_death_protection
-		WHERE player_id = $1 ORDER BY inventory_slot`, playerID)
+		SELECT inventory_slot, '' AS equipment_key FROM character_death_protection WHERE player_id = $1
+		UNION ALL
+		SELECT -1, equipment_key FROM character_equipment_protection WHERE player_id = $1
+		ORDER BY 1, 2`, playerID)
 	if err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("query death protection: %w", err)
 	}
 	defer protectionRows.Close()
 	for protectionRows.Next() {
 		var slot int
-		if err := protectionRows.Scan(&slot); err != nil {
+		var key string
+		if err := protectionRows.Scan(&slot, &key); err != nil {
 			return simulation.PersistentPlayerState{}, false, fmt.Errorf("scan death protection: %w", err)
 		}
-		state.ProtectedInventorySlots = append(state.ProtectedInventorySlots, slot)
+		if slot >= 0 {
+			state.ProtectedInventorySlots = append(state.ProtectedInventorySlots, slot)
+		} else {
+			state.ProtectedEquipment = append(state.ProtectedEquipment, key)
+		}
 	}
 	if err := protectionRows.Err(); err != nil {
 		return simulation.PersistentPlayerState{}, false, fmt.Errorf("read death protection: %w", err)
@@ -411,6 +418,14 @@ func (store *Store) Save(
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM character_death_protection WHERE player_id = $1", playerID); err != nil {
 		return fmt.Errorf("replace death protection: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM character_equipment_protection WHERE player_id = $1", playerID); err != nil {
+		return fmt.Errorf("replace equipment protection: %w", err)
+	}
+	for _, key := range state.ProtectedEquipment {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO character_equipment_protection (player_id,equipment_key) VALUES ($1,$2)", playerID, key); err != nil {
+			return fmt.Errorf("save equipment protection: %w", err)
+		}
 	}
 	for _, slot := range state.ProtectedInventorySlots {
 		if _, err := tx.ExecContext(ctx, `

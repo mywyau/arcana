@@ -57,6 +57,7 @@ func (t *snapshotDeltaTracker) applyPrivateState(
 		if !inventoryChanged {
 			player.Inventory = nil
 			player.ProtectedInventorySlots = nil
+			player.ProtectedEquipment = nil
 			player.LastDeathProtectionSequence = 0
 		}
 

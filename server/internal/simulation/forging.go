@@ -123,6 +123,7 @@ var forgingRecipes = mustBuildForgingRecipes([]forgingRecipeDefinition{
 		RewardItem: ItemBronzePickaxe, RewardQuantity: 1, RewardXP: 30, Interval: 5,
 	},
 	{ID: ForgingBronzeAxe, Name: "Bronze Axe", RequiredLevel: 1, Costs: []ItemCost{{ItemID: ItemBronzeBar, Quantity: 2}}, RewardItem: ItemBronzeAxe, RewardQuantity: 1, RewardXP: 20, Interval: 4},
+	{ID: "iron_dirk", Name: "Iron Dirk", RequiredLevel: 3, Costs: []ItemCost{{ItemID: ItemIronBar, Quantity: 1}}, RewardItem: ItemIronDirk, RewardQuantity: 1, RewardXP: 18, Interval: 3},
 	{ID: ForgingHideBuckler, Name: "Hide Buckler", RequiredLevel: 1,
 		Costs:      []ItemCost{{ItemID: ItemBronzeBar, Quantity: 1}, {ItemID: ItemLeather, Quantity: 1}},
 		RewardItem: ItemHideBuckler, RewardQuantity: 1, RewardXP: 12, Interval: 4},

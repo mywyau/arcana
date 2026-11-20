@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_equipped_boots_follow_leg_pivots()
 	await _test_equipped_cape_sits_behind_player()
 	await _test_hit_splats_and_minimap_movement_facing()
+	_test_combat_supply_feedback()
 	await _test_action_rejection_feedback()
 	await _test_xp_tracker_supports_overlapping_drops()
 	await _test_consumable_slot_shows_authoritative_cooldown()
@@ -55,6 +56,7 @@ func _run() -> void:
 	_test_inventory_hud_compact_layout()
 	await _test_shopkeeper_uses_icon_led_stock_panel()
 	_test_equipment_details_only_show_equipment_bonuses()
+	_test_protection_and_bank_controls()
 	await _test_minimap_layout_and_projection()
 	_test_beta_build_uses_hosted_server()
 	# Let queued Window and scene resources finish releasing before the test
@@ -680,6 +682,37 @@ func _test_hit_splats_and_minimap_movement_facing() -> void:
 	await process_frame
 
 
+func _test_combat_supply_feedback() -> void:
+	var main = MAIN_SCENE.instantiate()
+	main._selected_chat_channel = "local"
+	main._combat_target = "dummy"
+	main._equipped_weapon = "yew_shortbow"
+	main._last_action_result = "missing_ammunition"
+	main._update_combat_supply_warning()
+	main._update_combat_supply_warning()
+	_check(main._game_messages.size() == 1 and main._game_messages[0].error and "arrows" in main._combat_supply_warning, "a blocked bow reports arrows once across repeated snapshots")
+	main._equipped_weapon = "crossbow"
+	main._update_combat_supply_warning()
+	_check("bolts" in main._combat_supply_warning, "a blocked crossbow reports bolts")
+	main._selected_spell = "fire_bolt"
+	main._spells.append({"id": "fire_bolt", "name": "Fire Bolt", "costs": [
+		{"item_id": "fire_rune", "quantity": 4}, {"item_id": "focus_rune", "quantity": 1},
+	]})
+	main._inventory_items = [{"item_id": "fire_rune", "quantity": 1}]
+	main._rune_pouch_items = [{"item_id": "fire_rune", "quantity": 1}, {"item_id": "focus_rune", "quantity": 1}]
+	main._last_action_result = "missing_reagents"
+	main._update_combat_supply_warning()
+	_check(main._combat_supply_warning == "Fire Bolt needs 2 × Fire Rune.", "blocked spells show only the rune shortfall across both containers")
+	main._rune_pouch_items[0].quantity = 3
+	main._update_combat_supply_warning()
+	_check(main._combat_supply_warning.is_empty(), "resupplying clears the spell warning")
+	main._combat_target = ""
+	main._last_action_result = "missing_ammunition"
+	main._update_combat_supply_warning()
+	_check(main._combat_supply_warning.is_empty() and main._game_messages.size() == 3, "leaving combat suppresses stale supply errors")
+	main.free()
+
+
 func _test_action_rejection_feedback() -> void:
 	var main: Node = MAIN_SCENE.instantiate()
 	_check(bool(main.call("_gathering_result_is_rejection", "missing_axe")), "missing tools trigger rejected-action feedback")
@@ -955,6 +988,46 @@ func _test_inventory_hud_compact_layout() -> void:
 	main.free()
 
 
+func _test_protection_and_bank_controls() -> void:
+	var window := DeathProtectionWindow.new()
+	window.configure(IconCatalog.ITEMS, IconCatalog.ITEM_DISPLAY_NAMES, IconCatalog.EMPTY_SLOT)
+	var slots: Array[int] = [0]
+	var keys: Array[String] = ["gear:dirk"]
+	window.update_data([{"slot": 0, "item_id": "coins", "quantity": 5}], slots, [
+		{"key": "gear:dirk", "item_id": "iron_dirk", "quantity": 1},
+		{"key": "book:holy_book", "item_id": "holy_book", "quantity": 1},
+	], keys)
+	window._render()
+	_check(window._equipment_grid.get_child_count() == 2 and window._inventory_grid.get_child_count() == 1 and window._summary.text == "2/4 protected", "equipment and inventory share one protection limit")
+	var requests: Array = []
+	window.selection_requested.connect(func(bag: Array[int], equipped: Array[String]) -> void: requests.append([bag, equipped]))
+	window._equipment_grid.get_child(1).pressed.emit()
+	_check(requests == [[[0], ["gear:dirk", "book:holy_book"]]], "selecting an equipped item preserves other protection choices")
+	window.free()
+	var controller := BankWindow.new()
+	var panel := PanelContainer.new()
+	var layout := VBoxContainer.new()
+	panel.add_child(layout)
+	var expand := Button.new()
+	var title := Label.new()
+	var hint := Label.new()
+	var summary := Label.new()
+	var grid := GridContainer.new()
+	for child: Control in [expand, title, hint, summary, grid]:
+		layout.add_child(child)
+	controller.configure(panel, title, hint, summary, expand, grid, IconCatalog.ITEMS, IconCatalog.EMPTY_SLOT)
+	var deposits: Array = []
+	controller.deposit_all_requested.connect(func(equipment: bool) -> void: deposits.append(equipment))
+	controller.show_personal([], 1, 0, 0)
+	for button: Button in controller._deposit_buttons.get_children():
+		button.pressed.emit()
+	_check(deposits == [false, true], "personal bank offers separate inventory and worn equipment deposits")
+	controller.show_test_supply("Tools", [])
+	_check(not controller._deposit_buttons.visible, "test chests hide personal bank deposit controls")
+	controller.free()
+	panel.free()
+
+
 func _test_equipment_details_only_show_equipment_bonuses() -> void:
 	var main: Node = MAIN_SCENE.instantiate()
 	main.set("_combat_stats", {
@@ -978,6 +1051,7 @@ func _test_equipment_details_only_show_equipment_bonuses() -> void:
 	})
 	var offence: String = str(main.call("_detailed_offence_text"))
 	var defence: String = str(main.call("_detailed_defence_text"))
+	_check(offence.contains("[img=18x18]") and defence.contains("fire_rune.png") and defence.contains("health.png"), "equipment details pair bonus values with skill and element icons")
 	var details_panel := main.get_node("UI/CombatStatsHUD") as Control
 	_check(
 		offence.contains("[table=3]") and offence.contains("GEAR ACCURACY")

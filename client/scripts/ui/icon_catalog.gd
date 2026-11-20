@@ -248,6 +248,7 @@ const WEAPONS: Dictionary = {
 }
 
 const ITEMS: Dictionary = {
+	"iron_dirk": preload("res://assets/icons/equipment/weapons/iron_dirk.svg"),
 	"sword": SWORD,
 	"bronze_sword": BRONZE_SWORD,
 	"steel_sword": STEEL_SWORD,

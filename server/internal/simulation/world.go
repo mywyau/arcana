@@ -120,6 +120,7 @@ type PlayerSnapshot struct {
 	Inventory                    InventorySnapshot
 	InventoryRevision            uint64
 	ProtectedInventorySlots      []int
+	ProtectedEquipment           []string
 	LastDeathProtectionSequence  uint64
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	AmmunitionPouchRevision      uint64
@@ -242,6 +243,7 @@ type playerState struct {
 	lastPickupSequence           uint64
 	lastDropSequence             uint64
 	lastInventoryMoveSequence    uint64
+	protectedEquipment           map[string]bool
 	protectedInventory           map[int]protectedInventoryEntry
 	lastDeathProtectionSequence  uint64
 	lastConsumeSequence          uint64
@@ -686,7 +688,7 @@ func (w *World) Step(elapsed time.Duration) {
 	w.applyPendingItemDrops()
 	w.advanceCombat(elapsed)
 	for _, player := range w.players {
-		if pruneProtectedInventory(player) {
+		if reconcileDeathProtection(player) {
 			player.inventory.revision++
 		}
 	}
@@ -961,6 +963,7 @@ func snapshotPublicPlayer(player *playerState) PlayerSnapshot {
 		LastDropSequence:             player.lastDropSequence,
 		LastInventoryMoveSequence:    player.lastInventoryMoveSequence,
 		ProtectedInventorySlots:      protectedInventorySlots(player),
+		ProtectedEquipment:           protectedEquipmentKeys(player),
 		LastDeathProtectionSequence:  player.lastDeathProtectionSequence,
 		LastConsumeSequence:          player.lastConsumeSequence,
 		NextFoodConsumePulse:         player.nextFoodConsumePulse,

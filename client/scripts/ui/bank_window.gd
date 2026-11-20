@@ -3,6 +3,7 @@ extends Node
 
 signal withdrawal_requested(bank_slot: int, quantity: int)
 signal item_context_requested(event: InputEvent, bank_slot: int, quantity: int)
+signal deposit_all_requested(equipment: bool)
 signal expansion_requested
 signal supply_requested(drop_id: String)
 
@@ -13,6 +14,7 @@ var _title: Label
 var _hint: Label
 var _summary: Label
 var _expand_button: Button
+var _deposit_buttons: HBoxContainer
 var _grid: GridContainer
 var _item_icons: Dictionary
 var _empty_slot_icon: Texture2D
@@ -37,6 +39,16 @@ func configure(
 	_grid = grid
 	_item_icons = item_icons
 	_empty_slot_icon = empty_slot_icon
+	_deposit_buttons = HBoxContainer.new()
+	_expand_button.get_parent().add_child(_deposit_buttons)
+	_expand_button.get_parent().move_child(_deposit_buttons, _expand_button.get_index())
+	for equipment: bool in [false, true]:
+		var button := Button.new()
+		button.text = "Deposit equipment" if equipment else "Deposit inventory"
+		button.tooltip_text = "Bank all worn items, rings, ammunition and runes." if equipment else "Bank every item in your inventory."
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(deposit_all_requested.emit.bind(equipment))
+		_deposit_buttons.add_child(button)
 	if not _expand_button.pressed.is_connected(_on_expansion_pressed):
 		_expand_button.pressed.connect(_on_expansion_pressed)
 
@@ -51,6 +63,7 @@ func show_personal(
 	_hint.text = "Click an inventory item to deposit one • click a bank item to withdraw one"
 	_hud.visible = true
 	_expand_button.visible = true
+	_deposit_buttons.visible = true
 	_test_supply_signature = ""
 	render_personal(items, capacity, next_expansion_cost, inventory_coin_quantity)
 
@@ -60,6 +73,7 @@ func show_test_supply(chest_name: String, supplies: Array[Dictionary], force: bo
 	_hint.text = "Click a supply to take its stack • supplies return when the server restarts"
 	_hud.visible = true
 	_expand_button.visible = false
+	_deposit_buttons.visible = false
 	var signature := "%s:%s" % [chest_name, JSON.stringify(supplies)]
 	if not force and signature == _test_supply_signature:
 		return

@@ -37,7 +37,7 @@ func TestItemCatalogContainsExistingGameplayItems(t *testing.T) {
 		{ItemTrainingHelm, ItemKindArmour},
 		{ItemBronzeHelm, ItemKindArmour},
 		{ItemBronzePlate, ItemKindArmour},
-		{ItemHideBuckler, ItemKindArmour}, {ItemSilverFocus, ItemKindArmour},
+		{ItemIronDirk, ItemKindArmour}, {ItemHideBuckler, ItemKindArmour}, {ItemSilverFocus, ItemKindArmour},
 		{ItemBronzeShield, ItemKindArmour}, {ItemBronzeLegs, ItemKindArmour}, {ItemBronzeGloves, ItemKindArmour}, {ItemBronzeBoots, ItemKindArmour},
 		{ItemIronHelm, ItemKindArmour},
 		{ItemIronPlate, ItemKindArmour},

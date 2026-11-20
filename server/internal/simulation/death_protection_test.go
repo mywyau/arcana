@@ -140,3 +140,74 @@ func mustAddEmptyPlayer(t *testing.T, world *World, id PlayerID, position Positi
 		t.Fatalf("AddPlayer() error = %v", err)
 	}
 }
+
+func TestMixedProtectionSurvivesRelogAndDeath(t *testing.T) {
+	w := NewWorld()
+	mustAddEmptyPlayer(t, w, "p", Position{})
+	p := w.players["p"]
+	p.inventory.add(ItemCoins, 12)
+	p.equippedWeapon = WeaponBronzeDagger
+	p.equippedWeaponInstanceID = "knife"
+	p.equippedWeaponReinforcement = 3
+	p.combatStyle = CombatStyleStab
+	p.equippedArmour[ArmourSlotLeftHand] = ItemIronDirk
+	p.equippedArmourInstances[ArmourSlotLeftHand] = "dirk"
+	p.equippedSpellbook = ItemStandardSpellbook
+	p.ringRack.add(ItemRubyRing, 1)
+	p.ammunitionPouch.add(ItemBronzeArrow, 20)
+	p.runePouch.add(ItemAirRune, 10)
+	keys := []string{"gear:knife", "book:" + ItemStandardSpellbook, "ammo:" + ItemBronzeArrow}
+	cmd := SetDeathProtectionCommand{PlayerID: "p", Sequence: 1, Slots: []int{0}, Equipped: keys}
+	for _, invalid := range [][]string{{"gear:missing"}, {"gear:knife", "gear:knife"}, append(append([]string{}, keys...), "gear:dirk")} {
+		bad := cmd
+		bad.Equipped = invalid
+		if w.QueueSetDeathProtection(bad) == nil {
+			t.Fatalf("accepted invalid selection %v", invalid)
+		}
+	}
+	if err := w.QueueSetDeathProtection(cmd); err != nil {
+		t.Fatal(err)
+	}
+	w.Step(time.Millisecond)
+	w2 := NewWorld()
+	state := PersistentStateFromSnapshot(mustPlayer(t, w, "p"))
+	if err := w2.QueueJoinWithPersistentState("p", state, 4); err != nil {
+		t.Fatal(err)
+	}
+	w2.Step(time.Millisecond)
+	p = w2.players["p"]
+	w2.defeatPlayer(p)
+	if p.inventory.quantity(ItemCoins) != 12 || p.equippedWeaponInstanceID != "knife" || p.equippedWeaponReinforcement != 3 || p.equippedSpellbook != ItemStandardSpellbook || p.ammunitionPouch.quantity(ItemBronzeArrow) != 20 {
+		t.Fatal("lost protected item on death")
+	}
+	if len(p.equippedArmour)+len(p.ringRack.items)+len(p.runePouch.items) != 0 || len(w2.Snapshot().Drops) != 3 {
+		t.Fatal("incorrect unprotected drops")
+	}
+}
+
+func TestProtectionFollowsWornInstance(t *testing.T) {
+	w := NewWorld()
+	mustAddEmptyPlayer(t, w, "p", Position{})
+	p := w.players["p"]
+	p.inventory.add(ItemIronDirk, 1)
+	dir := p.inventory.items[0]
+	def, _ := itemDefinition(ItemIronDirk)
+	if err := w.QueueSetDeathProtection(SetDeathProtectionCommand{PlayerID: "p", Sequence: 1, Slots: []int{dir.Slot}}); err != nil {
+		t.Fatal(err)
+	}
+	w.applyPendingDeathProtections()
+	if !applyEquipmentChange(p, def, EquipCommand{ItemID: WeaponID(dir.ItemID), InstanceID: dir.InstanceID}) {
+		t.Fatal("equip failed")
+	}
+	reconcileDeathProtection(p)
+	if !p.protectedEquipment["gear:"+dir.InstanceID] || len(p.protectedInventory) != 0 {
+		t.Fatal("protection did not follow equipped dirk")
+	}
+	if !applyEquipmentChange(p, def, EquipCommand{ItemID: WeaponID(dir.ItemID), InstanceID: dir.InstanceID, Unequip: true}) {
+		t.Fatal("unequip failed")
+	}
+	reconcileDeathProtection(p)
+	if len(p.protectedInventory) != 1 || len(p.protectedEquipment) != 0 {
+		t.Fatal("protection did not follow returned dirk")
+	}
+}

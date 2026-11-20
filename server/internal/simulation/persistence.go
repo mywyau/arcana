@@ -19,6 +19,7 @@ type PersistentPlayerState struct {
 	CombatStyle                  CombatStyleID
 	Inventory                    InventorySnapshot
 	ProtectedInventorySlots      []int
+	ProtectedEquipment           []string
 	AmmunitionPouch              AmmunitionPouchSnapshot
 	RingRack                     RingRackSnapshot
 	RunePouch                    RunePouchSnapshot
@@ -66,6 +67,7 @@ func PersistentStateFromSnapshot(snapshot PlayerSnapshot) PersistentPlayerState 
 			Capacity: snapshot.Inventory.Capacity,
 			Items:    append([]InventoryItem(nil), snapshot.Inventory.Items...),
 		},
+		ProtectedEquipment:      append([]string(nil), snapshot.ProtectedEquipment...),
 		ProtectedInventorySlots: append([]int(nil), snapshot.ProtectedInventorySlots...),
 		AmmunitionPouch: AmmunitionPouchSnapshot{
 			Capacity: snapshot.AmmunitionPouch.Capacity, UnlockedSlots: snapshot.AmmunitionPouch.UnlockedSlots,
@@ -264,7 +266,7 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 	if _, exists := w.pendingJoins[id]; exists {
 		return fmt.Errorf("player %q is already waiting to join", id)
 	}
-	w.pendingJoins[id] = &playerState{
+	restored := &playerState{
 		id: id, position: state.Position, spawnPosition: Position{},
 		baseSpeed: speed, speed: movementSpeedForAgility(speed, SkillLevelForExperience(skills[SkillAgility])),
 		navigationLocation: location, health: state.Health, maximumHealth: maximumHealth,
@@ -291,6 +293,14 @@ func (w *World) QueueJoinWithPersistentState(id PlayerID, state PersistentPlayer
 		fletchingRevision:            1,
 		gatheringRevision:            1,
 	}
+	if len(state.ProtectedInventorySlots)+len(state.ProtectedEquipment) > BaseKeptItemsOnDeath {
+		return fmt.Errorf("too many protected items")
+	}
+	restored.protectedEquipment, err = validateEquippedProtection(restored, state.ProtectedEquipment)
+	if err != nil {
+		return err
+	}
+	w.pendingJoins[id] = restored
 	return nil
 }
 

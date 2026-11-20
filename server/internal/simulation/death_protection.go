@@ -3,6 +3,7 @@ package simulation
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 const BaseKeptItemsOnDeath = 4
@@ -11,6 +12,8 @@ type SetDeathProtectionCommand struct {
 	PlayerID PlayerID
 	Sequence uint64
 	Slots    []int
+	Equipped []string
+	entries  map[int]protectedInventoryEntry
 }
 
 type protectedInventoryEntry struct {
@@ -23,8 +26,8 @@ func (w *World) QueueSetDeathProtection(command SetDeathProtectionCommand) error
 	if command.Sequence == 0 {
 		return fmt.Errorf("death protection sequence must be positive")
 	}
-	if len(command.Slots) > BaseKeptItemsOnDeath {
-		return fmt.Errorf("at most %d inventory items can be protected", BaseKeptItemsOnDeath)
+	if len(command.Slots)+len(command.Equipped) > BaseKeptItemsOnDeath {
+		return fmt.Errorf("at most %d items can be protected", BaseKeptItemsOnDeath)
 	}
 
 	w.mu.Lock()
@@ -43,20 +46,15 @@ func (w *World) QueueSetDeathProtection(command SetDeathProtectionCommand) error
 		return fmt.Errorf("death protection sequence %d is not newer than pending sequence %d", command.Sequence, pending.Sequence)
 	}
 
-	seen := make(map[int]struct{}, len(command.Slots))
-	for _, slot := range command.Slots {
-		if slot < 0 || slot >= player.inventory.capacity {
-			return fmt.Errorf("protected inventory slot %d is invalid", slot)
-		}
-		if _, duplicate := seen[slot]; duplicate {
-			return fmt.Errorf("protected inventory slot %d is duplicated", slot)
-		}
-		seen[slot] = struct{}{}
-		if _, occupied := player.inventory.itemAtSlot(slot); !occupied {
-			return fmt.Errorf("protected inventory slot %d is empty", slot)
-		}
+	entries, err := restoreProtectedInventory(player.inventory, command.Slots)
+	if err != nil {
+		return err
 	}
-	command.Slots = append([]int(nil), command.Slots...)
+	if _, err := validateEquippedProtection(player, command.Equipped); err != nil {
+		return err
+	}
+	command.entries = entries
+	command.Equipped = append([]string(nil), command.Equipped...)
 	w.pendingDeathProtections[command.PlayerID] = command
 	return nil
 }
@@ -74,23 +72,50 @@ func (w *World) applyPendingDeathProtections() {
 		if !exists || player.defeated {
 			continue
 		}
-		entries := make(map[int]protectedInventoryEntry, len(command.Slots))
+		// Always acknowledge a queued selection, even when its items moved before the tick.
+		player.lastDeathProtectionSequence = command.Sequence
+		player.inventory.revision++
+		equipped, err := validateEquippedProtection(player, command.Equipped)
+		if err != nil {
+			continue
+		}
 		valid := true
-		for _, slot := range command.Slots {
-			item, exists := player.inventory.itemAtSlot(slot)
-			if !exists {
+		for slot, entry := range command.entries {
+			item, ok := player.inventory.itemAtSlot(slot)
+			if !ok || !protectedEntryMatchesItem(entry, item) {
 				valid = false
 				break
 			}
-			entries[slot] = protectedInventoryEntry{Slot: slot, ItemID: item.ItemID, InstanceID: item.InstanceID}
 		}
 		if !valid {
 			continue
 		}
-		player.protectedInventory = entries
-		player.lastDeathProtectionSequence = command.Sequence
-		player.inventory.revision++
+		player.protectedInventory = command.entries
+		player.protectedEquipment = equipped
 	}
+}
+
+func validateEquippedProtection(player *playerState, keys []string) (map[string]bool, error) {
+	var selected map[string]bool
+	for _, key := range keys {
+		if !hasEquippedKey(player, key) || selected[key] {
+			return nil, fmt.Errorf("invalid or duplicate equipped protection selection")
+		}
+		if selected == nil {
+			selected = make(map[string]bool)
+		}
+		selected[key] = true
+	}
+	return selected, nil
+}
+
+func protectedEquipmentKeys(player *playerState) []string {
+	var keys []string
+	for key := range player.protectedEquipment {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func protectedInventorySlots(player *playerState) []int {
@@ -124,14 +149,35 @@ func moveProtectedInventorySlots(player *playerState, fromSlot, toSlot int) {
 	}
 }
 
-func pruneProtectedInventory(player *playerState) bool {
+func reconcileDeathProtection(player *playerState) bool {
 	changed := false
 	for slot, entry := range player.protectedInventory {
 		item, exists := player.inventory.itemAtSlot(slot)
 		if exists && protectedEntryMatchesItem(entry, item) {
 			continue
 		}
+		if entry.InstanceID != "" && hasEquippedKey(player, "gear:"+entry.InstanceID) {
+			if player.protectedEquipment == nil {
+				player.protectedEquipment = make(map[string]bool)
+			}
+			player.protectedEquipment["gear:"+entry.InstanceID] = true
+		}
 		delete(player.protectedInventory, slot)
+		changed = true
+	}
+	for key := range player.protectedEquipment {
+		if hasEquippedKey(player, key) {
+			continue
+		}
+		if instance, ok := strings.CutPrefix(key, "gear:"); ok {
+			if item, found := player.inventory.itemByInstance(instance); found {
+				if player.protectedInventory == nil {
+					player.protectedInventory = make(map[int]protectedInventoryEntry)
+				}
+				player.protectedInventory[item.Slot] = protectedInventoryEntry{Slot: item.Slot, ItemID: item.ItemID, InstanceID: instance}
+			}
+		}
+		delete(player.protectedEquipment, key)
 		changed = true
 	}
 	return changed
@@ -139,7 +185,7 @@ func pruneProtectedInventory(player *playerState) bool {
 
 func restoreProtectedInventory(inventory inventoryState, slots []int) (map[int]protectedInventoryEntry, error) {
 	if len(slots) > BaseKeptItemsOnDeath {
-		return nil, fmt.Errorf("at most %d inventory items can be protected", BaseKeptItemsOnDeath)
+		return nil, fmt.Errorf("at most %d items can be protected", BaseKeptItemsOnDeath)
 	}
 	entries := make(map[int]protectedInventoryEntry, len(slots))
 	for _, slot := range slots {
@@ -156,6 +202,7 @@ func restoreProtectedInventory(inventory inventoryState, slots []int) (map[int]p
 }
 
 func (w *World) dropUnprotectedItemsOnDeath(player *playerState) int {
+	reconcileDeathProtection(player)
 	dropped := 0
 	kept := make([]InventoryItem, 0, BaseKeptItemsOnDeath)
 	for _, item := range player.inventory.items {
@@ -169,53 +216,16 @@ func (w *World) dropUnprotectedItemsOnDeath(player *playerState) int {
 	}
 	player.inventory.items = kept
 	player.inventory.revision++
-	pruneProtectedInventory(player)
-
-	if player.equippedWeapon != WeaponUnarmed {
-		w.spawnInventoryItemDrop(player.position, InventoryItem{
-			ItemID: string(player.equippedWeapon), Quantity: 1,
-			InstanceID: player.equippedWeaponInstanceID, Reinforcement: player.equippedWeaponReinforcement,
-		})
+	for _, item := range equippedItems(player) {
+		if player.protectedEquipment[item.key] {
+			continue
+		}
+		w.spawnInventoryItemOrStackDrop(player.position, item.InventoryItem)
+		item.remove(player)
 		dropped++
-		player.equippedWeapon = WeaponUnarmed
-		player.equippedWeaponInstanceID = ""
-		player.equippedWeaponReinforcement = 0
-		player.combatStyle = defaultCombatStyle(WeaponUnarmed)
-	}
-	for slot, itemID := range player.equippedArmour {
-		w.spawnInventoryItemDrop(player.position, InventoryItem{
-			ItemID: itemID, Quantity: 1,
-			InstanceID: player.equippedArmourInstances[slot], Reinforcement: player.equippedArmourReinforcements[slot],
-		})
-		dropped++
-	}
-	clear(player.equippedArmour)
-	clear(player.equippedArmourInstances)
-	clear(player.equippedArmourReinforcements)
-	if player.equippedSpellbook != "" {
-		w.spawnDrop(player.position, player.equippedSpellbook, 1)
-		dropped++
-		player.equippedSpellbook = ""
-		player.selectedSpell = ""
 	}
 	player.equipmentRevision++
-
-	dropped += w.dropContainerItems(player.position, &player.ammunitionPouch)
-	dropped += w.dropContainerItems(player.position, &player.ringRack)
-	dropped += w.dropContainerItems(player.position, &player.runePouch)
-	player.maximumHealth = maximumHealthForSkills(player.skills)
-	return dropped
-}
-
-func (w *World) dropContainerItems(position Position, container *inventoryState) int {
-	for _, item := range container.items {
-		w.spawnInventoryItemOrStackDrop(position, item)
-	}
-	dropped := len(container.items)
-	if dropped > 0 {
-		container.items = nil
-		container.revision++
-	}
+	refreshPlayerMaximumHealth(player)
 	return dropped
 }
 

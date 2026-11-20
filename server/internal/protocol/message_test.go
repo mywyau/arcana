@@ -299,12 +299,12 @@ func TestDecodeDropItemMessagePreservesClickedSlot(t *testing.T) {
 }
 
 func TestDecodeDeathProtectionMessage(t *testing.T) {
-	message, err := DecodeClientMessage([]byte(`{"type":"set_death_protection","sequence":7,"inventory_slots":[1,4,8,12]}`))
+	message, err := DecodeClientMessage([]byte(`{"type":"set_death_protection","sequence":7,"inventory_slots":[1,4,8],"equipment_keys":["gear:worn"]}`))
 	if err != nil {
 		t.Fatalf("DecodeClientMessage() returned an unexpected error: %v", err)
 	}
 	if message.Type != MessageSetDeathProtection || message.Sequence != 7 ||
-		len(message.InventorySlots) != 4 || message.InventorySlots[2] != 8 {
+		len(message.InventorySlots) != 3 || message.InventorySlots[2] != 8 || len(message.EquipmentKeys) != 1 || message.EquipmentKeys[0] != "gear:worn" {
 		t.Fatalf("DecodeClientMessage() = %+v", message)
 	}
 }
